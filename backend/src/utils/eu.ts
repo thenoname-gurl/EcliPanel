@@ -1,35 +1,89 @@
 const EU_COUNTRIES = new Set([
-  'austria', 'at',
-  'belgium', 'be',
-  'bulgaria', 'bg',
-  'croatia', 'hr',
-  'cyprus', 'cy',
-  'czech republic', 'cz', 'czechia',
-  'denmark', 'dk',
-  'estonia', 'ee',
-  'finland', 'fi',
-  'france', 'fr',
-  'germany', 'de',
-  'greece', 'gr',
-  'hungary', 'hu',
-  'ireland', 'ie',
-  'italy', 'it',
-  'latvia', 'lv',
-  'lithuania', 'lt',
-  'luxembourg', 'lu',
-  'malta', 'mt',
-  'netherlands', 'nl',
-  'poland', 'pl',
-  'portugal', 'pt',
-  'romania', 'ro',
-  'slovakia', 'sk',
-  'slovenia', 'si',
-  'spain', 'es',
-  'sweden', 'se',
+  'austria',
+  'at',
+  'belgium',
+  'be',
+  'bulgaria',
+  'bg',
+  'croatia',
+  'hr',
+  'cyprus',
+  'cy',
+  'czech republic',
+  'cz',
+  'czechia',
+  'denmark',
+  'dk',
+  'estonia',
+  'ee',
+  'finland',
+  'fi',
+  'france',
+  'fr',
+  'germany',
+  'de',
+  'greece',
+  'gr',
+  'hungary',
+  'hu',
+  'ireland',
+  'ie',
+  'italy',
+  'it',
+  'latvia',
+  'lv',
+  'lithuania',
+  'lt',
+  'luxembourg',
+  'lu',
+  'malta',
+  'mt',
+  'netherlands',
+  'nl',
+  'poland',
+  'pl',
+  'portugal',
+  'pt',
+  'romania',
+  'ro',
+  'slovakia',
+  'sk',
+  'slovenia',
+  'si',
+  'spain',
+  'es',
+  'sweden',
+  'se',
 ]);
 
 export const EU_COUNTRY_CODES = [
-  'at','be','bg','hr','cy','cz','dk','ee','fi','fr','de','gr','hu','ie','it','lv','lt','lu','mt','nl','pl','pt','ro','sk','si','es','se',
+  'at',
+  'be',
+  'bg',
+  'hr',
+  'cy',
+  'cz',
+  'dk',
+  'ee',
+  'fi',
+  'fr',
+  'de',
+  'gr',
+  'hu',
+  'ie',
+  'it',
+  'lv',
+  'lt',
+  'lu',
+  'mt',
+  'nl',
+  'pl',
+  'pt',
+  'ro',
+  'sk',
+  'si',
+  'es',
+  'se',
 ];
 
 export async function getGeoBlockRulesWithDefaults(): Promise<Record<string, number>> {
@@ -69,9 +123,12 @@ export async function getGeoBlockRules(): Promise<Record<string, number>> {
     if (!setting || !setting.value) return {};
     const raw = setting.value;
     const result: Record<string, number> = {};
-    const entries = raw.split(/[,\n\r]+/).map((x) => x.trim()).filter(Boolean);
+    const entries = raw
+      .split(/[,\n\r]+/)
+      .map(x => x.trim())
+      .filter(Boolean);
     for (const e of entries) {
-      const parts = e.split(/[:=;]/).map((y) => y.trim());
+      const parts = e.split(/[:=;]/).map(y => y.trim());
       if (parts.length !== 2) continue;
       const country = parts[0].toLowerCase();
       const level = Number(parts[1]);
@@ -93,9 +150,12 @@ export async function getCountryAgeRules(): Promise<Record<string, number>> {
     if (!setting || !setting.value) return {};
     const raw = setting.value;
     const result: Record<string, number> = {};
-    const entries = raw.split(/[,\n\r]+/).map((x) => x.trim()).filter(Boolean);
+    const entries = raw
+      .split(/[,\n\r]+/)
+      .map(x => x.trim())
+      .filter(Boolean);
     for (const e of entries) {
-      const parts = e.split(/[:=;]/).map((y) => y.trim());
+      const parts = e.split(/[:=;]/).map(y => y.trim());
       if (parts.length !== 2) continue;
       const country = parts[0].toLowerCase();
       const age = Number(parts[1]);
@@ -113,7 +173,9 @@ export async function getCountryAgeRules(): Promise<Record<string, number>> {
 function isUKCountry(country?: string | null): boolean {
   if (!country) return false;
   const value = country.toString().trim().toLowerCase();
-  return value === 'uk' || value === 'gb' || value === 'united kingdom' || value === 'great britain';
+  return (
+    value === 'uk' || value === 'gb' || value === 'united kingdom' || value === 'great britain'
+  );
 }
 
 function getDefaultMinimumAgeForCountry(country?: string | null): number {
@@ -123,7 +185,10 @@ function getDefaultMinimumAgeForCountry(country?: string | null): number {
   return 13;
 }
 
-export function getCountryMinimumAgeFromRules(country?: string | null, rules?: Record<string, number>): number {
+export function getCountryMinimumAgeFromRules(
+  country?: string | null,
+  rules?: Record<string, number>
+): number {
   const normalized = country?.toString().trim().toLowerCase() || '';
   if (rules && normalized) {
     if (rules[normalized] != null) {
@@ -143,7 +208,10 @@ export function getCountryMinimumAgeFromRules(country?: string | null, rules?: R
   return getDefaultMinimumAgeForCountry(country);
 }
 
-export async function getMinimumAgeForCountry(country?: string | null, rules?: Record<string, number>): Promise<number> {
+export async function getMinimumAgeForCountry(
+  country?: string | null,
+  rules?: Record<string, number>
+): Promise<number> {
   if (rules) {
     return getCountryMinimumAgeFromRules(country, rules);
   }
@@ -151,11 +219,18 @@ export async function getMinimumAgeForCountry(country?: string | null, rules?: R
   return getCountryMinimumAgeFromRules(country, loaded);
 }
 
-export function isAgeAllowedForCountry(age: number, country?: string | null, rules?: Record<string, number>): boolean {
+export function isAgeAllowedForCountry(
+  age: number,
+  country?: string | null,
+  rules?: Record<string, number>
+): boolean {
   return age >= getCountryMinimumAgeFromRules(country, rules);
 }
 
-export function getGeoBlockLevelFromRules(country: string | null | undefined, rules: Record<string, number>): number {
+export function getGeoBlockLevelFromRules(
+  country: string | null | undefined,
+  rules: Record<string, number>
+): number {
   if (!country) return 0;
   const value = country.toString().trim().toLowerCase();
   if (!value) return 0;
@@ -171,7 +246,10 @@ export function getGeoBlockLevelFromRules(country: string | null | undefined, ru
   return 0;
 }
 
-export async function getGeoBlockLevel(country?: string | null, rules?: Record<string, number>): Promise<number> {
+export async function getGeoBlockLevel(
+  country?: string | null,
+  rules?: Record<string, number>
+): Promise<number> {
   if (!country) return 0;
   if (rules) {
     return getGeoBlockLevelFromRules(country, rules);

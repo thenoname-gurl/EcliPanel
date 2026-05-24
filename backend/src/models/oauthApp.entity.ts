@@ -2,16 +2,16 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } f
 import { User } from './user.entity';
 
 export const OAUTH_SCOPES = [
-  'profile',       // name, displayName, avatarUrl, portalType
-  'email',         // email + emailVerified
-  'servers:read',  // list user servers
+  'profile', // name, displayName, avatarUrl, portalType
+  'email', // email + emailVerified
+  'servers:read', // list user servers
   'servers:write', // manage servers
-  'orgs:read',     // org membership info
-  'billing:read',  // billing/plan info
-  'admin',         // admin-level access (only granted to admins)
+  'orgs:read', // org membership info
+  'billing:read', // billing/plan info
+  'admin', // admin-level access (only granted to admins)
 ] as const;
 
-export type OAuthScope = typeof OAUTH_SCOPES[number];
+export type OAuthScope = (typeof OAUTH_SCOPES)[number];
 
 @Entity()
 export class OAuthApp {

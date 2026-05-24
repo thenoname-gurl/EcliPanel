@@ -7,7 +7,7 @@ export const redisClient = new RedisClient(
 const inFlightCache = new Map<string, Promise<any>>();
 
 redisClient.onconnect = () => console.info('Redis connected');
-redisClient.onclose = (err) => console.error('Redis connection closed', err);
+redisClient.onclose = err => console.error('Redis connection closed', err);
 
 export async function connectRedis() {
   if (!redisClient.connected) {
@@ -82,7 +82,11 @@ export async function consumeRateLimit(key: string, limit: number, windowSeconds
   };
 }
 
-export async function withRedisCache<T>(key: string, ttlSeconds: number, loader: () => Promise<T>): Promise<T> {
+export async function withRedisCache<T>(
+  key: string,
+  ttlSeconds: number,
+  loader: () => Promise<T>
+): Promise<T> {
   try {
     const cached = await redisGet(key);
     if (cached != null) {
@@ -94,7 +98,7 @@ export async function withRedisCache<T>(key: string, ttlSeconds: number, loader:
   }
 
   const existing = inFlightCache.get(key);
-  if (existing) return await existing as T;
+  if (existing) return (await existing) as T;
 
   const pending = (async () => {
     const value = await loader();

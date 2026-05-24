@@ -50,7 +50,14 @@ const detailsStyle = {
   overflowX: 'auto',
 };
 
-export function DeletionApproved({ title, message, action_url, action_text, details, t }: DeletionApprovedProps) {
+export function DeletionApproved({
+  title,
+  message,
+  action_url,
+  action_text,
+  details,
+  t,
+}: DeletionApprovedProps) {
   return (
     <BaseEmail previewText={title} t={t}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
@@ -62,12 +69,12 @@ export function DeletionApproved({ title, message, action_url, action_text, deta
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={action_url} style={btnStyle}>{action_text}</Button>
+        <Button href={action_url} style={btnStyle}>
+          {action_text}
+        </Button>
       </Section>
 
-      <Section style={detailsStyle}>
-        {details}
-      </Section>
+      <Section style={detailsStyle}>{details}</Section>
     </BaseEmail>
   );
 }

@@ -19,7 +19,7 @@ function parseCronField(field: string, min: number, max: number): Set<number> | 
     const rangeMatch = trimmed.match(/^(\d+)(?:-(\d+))?(?:\/(\d+))?$/);
     if (!rangeMatch) return null;
 
-    let [, start, end, step] = rangeMatch;
+    const [, start, end, step] = rangeMatch;
     const s = parseInt(start);
     const e = end ? parseInt(end) : s;
     const st = step ? parseInt(step) : 1;
@@ -95,9 +95,7 @@ export function nextRun(expr: string, from: Date = new Date()): Date | null {
   const hasSeconds = seconds !== null;
 
   const startMs = from.getTime();
-  const candidateStart = hasSeconds
-    ? startMs + 1000
-    : (Math.floor(startMs / 60000) + 1) * 60000;
+  const candidateStart = hasSeconds ? startMs + 1000 : (Math.floor(startMs / 60000) + 1) * 60000;
   let candidate = new Date(candidateStart);
 
   for (let i = 0; i < 525600; i++) {
@@ -113,8 +111,9 @@ export function nextRun(expr: string, from: Date = new Date()): Date | null {
     const monthMatch = matches(months, cMonth);
     const dayMatch = matches(days, cDay);
     const weekdayMatch = matches(weekdays, cWeekday);
-    const dayOk = (dayMatch || weekdayMatch)
-      && (days === null || weekdays === null || (dayMatch && weekdayMatch));
+    const dayOk =
+      (dayMatch || weekdayMatch) &&
+      (days === null || weekdays === null || (dayMatch && weekdayMatch));
     const hourOk = matches(hours, cHour);
     const minuteOk = matches(minutes, cMinute);
     const secondOk = !hasSeconds || matches(seconds, cSecond);
@@ -130,9 +129,7 @@ export function nextRun(expr: string, from: Date = new Date()): Date | null {
 }
 
 export function validate(expr: string): boolean {
-  const SHORTHANDS = new Set([
-    '@yearly', '@annually', '@monthly', '@weekly', '@daily', '@hourly',
-  ]);
+  const SHORTHANDS = new Set(['@yearly', '@annually', '@monthly', '@weekly', '@daily', '@hourly']);
   if (SHORTHANDS.has(expr.trim().toLowerCase())) return true;
   return nextRun(expr) !== null;
 }
@@ -148,12 +145,19 @@ export function schedule(expr: string, fn: () => void): { stop: () => void } {
       return;
     }
     const delay = next.getTime() - now.getTime();
-    timer = setTimeout(() => {
-      fn();
-      tick();
-    }, delay > 0 ? delay : 0);
+    timer = setTimeout(
+      () => {
+        fn();
+        tick();
+      },
+      delay > 0 ? delay : 0
+    );
   };
 
   tick();
-  return { stop: () => { if (timer !== undefined) clearTimeout(timer); } };
+  return {
+    stop: () => {
+      if (timer !== undefined) clearTimeout(timer);
+    },
+  };
 }

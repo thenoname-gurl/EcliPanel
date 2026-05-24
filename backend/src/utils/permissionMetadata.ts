@@ -1,9 +1,9 @@
 export type PermissionDefinition = {
-  value: string
-  category: string
-  description?: string
-  admin: boolean
-}
+  value: string;
+  category: string;
+  description?: string;
+  admin: boolean;
+};
 
 export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: '*', category: 'Global', description: 'Full platform access', admin: true },
@@ -20,11 +20,31 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'billing:read', category: 'Billing', admin: true },
   { value: 'billing:write', category: 'Billing', admin: true },
   { value: 'plans:read', category: 'Plans', admin: false },
-  { value: 'admin:plans:view', category: 'Plans', description: 'View plan administration pages', admin: true },
-  { value: 'admin:plans:manage', category: 'Plans', description: 'Create and edit plans', admin: true },
+  {
+    value: 'admin:plans:view',
+    category: 'Plans',
+    description: 'View plan administration pages',
+    admin: true,
+  },
+  {
+    value: 'admin:plans:manage',
+    category: 'Plans',
+    description: 'Create and edit plans',
+    admin: true,
+  },
   { value: 'admin:plans:delete', category: 'Plans', description: 'Delete plans', admin: true },
-  { value: 'admin:plans:reapply', category: 'Plans', description: 'Reapply plan changes', admin: true },
-  { value: 'admin:plans:forcereapply', category: 'Plans', description: 'Force reapply plan changes', admin: true },
+  {
+    value: 'admin:plans:reapply',
+    category: 'Plans',
+    description: 'Reapply plan changes',
+    admin: true,
+  },
+  {
+    value: 'admin:plans:forcereapply',
+    category: 'Plans',
+    description: 'Force reapply plan changes',
+    admin: true,
+  },
   { value: 'plans:write', category: 'Plans', admin: true },
   { value: 'orders:read', category: 'Orders', admin: false },
   { value: 'orders:view', category: 'Orders', description: 'View order records', admin: true },
@@ -48,45 +68,165 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'permissions:assign', category: 'Permissions', admin: true },
   { value: 'users:read', category: 'Users', admin: true },
   { value: 'users:write', category: 'Users', admin: true },
-  { value: 'admin:user:edit', category: 'Users', description: 'Modify user records via admin routes', admin: true },
-  { value: 'admin:student:assign', category: 'Users', description: 'Assign student/educational status to a user', admin: true },
-  { value: 'admin:student:deassign', category: 'Users', description: 'Remove student/educational status from a user', admin: true },
-  { value: 'admin:users:documents', category: 'Users', description: 'Upload and manage PDF documents for specific user accounts', admin: true },
+  {
+    value: 'admin:user:edit',
+    category: 'Users',
+    description: 'Modify user records via admin routes',
+    admin: true,
+  },
+  {
+    value: 'admin:student:assign',
+    category: 'Users',
+    description: 'Assign student/educational status to a user',
+    admin: true,
+  },
+  {
+    value: 'admin:student:deassign',
+    category: 'Users',
+    description: 'Remove student/educational status from a user',
+    admin: true,
+  },
+  {
+    value: 'admin:users:documents',
+    category: 'Users',
+    description: 'Upload and manage PDF documents for specific user accounts',
+    admin: true,
+  },
   { value: 'users:delete', category: 'Users', description: 'Delete user accounts', admin: true },
-  { value: 'users:suspend', category: 'Users', description: 'Suspend or unsuspend user accounts', admin: true },
+  {
+    value: 'users:suspend',
+    category: 'Users',
+    description: 'Suspend or unsuspend user accounts',
+    admin: true,
+  },
   { value: 'logs:read', category: 'Logs', admin: true },
   { value: 'idverification:read', category: 'KYC', admin: true },
   { value: 'idverification:write', category: 'KYC', admin: true },
-  { value: 'admin:kyc:view', category: 'KYC', description: 'View KYC verification entries', admin: true },
-  { value: 'admin:kyc:view:id', category: 'KYC', description: 'View ID document and selfie attachments', admin: true },
-  { value: 'admin:kyc:manage', category: 'KYC', description: 'Approve, reject or delete KYC verification records', admin: true },
+  {
+    value: 'admin:kyc:view',
+    category: 'KYC',
+    description: 'View KYC verification entries',
+    admin: true,
+  },
+  {
+    value: 'admin:kyc:view:id',
+    category: 'KYC',
+    description: 'View ID document and selfie attachments',
+    admin: true,
+  },
+  {
+    value: 'admin:kyc:manage',
+    category: 'KYC',
+    description: 'Approve, reject or delete KYC verification records',
+    admin: true,
+  },
   { value: 'oauth:manage', category: 'OAuth', admin: true },
   { value: 'admin:oauth', category: 'OAuth', description: 'Access OAuth admin pages', admin: true },
   { value: 'admin:access', category: 'Global', admin: true },
-  { value: 'admin:geoblock:view', category: 'Configuration', description: 'View geoblock administration settings', admin: true },
-  { value: 'admin:servers:read', category: 'Admin', description: 'View server list and details in admin portal', admin: true },
-  { value: 'admin:servers:write', category: 'Admin', description: 'Create and manage server ownership or basic properties', admin: true },
-  { value: 'admin:servers:manage', category: 'Admin', description: 'Change server resources, config, KVM state, and mount attachments', admin: true },
-  { value: 'admin.mounts.add/remove', category: 'Admin', description: 'Attach or detach mounts to a server', admin: true },
-  { value: 'admin:servers:delete', category: 'Admin', description: 'Delete servers from Wings and local config', admin: true },
-  { value: 'admin:servers:suspend', category: 'Admin', description: 'Suspend and unsuspend servers', admin: true },
-  { value: 'admin:metrics', category: 'Global', description: 'View platform metrics dashboard', admin: true },
-  { value: 'admin:export-jobs', category: 'Global', description: 'Access admin export jobs', admin: true },
-  { value: 'admin:announcements', category: 'Global', description: 'Manage admin announcements and product updates', admin: true },
-  { value: 'admin:outbound-emails', category: 'Global', description: 'Access outbound email administration', admin: true },
-  { value: 'admin:antiabuse', category: 'Global', description: 'Manage anti-abuse incidents', admin: true },
+  {
+    value: 'admin:geoblock:view',
+    category: 'Configuration',
+    description: 'View geoblock administration settings',
+    admin: true,
+  },
+  {
+    value: 'admin:servers:read',
+    category: 'Admin',
+    description: 'View server list and details in admin portal',
+    admin: true,
+  },
+  {
+    value: 'admin:servers:write',
+    category: 'Admin',
+    description: 'Create and manage server ownership or basic properties',
+    admin: true,
+  },
+  {
+    value: 'admin:servers:manage',
+    category: 'Admin',
+    description: 'Change server resources, config, KVM state, and mount attachments',
+    admin: true,
+  },
+  {
+    value: 'admin.mounts.add/remove',
+    category: 'Admin',
+    description: 'Attach or detach mounts to a server',
+    admin: true,
+  },
+  {
+    value: 'admin:servers:delete',
+    category: 'Admin',
+    description: 'Delete servers from Wings and local config',
+    admin: true,
+  },
+  {
+    value: 'admin:servers:suspend',
+    category: 'Admin',
+    description: 'Suspend and unsuspend servers',
+    admin: true,
+  },
+  {
+    value: 'admin:metrics',
+    category: 'Global',
+    description: 'View platform metrics dashboard',
+    admin: true,
+  },
+  {
+    value: 'admin:export-jobs',
+    category: 'Global',
+    description: 'Access admin export jobs',
+    admin: true,
+  },
+  {
+    value: 'admin:announcements',
+    category: 'Global',
+    description: 'Manage admin announcements and product updates',
+    admin: true,
+  },
+  {
+    value: 'admin:outbound-emails',
+    category: 'Global',
+    description: 'Access outbound email administration',
+    admin: true,
+  },
+  {
+    value: 'admin:antiabuse',
+    category: 'Global',
+    description: 'Manage anti-abuse incidents',
+    admin: true,
+  },
   { value: 'admin:fraud', category: 'Global', description: 'Review fraud alerts', admin: true },
-  { value: 'admin:settings', category: 'Global', description: 'View admin settings and reports', admin: true },
+  {
+    value: 'admin:settings',
+    category: 'Global',
+    description: 'View admin settings and reports',
+    admin: true,
+  },
   { value: 'applications:manage', category: 'Applications', admin: true },
   { value: 'eggs:read', category: 'Eggs', admin: true },
   { value: 'tunnels:read', category: 'Tunnels', admin: true },
-  { value: 'admin:tunnels:read', category: 'Tunnels', description: 'View tunnel administration pages', admin: true },
+  {
+    value: 'admin:tunnels:read',
+    category: 'Tunnels',
+    description: 'View tunnel administration pages',
+    admin: true,
+  },
   { value: 'deletions:write', category: 'Deletions', admin: true },
   { value: 'tickets:read', category: 'Tickets', admin: true },
   { value: 'tickets:write', category: 'Tickets', admin: true },
-  { value: 'admin:ticket:staff', category: 'Tickets', description: 'Reply as staff and access staff ticket views', admin: true },
+  {
+    value: 'admin:ticket:staff',
+    category: 'Tickets',
+    description: 'Reply as staff and access staff ticket views',
+    admin: true,
+  },
   { value: 'tickets:delete', category: 'Tickets', admin: true },
-  { value: 'tickets:ban', category: 'Tickets', description: 'Ban or unban a user from support tickets', admin: true },
+  {
+    value: 'tickets:ban',
+    category: 'Tickets',
+    description: 'Ban or unban a user from support tickets',
+    admin: true,
+  },
   { value: 'databases:read', category: 'Databases', admin: false },
   { value: 'databases:write', category: 'Databases', admin: true },
   { value: 'ai:read', category: 'AI', admin: false },
@@ -115,8 +255,8 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'wings:backups', category: 'Wings', admin: true },
   { value: 'wings:deauthorize', category: 'Wings', admin: true },
   { value: 'wings:*', category: 'Wings', admin: true },
-]
+];
 
 export const PERMISSION_METADATA_MAP: Record<string, PermissionDefinition> = Object.fromEntries(
-  PERMISSION_METADATA.map((permission) => [permission.value, permission])
-)
+  PERMISSION_METADATA.map(permission => [permission.value, permission])
+);

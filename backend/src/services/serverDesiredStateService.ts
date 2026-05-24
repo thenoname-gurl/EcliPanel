@@ -7,7 +7,9 @@ import { WingsApiService } from './wingsApiService';
 const RUNNING_STATES = new Set(['running', 'online', 'up', 'healthy', 'available', 'active']);
 
 function normalizeStatus(value: any): string {
-  return String(value || '').trim().toLowerCase();
+  return String(value || '')
+    .trim()
+    .toLowerCase();
 }
 
 async function getServerStatusMap(svc: WingsApiService): Promise<Map<string, string>> {
@@ -17,7 +19,8 @@ async function getServerStatusMap(svc: WingsApiService): Promise<Map<string, str
   for (const server of data) {
     const id = server?.uuid || server?.id;
     if (!id) continue;
-    const rawStatus = server?.status ?? server?.state ?? server?.server_state ?? server?.runtime?.state ?? '';
+    const rawStatus =
+      server?.status ?? server?.state ?? server?.server_state ?? server?.runtime?.state ?? '';
     map.set(String(id), normalizeStatus(rawStatus));
   }
   return map;
@@ -64,7 +67,10 @@ export async function restoreDesiredPowerStatesForNode(nodeId: number) {
     try {
       await svc.powerServer(cfg.uuid, 'start');
     } catch (error: any) {
-      console.warn(`Failed to restore desired state for server ${cfg.uuid} on node ${node.name}:`, error?.message || error);
+      console.warn(
+        `Failed to restore desired state for server ${cfg.uuid} on node ${node.name}:`,
+        error?.message || error
+      );
     }
   }
 }

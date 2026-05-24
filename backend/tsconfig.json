@@ -15,7 +15,8 @@
     "allowJs": false,
     "noImplicitAny": false,
     "jsx": "react-jsx",
-    "types": ["node"]
+    "types": ["node"],
+    "ignoreDeprecations": "6.0"
   },
-  "include": ["src", "scripts", "src/types"]
+  "include": ["src", "scripts", "src/types", "tests"]
 }

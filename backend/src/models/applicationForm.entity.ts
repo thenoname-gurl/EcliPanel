@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 export type ApplicationFormKind = 'staff_application' | 'abuse_report';
 export type ApplicationFormVisibility = 'public_anonymous' | 'public_users' | 'private_invite';
@@ -27,14 +33,28 @@ export class ApplicationForm {
   @Column({ type: 'varchar', length: 24, default: 'active' })
   status: ApplicationFormStatus;
 
-  @Column({ type: 'simple-json', nullable: true, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
+  @Column({
+    type: 'simple-json',
+    nullable: true,
+    charset: 'utf8mb4',
+    collation: 'utf8mb4_unicode_ci',
+  })
   schema?: {
     title?: string;
     description?: string;
     questions?: Array<{
       id: string;
       label: string;
-      type: 'short_text' | 'long_text' | 'email' | 'number' | 'select' | 'multi_select' | 'checkbox' | 'date' | 'url';
+      type:
+        | 'short_text'
+        | 'long_text'
+        | 'email'
+        | 'number'
+        | 'select'
+        | 'multi_select'
+        | 'checkbox'
+        | 'date'
+        | 'url';
       required?: boolean;
       placeholder?: string;
       options?: string[];

@@ -15,81 +15,51 @@ import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicy
 import { validatePassword } from '../utils/passwordValidation';
 import { storeCsrfToken } from '../middleware/csrf';
 import { randomHex, randomInt, sha256Hex } from '../utils/bunCrypto';
+import {
+  getPanelUrl,
+  getBackendUrl,
+  getFrontendHost,
+  getCookieDomain,
+  isSecureRequest,
+} from '../utils/url';
+import { formatDateOfBirth } from '../utils/user';
+import type { BaseHandlerContext } from '../types/handler';
+import type { OrganisationMember } from '../models/organisationMember.entity';
+import type { Plan } from '../models/plan.entity';
 const speakeasy = require('speakeasy');
-
-// I fixed it :D
-function getPanelUrl(ctx: any): string {
-  if (process.env.PANEL_URL) return process.env.PANEL_URL;
-  try {
-    const proto = (ctx.headers['x-forwarded-proto'] as string) || (ctx.protocol as string) || 'https';
-    const host = (ctx.headers.host as string) || 'localhost';
-    return `${proto}://${host}`;
-  } catch {
-    return 'https://ecli.app';
-  }
-}
-
-function formatDateOfBirth(value: any): string | null {
-  if (!value) return null;
-  if (value instanceof Date) return value.toISOString().split('T')[0];
-  return String(value);
-}
-
-function getBackendUrl(ctx: any): string {
-  if (process.env.BACKEND_URL) return process.env.BACKEND_URL.replace(/\/+$/, '');
-  const proto = ctx.headers['x-forwarded-proto'] || 'http';
-  const host = ctx.headers['host'];
-  return `${proto}://${host}`;
-}
-
-function getFrontendHost(ctx: any): string {
-  const origin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
-  if (origin) {
-    try {
-      return new URL(origin).hostname;
-    } catch {
-      // opsieeee
-    }
-  }
-  if (typeof ctx.hostname === 'string' && ctx.hostname) {
-    return ctx.hostname;
-  }
-  const hostHeader = ctx.headers?.host || ctx.headers?.Host;
-  if (typeof hostHeader === 'string' && hostHeader) {
-    return hostHeader.split(':')[0];
-  }
-  return 'localhost';
-}
 
 async function randomToken(bytes = 32) {
   return Promise.resolve(randomHex(bytes));
 }
 
-async function verifyTempToken(token: string, logSource: string, ctx: any) {
+async function verifyTempToken(token: string, logSource: string, ctx: BaseHandlerContext) {
   if (!token) {
     ctx.set.status = 400;
-    return { error: ctx.t('auth.missingTempToken') };
+    return { error: ctx.t('auth.missingTempToken') } as any;
   }
   try {
-    const jwt = ctx.app?.jwt || ctx.jwt || (ctx.app && (ctx.app as any).jwt);
+    const jwt = ctx.app?.jwt || ctx.jwt;
     if (!jwt || typeof jwt.verify !== 'function') {
       throw new Error('jwt unavailable');
     }
     const res = jwt.verify(token);
-    if (res && typeof (res as any).then === 'function') {
+    if (res && typeof (res as unknown as Promise<unknown>).then === 'function') {
       return await res;
     }
     return res as any;
-  } catch (err: any) {
+  } catch (err: unknown) {
     const logCtx = ctx.log || ctx.app?.log || console;
-    logCtx.warn?.({ err: err.message, token, source: logSource }, 'tempToken verification failed');
+    const errMessage = err instanceof Error ? err.message : String(err);
+    logCtx.warn?.({ err: errMessage, token, source: logSource }, 'tempToken verification failed');
     ctx.set.status = 400;
-    return { error: ctx.t('auth.invalidTempToken') };
+    return { error: ctx.t('auth.invalidTempToken') } as any;
   }
 }
 
 export async function authRoutes(app: any, prefix = '') {
-  const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+  const orgMemberRepo = AppDataSource.getRepository(
+    require('../models/organisationMember.entity').OrganisationMember
+  );
 
   async function invalidateAuthSessionCache(userId: number) {
     try {
@@ -100,10 +70,13 @@ export async function authRoutes(app: any, prefix = '') {
   }
 
   async function getUserOrgMemberships(userId: number) {
-    const memberships = await orgMemberRepo.find({ where: { userId }, relations: {"organisation":true} });
+    const memberships = await orgMemberRepo.find({
+      where: { userId },
+      relations: { organisation: true },
+    });
     return (memberships || [])
-      .filter((m: any) => !!m.organisation)
-      .map((m: any) => ({
+      .filter((m: OrganisationMember) => !!m.organisation)
+      .map((m: OrganisationMember) => ({
         id: m.organisation.id,
         name: m.organisation.name,
         handle: m.organisation.handle,
@@ -113,32 +86,18 @@ export async function authRoutes(app: any, prefix = '') {
       }));
   }
 
-  function getCookieDomain(ctx: any): string | null {
-    if (process.env.JWT_COOKIE_DOMAIN) {
-      return process.env.JWT_COOKIE_DOMAIN;
-    }
-    try {
-      const host = (ctx.headers?.host as string) || '';
-      const hostname = host.split(':')[0];
-      const parts = hostname.split('.');
-      if (parts.length <= 1) return null;
-      if (parts.length > 2) parts.shift();
-      return '.' + parts.join('.');
-    } catch {
-      return null;
-    }
-  }
-
-  function setAuthCookie(ctx: any, token: string) {
+  function setAuthCookie(ctx: BaseHandlerContext, token: string) {
     try {
       const name = process.env.JWT_COOKIE_NAME || 'token';
       const maxAge = Number(process.env.JWT_COOKIE_MAX_AGE || String(30 * 24 * 60 * 60));
-      const forwardedProto = (ctx.headers?.['x-forwarded-proto'] as string) || (ctx.headers?.['X-Forwarded-Proto'] as string);
+      const forwardedProto =
+        (ctx.headers?.['x-forwarded-proto'] as string) ||
+        (ctx.headers?.['X-Forwarded-Proto'] as string);
       const domain = getCookieDomain(ctx);
       const secure =
         process.env.JWT_COOKIE_SECURE === '1' ||
         forwardedProto === 'https' ||
-        (ctx.protocol === 'https');
+        ctx.protocol === 'https';
       const sameSite = secure ? 'none' : 'lax';
       const options: any = {
         httpOnly: true,
@@ -149,7 +108,14 @@ export async function authRoutes(app: any, prefix = '') {
       };
       if (domain) options.domain = domain;
       ctx.log?.info?.(
-        { token: token.slice(0, 8) + '...', domain, secure, forwardedProto, protocol: ctx.protocol, options },
+        {
+          token: token.slice(0, 8) + '...',
+          domain,
+          secure,
+          forwardedProto,
+          protocol: ctx.protocol,
+          options,
+        },
         'setting auth cookie'
       );
       if (ctx.cookie) {
@@ -173,7 +139,13 @@ export async function authRoutes(app: any, prefix = '') {
       } else if (typeof ctx.setCookie === 'function') {
         ctx.setCookie(name, token, options);
       } else if (ctx.set && typeof ctx.set.header === 'function') {
-        const parts: string[] = [`${name}=${token}`, `Path=/`, `HttpOnly`, `SameSite=${sameSite}`, `Max-Age=${maxAge}`];
+        const parts: string[] = [
+          `${name}=${token}`,
+          `Path=/`,
+          `HttpOnly`,
+          `SameSite=${sameSite}`,
+          `Max-Age=${maxAge}`,
+        ];
         if (domain) parts.push(`Domain=${domain}`);
         if (secure) parts.push('Secure');
         ctx.set.header('Set-Cookie', parts.join('; '));
@@ -183,15 +155,17 @@ export async function authRoutes(app: any, prefix = '') {
     }
   }
 
-  function clearAuthCookie(ctx: any) {
+  function clearAuthCookie(ctx: BaseHandlerContext) {
     try {
       const name = process.env.JWT_COOKIE_NAME || 'token';
-      const forwardedProto = (ctx.headers?.['x-forwarded-proto'] as string) || (ctx.headers?.['X-Forwarded-Proto'] as string);
+      const forwardedProto =
+        (ctx.headers?.['x-forwarded-proto'] as string) ||
+        (ctx.headers?.['X-Forwarded-Proto'] as string);
       const domain = getCookieDomain(ctx);
       const secure =
         process.env.JWT_COOKIE_SECURE === '1' ||
         forwardedProto === 'https' ||
-        (ctx.protocol === 'https');
+        ctx.protocol === 'https';
       const sameSite = secure ? 'none' : 'lax';
       const options: any = {
         httpOnly: true,
@@ -209,7 +183,9 @@ export async function authRoutes(app: any, prefix = '') {
       if (typeof ctx.setCookie === 'function') {
         ctx.setCookie(name, '', options);
       } else if (ctx.set && typeof ctx.set.header === 'function') {
-        const parts = [`${name}=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`];
+        const parts = [
+          `${name}=; Path=/; HttpOnly; SameSite=${sameSite}; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT`,
+        ];
         if (domain) parts.push(`Domain=${domain}`);
         if (secure) parts.push('Secure');
         ctx.set.header('Set-Cookie', parts.join('; '));
@@ -219,457 +195,647 @@ export async function authRoutes(app: any, prefix = '') {
     }
   }
 
-  app.post(prefix + '/auth/login', async (ctx: any) => {
-    const body = ctx.body || {};
-    const { email, password } = body as any;
-    if (!email || !password) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.missingEmailOrPassword') };
-    }
-    
-    try {
-      const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0, 200);
-      const keyIp = `rate:auth:login:ip:${ip}`;
-      const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.AUTH_LOGIN_RATE_IP || 20), Number(process.env.AUTH_LOGIN_WINDOW_IP || 60));
-      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: ctx.t('auth.rateLimited'), retryAfter: rlIp.retryAfterSeconds }; }
-      const keyEmail = `rate:auth:login:email:${String(email).toLowerCase()}`;
-      const rlEmail = await require('../config/redis').consumeRateLimit(keyEmail, Number(process.env.AUTH_LOGIN_RATE_ACCOUNT || 10), Number(process.env.AUTH_LOGIN_WINDOW_ACCOUNT || 600));
-      if (!rlEmail.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rlEmail.retryAfterSeconds) }; return { error: ctx.t('auth.rateLimited'), retryAfter: rlEmail.retryAfterSeconds }; }
-    } catch (e) {/* meow */}
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ email });
-    if (!user) {
-      ctx.set.status = 401;
-      return { error: ctx.t('auth.invalidCredentials') };
-    }
-
-    const lockoutKey = `lockout:login:user:${user.id}`;
-    try {
-      const locked = await require('../config/redis').redisGet(lockoutKey);
-      if (locked) {
-        ctx.set.status = 429;
-        return { error: ctx.t('auth.accountLocked') };
+  app.post(
+    prefix + '/auth/login',
+    async (ctx: any) => {
+      const body = ctx.body || {};
+      const { email, password } = body as any;
+      if (!email || !password) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.missingEmailOrPassword') };
       }
-    } catch {}
 
-    const valid = await comparePassword(password, user.passwordHash);
-    if (!valid) {
       try {
-        const failKey = `lockout:login:fail:user:${user.id}`;
-        const attempts = await require('../config/redis').consumeRateLimit(failKey, 5, 900);
-        if (!attempts.allowed) {
-          await require('../config/redis').redisSet(lockoutKey, '1', 900);
-          await require('../config/redis').redisDel(failKey);
+        const ip = (ctx.ip || ctx.request?.ip || '').toString().slice(0, 200);
+        const keyIp = `rate:auth:login:ip:${ip}`;
+        const rlIp = await require('../config/redis').consumeRateLimit(
+          keyIp,
+          Number(process.env.AUTH_LOGIN_RATE_IP || 20),
+          Number(process.env.AUTH_LOGIN_WINDOW_IP || 60)
+        );
+        if (!rlIp.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rlIp.retryAfterSeconds),
+          };
+          return { error: ctx.t('auth.rateLimited'), retryAfter: rlIp.retryAfterSeconds };
+        }
+        const keyEmail = `rate:auth:login:email:${String(email).toLowerCase()}`;
+        const rlEmail = await require('../config/redis').consumeRateLimit(
+          keyEmail,
+          Number(process.env.AUTH_LOGIN_RATE_ACCOUNT || 10),
+          Number(process.env.AUTH_LOGIN_WINDOW_ACCOUNT || 600)
+        );
+        if (!rlEmail.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rlEmail.retryAfterSeconds),
+          };
+          return { error: ctx.t('auth.rateLimited'), retryAfter: rlEmail.retryAfterSeconds };
+        }
+      } catch (e) {
+        /* meow */
+      }
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ email });
+      if (!user) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.invalidCredentials') };
+      }
+
+      const lockoutKey = `lockout:login:user:${user.id}`;
+      try {
+        const locked = await require('../config/redis').redisGet(lockoutKey);
+        if (locked) {
+          ctx.set.status = 429;
+          return { error: ctx.t('auth.accountLocked') };
         }
       } catch {}
-      ctx.set.status = 401;
-      return { error: ctx.t('auth.invalidCredentials') };
-    }
 
-    try {
-      await require('../config/redis').redisDel(`lockout:login:fail:user:${user.id}`);
-      await require('../config/redis').redisDel(lockoutKey);
-    } catch {}
-
-    if (user.twoFactorEnabled) {
-      const tfaSession = crypto.randomUUID();
-      await redisSet(`tfa:session:${tfaSession}`, String(user.id), 300);
-      const tempToken = ctx.app?.jwt?.sign
-        ? ctx.app.jwt.sign({ userId: user.id, tfaSession, tfa: true }, { expiresIn: '5m' })
-        : require('jsonwebtoken').sign({ userId: user.id, tfaSession, tfa: true }, process.env.JWT_SECRET, { expiresIn: '5m' });
-      ctx.log?.info?.({ userId: user.id, tfaSession }, 'issued 2FA tempToken');
-      return { twoFactorRequired: true, tempToken };
-    }
-
-    const sessionId = crypto.randomUUID();
-    user.sessions = Array.isArray(user.sessions) ? user.sessions : [];
-    user.sessions.push(sessionId);
-    if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
-    user.lastLoginAt = new Date();
-    user.lastPanelActivityAt = new Date();
-    user.serverSunsetNoticeSentAt = null;
-    if (user.settings && typeof user.settings === 'object') {
-      delete (user.settings as any).serverSunsetGraceHours;
-      delete (user.settings as any).serverSunsetRequestedBy;
-      delete (user.settings as any).serverSunsetRequestedAt;
-    }
-    await cancelPendingAutoSunsetDeletionRequest(user);
-    await userRepo.save(user);
-
-    const token = ctx.app?.jwt?.sign
-      ? ctx.app.jwt.sign({ userId: user.id, sessionId })
-      : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET);
-
-    try {
-      const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(logRepo.create({ userId: user.id, action: 'login', ipAddress: ctx.ip, timestamp: new Date() }));
-    } catch (err) {
-      ctx.log?.warn?.({ err }, '[DEBUG:login] failed to log login event');
-    }
-
-
-    const geoBlockLevel = await getGeoBlockLevel(user.billingCountry);
-    const idVerificationAllowed = await canPerformIdVerification(user.billingCountry);
-    const orgs = await getUserOrgMemberships(user.id);
-    const legacyOrg = orgs[0] || null;
-
-    ctx.log?.info?.({ userId: user.id, token: token.slice(0, 8) + '...' }, 'login succeeded, returning token');
-    setAuthCookie(ctx, token);
-    const csrfToken = await storeCsrfToken(sessionId);
-    return {
-      token,
-      csrfToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        middleName: user.middleName || null,
-        lastName: user.lastName,
-        displayName: user.displayName || null,
-        address: user.address || null,
-        address2: user.address2 || null,
-        phone: user.phone || null,
-        billingCompany: user.billingCompany || null,
-        billingCity: user.billingCity || null,
-        billingState: user.billingState || null,
-        billingZip: user.billingZip || null,
-        billingCountry: user.billingCountry || null,
-        tier: (user as any).portalType || (user as any).tier,
-        role: user.role,
-        sessionId,
-        emailVerified: user.emailVerified ?? false,
-        passkeyCount: 0,
-        studentVerified: (user as any).studentVerified || false,
-        twoFactorEnabled: !!user.twoFactorEnabled,
-        avatarUrl: user.avatarUrl || null,
-        supportBanned: !!user.supportBanned,
-        supportBanReason: user.supportBanReason || null,
-        dateOfBirth: formatDateOfBirth(user.dateOfBirth),
-        parentId: user.parentId != null ? Number(user.parentId) : null,
-        org: legacyOrg ? { id: legacyOrg.id, name: legacyOrg.name, handle: legacyOrg.handle } : null,
-        orgs,
-        orgRole: legacyOrg?.orgRole || 'member',
-        limits: (user as any).limits || null,
-        nodeId: (user as any).nodeId || null,
-        geoBlockLevel,
-        idVerificationAllowed,
-      }
-    };
-  }, {
-    body: t.Object({ email: t.String({ format: 'email', maxLength: 254 }), password: t.String({ minLength: 1, maxLength: 128 }) }),
-    response: {
-      200: t.Object({ token: t.Optional(t.String()), csrfToken: t.Optional(t.String()), twoFactorRequired: t.Optional(t.Boolean()), tempToken: t.Optional(t.String()) }),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
-    },
-    detail: {
-      summary: 'Authenticate user',
-      description: 'Authenticate a user with email and password. Returns JWT or temporary token if 2FA is required.',
-      tags: ['Auth'],
-      operationId: 'postAuthLogin',
-    }
-  });
-
-  app.post(prefix + '/auth/2fa/send-email', async (ctx: any) => {
-    const body = ctx.body || {};
-    const { tempToken } = body as any;
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:2fa:ip:${ip}`;
-      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.AUTH_2FA_RATE_IP || 6), Number(process.env.AUTH_2FA_WINDOW_IP || 60)); if (!rl.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
-    } catch (e) {/* woof */ }
-
-    const payload = await verifyTempToken(tempToken, 'send-email', ctx);
-    if (payload && payload.error) {
-      return payload;
-    }
-    if (!payload?.tfa || !payload?.userId) {
-      ctx.set.status = 400;
-      const logCtx = ctx.log || ctx.app?.log || console;
-      logCtx.warn?.({ payload, token: tempToken }, 'Invalid tempToken payload in send-email');
-      return { error: ctx.t('auth.invalidTempToken') };
-    }
-    ctx.log?.info?.({ userId: payload.userId, tfaSession: payload.tfaSession }, 'sending 2FA email');
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: payload.userId });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-    const code = randomInt(0, 1000000).toString().padStart(6, '0');
-    await redisSet(`tfa:email:${payload.tfaSession}`, code, 300);
-    try {
-      await sendMail({ to: user.email, from: process.env.SMTP_FROM || 'noreply@ecli.app', subject: 'Verify Your Login', template: 'tfa-email', vars: { name: user.displayName || user.email.split('@')[0], code },
-      locale: ctx.locale,
-      });
-    } catch (err) { ctx.log?.error?.({ err }, 'Failed to send TFA email'); }
-    return { success: true };
-  }, {
-    body: t.Object({ tempToken: t.String() }),
-    response: {
-      200: t.Object({ success: t.Boolean() }),
-      400: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() })
-    },
-    detail: {
-      summary: 'Send 2FA email code',
-      description: 'Send a 2FA code to the user email for login verification.',
-      tags: ['Auth'],
-      operationId: 'postAuth2faSendEmail',
-    }
-  });
-
-  app.post(prefix + '/auth/2fa/verify-login', async (ctx: any) => {
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:2fa:verify:ip:${ip}`;
-      const rl = await require('../config/redis').consumeRateLimit(key, 10, 60);
-      if (!rl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
-    } catch (e) {/* meow */}
-
-    try {
-      const body = ctx.body || {};
-      const { tempToken, token, backupCode, emailCode } = body as any;
-      const payload = await verifyTempToken(tempToken, 'verify-login', ctx);
-      if (payload && payload.error) {
-        return payload;
-      }
-      if (!payload?.tfa || !payload?.userId) {
-        ctx.set.status = 400;
-        const logCtx = ctx.log || ctx.app?.log || console;
-        logCtx.warn?.({ payload, token: tempToken, source: 'verify-login' }, 'Invalid tempToken payload in verify-login');
-        return { error: ctx.t('validation.invalidTempTokenPayload') };
-      }
-      const userRepo = AppDataSource.getRepository(User);
-      const user = await userRepo.findOneBy({ id: payload.userId });
-      if (!user) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.notFound') };
+      const valid = await comparePassword(password, user.passwordHash);
+      if (!valid) {
+        try {
+          const failKey = `lockout:login:fail:user:${user.id}`;
+          const attempts = await require('../config/redis').consumeRateLimit(failKey, 5, 900);
+          if (!attempts.allowed) {
+            await require('../config/redis').redisSet(lockoutKey, '1', 900);
+            await require('../config/redis').redisDel(failKey);
+          }
+        } catch {}
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.invalidCredentials') };
       }
 
-      if (!token && !backupCode && !emailCode) {
-        const totpKey = `rate:auth:2fa:totp:user:${payload.userId}`;
-        try { const tRl = await require('../config/redis').consumeRateLimit(totpKey, 5, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
-        ctx.set.status = 400;
-        return { error: ctx.t('auth.twoFactorRequired') };
-      }
+      try {
+        await require('../config/redis').redisDel(`lockout:login:fail:user:${user.id}`);
+        await require('../config/redis').redisDel(lockoutKey);
+      } catch {}
 
-      if (emailCode) {
-        const expected = await redisGet(`tfa:email:${payload.tfaSession}`);
-        if (expected && expected === String(emailCode)) {
-          await redisDel(`tfa:email:${payload.tfaSession}`);
-        } else {
-          ctx.set.status = 400;
-          return { error: ctx.t('auth.invalidEmailCode') };
-        }
-      }
-
-      if (backupCode) {
-        const hashes = user.twoFactorRecoveryCodes || [];
-        const h = sha256Hex(String(backupCode));
-        if (!hashes.includes(h)) {
-          const bakKey = `rate:auth:2fa:backup:user:${payload.userId}`;
-          try { const bRl = await require('../config/redis').consumeRateLimit(bakKey, 5, 3600); if (!bRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: bRl.retryAfterSeconds }; } } catch {}
-          ctx.set.status = 400;
-          return { error: ctx.t('auth.invalidBackupCode') };
-        }
-        user.twoFactorRecoveryCodes = hashes.filter((x: string) => x !== h);
-        await userRepo.save(user);
-      }
-
-      if (token) {
-        const totpSoftKey = `rate:auth:2fa:totp:soft:user:${payload.userId}`;
-        try { const tRl = await require('../config/redis').consumeRateLimit(totpSoftKey, 3, 300); if (!tRl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds }; } } catch {}
-        const totpHardKey = `rate:auth:2fa:totp:hard:user:${payload.userId}`;
-        try { const hRl = await require('../config/redis').consumeRateLimit(totpHardKey, 10, 3600); if (!hRl.allowed) { ctx.set.status = 429; return { error: ctx.t('auth.accountLocked2fa'), retryAfter: hRl.retryAfterSeconds }; } } catch {}
-        const speakeasy = require('speakeasy');
-        const ok = speakeasy.totp.verify({ secret: user.twoFactorSecret || '', encoding: 'base32', token: String(token).trim(), window: 1 });
-        if (!ok) {
-          ctx.set.status = 400;
-          return { error: ctx.t('auth.invalidToken') };
-        }
+      if (user.twoFactorEnabled) {
+        const tfaSession = crypto.randomUUID();
+        await redisSet(`tfa:session:${tfaSession}`, String(user.id), 300);
+        const tempToken = ctx.app?.jwt?.sign
+          ? ctx.app.jwt.sign({ userId: user.id, tfaSession, tfa: true }, { expiresIn: '5m' })
+          : require('jsonwebtoken').sign(
+              { userId: user.id, tfaSession, tfa: true },
+              process.env.JWT_SECRET,
+              { expiresIn: '5m' }
+            );
+        ctx.log?.info?.({ userId: user.id, tfaSession }, 'issued 2FA tempToken');
+        return { twoFactorRequired: true, tempToken };
       }
 
       const sessionId = crypto.randomUUID();
-      user.sessions = user.sessions || [];
+      user.sessions = Array.isArray(user.sessions) ? user.sessions : [];
       user.sessions.push(sessionId);
       if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
       user.lastLoginAt = new Date();
       user.lastPanelActivityAt = new Date();
       user.serverSunsetNoticeSentAt = null;
       if (user.settings && typeof user.settings === 'object') {
-        delete (user.settings as any).serverSunsetGraceHours;
-        delete (user.settings as any).serverSunsetRequestedBy;
-        delete (user.settings as any).serverSunsetRequestedAt;
+        delete user.settings.serverSunsetGraceHours;
+        delete user.settings.serverSunsetRequestedBy;
+        delete user.settings.serverSunsetRequestedAt;
       }
       await cancelPendingAutoSunsetDeletionRequest(user);
       await userRepo.save(user);
-      const finalToken = app.jwt.sign({ userId: user.id, sessionId });
-      try { setAuthCookie(ctx, finalToken); } catch (e) { ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for 2fa verify-login'); }
-      const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(logRepo.create({ userId: user.id, action: 'login_2fa', ipAddress: ctx.ip, timestamp: new Date() }));
+
+      const token = ctx.app?.jwt?.sign
+        ? ctx.app.jwt.sign({ userId: user.id, sessionId })
+        : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET);
+
+      try {
+        const logRepo = AppDataSource.getRepository(UserLog);
+        await logRepo.save(
+          logRepo.create({
+            userId: user.id,
+            action: 'login',
+            ipAddress: ctx.ip,
+            timestamp: new Date(),
+          })
+        );
+      } catch (err) {
+        ctx.log?.warn?.({ err }, '[DEBUG:login] failed to log login event');
+      }
+
+      const geoBlockLevel = await getGeoBlockLevel(user.billingCountry);
+      const idVerificationAllowed = await canPerformIdVerification(user.billingCountry);
+      const orgs = await getUserOrgMemberships(user.id);
+      const legacyOrg = orgs[0] || null;
+
+      ctx.log?.info?.(
+        { userId: user.id, token: token.slice(0, 8) + '...' },
+        'login succeeded, returning token'
+      );
+      setAuthCookie(ctx, token);
       const csrfToken = await storeCsrfToken(sessionId);
-      return { token: finalToken, csrfToken };
-    } catch (err) {
-      ctx.log?.error?.({ err }, 'Error in 2fa verify-login');
-      ctx.set.status = 500;
-      return { error: ctx.t('common.internalError') };
-    }
-  }, {
-    body: t.Object({ tempToken: t.String(), token: t.Optional(t.String()), backupCode: t.Optional(t.String()), emailCode: t.Optional(t.String()) }),
-    response: {
-      200: t.Object({ token: t.String(), csrfToken: t.Optional(t.String()) }),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
-      500: t.Object({ error: t.String() })
-    },
-    detail: {
-      summary: 'Verify 2FA login',
-      description: 'Verify 2FA, backup, or email code during login. Returns JWT if successful.',
-      tags: ['Auth'],
-      operationId: 'postAuth2faVerifyLogin',
-    }
-  });
-
-  app.post(prefix + '/auth/password-reset/request', async (ctx: any) => {
-    const body = ctx.body || {};
-    const { email } = body as any;
-    if (!email) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.emailRequired') };
-    }
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:password-reset:ip:${ip}`; const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.PASSWORD_RESET_RATE_IP || 6), Number(process.env.PASSWORD_RESET_WINDOW_IP || 3600)); if (!rl.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
-    } catch (e) {/* meow */}
-    try {
-      const emailLower = String(email).toLowerCase().trim();
-      if (emailLower) {
-        const emailKey = `rate:auth:password-reset:email:${emailLower}`;
-        const eRl = await require('../config/redis').consumeRateLimit(emailKey, Number(process.env.PASSWORD_RESET_RATE_EMAIL || 3), Number(process.env.PASSWORD_RESET_WINDOW_EMAIL || 3600));
-        if (!eRl.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(eRl.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: eRl.retryAfterSeconds }; }
-      }
-    } catch {}
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ email });
-    if (!user) {
-      return { success: true };
-    }
-
-    const token = crypto.randomUUID();
-    await redisSet(`password-reset:${token}`, String(user.id), 3600);
-    const url = `${getPanelUrl(ctx)}/reset-password/${token}`;
-
-    try {
-      await sendMail({
-        to: user.email,
-        from: process.env.SMTP_USER || 'noreply@ecli.app',
-        subject: 'Password reset request',
-        template: 'password-reset',
-        vars: {
-          name: user.firstName || user.email,
-          url,
-          message: ctx.t('auth.resetLink'),
+      return {
+        token,
+        csrfToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          middleName: user.middleName || null,
+          lastName: user.lastName,
+          displayName: user.displayName || null,
+          address: user.address || null,
+          address2: user.address2 || null,
+          phone: user.phone || null,
+          billingCompany: user.billingCompany || null,
+          billingCity: user.billingCity || null,
+          billingState: user.billingState || null,
+          billingZip: user.billingZip || null,
+          billingCountry: user.billingCountry || null,
+          tier: user.portalType,
+          role: user.role,
+          sessionId,
+          emailVerified: user.emailVerified ?? false,
+          passkeyCount: 0,
+          studentVerified: user.studentVerified || false,
+          twoFactorEnabled: !!user.twoFactorEnabled,
+          avatarUrl: user.avatarUrl || null,
+          supportBanned: !!user.supportBanned,
+          supportBanReason: user.supportBanReason || null,
+          dateOfBirth: formatDateOfBirth(user.dateOfBirth),
+          parentId: user.parentId != null ? Number(user.parentId) : null,
+          org: legacyOrg
+            ? { id: legacyOrg.id, name: legacyOrg.name, handle: legacyOrg.handle }
+            : null,
+          orgs,
+          orgRole: legacyOrg?.orgRole || 'member',
+          limits: user.limits || null,
+          nodeId: user.nodeId || null,
+          geoBlockLevel,
+          idVerificationAllowed,
         },
-        locale: ctx.locale,
-      });
-    } catch (e) {
-      // skip
-    }
-
-    return { success: true };
-  }, {
-    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }) },
-    detail: { summary: 'Request password reset email', tags: ['Auth'] }
-  });
-
-  app.post(prefix + '/auth/password-reset/confirm', async (ctx: any) => {
-    const body = ctx.body || {};
-    const { token, password } = body as any;
-    if (!token || !password) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.passwordRequired') };
-    }
-
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:password-reset-confirm:ip:${ip}`;
-      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.PASSWORD_RESET_CONFIRM_RATE_IP || 10), Number(process.env.PASSWORD_RESET_CONFIRM_WINDOW_IP || 3600));
-      if (!rl.allowed) {
-        ctx.set.status = 429;
-        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
-        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
-      }
-    } catch {}
-
-    const pwResult = validatePassword(password);
-    if (!pwResult.valid) {
-      ctx.set.status = 400;
-      return { error: pwResult.errors.join(' ') };
-    }
-
-    const userId = await redisGet(`password-reset:${token}`);
-    if (!userId) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.tokenExpired') };
-    }
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: Number(userId) });
-    if (!user) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.tokenExpired') };
-    }
-
-    user.passwordHash = await hashPassword(password);
-    user.sessions = [];
-    await userRepo.save(user);
-    await redisDel(`password-reset:${token}`);
-    await invalidateAuthSessionCache(user.id);
-
-    return { success: true };
-  }, {
-    body: t.Object({ token: t.String(), password: t.String({ minLength: 8, maxLength: 128 }) }),
-    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }) },
-    detail: { summary: 'Confirm password reset', tags: ['Auth'] }
-  });
-
-  app.post(prefix + '/auth/logout', async (ctx: any) => {
-    const user = ctx.user as User;
-    if (!user) {
-      ctx.set.status = 401;
-      return { error: ctx.t('auth.unauthorized') };
-    }
-    const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
-    const sessionId = decoded?.sessionId;
-    if (sessionId && user.sessions) {
-      user.sessions = user.sessions.filter((s: string) => s !== sessionId);
-      const userRepo = AppDataSource.getRepository(User);
-      await userRepo.save(user);
-      const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(logRepo.create({ userId: user.id, action: 'logout', ipAddress: ctx.ip, timestamp: new Date() }));
-    }
-    await invalidateAuthSessionCache(user.id);
-    try { clearAuthCookie(ctx); } catch { }
-    return { success: true };
-  }, {
-    beforeHandle: authenticate,
-    response: {
-      200: t.Object({ success: t.Boolean() }),
-      401: t.Object({ error: t.String() })
+      };
     },
-    detail: {
-      summary: 'Logout current session',
-      description: 'Logs out the current authenticated session.',
-      tags: ['Auth'],
-      operationId: 'postAuthLogout',
+    {
+      body: t.Object({
+        email: t.String({ format: 'email', maxLength: 254 }),
+        password: t.String({ minLength: 1, maxLength: 128 }),
+      }),
+      response: {
+        200: t.Object({
+          token: t.Optional(t.String()),
+          csrfToken: t.Optional(t.String()),
+          twoFactorRequired: t.Optional(t.Boolean()),
+          tempToken: t.Optional(t.String()),
+        }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Authenticate user',
+        description:
+          'Authenticate a user with email and password. Returns JWT or temporary token if 2FA is required.',
+        tags: ['Auth'],
+        operationId: 'postAuthLogin',
+      },
     }
-  });
+  );
 
+  app.post(
+    prefix + '/auth/2fa/send-email',
+    async (ctx: any) => {
+      const body = ctx.body || {};
+      const { tempToken } = body as any;
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:2fa:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(
+          key,
+          Number(process.env.AUTH_2FA_RATE_IP || 6),
+          Number(process.env.AUTH_2FA_WINDOW_IP || 60)
+        );
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rl.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch (e) {
+        /* woof */
+      }
+
+      const payload = await verifyTempToken(tempToken, 'send-email', ctx);
+      if (payload && payload.error) {
+        return payload;
+      }
+      if (!payload?.tfa || !payload?.userId) {
+        ctx.set.status = 400;
+        const logCtx = ctx.log || ctx.app?.log || console;
+        logCtx.warn?.({ payload, token: tempToken }, 'Invalid tempToken payload in send-email');
+        return { error: ctx.t('auth.invalidTempToken') };
+      }
+      ctx.log?.info?.(
+        { userId: payload.userId, tfaSession: payload.tfaSession },
+        'sending 2FA email'
+      );
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: payload.userId });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      const code = randomInt(0, 1000000).toString().padStart(6, '0');
+      await redisSet(`tfa:email:${payload.tfaSession}`, code, 300);
+      try {
+        await sendMail({
+          to: user.email,
+          from: process.env.SMTP_FROM || 'noreply@ecli.app',
+          subject: 'Verify Your Login',
+          template: 'tfa-email',
+          vars: { name: user.displayName || user.email.split('@')[0], code },
+          locale: ctx.locale,
+        });
+      } catch (err) {
+        ctx.log?.error?.({ err }, 'Failed to send TFA email');
+      }
+      return { success: true };
+    },
+    {
+      body: t.Object({ tempToken: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Send 2FA email code',
+        description: 'Send a 2FA code to the user email for login verification.',
+        tags: ['Auth'],
+        operationId: 'postAuth2faSendEmail',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/2fa/verify-login',
+    async (ctx: any) => {
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:2fa:verify:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(key, 10, 60);
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch (e) {
+        /* meow */
+      }
+
+      try {
+        const body = ctx.body || {};
+        const { tempToken, token, backupCode, emailCode } = body as any;
+        const payload = await verifyTempToken(tempToken, 'verify-login', ctx);
+        if (payload && payload.error) {
+          return payload;
+        }
+        if (!payload?.tfa || !payload?.userId) {
+          ctx.set.status = 400;
+          const logCtx = ctx.log || ctx.app?.log || console;
+          logCtx.warn?.(
+            { payload, token: tempToken, source: 'verify-login' },
+            'Invalid tempToken payload in verify-login'
+          );
+          return { error: ctx.t('validation.invalidTempTokenPayload') };
+        }
+        const userRepo = AppDataSource.getRepository(User);
+        const user = await userRepo.findOneBy({ id: payload.userId });
+        if (!user) {
+          ctx.set.status = 404;
+          return { error: ctx.t('user.notFound') };
+        }
+
+        if (!token && !backupCode && !emailCode) {
+          const totpKey = `rate:auth:2fa:totp:user:${payload.userId}`;
+          try {
+            const tRl = await require('../config/redis').consumeRateLimit(totpKey, 5, 300);
+            if (!tRl.allowed) {
+              ctx.set.status = 429;
+              return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds };
+            }
+          } catch {}
+          ctx.set.status = 400;
+          return { error: ctx.t('auth.twoFactorRequired') };
+        }
+
+        if (emailCode) {
+          const expected = await redisGet(`tfa:email:${payload.tfaSession}`);
+          if (expected && expected === String(emailCode)) {
+            await redisDel(`tfa:email:${payload.tfaSession}`);
+          } else {
+            ctx.set.status = 400;
+            return { error: ctx.t('auth.invalidEmailCode') };
+          }
+        }
+
+        if (backupCode) {
+          const hashes = user.twoFactorRecoveryCodes || [];
+          const h = sha256Hex(String(backupCode));
+          if (!hashes.includes(h)) {
+            const bakKey = `rate:auth:2fa:backup:user:${payload.userId}`;
+            try {
+              const bRl = await require('../config/redis').consumeRateLimit(bakKey, 5, 3600);
+              if (!bRl.allowed) {
+                ctx.set.status = 429;
+                return { error: 'rate_limited', retryAfter: bRl.retryAfterSeconds };
+              }
+            } catch {}
+            ctx.set.status = 400;
+            return { error: ctx.t('auth.invalidBackupCode') };
+          }
+          user.twoFactorRecoveryCodes = hashes.filter((x: string) => x !== h);
+          await userRepo.save(user);
+        }
+
+        if (token) {
+          const totpSoftKey = `rate:auth:2fa:totp:soft:user:${payload.userId}`;
+          try {
+            const tRl = await require('../config/redis').consumeRateLimit(totpSoftKey, 3, 300);
+            if (!tRl.allowed) {
+              ctx.set.status = 429;
+              return { error: 'rate_limited', retryAfter: tRl.retryAfterSeconds };
+            }
+          } catch {}
+          const totpHardKey = `rate:auth:2fa:totp:hard:user:${payload.userId}`;
+          try {
+            const hRl = await require('../config/redis').consumeRateLimit(totpHardKey, 10, 3600);
+            if (!hRl.allowed) {
+              ctx.set.status = 429;
+              return { error: ctx.t('auth.accountLocked2fa'), retryAfter: hRl.retryAfterSeconds };
+            }
+          } catch {}
+          const speakeasy = require('speakeasy');
+          const ok = speakeasy.totp.verify({
+            secret: user.twoFactorSecret || '',
+            encoding: 'base32',
+            token: String(token).trim(),
+            window: 1,
+          });
+          if (!ok) {
+            ctx.set.status = 400;
+            return { error: ctx.t('auth.invalidToken') };
+          }
+        }
+
+        const sessionId = crypto.randomUUID();
+        user.sessions = user.sessions || [];
+        user.sessions.push(sessionId);
+        if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
+        user.lastLoginAt = new Date();
+        user.lastPanelActivityAt = new Date();
+        user.serverSunsetNoticeSentAt = null;
+        if (user.settings && typeof user.settings === 'object') {
+          delete user.settings.serverSunsetGraceHours;
+          delete user.settings.serverSunsetRequestedBy;
+          delete user.settings.serverSunsetRequestedAt;
+        }
+        await cancelPendingAutoSunsetDeletionRequest(user);
+        await userRepo.save(user);
+        const finalToken = app.jwt.sign({ userId: user.id, sessionId });
+        try {
+          setAuthCookie(ctx, finalToken);
+        } catch (e) {
+          ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for 2fa verify-login');
+        }
+        const logRepo = AppDataSource.getRepository(UserLog);
+        await logRepo.save(
+          logRepo.create({
+            userId: user.id,
+            action: 'login_2fa',
+            ipAddress: ctx.ip,
+            timestamp: new Date(),
+          })
+        );
+        const csrfToken = await storeCsrfToken(sessionId);
+        return { token: finalToken, csrfToken };
+      } catch (err) {
+        ctx.log?.error?.({ err }, 'Error in 2fa verify-login');
+        ctx.set.status = 500;
+        return { error: ctx.t('common.internalError') };
+      }
+    },
+    {
+      body: t.Object({
+        tempToken: t.String(),
+        token: t.Optional(t.String()),
+        backupCode: t.Optional(t.String()),
+        emailCode: t.Optional(t.String()),
+      }),
+      response: {
+        200: t.Object({ token: t.String(), csrfToken: t.Optional(t.String()) }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Verify 2FA login',
+        description: 'Verify 2FA, backup, or email code during login. Returns JWT if successful.',
+        tags: ['Auth'],
+        operationId: 'postAuth2faVerifyLogin',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/password-reset/request',
+    async (ctx: any) => {
+      const body = ctx.body || {};
+      const { email } = body as any;
+      if (!email) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.emailRequired') };
+      }
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:password-reset:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(
+          key,
+          Number(process.env.PASSWORD_RESET_RATE_IP || 6),
+          Number(process.env.PASSWORD_RESET_WINDOW_IP || 3600)
+        );
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rl.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch (e) {
+        /* meow */
+      }
+      try {
+        const emailLower = String(email).toLowerCase().trim();
+        if (emailLower) {
+          const emailKey = `rate:auth:password-reset:email:${emailLower}`;
+          const eRl = await require('../config/redis').consumeRateLimit(
+            emailKey,
+            Number(process.env.PASSWORD_RESET_RATE_EMAIL || 3),
+            Number(process.env.PASSWORD_RESET_WINDOW_EMAIL || 3600)
+          );
+          if (!eRl.allowed) {
+            ctx.set.status = 429;
+            ctx.set.headers = {
+              ...(ctx.set.headers || {}),
+              'Retry-After': String(eRl.retryAfterSeconds),
+            };
+            return { error: 'rate_limited', retryAfter: eRl.retryAfterSeconds };
+          }
+        }
+      } catch {}
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ email });
+      if (!user) {
+        return { success: true };
+      }
+
+      const token = crypto.randomUUID();
+      await redisSet(`password-reset:${token}`, String(user.id), 3600);
+      const url = `${getPanelUrl(ctx)}/reset-password/${token}`;
+
+      try {
+        await sendMail({
+          to: user.email,
+          from: process.env.SMTP_USER || 'noreply@ecli.app',
+          subject: 'Password reset request',
+          template: 'password-reset',
+          vars: {
+            name: user.firstName || user.email,
+            url,
+            message: ctx.t('auth.resetLink'),
+          },
+          locale: ctx.locale,
+        });
+      } catch (e) {
+        // skip
+      }
+
+      return { success: true };
+    },
+    {
+      response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }) },
+      detail: { summary: 'Request password reset email', tags: ['Auth'] },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/password-reset/confirm',
+    async (ctx: any) => {
+      const body = ctx.body || {};
+      const { token, password } = body as any;
+      if (!token || !password) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.passwordRequired') };
+      }
+
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:password-reset-confirm:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(
+          key,
+          Number(process.env.PASSWORD_RESET_CONFIRM_RATE_IP || 10),
+          Number(process.env.PASSWORD_RESET_CONFIRM_WINDOW_IP || 3600)
+        );
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rl.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch {}
+
+      const pwResult = validatePassword(password);
+      if (!pwResult.valid) {
+        ctx.set.status = 400;
+        return { error: pwResult.errors.join(' ') };
+      }
+
+      const userId = await redisGet(`password-reset:${token}`);
+      if (!userId) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.tokenExpired') };
+      }
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(userId) });
+      if (!user) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.tokenExpired') };
+      }
+
+      user.passwordHash = await hashPassword(password);
+      user.sessions = [];
+      await userRepo.save(user);
+      await redisDel(`password-reset:${token}`);
+      await invalidateAuthSessionCache(user.id);
+
+      return { success: true };
+    },
+    {
+      body: t.Object({ token: t.String(), password: t.String({ minLength: 8, maxLength: 128 }) }),
+      response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }) },
+      detail: { summary: 'Confirm password reset', tags: ['Auth'] },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/logout',
+    async (ctx: any) => {
+      const user = ctx.user as User;
+      if (!user) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
+      const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
+      const sessionId = decoded?.sessionId;
+      if (sessionId && user.sessions) {
+        user.sessions = user.sessions.filter((s: string) => s !== sessionId);
+        const userRepo = AppDataSource.getRepository(User);
+        await userRepo.save(user);
+        const logRepo = AppDataSource.getRepository(UserLog);
+        await logRepo.save(
+          logRepo.create({
+            userId: user.id,
+            action: 'logout',
+            ipAddress: ctx.ip,
+            timestamp: new Date(),
+          })
+        );
+      }
+      await invalidateAuthSessionCache(user.id);
+      try {
+        clearAuthCookie(ctx);
+      } catch {}
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Logout current session',
+        description: 'Logs out the current authenticated session.',
+        tags: ['Auth'],
+        operationId: 'postAuthLogout',
+      },
+    }
+  );
 
   async function sendVerificationEmail(user: User) {
     const code = randomInt(0, 1000000).toString().padStart(6, '0');
@@ -694,1010 +860,1332 @@ export async function authRoutes(app: any, prefix = '') {
     }
   }
 
-  app.get(prefix + '/auth/captcha', async (ctx: any) => {
-    const captchaEnabled = await isFeatureEnabled('captcha');
-    if (!captchaEnabled) {
-      ctx.set.status = 503;
-      return { error: ctx.t('system.captchaDisabled') };
-    }
-    return generateCaptcha();
-  }, {
-    response: {
-      200: t.Object({ token: t.String(), image: t.String(), audio: t.String() })
-    },
-    detail: {
-      summary: 'Get a simple registration captcha',
-      tags: ['Auth'],
-      operationId: 'getAuthCaptcha',
-    },
-  });
-
-  app.get(prefix + '/auth/captcha/audio', async (ctx: any) => {
-    const captchaEnabled = await isFeatureEnabled('captcha');
-    if (!captchaEnabled) {
-      ctx.set.status = 503;
-      return { error: ctx.t('system.captchaDisabled') };
-    }
-    const { token, audio } = await generateCaptcha();
-    return { token, audio };
-  }, {
-    response: {
-      200: t.Object({ token: t.String(), audio: t.String() })
-    },
-    detail: {
-      summary: 'Get a registration captcha audio challenge',
-      tags: ['Auth'],
-      operationId: 'getAuthCaptchaAudio',
-    },
-  });
-
-  app.get(prefix + '/auth/captcha/invisible', async (ctx: any) => {
-    const captchaInvisibleEnabled = await isFeatureEnabled('captchaInvisible');
-    if (!captchaInvisibleEnabled) {
-      ctx.set.status = 503;
-      return { error: ctx.t('system.captchaInvisibleDisabled') };
-    }
-    const { token, created } = generateInvisibleCaptcha();
-    return { token, created };
-  }, {
-    response: {
-      200: t.Object({ token: t.String(), created: t.Number() })
-    },
-    detail: {
-      summary: 'Get an invisible registration captcha token',
-      tags: ['Auth'],
-      operationId: 'getAuthCaptchaInvisible',
-    },
-  });
-
-  app.get(prefix + '/auth/verify-email', async (ctx: any) => {
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:verify-email:ip:${ip}`;
-      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.VERIFY_EMAIL_LINK_RATE_IP || 20), Number(process.env.VERIFY_EMAIL_LINK_WINDOW_IP || 300));
-      if (!rl.allowed) {
-        ctx.set.status = 429;
-        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
-        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+  app.get(
+    prefix + '/auth/captcha',
+    async (ctx: any) => {
+      const captchaEnabled = await isFeatureEnabled('captcha');
+      if (!captchaEnabled) {
+        ctx.set.status = 503;
+        return { error: ctx.t('system.captchaDisabled') };
       }
-    } catch {}
-
-    const { token } = ctx.query as any;
-    if (!token) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.missingToken') };
-    }
-    const userId = await redisGet(`email-verify:token:${token}`);
-    if (!userId) {
-      ctx.log?.warn({ token }, 'email verification link used with missing/expired token');
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.tokenExpired') };
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: Number(userId) });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-    user.emailVerified = true;
-    await userRepo.save(user);
-    await redisDel(`email-verify:token:${token}`);
-    await redisDel(`email-verify:code:${user.id}`);
-    const panelUrl = getPanelUrl(ctx);
-    return ctx.redirect(`${panelUrl}/dashboard?emailVerified=1`);
-  }, {
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() })
+      return generateCaptcha();
     },
-    detail: {
-      summary: 'Verify email via link',
-      description: 'Verifies user email using a verification link.',
-      tags: ['Auth'],
-      operationId: 'getAuthVerifyEmail',
+    {
+      response: {
+        200: t.Object({ token: t.String(), image: t.String(), audio: t.String() }),
+      },
+      detail: {
+        summary: 'Get a simple registration captcha',
+        tags: ['Auth'],
+        operationId: 'getAuthCaptcha',
+      },
     }
-  });
+  );
 
-
-  app.post(prefix + '/auth/verify-email', async (ctx: any) => {
-    const user = ctx.user;
-    const body = ctx.body || {};
-    const { code } = body as any;
-    if (!code) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.missingCode') };
-    }
-
-    try {
-      const keyUser = `rate:auth:verify-email:user:${user.id}`;
-      const rl = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.VERIFY_EMAIL_RATE_USER || 5), Number(process.env.VERIFY_EMAIL_WINDOW_USER || 300));
-      if (!rl.allowed) {
-        ctx.set.status = 429;
-        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
-        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+  app.get(
+    prefix + '/auth/captcha/audio',
+    async (ctx: any) => {
+      const captchaEnabled = await isFeatureEnabled('captcha');
+      if (!captchaEnabled) {
+        ctx.set.status = 503;
+        return { error: ctx.t('system.captchaDisabled') };
       }
-    } catch {}
-
-    const expected = await redisGet(`email-verify:code:${user.id}`);
-    if (!expected || expected !== String(code).trim()) {
-      ctx.log?.warn({ userId: user.id, provided: code, expected }, 'email verification failed');
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.invalidOrExpiredCode') };
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    user.emailVerified = true;
-    await userRepo.save(user);
-    await redisDel(`email-verify:code:${user.id}`);
-    return { success: true };
-  }, {
-    beforeHandle: authenticate,
-    body: t.Object({ code: t.String() }),
-    response: {
-      200: t.Object({ success: t.Boolean() }),
-      400: t.Object({ error: t.String() }),
-      401: t.Object({ error: t.String() })
+      const { token, audio } = await generateCaptcha();
+      return { token, audio };
     },
-    detail: {
-      summary: 'Verify email with code',
-      description: 'Verifies user email using a code sent to their email.',
-      tags: ['Auth'],
-      operationId: 'postAuthVerifyEmail',
+    {
+      response: {
+        200: t.Object({ token: t.String(), audio: t.String() }),
+      },
+      detail: {
+        summary: 'Get a registration captcha audio challenge',
+        tags: ['Auth'],
+        operationId: 'getAuthCaptchaAudio',
+      },
     }
-  });
+  );
 
-  app.post(prefix + '/auth/resend-verification', async (ctx: any) => {
-    const user = ctx.user;
-    if (user.emailVerified) return { success: true, message: ctx.t('auth.alreadyVerified') };
-    try {
-      const ip = (ctx.ip || '').toString();
-      const keyIp = `rate:auth:resend-verification:ip:${ip}`;
-      const keyUser = `rate:auth:resend-verification:user:${user?.id}`;
-      const rlIp = await require('../config/redis').consumeRateLimit(keyIp, Number(process.env.RESEND_VERIFICATION_RATE_IP || 6), Number(process.env.RESEND_VERIFICATION_WINDOW_IP || 3600));
-      if (!rlIp.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlIp.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds }; }
-      const rlUser = await require('../config/redis').consumeRateLimit(keyUser, Number(process.env.RESEND_VERIFICATION_RATE_USER || 3), Number(process.env.RESEND_VERIFICATION_WINDOW_USER || 3600));
-      if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
-    } catch (e) {/* meow */}
-    await sendVerificationEmail(user);
-    return { success: true };
-  }, {
-    beforeHandle: authenticate,
-    response: {
-      200: t.Object({ success: t.Boolean(), message: t.Optional(t.String()) }),
-      401: t.Object({ error: t.String() })
-    },
-    detail: {
-      summary: 'Resend verification email',
-      description: 'Resends the verification email to the user.',
-      tags: ['Auth'],
-      operationId: 'postAuthResendVerification',
-    }
-  });
-
-  app.get(prefix + '/auth/restore-email', async (ctx: any) => {
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:restore-email:ip:${ip}`;
-      const rl = await require('../config/redis').consumeRateLimit(key, Number(process.env.RESTORE_EMAIL_RATE_IP || 20), Number(process.env.RESTORE_EMAIL_WINDOW_IP || 300));
-      if (!rl.allowed) {
-        ctx.set.status = 429;
-        ctx.set.headers = { ...(ctx.set.headers || {}), 'Retry-After': String(rl.retryAfterSeconds) };
-        return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+  app.get(
+    prefix + '/auth/captcha/invisible',
+    async (ctx: any) => {
+      const captchaInvisibleEnabled = await isFeatureEnabled('captchaInvisible');
+      if (!captchaInvisibleEnabled) {
+        ctx.set.status = 503;
+        return { error: ctx.t('system.captchaInvisibleDisabled') };
       }
-    } catch {}
-
-    const { token } = ctx.query as any;
-    if (!token) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.missingToken') };
-    }
-
-    const data = await redisGet(`email-restore:token:${token}`);
-    if (!data) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.tokenExpired') };
-    }
-
-    let payload: any;
-    try {
-      const jsonString = String(data);
-      payload = JSON.parse(jsonString);
-    } catch (e) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.restoreInvalidData') };
-    }
-
-    if (!payload.userId || !payload.oldEmail || !payload.newEmail) {
-      ctx.set.status = 400;
-      return { error: ctx.t('server.restoreInvalidPayload') };
-    }
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: Number(payload.userId) });
-    if (!user) {
-      ctx.set.status = 404;
-      return { error: ctx.t('user.notFound') };
-    }
-
-    user.email = payload.oldEmail;
-    user.emailVerified = true;
-
-    await userRepo.save(user);
-    await redisDel(`email-restore:token:${token}`);
-
-    const panelUrl = getPanelUrl(ctx);
-    return ctx.redirect(`${panelUrl}/dashboard?emailRestore=1`);
-  }, {
-    response: {
-      200: t.Any(),
-      400: t.Object({ error: t.String() }),
-      404: t.Object({ error: t.String() }),
+      const { token, created } = generateInvisibleCaptcha();
+      return { token, created };
     },
-    detail: {
-      summary: 'Restore previous email after email change',
-      description: 'Restores old email for security after a user email change (48h window).',
-      tags: ['Auth'],
-      operationId: 'getAuthRestoreEmail',
+    {
+      response: {
+        200: t.Object({ token: t.String(), created: t.Number() }),
+      },
+      detail: {
+        summary: 'Get an invisible registration captcha token',
+        tags: ['Auth'],
+        operationId: 'getAuthCaptchaInvisible',
+      },
     }
-  });
+  );
 
-  app.post(prefix + '/auth/passkey/register-challenge', async (ctx: any) => {
-    const user = ctx.user;
-    const frontendHost = getFrontendHost(ctx);
-    const opts = await PasskeyService.generateRegistration({ id: user.id, email: user.email }, frontendHost);
-    await redisSet(`passkey:reg:${user.id}`, opts.challenge, 300);
-    return opts;
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Begin passkey registration',
-      description: 'Starts the passkey registration process for the user.',
-      tags: ['Auth'],
-      operationId: 'postAuthPasskeyRegisterChallenge',
-    }
-  });
+  app.get(
+    prefix + '/auth/verify-email',
+    async (ctx: any) => {
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:verify-email:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(
+          key,
+          Number(process.env.VERIFY_EMAIL_LINK_RATE_IP || 20),
+          Number(process.env.VERIFY_EMAIL_LINK_WINDOW_IP || 300)
+        );
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rl.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch {}
 
-  app.post(prefix + '/auth/passkey/register', async (ctx: any) => {
-    const user = ctx.user;
-    const body = ctx.body || {};
-    const { attestationResponse } = body as any;
-    const expected = await redisGet(`passkey:reg:${user.id}`);
-    if (!expected) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.noChallenge') };
-    }
-    const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
-    const requestHost = getFrontendHost(ctx);
-    const ver = await PasskeyService.verifyRegistrationResponse({
-      userId: user.id,
-      attestationResponse,
-      expectedChallenge: String(expected),
-      requestHost,
-      requestOrigin,
-    });
-    await redisDel(`passkey:reg:${user.id}`);
-    return ver;
-  }, {
-    beforeHandle: authenticate,
-    body: t.Any(),
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Complete passkey registration',
-      description: 'Completes the passkey registration process for the user.',
-      tags: ['Auth'],
-      operationId: 'postAuthPasskeyRegister',
-    }
-  });
-
-  app.post(prefix + '/auth/passkey/authenticate-challenge', async (ctx: any) => {
-    const body = ctx.body || {};
-    const { email } = body as any;
-    if (!email) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.missingEmail') };
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ email });
-    if (!user) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.noPasskeys') };
-    }
-    const frontendHost = getFrontendHost(ctx);
-    const opts = await PasskeyService.generateAuthentication(user.id, frontendHost);
-    await redisSet(`passkey:auth:${user.id}`, opts.challenge, 300);
-    return opts;
-  }, {
-    body: t.Object({ email: t.String({ format: 'email' }) }),
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Start passkey authentication',
-      description: 'Starts the passkey authentication process for the user.',
-      tags: ['Auth'],
-      operationId: 'postAuthPasskeyAuthenticateChallenge',
-    }
-  });
-
-  app.post(prefix + '/auth/passkey/authenticate', async (ctx: any) => {
-    const body = ctx.body || {};
-    const { email, authenticationResponse } = body as any;
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ email });
-    if (!user) {
-      ctx.set.status = 401;
-      return { error: ctx.t('common.authenticationFailed') };
-    }
-    const expected = await redisGet(`passkey:auth:${user.id}`);
-    if (!expected) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.noChallenge') };
-    }
-    const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
-    const requestHost = getFrontendHost(ctx);
-    const ver = await PasskeyService.verifyAuthenticationResponse({
-      userId: user.id,
-      authenticationResponse,
-      expectedChallenge: String(expected),
-      requestHost,
-      requestOrigin,
-    });
-    if (ver.verified) {
-      const sessionId = crypto.randomUUID();
-      user.sessions = user.sessions || [];
-      user.sessions.push(sessionId);
-      if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
-      user.lastLoginAt = new Date();
-      user.lastPanelActivityAt = new Date();
-      user.serverSunsetNoticeSentAt = null;
-      if (user.settings && typeof user.settings === 'object') {
-        delete (user.settings as any).serverSunsetGraceHours;
-        delete (user.settings as any).serverSunsetRequestedBy;
-        delete (user.settings as any).serverSunsetRequestedAt;
+      const { token } = ctx.query as any;
+      if (!token) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.missingToken') };
       }
-      await cancelPendingAutoSunsetDeletionRequest(user);
+      const userId = await redisGet(`email-verify:token:${token}`);
+      if (!userId) {
+        ctx.log?.warn({ token }, 'email verification link used with missing/expired token');
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.tokenExpired') };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(userId) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      user.emailVerified = true;
       await userRepo.save(user);
-      const token = app.jwt.sign({ userId: user.id, sessionId });
-      try { setAuthCookie(ctx, token); } catch (e) { ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for passkey auth'); }
-      const csrfToken = await storeCsrfToken(sessionId);
-      return { token, csrfToken };
-    } else {
-      ctx.set.status = 401;
-      return { error: ctx.t('common.authenticationFailed') };
+      await redisDel(`email-verify:token:${token}`);
+      await redisDel(`email-verify:code:${user.id}`);
+      const panelUrl = getPanelUrl(ctx);
+      return ctx.redirect(`${panelUrl}/dashboard?emailVerified=1`);
+    },
+    {
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Verify email via link',
+        description: 'Verifies user email using a verification link.',
+        tags: ['Auth'],
+        operationId: 'getAuthVerifyEmail',
+      },
     }
-  }, {
-    body: t.Object({ email: t.String({ format: 'email' }), authenticationResponse: t.Any() }),
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Finish passkey authentication',
-      description: 'Completes the passkey authentication process for the user.',
-      tags: ['Auth'],
-      operationId: 'postAuthPasskeyAuthenticate',
-    }
-  });
+  );
 
-  app.get(prefix + '/auth/passkeys', async (ctx: any) => {
-    const user = ctx.user;
-    const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-    const keys = await passkeyRepo.find({ where: { user: { id: user.id } }, relations: {"user":true} });
-    return keys.map((k: any) => ({
-      id: k.id,
-      name: k.name || `Passkey #${k.id}`,
-      credentialID: k.credentialID,
-      transports: k.transports,
-    }));
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Array(t.Object({ id: t.Number(), name: t.Optional(t.String()), credentialID: t.Any(), transports: t.Any() })), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'List registered passkeys',
-      description: 'Lists all registered passkeys for the user.',
-      tags: ['Auth'],
-      operationId: 'getAuthPasskeys',
-    }
-  });
+  app.post(
+    prefix + '/auth/verify-email',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const body = ctx.body || {};
+      const { code } = body as any;
+      if (!code) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.missingCode') };
+      }
 
-  app.put(prefix + '/auth/passkeys/:id', async (ctx: any) => {
-    const user = ctx.user;
-    const id = Number((ctx.params as any).id);
-    const { name } = ctx.body as any;
-    if (!name) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.nameRequired') };
-    }
-    const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-    const passkey = await passkeyRepo.findOne({ where: { id, user: { id: user.id } } });
-    if (!passkey) {
-      ctx.set.status = 404;
-      return { error: ctx.t('auth.passkeyNotFound') };
-    }
-    passkey.name = String(name).trim();
-    await passkeyRepo.save(passkey);
-    return { success: true, passkey: { id: passkey.id, name: passkey.name } };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean(), passkey: t.Object({ id: t.Number(), name: t.String() }) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Update passkey name',
-      description: 'Updates name for a registered passkey.',
-      tags: ['Auth'],
-      operationId: 'putAuthPasskeyName',
-    }
-  });
+      try {
+        const keyUser = `rate:auth:verify-email:user:${user.id}`;
+        const rl = await require('../config/redis').consumeRateLimit(
+          keyUser,
+          Number(process.env.VERIFY_EMAIL_RATE_USER || 5),
+          Number(process.env.VERIFY_EMAIL_WINDOW_USER || 300)
+        );
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rl.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch {}
 
-  app.get(prefix + '/auth/2fa/setup', async (ctx: any) => {
-    const user = ctx.user as User;
-    const secret = speakeasy.generateSecret({ name: `EcliPanel (${user.email})` });
-    return { secret: secret.base32, otpauth_url: secret.otpauth_url };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ secret: t.String(), otpauth_url: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Generate 2FA secret',
-      description: 'Generates a new 2FA secret for the user.',
-      tags: ['Auth'],
-      operationId: 'getAuth2faSetup',
+      const expected = await redisGet(`email-verify:code:${user.id}`);
+      if (!expected || expected !== String(code).trim()) {
+        ctx.log?.warn({ userId: user.id, provided: code, expected }, 'email verification failed');
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidOrExpiredCode') };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      user.emailVerified = true;
+      await userRepo.save(user);
+      await redisDel(`email-verify:code:${user.id}`);
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      body: t.Object({ code: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Verify email with code',
+        description: 'Verifies user email using a code sent to their email.',
+        tags: ['Auth'],
+        operationId: 'postAuthVerifyEmail',
+      },
     }
-  });
+  );
 
-  app.post(prefix + '/auth/2fa/verify', async (ctx: any) => {
-    const user = ctx.user as User;
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:2fa:enable:ip:${ip}`;
-      const rl = await require('../config/redis').consumeRateLimit(key, 5, 300);
-      if (!rl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
-    } catch (e) {/* meow */}
+  app.post(
+    prefix + '/auth/resend-verification',
+    async (ctx: any) => {
+      const user = ctx.user;
+      if (user.emailVerified) return { success: true, message: ctx.t('auth.alreadyVerified') };
+      try {
+        const ip = (ctx.ip || '').toString();
+        const keyIp = `rate:auth:resend-verification:ip:${ip}`;
+        const keyUser = `rate:auth:resend-verification:user:${user?.id}`;
+        const rlIp = await require('../config/redis').consumeRateLimit(
+          keyIp,
+          Number(process.env.RESEND_VERIFICATION_RATE_IP || 6),
+          Number(process.env.RESEND_VERIFICATION_WINDOW_IP || 3600)
+        );
+        if (!rlIp.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rlIp.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rlIp.retryAfterSeconds };
+        }
+        const rlUser = await require('../config/redis').consumeRateLimit(
+          keyUser,
+          Number(process.env.RESEND_VERIFICATION_RATE_USER || 3),
+          Number(process.env.RESEND_VERIFICATION_WINDOW_USER || 3600)
+        );
+        if (!rlUser.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rlUser.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds };
+        }
+      } catch (e) {
+        /* meow */
+      }
+      await sendVerificationEmail(user);
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({ success: t.Boolean(), message: t.Optional(t.String()) }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Resend verification email',
+        description: 'Resends the verification email to the user.',
+        tags: ['Auth'],
+        operationId: 'postAuthResendVerification',
+      },
+    }
+  );
 
-    const body = ctx.body || {};
-    const { token, secret } = body as any;
-    if (!token || !secret) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.missingTokenOrSecret') };
-    }
-    const ok = speakeasy.totp.verify({ secret: String(secret), encoding: 'base32', token: String(token).trim(), window: 1 });
-    if (!ok) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.invalidToken') };
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    user.twoFactorEnabled = true;
-    user.twoFactorSecret = String(secret);
-    const codes: string[] = [];
-    const hashes: string[] = [];
-    for (let i = 0; i < 10; i++) {
-      const c = await randomToken(6);
-      codes.push(c);
-      hashes.push(sha256Hex(c));
-    }
-    user.twoFactorRecoveryCodes = hashes;
-    await userRepo.save(user);
-    ctx.log.info({ userId: user.id, twoFactorEnabled: user.twoFactorEnabled }, 'User 2FA enabled and recovery codes generated');
-    return { recoveryCodes: codes };
-  }, {
-    beforeHandle: authenticate,
-    body: t.Object({ token: t.String(), secret: t.String() }),
-    response: { 200: t.Object({ recoveryCodes: t.Array(t.String()) }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Enable two-factor authentication',
-      description: 'Enables two-factor authentication for the user.',
-      tags: ['Auth'],
-      operationId: 'postAuth2faVerify',
-    }
-  });
+  app.get(
+    prefix + '/auth/restore-email',
+    async (ctx: any) => {
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:restore-email:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(
+          key,
+          Number(process.env.RESTORE_EMAIL_RATE_IP || 20),
+          Number(process.env.RESTORE_EMAIL_WINDOW_IP || 300)
+        );
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': String(rl.retryAfterSeconds),
+          };
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch {}
 
-  app.post(prefix + '/auth/2fa/disable', async (ctx: any) => {
-    const user = ctx.user as User;
-    try {
-      const ip = (ctx.ip || '').toString();
-      const key = `rate:auth:2fa:disable:ip:${ip}`;
-      const rl = await require('../config/redis').consumeRateLimit(key, 5, 300);
-      if (!rl.allowed) { ctx.set.status = 429; return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds }; }
-    } catch (e) {/* meow */}
+      const { token } = ctx.query as any;
+      if (!token) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.missingToken') };
+      }
 
-    const body = ctx.body || {};
-    const { token } = body as any;
-    if (!token) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.missingToken') };
-    }
-    const ok = speakeasy.totp.verify({ secret: user.twoFactorSecret || '', encoding: 'base32', token: String(token).trim(), window: 1 });
-    if (!ok) {
-      ctx.set.status = 400;
-      return { error: ctx.t('auth.invalidToken') };
-    }
-    const userRepo = AppDataSource.getRepository(User);
-    user.twoFactorEnabled = false;
-    user.twoFactorSecret = undefined;
-    user.twoFactorRecoveryCodes = undefined;
-    user.sessions = [];
-    await userRepo.save(user);
-    try {
-      await require('../config/redis').redisDelByPrefix(`csrf:${(ctx.jwtPayload as any)?.sessionId}`);
-    } catch {}
-    ctx.log.info({ userId: user.id, twoFactorEnabled: user.twoFactorEnabled }, 'User 2FA disabled');
-    return { success: true };
-  }, {
-    beforeHandle: authenticate,
-    body: t.Object({ token: t.String() }),
-    response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Disable two-factor authentication',
-      description: 'Disables two-factor authentication for the user.',
-      tags: ['Auth'],
-      operationId: 'postAuth2faDisable',
-    }
-  });
+      const data = await redisGet(`email-restore:token:${token}`);
+      if (!data) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.tokenExpired') };
+      }
 
-  app.delete(prefix + '/auth/passkeys/:id', async (ctx: any) => {
-    const user = ctx.user;
-    const { id } = (ctx.params as any);
-    const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-    const key = await passkeyRepo.findOne({ where: { id: Number(id), user: { id: user.id } }, relations: {"user":true} });
-    if (!key) {
-      ctx.set.status = 404;
-      return { error: ctx.t('auth.passkeyNotFound') };
+      let payload: any;
+      try {
+        const jsonString = String(data);
+        payload = JSON.parse(jsonString);
+      } catch (e) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.restoreInvalidData') };
+      }
+
+      if (!payload.userId || !payload.oldEmail || !payload.newEmail) {
+        ctx.set.status = 400;
+        return { error: ctx.t('server.restoreInvalidPayload') };
+      }
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(payload.userId) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+
+      user.email = payload.oldEmail;
+      user.emailVerified = true;
+
+      await userRepo.save(user);
+      await redisDel(`email-restore:token:${token}`);
+
+      const panelUrl = getPanelUrl(ctx);
+      return ctx.redirect(`${panelUrl}/dashboard?emailRestore=1`);
+    },
+    {
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Restore previous email after email change',
+        description: 'Restores old email for security after a user email change (48h window).',
+        tags: ['Auth'],
+        operationId: 'getAuthRestoreEmail',
+      },
     }
-    await passkeyRepo.remove(key);
-    return { success: true };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Remove a passkey',
-      description: 'Removes a passkey from the user account.',
-      tags: ['Auth'],
-      operationId: 'deleteAuthPasskeysId',
+  );
+
+  app.post(
+    prefix + '/auth/passkey/register-challenge',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const frontendHost = getFrontendHost(ctx);
+      const opts = await PasskeyService.generateRegistration(
+        { id: user.id, email: user.email },
+        frontendHost
+      );
+      await redisSet(`passkey:reg:${user.id}`, opts.challenge, 300);
+      return opts;
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
+      detail: {
+        summary: 'Begin passkey registration',
+        description: 'Starts the passkey registration process for the user.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeyRegisterChallenge',
+      },
     }
-  });
+  );
+
+  app.post(
+    prefix + '/auth/passkey/register',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const body = ctx.body || {};
+      const { attestationResponse } = body as any;
+      const expected = await redisGet(`passkey:reg:${user.id}`);
+      if (!expected) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.noChallenge') };
+      }
+      const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
+      const requestHost = getFrontendHost(ctx);
+      const ver = await PasskeyService.verifyRegistrationResponse({
+        userId: user.id,
+        attestationResponse,
+        expectedChallenge: String(expected),
+        requestHost,
+        requestOrigin,
+      });
+      await redisDel(`passkey:reg:${user.id}`);
+      return ver;
+    },
+    {
+      beforeHandle: authenticate,
+      body: t.Any(),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Complete passkey registration',
+        description: 'Completes the passkey registration process for the user.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeyRegister',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/passkey/authenticate-challenge',
+    async (ctx: any) => {
+      const body = ctx.body || {};
+      const { email } = body as any;
+      if (!email) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.missingEmail') };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ email });
+      if (!user) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.noPasskeys') };
+      }
+      const frontendHost = getFrontendHost(ctx);
+      const opts = await PasskeyService.generateAuthentication(user.id, frontendHost);
+      await redisSet(`passkey:auth:${user.id}`, opts.challenge, 300);
+      return opts;
+    },
+    {
+      body: t.Object({ email: t.String({ format: 'email' }) }),
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }) },
+      detail: {
+        summary: 'Start passkey authentication',
+        description: 'Starts the passkey authentication process for the user.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeyAuthenticateChallenge',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/passkey/authenticate',
+    async (ctx: any) => {
+      const body = ctx.body || {};
+      const { email, authenticationResponse } = body as any;
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ email });
+      if (!user) {
+        ctx.set.status = 401;
+        return { error: ctx.t('common.authenticationFailed') };
+      }
+      const expected = await redisGet(`passkey:auth:${user.id}`);
+      if (!expected) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.noChallenge') };
+      }
+      const requestOrigin = ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer;
+      const requestHost = getFrontendHost(ctx);
+      const ver = await PasskeyService.verifyAuthenticationResponse({
+        userId: user.id,
+        authenticationResponse,
+        expectedChallenge: String(expected),
+        requestHost,
+        requestOrigin,
+      });
+      if (ver.verified) {
+        const sessionId = crypto.randomUUID();
+        user.sessions = user.sessions || [];
+        user.sessions.push(sessionId);
+        if (user.sessions.length > 20) user.sessions = user.sessions.slice(-20);
+        user.lastLoginAt = new Date();
+        user.lastPanelActivityAt = new Date();
+        user.serverSunsetNoticeSentAt = null;
+        if (user.settings && typeof user.settings === 'object') {
+          delete user.settings.serverSunsetGraceHours;
+          delete user.settings.serverSunsetRequestedBy;
+          delete user.settings.serverSunsetRequestedAt;
+        }
+        await cancelPendingAutoSunsetDeletionRequest(user);
+        await userRepo.save(user);
+        const token = app.jwt.sign({ userId: user.id, sessionId });
+        try {
+          setAuthCookie(ctx, token);
+        } catch (e) {
+          ctx.log?.warn?.({ err: e }, 'setAuthCookie failed for passkey auth');
+        }
+        const csrfToken = await storeCsrfToken(sessionId);
+        return { token, csrfToken };
+      } else {
+        ctx.set.status = 401;
+        return { error: ctx.t('common.authenticationFailed') };
+      }
+    },
+    {
+      body: t.Object({ email: t.String({ format: 'email' }), authenticationResponse: t.Any() }),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Finish passkey authentication',
+        description: 'Completes the passkey authentication process for the user.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeyAuthenticate',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/auth/passkeys',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
+      const keys = await passkeyRepo.find({
+        where: { user: { id: user.id } },
+        relations: { user: true },
+      });
+      return keys.map((k: any) => ({
+        id: k.id,
+        name: k.name || `Passkey #${k.id}`,
+        credentialID: k.credentialID,
+        transports: k.transports,
+      }));
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Array(
+          t.Object({
+            id: t.Number(),
+            name: t.Optional(t.String()),
+            credentialID: t.Any(),
+            transports: t.Any(),
+          })
+        ),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'List registered passkeys',
+        description: 'Lists all registered passkeys for the user.',
+        tags: ['Auth'],
+        operationId: 'getAuthPasskeys',
+      },
+    }
+  );
+
+  app.put(
+    prefix + '/auth/passkeys/:id',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const id = Number((ctx.params as any).id);
+      const { name } = ctx.body as any;
+      if (!name) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.nameRequired') };
+      }
+      const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
+      const passkey = await passkeyRepo.findOne({ where: { id, user: { id: user.id } } });
+      if (!passkey) {
+        ctx.set.status = 404;
+        return { error: ctx.t('auth.passkeyNotFound') };
+      }
+      passkey.name = String(name).trim();
+      await passkeyRepo.save(passkey);
+      return { success: true, passkey: { id: passkey.id, name: passkey.name } };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({
+          success: t.Boolean(),
+          passkey: t.Object({ id: t.Number(), name: t.String() }),
+        }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Update passkey name',
+        description: 'Updates name for a registered passkey.',
+        tags: ['Auth'],
+        operationId: 'putAuthPasskeyName',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/auth/2fa/setup',
+    async (ctx: any) => {
+      const user = ctx.user as User;
+      const secret = speakeasy.generateSecret({ name: `EcliPanel (${user.email})` });
+      return { secret: secret.base32, otpauth_url: secret.otpauth_url };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({ secret: t.String(), otpauth_url: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Generate 2FA secret',
+        description: 'Generates a new 2FA secret for the user.',
+        tags: ['Auth'],
+        operationId: 'getAuth2faSetup',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/2fa/verify',
+    async (ctx: any) => {
+      const user = ctx.user as User;
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:2fa:enable:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(key, 5, 300);
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch (e) {
+        /* meow */
+      }
+
+      const body = ctx.body || {};
+      const { token, secret } = body as any;
+      if (!token || !secret) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.missingTokenOrSecret') };
+      }
+      const ok = speakeasy.totp.verify({
+        secret: String(secret),
+        encoding: 'base32',
+        token: String(token).trim(),
+        window: 1,
+      });
+      if (!ok) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.invalidToken') };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      user.twoFactorEnabled = true;
+      user.twoFactorSecret = String(secret);
+      const codes: string[] = [];
+      const hashes: string[] = [];
+      for (let i = 0; i < 10; i++) {
+        const c = await randomToken(6);
+        codes.push(c);
+        hashes.push(sha256Hex(c));
+      }
+      user.twoFactorRecoveryCodes = hashes;
+      await userRepo.save(user);
+      ctx.log.info(
+        { userId: user.id, twoFactorEnabled: user.twoFactorEnabled },
+        'User 2FA enabled and recovery codes generated'
+      );
+      return { recoveryCodes: codes };
+    },
+    {
+      beforeHandle: authenticate,
+      body: t.Object({ token: t.String(), secret: t.String() }),
+      response: {
+        200: t.Object({ recoveryCodes: t.Array(t.String()) }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Enable two-factor authentication',
+        description: 'Enables two-factor authentication for the user.',
+        tags: ['Auth'],
+        operationId: 'postAuth2faVerify',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/2fa/disable',
+    async (ctx: any) => {
+      const user = ctx.user as User;
+      try {
+        const ip = (ctx.ip || '').toString();
+        const key = `rate:auth:2fa:disable:ip:${ip}`;
+        const rl = await require('../config/redis').consumeRateLimit(key, 5, 300);
+        if (!rl.allowed) {
+          ctx.set.status = 429;
+          return { error: 'rate_limited', retryAfter: rl.retryAfterSeconds };
+        }
+      } catch (e) {
+        /* meow */
+      }
+
+      const body = ctx.body || {};
+      const { token } = body as any;
+      if (!token) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.missingToken') };
+      }
+      const ok = speakeasy.totp.verify({
+        secret: user.twoFactorSecret || '',
+        encoding: 'base32',
+        token: String(token).trim(),
+        window: 1,
+      });
+      if (!ok) {
+        ctx.set.status = 400;
+        return { error: ctx.t('auth.invalidToken') };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      user.twoFactorEnabled = false;
+      user.twoFactorSecret = undefined;
+      user.twoFactorRecoveryCodes = undefined;
+      user.sessions = [];
+      await userRepo.save(user);
+      try {
+        await require('../config/redis').redisDelByPrefix(
+          `csrf:${(ctx.jwtPayload as any)?.sessionId}`
+        );
+      } catch {}
+      ctx.log.info(
+        { userId: user.id, twoFactorEnabled: user.twoFactorEnabled },
+        'User 2FA disabled'
+      );
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      body: t.Object({ token: t.String() }),
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Disable two-factor authentication',
+        description: 'Disables two-factor authentication for the user.',
+        tags: ['Auth'],
+        operationId: 'postAuth2faDisable',
+      },
+    }
+  );
+
+  app.delete(
+    prefix + '/auth/passkeys/:id',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const { id } = ctx.params as any;
+      const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
+      const key = await passkeyRepo.findOne({
+        where: { id: Number(id), user: { id: user.id } },
+        relations: { user: true },
+      });
+      if (!key) {
+        ctx.set.status = 404;
+        return { error: ctx.t('auth.passkeyNotFound') };
+      }
+      await passkeyRepo.remove(key);
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Remove a passkey',
+        description: 'Removes a passkey from the user account.',
+        tags: ['Auth'],
+        operationId: 'deleteAuthPasskeysId',
+      },
+    }
+  );
 
   // I hope gods of github will accept our partnership
   // and I will hope whatever I did will work..
-  app.get(prefix + '/auth/github/start', async (ctx: any) => {
-    const user = ctx.user;
-    const state = await randomToken(16);
-    await redisSet(`github-student-state:${state}`, String(user.id), 600);
-    const clientId = process.env.GITHUB_CLIENT_ID;
-    if (!clientId) {
-      ctx.set.status = 500;
-      return { error: ctx.t('system.githubClientIdNotConfigured') };
-    }
-    const redirect = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read:user+user:email&state=${state}`;
-    try {
-      if (ctx.set && typeof ctx.set.header === 'function') {
-        ctx.set.status = 302;
-        ctx.set.header('Location', redirect);
-        return '';
+  app.get(
+    prefix + '/auth/github/start',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const state = await randomToken(16);
+      await redisSet(`github-student-state:${state}`, String(user.id), 600);
+      const clientId = process.env.GITHUB_CLIENT_ID;
+      if (!clientId) {
+        ctx.set.status = 500;
+        return { error: ctx.t('system.githubClientIdNotConfigured') };
       }
-      if (typeof ctx.redirect === 'function') {
-        return ctx.redirect(redirect);
+      const redirect = `https://github.com/login/oauth/authorize?client_id=${clientId}&scope=read:user+user:email&state=${state}`;
+      try {
+        if (ctx.set && typeof ctx.set.header === 'function') {
+          ctx.set.status = 302;
+          ctx.set.header('Location', redirect);
+          return '';
+        }
+        if (typeof ctx.redirect === 'function') {
+          return ctx.redirect(redirect);
+        }
+      } catch (e) {
+        ctx.log?.warn?.({ err: e }, 'failed to perform server redirect, falling back to JSON');
       }
-    } catch (e) {
-      ctx.log?.warn?.({ err: e }, 'failed to perform server redirect, falling back to JSON');
-    }
-    return { redirect };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ redirect: t.String() }), 401: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Initiate GitHub student OAuth',
-      description: 'Starts the GitHub OAuth flow for student verification.',
-      tags: ['Auth'],
-      operationId: 'getAuthGithubStart',
-    }
-  });
-
-  app.get(prefix + '/auth/github/callback', async (ctx: any) => {
-    const { code, state } = ctx.query as any;
-    if (!code || !state) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.missingCodeOrState') };
-    }
-    const stored = await redisGet(`github-student-state:${state}`);
-    if (!stored) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.invalidState') };
-    }
-    const userId = Number(stored);
-
-    const clientId = process.env.GITHUB_CLIENT_ID;
-    const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-    if (!clientId || !clientSecret) {
-      ctx.set.status = 500;
-      return { error: ctx.t('system.githubOauthNotConfigured') };
-    }
-    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json' },
-      body: new URLSearchParams({ client_id: clientId, client_secret: clientSecret, code, state }),
-    });
-    const tokenData = await tokenRes.json();
-    ctx.log.info({ scopes: tokenData.scope, expires_in: tokenData.expires_in }, 'GitHub token metadata');
-    const accessToken = tokenData.access_token;
-    if (!accessToken) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.accessTokenFailed') };
-    }
-
-    const eduRes = await fetch('https://education.github.com/api/user', {
-      headers: {
-        'Authorization': `token ${accessToken}`,
-        'User-Agent': 'EcliPanel',
-        'Accept': 'application/vnd.github+json',
+      return { redirect };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({ redirect: t.String() }),
+        401: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
       },
-    });
-    const eduText = await eduRes.text();
-    ctx.log.info({ status: eduRes.status, headers: Object.fromEntries(eduRes.headers.entries()), body: eduText }, 'GitHub Education API raw response');
-    let eduData: any = {};
-    try { eduData = JSON.parse(eduText); } catch {
-      ctx.log.warn({ status: eduRes.status, body: eduText }, 'GitHub Education API returned non-JSON');
+      detail: {
+        summary: 'Initiate GitHub student OAuth',
+        description: 'Starts the GitHub OAuth flow for student verification.',
+        tags: ['Auth'],
+        operationId: 'getAuthGithubStart',
+      },
     }
-    ctx.log.info({ eduData }, 'GitHub Education API parsed response');
-    const isStudent = eduData?.student === true;
-    if (!isStudent) {
-      ctx.log.warn({ userId, eduData }, 'GitHub Education API did not confirm student status');
+  );
+
+  app.get(
+    prefix + '/auth/github/callback',
+    async (ctx: any) => {
+      const { code, state } = ctx.query as any;
+      if (!code || !state) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.missingCodeOrState') };
+      }
+      const stored = await redisGet(`github-student-state:${state}`);
+      if (!stored) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidState') };
+      }
+      const userId = Number(stored);
+
+      const clientId = process.env.GITHUB_CLIENT_ID;
+      const clientSecret = process.env.GITHUB_CLIENT_SECRET;
+      if (!clientId || !clientSecret) {
+        ctx.set.status = 500;
+        return { error: ctx.t('system.githubOauthNotConfigured') };
+      }
+      const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code,
+          state,
+        }),
+      });
+      const tokenData = await tokenRes.json();
+      ctx.log.info(
+        { scopes: tokenData.scope, expires_in: tokenData.expires_in },
+        'GitHub token metadata'
+      );
+      const accessToken = tokenData.access_token;
+      if (!accessToken) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.accessTokenFailed') };
+      }
+
+      const eduRes = await fetch('https://education.github.com/api/user', {
+        headers: {
+          Authorization: `token ${accessToken}`,
+          'User-Agent': 'EcliPanel',
+          Accept: 'application/vnd.github+json',
+        },
+      });
+      const eduText = await eduRes.text();
+      ctx.log.info(
+        {
+          status: eduRes.status,
+          headers: Object.fromEntries(eduRes.headers.entries()),
+          body: eduText,
+        },
+        'GitHub Education API raw response'
+      );
+      let eduData: Record<string, unknown> = {};
+      try {
+        eduData = JSON.parse(eduText);
+      } catch {
+        ctx.log.warn(
+          { status: eduRes.status, body: eduText },
+          'GitHub Education API returned non-JSON'
+        );
+      }
+      ctx.log.info({ eduData }, 'GitHub Education API parsed response');
+      const isStudent = eduData?.student === true;
+      if (!isStudent) {
+        ctx.log.warn({ userId, eduData }, 'GitHub Education API did not confirm student status');
+        const panelUrl = getPanelUrl(ctx);
+        return { redirect: `${panelUrl}/dashboard/identity?studentVerified=0` };
+      }
+
+      const { Plan } = require('../models/plan.entity');
+      const planRepo = AppDataSource.getRepository(Plan);
+      const eduPlan = await planRepo.findOne({ where: { type: 'educational' } });
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: userId });
+      if (user) {
+        user.portalType = 'educational';
+        user.educationLimits = {
+          memory: eduPlan?.memory ?? 4096,
+          disk: eduPlan?.disk ?? 51200,
+          cpu: eduPlan?.cpu ?? 600,
+          serverLimit: eduPlan?.serverLimit ?? 3,
+          portCount: eduPlan?.portCount ?? 3,
+          portsPerServer: eduPlan?.portCount ?? 3,
+          tunnelPortCount: eduPlan?.tunnelPortCount ?? 10,
+          emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
+          emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
+        };
+        user.limits = user.educationLimits ? { ...user.educationLimits } : null;
+        ctx.log.info(
+          { eduPlan: eduPlan?.id ?? null, limits: user.limits },
+          'Applying educational plan limits to user'
+        );
+        user.studentVerified = true;
+        user.studentVerifiedAt = new Date();
+        await userRepo.save(user);
+      }
+      await redisDel(`github-student-state:${state}`);
       const panelUrl = getPanelUrl(ctx);
-      return { redirect: `${panelUrl}/dashboard/identity?studentVerified=0` };
-    }
-
-    const { Plan } = require('../models/plan.entity');
-    const planRepo = AppDataSource.getRepository(Plan);
-    const eduPlan = await planRepo.findOne({ where: { type: 'educational' } });
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (user) {
-      user.portalType = 'educational';
-      user.educationLimits = {
-        memory: eduPlan?.memory ?? 4096,
-        disk: eduPlan?.disk ?? 51200,
-        cpu: eduPlan?.cpu ?? 600,
-        serverLimit: eduPlan?.serverLimit ?? 3,
-        portCount: eduPlan?.portCount ?? 3,
-        portsPerServer: eduPlan?.portCount ?? 3,
-        tunnelPortCount: eduPlan?.tunnelPortCount ?? 10,
-        emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
-        emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
-      };
-      user.limits = user.educationLimits ? { ...user.educationLimits } : null;
-      ctx.log.info({ eduPlan: eduPlan?.id ?? null, limits: user.limits }, 'Applying educational plan limits to user');
-      user.studentVerified = true;
-      user.studentVerifiedAt = new Date();
-      await userRepo.save(user);
-    }
-    await redisDel(`github-student-state:${state}`);
-    const panelUrl = getPanelUrl(ctx);
-    return ctx.redirect(`${panelUrl}/dashboard/identity?studentVerified=1`);
-  }, {
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Handle GitHub OAuth callback',
-      description: 'Handles the callback from GitHub OAuth for student verification.',
-      tags: ['Auth'],
-      operationId: 'getAuthGithubCallback',
-    }
-  });
-
-  app.get(prefix + '/auth/hackclub/start', async (ctx: any) => {
-    const user = ctx.user;
-    const state = await randomToken(16);
-    await redisSet(`hackclub-student-state:${state}`, String(user.id), 600);
-    const clientId = process.env.HACKCLUB_CLIENT_ID;
-    const redirectUri = process.env.HACKCLUB_REDIRECT_URI
-      || `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
-    if (!clientId) {
-      ctx.set.status = 500;
-      return { error: ctx.t('system.hackclubClientIdNotConfigured') };
-    }
-    const scope = 'verification_status';
-    const authorizationUrl =
-      `https://auth.hackclub.com/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&response_type=code` +
-      `&scope=${encodeURIComponent(scope)}` +
-      `&state=${encodeURIComponent(state)}`;
-
-    return { redirect: authorizationUrl };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ redirect: t.String() }), 401: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Initiate Hack Club student OAuth',
-      description: 'Starts the Hack Club OAuth flow for student verification.',
-      tags: ['Auth'],
-      operationId: 'getAuthHackclubStart',
-    }
-  });
-
-  app.get(prefix + '/auth/hackclub/callback', async (ctx: any) => {
-    const { code, state } = ctx.query as any;
-    if (!code || !state) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.missingCodeOrState') };
-    }
-    const stored = await redisGet(`hackclub-student-state:${state}`);
-    if (!stored) {
-      ctx.set.status = 400;
-      return { error: ctx.t('validation.invalidState') };
-    }
-    const userId = Number(stored);
-
-    const clientId = process.env.HACKCLUB_CLIENT_ID;
-    const clientSecret = process.env.HACKCLUB_CLIENT_SECRET;
-    const redirectUri = process.env.HACKCLUB_REDIRECT_URI
-      || `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
-    if (!clientId || !clientSecret) {
-      ctx.set.status = 500;
-      return { error: ctx.t('system.hackclubOauthNotConfigured') };
-    }
-
-    const tokenRes = await fetch('https://auth.hackclub.com/oauth/token', {
-      method: 'POST',
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        code,
-        grant_type: 'authorization_code',
-      }),
-    });
-    const tokenData = await tokenRes.json();
-    const accessToken = tokenData.access_token;
-    if (!accessToken) {
-      ctx.set.status = 400;
-      return { error: ctx.t('system.accessTokenFailed') };
-    }
-
-    const meRes = await fetch('https://auth.hackclub.com/api/v1/me', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json',
+      return ctx.redirect(`${panelUrl}/dashboard/identity?studentVerified=1`);
+    },
+    {
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
       },
-    });
-    const meText = await meRes.text();
-    let meData: any = {};
-    try { meData = JSON.parse(meText); } catch {
-      ctx.log.warn({ status: meRes.status, body: meText }, 'Hack Club /api/v1/me returned non-JSON');
+      detail: {
+        summary: 'Handle GitHub OAuth callback',
+        description: 'Handles the callback from GitHub OAuth for student verification.',
+        tags: ['Auth'],
+        operationId: 'getAuthGithubCallback',
+      },
     }
+  );
 
-    const hkIdentity = meData?.identity ?? {};
-    const isStudent = hkIdentity?.ysws_eligible === true;
+  app.get(
+    prefix + '/auth/hackclub/start',
+    async (ctx: any) => {
+      const user = ctx.user;
+      const state = await randomToken(16);
+      await redisSet(`hackclub-student-state:${state}`, String(user.id), 600);
+      const clientId = process.env.HACKCLUB_CLIENT_ID;
+      const redirectUri =
+        process.env.HACKCLUB_REDIRECT_URI ||
+        `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
+      if (!clientId) {
+        ctx.set.status = 500;
+        return { error: ctx.t('system.hackclubClientIdNotConfigured') };
+      }
+      const scope = 'verification_status';
+      const authorizationUrl =
+        `https://auth.hackclub.com/oauth/authorize?client_id=${encodeURIComponent(clientId)}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+        `&response_type=code` +
+        `&scope=${encodeURIComponent(scope)}` +
+        `&state=${encodeURIComponent(state)}`;
 
-    if (!isStudent) {
-      ctx.log.warn({ userId, meData }, 'Hack Club did not confirm student status');
+      return { redirect: authorizationUrl };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({ redirect: t.String() }),
+        401: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Initiate Hack Club student OAuth',
+        description: 'Starts the Hack Club OAuth flow for student verification.',
+        tags: ['Auth'],
+        operationId: 'getAuthHackclubStart',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/auth/hackclub/callback',
+    async (ctx: any) => {
+      const { code, state } = ctx.query as any;
+      if (!code || !state) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.missingCodeOrState') };
+      }
+      const stored = await redisGet(`hackclub-student-state:${state}`);
+      if (!stored) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidState') };
+      }
+      const userId = Number(stored);
+
+      const clientId = process.env.HACKCLUB_CLIENT_ID;
+      const clientSecret = process.env.HACKCLUB_CLIENT_SECRET;
+      const redirectUri =
+        process.env.HACKCLUB_REDIRECT_URI ||
+        `${getBackendUrl(ctx)}${prefix}/auth/hackclub/callback`;
+      if (!clientId || !clientSecret) {
+        ctx.set.status = 500;
+        return { error: ctx.t('system.hackclubOauthNotConfigured') };
+      }
+
+      const tokenRes = await fetch('https://auth.hackclub.com/oauth/token', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          code,
+          grant_type: 'authorization_code',
+        }),
+      });
+      const tokenData = await tokenRes.json();
+      const accessToken = tokenData.access_token;
+      if (!accessToken) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.accessTokenFailed') };
+      }
+
+      const meRes = await fetch('https://auth.hackclub.com/api/v1/me', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+        },
+      });
+      const meText = await meRes.text();
+      let meData: Record<string, unknown> = {};
+      try {
+        meData = JSON.parse(meText);
+      } catch {
+        ctx.log.warn(
+          { status: meRes.status, body: meText },
+          'Hack Club /api/v1/me returned non-JSON'
+        );
+      }
+
+      const hkIdentity = (meData?.identity as Record<string, unknown> | undefined) ?? {};
+      const isStudent = (hkIdentity as Record<string, unknown>)?.ysws_eligible === true;
+
+      if (!isStudent) {
+        ctx.log.warn({ userId, meData }, 'Hack Club did not confirm student status');
+        await redisDel(`hackclub-student-state:${state}`);
+        const panelUrl = getPanelUrl(ctx);
+        ctx.set.status = 302;
+        ctx.set.headers['Location'] = `${panelUrl}/dashboard/identity?studentVerified=0`;
+        return;
+      }
+
+      const { Plan } = require('../models/plan.entity');
+      const planRepo = AppDataSource.getRepository(Plan);
+      const eduPlan = await planRepo.findOne({ where: { type: 'educational' } });
+
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: userId });
+      if (user) {
+        const keepExistingPaidTier = ['paid', 'enterprise'].includes(user.portalType);
+
+        user.studentVerified = true;
+        user.studentVerifiedAt = new Date();
+
+        const defaultEduLimits = {
+          memory: eduPlan?.memory ?? 4096,
+          disk: eduPlan?.disk ?? 51200,
+          cpu: eduPlan?.cpu ?? 600,
+          serverLimit: eduPlan?.serverLimit ?? 3,
+          portCount: eduPlan?.portCount ?? 3,
+          portsPerServer: eduPlan?.portCount ?? 3,
+          tunnelPortCount: eduPlan?.tunnelPortCount ?? 0,
+          emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
+          emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
+        };
+
+        const existingLimits = (user.educationLimits || {}) as Record<string, any>;
+        const currentBaseLimits = (user.limits || {}) as Record<string, any>;
+
+        const portLimitExisting = existingLimits.portsPerServer ?? existingLimits.portCount ?? 0;
+        const portLimitBase = currentBaseLimits.portsPerServer ?? currentBaseLimits.portCount ?? 0;
+        user.educationLimits = {
+          memory: Math.max(
+            existingLimits.memory || 0,
+            currentBaseLimits.memory || 0,
+            defaultEduLimits.memory
+          ),
+          disk: Math.max(
+            existingLimits.disk || 0,
+            currentBaseLimits.disk || 0,
+            defaultEduLimits.disk
+          ),
+          cpu: Math.max(existingLimits.cpu || 0, currentBaseLimits.cpu || 0, defaultEduLimits.cpu),
+          serverLimit: Math.max(
+            existingLimits.serverLimit || 0,
+            currentBaseLimits.serverLimit || 0,
+            defaultEduLimits.serverLimit
+          ),
+          portCount: Math.max(
+            existingLimits.portCount || 0,
+            currentBaseLimits.portCount || 0,
+            defaultEduLimits.portCount
+          ),
+          portsPerServer: Math.max(
+            portLimitExisting,
+            portLimitBase,
+            defaultEduLimits.portsPerServer
+          ),
+          tunnelPortCount: Math.max(
+            existingLimits.tunnelPortCount || 0,
+            currentBaseLimits.tunnelPortCount || 0,
+            defaultEduLimits.tunnelPortCount
+          ),
+          emailSendDailyLimit: Math.max(
+            existingLimits.emailSendDailyLimit || 0,
+            currentBaseLimits.emailSendDailyLimit || 0,
+            defaultEduLimits.emailSendDailyLimit
+          ),
+          emailSendQueueLimit: Math.max(
+            existingLimits.emailSendQueueLimit || 0,
+            currentBaseLimits.emailSendQueueLimit || 0,
+            defaultEduLimits.emailSendQueueLimit
+          ),
+        };
+
+        if (!keepExistingPaidTier) {
+          user.portalType = 'educational';
+          user.limits = user.educationLimits ? { ...user.educationLimits } : null;
+        }
+
+        ctx.log.info(
+          {
+            eduPlan: eduPlan?.id ?? null,
+            portalType: user.portalType,
+            educationLimits: user.educationLimits,
+          },
+          'Applying Hack Club educational plan limits to user'
+        );
+        await userRepo.save(user);
+      }
+
       await redisDel(`hackclub-student-state:${state}`);
       const panelUrl = getPanelUrl(ctx);
       ctx.set.status = 302;
-      ctx.set.headers['Location'] = `${panelUrl}/dashboard/identity?studentVerified=0`;
+      ctx.set.headers['Location'] = `${panelUrl}/?studentVerified=1`;
       return;
+    },
+    {
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Handle Hack Club OAuth callback',
+        description: 'Handles the callback from Hack Club OAuth for student verification.',
+        tags: ['Auth'],
+        operationId: 'getAuthHackclubCallback',
+      },
     }
+  );
 
-    const { Plan } = require('../models/plan.entity');
-    const planRepo = AppDataSource.getRepository(Plan);
-    const eduPlan = await planRepo.findOne({ where: { type: 'educational' } });
-
-    const userRepo = AppDataSource.getRepository(User);
-    const user = await userRepo.findOneBy({ id: userId });
-    if (user) {
-      const keepExistingPaidTier = ['paid', 'enterprise'].includes(user.portalType);
-
-      user.studentVerified = true;
-      user.studentVerifiedAt = new Date();
-
-      const defaultEduLimits = {
-        memory: eduPlan?.memory ?? 4096,
-        disk: eduPlan?.disk ?? 51200,
-        cpu: eduPlan?.cpu ?? 600,
-        serverLimit: eduPlan?.serverLimit ?? 3,
-        portCount: eduPlan?.portCount ?? 3,
-        portsPerServer: eduPlan?.portCount ?? 3,
-        tunnelPortCount: eduPlan?.tunnelPortCount ?? 0,
-        emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
-        emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
-      };
-
-      const existingLimits = (user.educationLimits || {}) as Record<string, any>;
-      const currentBaseLimits = (user.limits || {}) as Record<string, any>;
-
-      const portLimitExisting = existingLimits.portsPerServer ?? existingLimits.portCount ?? 0;
-      const portLimitBase = currentBaseLimits.portsPerServer ?? currentBaseLimits.portCount ?? 0;
-      user.educationLimits = {
-        memory: Math.max(existingLimits.memory || 0, currentBaseLimits.memory || 0, defaultEduLimits.memory),
-        disk: Math.max(existingLimits.disk || 0, currentBaseLimits.disk || 0, defaultEduLimits.disk),
-        cpu: Math.max(existingLimits.cpu || 0, currentBaseLimits.cpu || 0, defaultEduLimits.cpu),
-        serverLimit: Math.max(existingLimits.serverLimit || 0, currentBaseLimits.serverLimit || 0, defaultEduLimits.serverLimit),
-        portCount: Math.max(existingLimits.portCount || 0, currentBaseLimits.portCount || 0, defaultEduLimits.portCount),
-        portsPerServer: Math.max(portLimitExisting, portLimitBase, defaultEduLimits.portsPerServer),
-        tunnelPortCount: Math.max(existingLimits.tunnelPortCount || 0, currentBaseLimits.tunnelPortCount || 0, defaultEduLimits.tunnelPortCount),
-        emailSendDailyLimit: Math.max(existingLimits.emailSendDailyLimit || 0, currentBaseLimits.emailSendDailyLimit || 0, defaultEduLimits.emailSendDailyLimit),
-        emailSendQueueLimit: Math.max(existingLimits.emailSendQueueLimit || 0, currentBaseLimits.emailSendQueueLimit || 0, defaultEduLimits.emailSendQueueLimit),
-      };
-
-      if (!keepExistingPaidTier) {
-        user.portalType = 'educational';
-        user.limits = user.educationLimits ? { ...user.educationLimits } : null;
+  app.get(
+    prefix + '/auth/session',
+    async (ctx: any) => {
+      const user = ctx.user as User | undefined;
+      if (!user) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
       }
+      const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
+      const cacheKey = `auth:session:user:${user.id}:session:${decoded?.sessionId || 'none'}:v1`;
+      return withRedisCache(cacheKey, 8, async () => {
+        const passkeyRepo = AppDataSource.getRepository(
+          require('../models/passkey.entity').Passkey
+        );
+        const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
+        const orgs = await getUserOrgMemberships(user.id);
+        const legacyOrg = orgs[0] || null;
 
-      ctx.log.info({ eduPlan: eduPlan?.id ?? null, portalType: user.portalType, educationLimits: user.educationLimits }, 'Applying Hack Club educational plan limits to user');
-      await userRepo.save(user);
-    }
-
-    await redisDel(`hackclub-student-state:${state}`);
-    const panelUrl = getPanelUrl(ctx);
-    ctx.set.status = 302;
-    ctx.set.headers['Location'] = `${panelUrl}/?studentVerified=1`;
-    return;
-  }, {
-    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 500: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Handle Hack Club OAuth callback',
-      description: 'Handles the callback from Hack Club OAuth for student verification.',
-      tags: ['Auth'],
-      operationId: 'getAuthHackclubCallback',
-    }
-  });
-
-  app.get(prefix + '/auth/session', async (ctx: any) => {
-    const user = ctx.user as User | undefined;
-    if (!user) {
-      ctx.set.status = 401;
-      return { error: ctx.t('auth.unauthorized') };
-    }
-    const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
-    const cacheKey = `auth:session:user:${user.id}:session:${decoded?.sessionId || 'none'}:v1`;
-    return withRedisCache(cacheKey, 8, async () => {
-      const passkeyRepo = AppDataSource.getRepository(require('../models/passkey.entity').Passkey);
-      const passkeyCount = await passkeyRepo.count({ where: { user: { id: user.id } } });
-      const orgs = await getUserOrgMemberships(user.id);
-      const legacyOrg = orgs[0] || null;
-
-      const userTier = (user as any).portalType || (user as any).tier || (legacyOrg?.portalTier || null);
-      let returnedLimits: any = (user as any).limits || (user as any).educationLimits || null;
-      if (!returnedLimits && userTier && userTier !== 'free') {
-        try {
-          const Order = require('../models/order.entity').Order;
-          const Plan = require('../models/plan.entity').Plan;
-          const orderRepo = AppDataSource.getRepository(Order);
-          const planRepo = AppDataSource.getRepository(Plan);
-          let orders: any[] = [];
+        const userTier =
+          user.portalType || legacyOrg?.portalTier || null;
+        let returnedLimits = user.limits || user.educationLimits || null;
+        if (!returnedLimits && userTier && userTier !== 'free') {
           try {
-            const orgIds = orgs.map((o: any) => Number(o.id)).filter((x: number) => Number.isFinite(x));
-            if (orgIds.length > 0) {
-              const orgOrderWhere = orgIds.map((oid: number) => ({ orgId: oid, status: 'active' }));
-              orders = await orderRepo.find({ where: [{ userId: user.id, status: 'active' }, ...orgOrderWhere], order: { createdAt: 'DESC' } });
-            } else {
-              orders = await orderRepo.find({ where: { userId: user.id, status: 'active' }, order: { createdAt: 'DESC' } });
-            }
-          } catch (err) {
-            orders = [];
-          }
-
-          let order = orders.find((o: any) => o.planId != null) || null;
-          let plan: any = null;
-          if (order) {
-            plan = await planRepo.findOneBy({ id: order.planId! });
-          }
-
-          if (!plan && userTier) {
+            const Order = require('../models/order.entity').Order;
+            const Plan = require('../models/plan.entity').Plan;
+            const orderRepo = AppDataSource.getRepository(Order);
+            const planRepo = AppDataSource.getRepository(Plan);
+            let orders: any[] = [];
             try {
-              plan = await planRepo.findOne({ where: { type: userTier } });
+              const orgIds = orgs
+                .map((o: any) => Number(o.id))
+                .filter((x: number) => Number.isFinite(x));
+              if (orgIds.length > 0) {
+                const orgOrderWhere = orgIds.map((oid: number) => ({
+                  orgId: oid,
+                  status: 'active',
+                }));
+                orders = await orderRepo.find({
+                  where: [{ userId: user.id, status: 'active' }, ...orgOrderWhere],
+                  order: { createdAt: 'DESC' },
+                });
+              } else {
+                orders = await orderRepo.find({
+                  where: { userId: user.id, status: 'active' },
+                  order: { createdAt: 'DESC' },
+                });
+              }
             } catch (err) {
-              plan = null;
+              orders = [];
             }
-          }
 
-          if (plan) {
-            const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
-            let limitsFromPlan: any = {};
-            if (plan.type === 'enterprise' && (user as any).nodeId) {
-              const node = await nodeRepo.findOneBy({ id: (user as any).nodeId });
-              if (node) {
-                if (node.memory != null) limitsFromPlan.memory = Number(node.memory);
-                if (node.disk != null) limitsFromPlan.disk = Number(node.disk);
-                if (node.cpu != null) limitsFromPlan.cpu = Number(node.cpu);
-                if (node.serverLimit != null) limitsFromPlan.serverLimit = Number(node.serverLimit);
+            const order = orders.find((o: Record<string, unknown>) => o.planId != null) || null;
+            let plan: Plan | null = null;
+            if (order) {
+              plan = (await planRepo.findOneBy({ id: order.planId as number })) as Plan | null;
+            }
+
+            if (!plan && userTier) {
+              try {
+                plan = (await planRepo.findOne({ where: { type: userTier } })) as Plan | null;
+              } catch (err) {
+                plan = null;
               }
             }
-            if (Object.keys(limitsFromPlan).length === 0) {
-              if (plan.memory != null) limitsFromPlan.memory = plan.memory;
-              if (plan.disk != null) limitsFromPlan.disk = plan.disk;
-              if (plan.cpu != null) limitsFromPlan.cpu = plan.cpu;
-              if (plan.serverLimit != null) limitsFromPlan.serverLimit = plan.serverLimit;
-              if (plan.databases != null) limitsFromPlan.databases = plan.databases;
-              if (plan.backups != null) limitsFromPlan.backups = plan.backups;
+
+            if (plan) {
+              const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
+              const limitsFromPlan: Record<string, number | undefined> = {};
+              if (plan.type === 'enterprise' && user.nodeId) {
+                const node = await nodeRepo.findOneBy({ id: user.nodeId });
+                if (node) {
+                  if (node.memory != null) limitsFromPlan.memory = Number(node.memory);
+                  if (node.disk != null) limitsFromPlan.disk = Number(node.disk);
+                  if (node.cpu != null) limitsFromPlan.cpu = Number(node.cpu);
+                  if (node.serverLimit != null)
+                    limitsFromPlan.serverLimit = Number(node.serverLimit);
+                }
+              }
+              if (Object.keys(limitsFromPlan).length === 0) {
+                if (plan.memory != null) limitsFromPlan.memory = plan.memory;
+                if (plan.disk != null) limitsFromPlan.disk = plan.disk;
+                if (plan.cpu != null) limitsFromPlan.cpu = plan.cpu;
+                if (plan.serverLimit != null) limitsFromPlan.serverLimit = plan.serverLimit;
+                if (plan.databases != null) limitsFromPlan.databases = plan.databases;
+                if (plan.backups != null) limitsFromPlan.backups = plan.backups;
+              }
+              returnedLimits = Object.keys(limitsFromPlan).length ? limitsFromPlan : null;
             }
-            returnedLimits = Object.keys(limitsFromPlan).length ? limitsFromPlan : null;
+          } catch (err) {
+            //  skip
           }
-        } catch (err) {
-          //  skip
         }
+
+        return {
+          user: {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            middleName: user.middleName || null,
+            lastName: user.lastName,
+            displayName: user.displayName || null,
+            address: user.address || null,
+            address2: user.address2 || null,
+            phone: user.phone || null,
+            billingCompany: user.billingCompany || null,
+            billingCity: user.billingCity || null,
+            billingState: user.billingState || null,
+            billingZip: user.billingZip || null,
+            billingCountry: user.billingCountry || null,
+            tier: user.portalType,
+            role: user.role,
+            sessionId: decoded?.sessionId,
+            emailVerified: user.emailVerified ?? false,
+            passkeyCount,
+            studentVerified: user.studentVerified || false,
+            twoFactorEnabled: !!user.twoFactorEnabled,
+            avatarUrl: user.avatarUrl || null,
+            supportBanned: !!user.supportBanned,
+            supportBanReason: user.supportBanReason || null,
+            dateOfBirth: formatDateOfBirth(user.dateOfBirth),
+            parentId: user.parentId != null ? Number(user.parentId) : null,
+            org: legacyOrg
+              ? {
+                  id: legacyOrg.id,
+                  name: legacyOrg.name,
+                  handle: legacyOrg.handle,
+                  portalTier: legacyOrg.portalTier,
+                  avatarUrl: legacyOrg.avatarUrl,
+                }
+              : null,
+            orgs,
+            orgRole: legacyOrg?.orgRole || 'member',
+            limits: returnedLimits,
+            nodeId: user.nodeId || null,
+            settings: user.settings || null,
+            permissions: ctx.userPermissions || [],
+            usesLegacyPasswordHash: isLegacyPasswordHash(user.passwordHash),
+            geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
+            idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
+            guideShown: user.guideShown === true,
+            serverSunsetNoticeSentAt: user.serverSunsetNoticeSentAt || null,
+          },
+        };
+      });
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
+      detail: {
+        summary: 'Get current session info',
+        description: 'Returns information about the current authenticated session.',
+        tags: ['Auth'],
+        operationId: 'getAuthSession',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/auth/csrf-token',
+    async (ctx: any) => {
+      const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
+      const sessionId = decoded?.sessionId;
+      if (!sessionId) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
       }
-
-      return {
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          middleName: user.middleName || null,
-          lastName: user.lastName,
-          displayName: user.displayName || null,
-          address: user.address || null,
-          address2: user.address2 || null,
-          phone: user.phone || null,
-          billingCompany: user.billingCompany || null,
-          billingCity: user.billingCity || null,
-          billingState: user.billingState || null,
-          billingZip: user.billingZip || null,
-          billingCountry: user.billingCountry || null,
-          tier: (user as any).portalType || (user as any).tier,
-          role: user.role,
-          sessionId: decoded?.sessionId,
-          emailVerified: user.emailVerified ?? false,
-          passkeyCount,
-          studentVerified: (user as any).studentVerified || false,
-          twoFactorEnabled: !!user.twoFactorEnabled,
-          avatarUrl: user.avatarUrl || null,
-          supportBanned: !!user.supportBanned,
-          supportBanReason: user.supportBanReason || null,
-          dateOfBirth: formatDateOfBirth(user.dateOfBirth),
-          parentId: user.parentId != null ? Number(user.parentId) : null,
-          org: legacyOrg
-            ? {
-              id: legacyOrg.id,
-              name: legacyOrg.name,
-              handle: legacyOrg.handle,
-              portalTier: legacyOrg.portalTier,
-              avatarUrl: legacyOrg.avatarUrl,
-            }
-            : null,
-          orgs,
-          orgRole: legacyOrg?.orgRole || 'member',
-          limits: returnedLimits,
-          nodeId: (user as any).nodeId || null,
-          settings: (user as any).settings || null,
-          permissions: ctx.userPermissions || [],
-          usesLegacyPasswordHash: isLegacyPasswordHash(user.passwordHash),
-          geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
-          idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
-          guideShown: (user as any).guideShown === true,
-          serverSunsetNoticeSentAt: user.serverSunsetNoticeSentAt || null,
-        },
-      };
-    });
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Get current session info',
-      description: 'Returns information about the current authenticated session.',
-      tags: ['Auth'],
-      operationId: 'getAuthSession',
+      const { redisGet } = require('../config/redis');
+      const existing = await redisGet(`csrf:${sessionId}`);
+      if (existing) {
+        return { csrfToken: existing };
+      }
+      const { storeCsrfToken } = require('../middleware/csrf');
+      const token = await storeCsrfToken(sessionId);
+      return { csrfToken: token };
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Object({ csrfToken: t.String() }), 401: t.Object({ error: t.String() }) },
+      detail: {
+        summary: 'Get CSRF token',
+        description:
+          'Returns the current CSRF token for the authenticated session, generating one if needed.',
+        tags: ['Auth'],
+        operationId: 'getAuthCsrfToken',
+      },
     }
-  });
-
-  app.get(prefix + '/auth/csrf-token', async (ctx: any) => {
-    const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
-    const sessionId = decoded?.sessionId;
-    if (!sessionId) {
-      ctx.set.status = 401;
-      return { error: ctx.t('auth.unauthorized') };
-    }
-    const { redisGet } = require('../config/redis');
-    const existing = await redisGet(`csrf:${sessionId}`);
-    if (existing) {
-      return { csrfToken: existing };
-    }
-    const { storeCsrfToken } = require('../middleware/csrf');
-    const token = await storeCsrfToken(sessionId);
-    return { csrfToken: token };
-  }, {
-    beforeHandle: authenticate,
-    response: { 200: t.Object({ csrfToken: t.String() }), 401: t.Object({ error: t.String() }) },
-    detail: {
-      summary: 'Get CSRF token',
-      description: 'Returns the current CSRF token for the authenticated session, generating one if needed.',
-      tags: ['Auth'],
-      operationId: 'getAuthCsrfToken',
-    }
-  });
+  );
 }

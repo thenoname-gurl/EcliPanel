@@ -5,7 +5,10 @@ self.addEventListener('message', async (ev: any) => {
   try {
     const input = Buffer.from(buffer instanceof ArrayBuffer ? buffer : buffer.buffer || buffer);
     const encrypted = encryptBuffer(input);
-    const ab = encrypted.buffer.slice(encrypted.byteOffset, encrypted.byteOffset + encrypted.byteLength);
+    const ab = encrypted.buffer.slice(
+      encrypted.byteOffset,
+      encrypted.byteOffset + encrypted.byteLength
+    );
     // @ts-ignore
     self.postMessage({ id, result: ab }, [ab]);
   } catch (err: any) {

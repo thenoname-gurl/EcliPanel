@@ -9,11 +9,7 @@ export function getHeaderValue(
   if (!headers) return null;
 
   if (typeof (headers as Headers).get === 'function') {
-    return (
-      (headers as Headers).get(name) ??
-      (headers as Headers).get(name.toLowerCase()) ??
-      null
-    );
+    return (headers as Headers).get(name) ?? (headers as Headers).get(name.toLowerCase()) ?? null;
   }
 
   const record = headers as Record<string, string>;
@@ -59,40 +55,26 @@ export function parseBody(body: unknown): Record<string, unknown> {
   return typeof body === 'object' ? (body as Record<string, unknown>) : {};
 }
 
-export function getStringField(
-  body: unknown,
-  keys: [string, string],
-  fallback = ''
-): string {
+export function getStringField(body: unknown, keys: [string, string], fallback = ''): string {
   const parsed = parseBody(body);
   const value = parsed[keys[0]] ?? parsed[keys[1]];
   return value != null ? String(value) : fallback;
 }
 
-export function getNumberField(
-  body: unknown,
-  keys: [string, string],
-  fallback = 0
-): number {
+export function getNumberField(body: unknown, keys: [string, string], fallback = 0): number {
   const parsed = parseBody(body);
   const value = parsed[keys[0]] ?? parsed[keys[1]];
   const num = Number(value);
   return Number.isFinite(num) ? num : fallback;
 }
 
-export function createJsonResponse(
-  data: unknown,
-  status = 200
-): Response {
+export function createJsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
 }
 
-export function errorResponse(
-  error: string,
-  status: number
-): Response {
+export function errorResponse(error: string, status: number): Response {
   return createJsonResponse({ error }, status);
 }

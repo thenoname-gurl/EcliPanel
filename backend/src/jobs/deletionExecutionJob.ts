@@ -27,19 +27,23 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
   const retentionYears = hasBillingHistory ? 10 : 1;
   const retainUntil = new Date(Date.now() + retentionYears * 365 * 24 * 60 * 60 * 1000);
 
-  const exists = await retentionRepo.findOne({ where: { userId: user.id, deletionRequestId: req.id } as any });
+  const exists = await retentionRepo.findOne({
+    where: { userId: user.id, deletionRequestId: req.id } as any,
+  });
   if (!exists) {
-    await retentionRepo.save(retentionRepo.create({
-      userId: user.id,
-      deletionRequestId: req.id,
-      firstName: user.firstName,
-      middleName: user.middleName,
-      lastName: user.lastName,
-      email: user.email,
-      hasBillingHistory,
-      deletedAt: now,
-      retainUntil,
-    }));
+    await retentionRepo.save(
+      retentionRepo.create({
+        userId: user.id,
+        deletionRequestId: req.id,
+        firstName: user.firstName,
+        middleName: user.middleName,
+        lastName: user.lastName,
+        email: user.email,
+        hasBillingHistory,
+        deletedAt: now,
+        retainUntil,
+      })
+    );
   }
 
   try {
@@ -48,7 +52,11 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
       await removeMailboxAccount(mailboxAccount);
     }
   } catch (err: any) {
-    console.warn('[deletionExecutionJob] failed to remove Mailcow mailbox account for user', user.id, err?.message || err);
+    console.warn(
+      '[deletionExecutionJob] failed to remove Mailcow mailbox account for user',
+      user.id,
+      err?.message || err
+    );
   }
 
   const panelUrl = process.env.PANEL_URL || 'https://ecli.app';
@@ -100,7 +108,8 @@ export async function runDeletionExecutionJob() {
 
   const now = new Date();
 
-  const due = await reqRepo.createQueryBuilder('r')
+  const due = await reqRepo
+    .createQueryBuilder('r')
     .where('r.status = :status', { status: 'pending_deletion' })
     .andWhere('r.scheduledDeletionAt IS NOT NULL')
     .andWhere('r.scheduledDeletionAt <= :now', { now: now.toISOString() })
@@ -111,15 +120,20 @@ export async function runDeletionExecutionJob() {
     await executeDeletionRequest(req, now);
   }
 
-  await retentionRepo.createQueryBuilder()
+  await retentionRepo
+    .createQueryBuilder()
     .delete()
     .where('retainUntil <= :now', { now: now.toISOString() })
     .execute();
 }
 
 export function scheduleDeletionExecutionJob() {
-  runDeletionExecutionJob().catch((e) => console.error('[deletionExecutionJob] initial run failed', e));
+  runDeletionExecutionJob().catch(e =>
+    console.error('[deletionExecutionJob] initial run failed', e)
+  );
   schedule('0 * * * *', async () => {
-    await runDeletionExecutionJob().catch((e) => console.error('[deletionExecutionJob] run failed', e));
+    await runDeletionExecutionJob().catch(e =>
+      console.error('[deletionExecutionJob] run failed', e)
+    );
   });
 }

@@ -17,7 +17,7 @@ function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {})
   }
   if (typeof obj !== 'object') return out;
   for (const [k, v] of Object.entries(obj)) {
-    const p = k === '' ? prefix : (prefix ? `${prefix}.${k}` : k);
+    const p = k === '' ? prefix : prefix ? `${prefix}.${k}` : k;
     if (typeof v === 'number') {
       out[p] = v;
     } else if (typeof v === 'object' && v !== null) {
@@ -30,7 +30,7 @@ function flattenMetrics(obj: any, prefix = '', out: Record<string, number> = {})
 function unflatten(flat: Record<string, number>) {
   const out: any = {};
   for (const [k, v] of Object.entries(flat)) {
-    const parts = k.split('.').filter((part) => part !== '');
+    const parts = k.split('.').filter(part => part !== '');
     let cur = out;
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
@@ -47,14 +47,21 @@ function unflatten(flat: Record<string, number>) {
 
 export async function fetchHistorical(serverId: string, windowKey = '1h', points = 60) {
   const minutes =
-    windowKey === '7d' ? 24 * 60 * 7 :
-    windowKey === '24h' ? 24 * 60 :
-    windowKey === '6h' ? 6 * 60 :
-    windowKey === '1h' ? 60 :
-    windowKey === '10m' ? 10 :
-    windowKey === '5m' ? 5 :
-    windowKey === 'live' ? 1 :
-    60;
+    windowKey === '7d'
+      ? 24 * 60 * 7
+      : windowKey === '24h'
+        ? 24 * 60
+        : windowKey === '6h'
+          ? 6 * 60
+          : windowKey === '1h'
+            ? 60
+            : windowKey === '10m'
+              ? 10
+              : windowKey === '5m'
+                ? 5
+                : windowKey === 'live'
+                  ? 1
+                  : 60;
   const windowMs = minutes * 60_000;
 
   const now = Date.now();
@@ -98,7 +105,8 @@ export async function fetchHistorical(serverId: string, windowKey = '1h', points
         : `FLOOR((UNIX_TIMESTAMP(soc.timestamp) * 1000 - :startMs) / :bucketSize)`;
 
     try {
-      const bucketed = repo.createQueryBuilder('soc')
+      const bucketed = repo
+        .createQueryBuilder('soc')
         .select('MAX(soc.id)', 'id')
         .addSelect(bucketExpr, 'bucket')
         .where('soc.serverId = :serverId', { serverId })
@@ -106,7 +114,8 @@ export async function fetchHistorical(serverId: string, windowKey = '1h', points
         .andWhere('soc.timestamp < :until', { until })
         .groupBy('bucket');
 
-      rows = await repo.createQueryBuilder('soc')
+      rows = await repo
+        .createQueryBuilder('soc')
         .select('soc.timestamp', 'timestamp')
         .addSelect('soc.metrics', 'metrics')
         .innerJoin(`(${bucketed.getQuery()})`, 'bucketed', 'soc.id = bucketed.id')

@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import type { User } from './user.entity';
 
 @Entity()
@@ -21,7 +28,10 @@ export class ShortUrl {
   @Column({ nullable: true })
   ownerId?: number;
 
-  @ManyToOne(() => require('./user.entity').User, (user: any) => user.id, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => require('./user.entity').User, (user: any) => user.id, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
   owner?: User;
 
   @CreateDateColumn({ type: 'datetime' })

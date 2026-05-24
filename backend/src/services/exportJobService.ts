@@ -34,7 +34,7 @@ async function collectFilesRecursive(
   serverId: string,
   dir: string,
   entries: Array<{ path: string; size: number }>,
-  totals: { bytes: number },
+  totals: { bytes: number }
 ): Promise<void> {
   if (entries.length >= MAX_FILES_PER_SERVER || totals.bytes >= MAX_TOTAL_FILE_BYTES) return;
   let res: any;
@@ -51,7 +51,7 @@ async function collectFilesRecursive(
     const name = String(rawName);
     if (!name || name === '.' || name === '..') continue;
     const isDir = isDirectoryEntry(item);
-    const filepath = name.startsWith('/') ? name : (dir === '/' ? `/${name}` : `${dir}/${name}`);
+    const filepath = name.startsWith('/') ? name : dir === '/' ? `/${name}` : `${dir}/${name}`;
     if (isDir) {
       await collectFilesRecursive(svc, serverId, filepath, entries, totals);
     } else {
@@ -65,7 +65,13 @@ async function collectFilesRecursive(
 
 export async function createExportJob(adminId: number | undefined, userId: number) {
   const repo = AppDataSource.getRepository(ExportJob);
-  const job = repo.create({ userId, adminId, status: 'queued', progress: 0, message: 'Queued for processing' });
+  const job = repo.create({
+    userId,
+    adminId,
+    status: 'queued',
+    progress: 0,
+    message: 'Queued for processing',
+  });
   return repo.save(job);
 }
 
@@ -73,7 +79,16 @@ async function updateJob(job: ExportJob, changes: Partial<ExportJob>) {
   const repo = AppDataSource.getRepository(ExportJob);
   Object.assign(job, changes);
   const saved = await repo.save(job);
-  try { socEmitter.emit('update', { type: 'export:progress', jobId: saved.id, status: saved.status, progress: saved.progress, message: saved.message, resultPath: saved.resultPath }); } catch {}
+  try {
+    socEmitter.emit('update', {
+      type: 'export:progress',
+      jobId: saved.id,
+      status: saved.status,
+      progress: saved.progress,
+      message: saved.message,
+      resultPath: saved.resultPath,
+    });
+  } catch {}
   return saved;
 }
 
@@ -110,7 +125,7 @@ export async function processExportJob(jobRow: ExportJob) {
 
     const serverData: any[] = [];
     const nodes = await AppDataSource.getRepository(Node).find();
-    const nodeMap = new Map(nodes.map((n) => [n.id, n]));
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
     for (let idx = 0; idx < servers.length; idx++) {
       const server = servers[idx] as any;
@@ -122,7 +137,13 @@ export async function processExportJob(jobRow: ExportJob) {
       const base = (node as any).backendWingsUrl || node.url;
       const svc = new WingsApiService(base, node.token);
 
-      const sData: any = { uuid: serverUuid, name: server.name || serverUuid, logs: null, backups: null, files: [] };
+      const sData: any = {
+        uuid: serverUuid,
+        name: server.name || serverUuid,
+        logs: null,
+        backups: null,
+        files: [],
+      };
 
       try {
         const res = await svc.getServerLogs(serverUuid);
@@ -152,8 +173,11 @@ export async function processExportJob(jobRow: ExportJob) {
           const fileItem = fileEntries[fIdx];
           try {
             const res = await svc.downloadFile(serverUuid, fileItem.path);
-            const fileData = res.data instanceof ArrayBuffer ? Buffer.from(res.data) : Buffer.from(res.data || '');
-            const normalized = path.normalize(fileItem.path.replace(/^\//, '')).replace(/^([/\\])+/, '');
+            const fileData =
+              res.data instanceof ArrayBuffer ? Buffer.from(res.data) : Buffer.from(res.data || '');
+            const normalized = path
+              .normalize(fileItem.path.replace(/^\//, ''))
+              .replace(/^([/\\])+/, '');
             const destPath = path.join(serverFilesBase, normalized);
             const relativeDest = path.relative(serverFilesBase, destPath);
             if (!relativeDest || relativeDest.startsWith('..') || path.isAbsolute(relativeDest)) {
@@ -164,15 +188,26 @@ export async function processExportJob(jobRow: ExportJob) {
           } catch (e: any) {
             // skip
           }
-          const serverProgress = 20 + Math.floor((idx / Math.max(1, servers.length)) * 50 + (fIdx / Math.max(1, fileEntries.length)) * 20);
-          await updateJob(job, { progress: Math.min(90, serverProgress), message: `Collecting files for server ${serverUuid}` });
+          const serverProgress =
+            20 +
+            Math.floor(
+              (idx / Math.max(1, servers.length)) * 50 +
+                (fIdx / Math.max(1, fileEntries.length)) * 20
+            );
+          await updateJob(job, {
+            progress: Math.min(90, serverProgress),
+            message: `Collecting files for server ${serverUuid}`,
+          });
         }
       } catch (e: any) {
         sData.files = `Failed to collect files: ${e?.message || e}`;
       }
 
       serverData.push(sData);
-      await updateJob(job, { progress: 30 + Math.floor(((idx + 1) / Math.max(1, servers.length)) * 50), message: `Processed server ${serverUuid}` });
+      await updateJob(job, {
+        progress: 30 + Math.floor(((idx + 1) / Math.max(1, servers.length)) * 50),
+        message: `Processed server ${serverUuid}`,
+      });
     }
 
     const meta = { user, passkeys, tickets, logs, orgs, servers, serverData };
@@ -181,15 +216,27 @@ export async function processExportJob(jobRow: ExportJob) {
 
     const archivePath = path.join(tmpRoot, `export-${user.id}-${Date.now()}.tar.gz`);
     await tar.c({ gzip: true, file: archivePath, cwd: outDir }, ['.']);
-    job = await updateJob(job, { progress: 90, message: 'Archive created', resultPath: archivePath });
+    job = await updateJob(job, {
+      progress: 90,
+      message: 'Archive created',
+      resultPath: archivePath,
+    });
     job = await updateJob(job, { status: 'completed', progress: 100, message: 'Export complete' });
 
-    try { await fsp.rm(outDir, { recursive: true, force: true }); } catch {}
+    try {
+      await fsp.rm(outDir, { recursive: true, force: true });
+    } catch {}
 
     return job;
   } catch (e: any) {
     console.error('processExportJob error', e);
-    try { job = await updateJob(job, { status: 'failed', progress: 100, message: String(e?.message || e) }); } catch {}
+    try {
+      job = await updateJob(job, {
+        status: 'failed',
+        progress: 100,
+        message: String(e?.message || e),
+      });
+    } catch {}
     return job;
   }
 }
@@ -201,8 +248,12 @@ export async function getExportJob(jobId: string) {
 
 export async function listExportJobs(limit = 100, status?: string) {
   const repo = AppDataSource.getRepository(ExportJob);
-  const where = status ? { status } as any : {};
-  const jobs = await repo.find({ where, order: { createdAt: 'DESC' }, take: Math.min(Math.max(1, limit), 500) });
+  const where = status ? ({ status } as any) : {};
+  const jobs = await repo.find({
+    where,
+    order: { createdAt: 'DESC' },
+    take: Math.min(Math.max(1, limit), 500),
+  });
   return jobs;
 }
 
@@ -210,7 +261,8 @@ export async function cleanupExpiredExportArchives() {
   const repo = AppDataSource.getRepository(ExportJob);
   const cutoff = new Date(Date.now() - EXPORT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
-  const stale = await repo.createQueryBuilder('job')
+  const stale = await repo
+    .createQueryBuilder('job')
     .where('job.resultPath IS NOT NULL')
     .andWhere('job.updatedAt <= :cutoff', { cutoff })
     .getMany();
@@ -225,16 +277,13 @@ export async function cleanupExpiredExportArchives() {
       // meow
     }
 
-    await repo.update(
-      { id: job.id },
-      {
-        resultPath: null as any,
-        shareToken: null as any,
-        shareLinkExpiresAt: null as any,
-        shareDownloadsRemaining: 0,
-        message: `Archive deleted after ${EXPORT_RETENTION_DAYS} days retention`,
-      } as any,
-    );
+    await repo.update({ id: job.id }, {
+      resultPath: null as any,
+      shareToken: null as any,
+      shareLinkExpiresAt: null as any,
+      shareDownloadsRemaining: 0,
+      message: `Archive deleted after ${EXPORT_RETENTION_DAYS} days retention`,
+    } as any);
     removed += 1;
   }
 

@@ -1,4 +1,17 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, BeforeInsert, BeforeUpdate, AfterLoad, JoinColumn, AfterInsert, AfterUpdate, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  OneToMany,
+  BeforeInsert,
+  BeforeUpdate,
+  AfterLoad,
+  JoinColumn,
+  AfterInsert,
+  AfterUpdate,
+  CreateDateColumn,
+} from 'typeorm';
 import { Organisation } from './organisation.entity';
 import { UserRole } from './userRole.entity';
 import { Passkey } from './passkey.entity';
@@ -49,20 +62,25 @@ export class User {
   @Column('text', { nullable: true })
   dateOfBirth?: Date | string;
 
-  @ManyToOne(() => User, (user) => user.children, { nullable: true })
+  @ManyToOne(() => User, user => user.children, { nullable: true })
   @JoinColumn({ name: 'parentId' })
   parent?: User;
 
   @Column({ nullable: true })
   parentId?: number;
 
-  @OneToMany(() => User, (user) => user.parent)
+  @OneToMany(() => User, user => user.parent)
   children?: User[];
 
   @AfterLoad()
   afterLoadDecrypt() {
     try {
-      const { decrypt, encrypt, isEncryptedString, isLegacyEncryptedString } = require('../utils/crypto');
+      const {
+        decrypt,
+        encrypt,
+        isEncryptedString,
+        isLegacyEncryptedString,
+      } = require('../utils/crypto');
       const legacyUpdates: Record<string, string> = {};
 
       const normalizeField = (fieldName: keyof User, value: any) => {
@@ -215,16 +233,19 @@ export class User {
 
   @Column({ nullable: true })
   nodeId?: number;
-  @OneToMany(() => UserRole, (ur) => ur.user)
+  @OneToMany(() => UserRole, ur => ur.user)
   userRoles: UserRole[];
 
-  @OneToMany(() => ApiKey, (k) => k.user)
+  @OneToMany(() => ApiKey, k => k.user)
   apiKeys: ApiKey[];
 
-  @OneToMany(() => Passkey, (p) => p.user)
+  @OneToMany(() => Passkey, p => p.user)
   passkeys: Passkey[];
 
-  @OneToMany(() => require('./organisationMember.entity').OrganisationMember, (membership: any) => membership.user)
+  @OneToMany(
+    () => require('./organisationMember.entity').OrganisationMember,
+    (membership: any) => membership.user
+  )
   organisationMemberships: import('./organisationMember.entity').OrganisationMember[];
 
   @Column('json', { nullable: true })
@@ -250,7 +271,7 @@ export class User {
 
   @Column({ default: false })
   idVerified: boolean;
-  
+
   @Column({ default: false })
   twoFactorEnabled: boolean;
 

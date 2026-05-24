@@ -13,7 +13,11 @@ export async function cleanupOrders() {
 export async function cleanupSocData() {
   const socRepo = AppDataSource.getRepository(SocData);
   const socCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  await socRepo.createQueryBuilder().delete().where('timestamp < :cutoff', { cutoff: socCutoff }).execute();
+  await socRepo
+    .createQueryBuilder()
+    .delete()
+    .where('timestamp < :cutoff', { cutoff: socCutoff })
+    .execute();
 }
 
 export async function cleanupLogs() {
@@ -22,7 +26,9 @@ export async function cleanupLogs() {
   cutoff.setFullYear(cutoff.getFullYear() - 1);
   await logRepo.createQueryBuilder().delete().where('timestamp < :cutoff', { cutoff }).execute();
 
-  const apiRepo = AppDataSource.getRepository(require('../models/apiRequestLog.entity').ApiRequestLog);
+  const apiRepo = AppDataSource.getRepository(
+    require('../models/apiRequestLog.entity').ApiRequestLog
+  );
   await apiRepo.createQueryBuilder().delete().where('timestamp < :cutoff', { cutoff }).execute();
 
   const usageRepo = AppDataSource.getRepository(require('../models/aiUsage.entity').AIUsage);
@@ -32,12 +38,15 @@ export async function cleanupLogs() {
 }
 
 export function startRetentionJobs() {
-  setInterval(async () => {
-    try {
-      await cleanupOrders();
-      await cleanupLogs();
-    } catch (e) {
-      console.error('Retention cleanup error', e);
-    }
-  }, 24 * 60 * 60 * 1000);
+  setInterval(
+    async () => {
+      try {
+        await cleanupOrders();
+        await cleanupLogs();
+      } catch (e) {
+        console.error('Retention cleanup error', e);
+      }
+    },
+    24 * 60 * 60 * 1000
+  );
 }

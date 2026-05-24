@@ -27,7 +27,9 @@ export async function authenticate(ctx: any) {
     }
     const cookie = ctx.headers?.cookie;
     if (cookie) {
-      const parts = String(cookie).split(';').map((s: string) => s.trim());
+      const parts = String(cookie)
+        .split(';')
+        .map((s: string) => s.trim());
       const pair = parts.find(p => p.startsWith(cookieName + '='));
       if (pair) return pair.split('=')[1];
     }
@@ -47,7 +49,7 @@ export async function authenticate(ctx: any) {
   if (auth?.startsWith('ApiKey ')) {
     const key = auth.slice('ApiKey '.length);
     const repo = AppDataSource.getRepository(ApiKey);
-    const entry = await repo.findOne({ where: { key }, relations: {"user":true} });
+    const entry = await repo.findOne({ where: { key }, relations: { user: true } });
     if (!entry || (entry.expiresAt && new Date(entry.expiresAt) < new Date())) {
       ctx.set.status = 401;
       return { error: t('auth.apiKeyInvalid', 'Invalid API key') };
@@ -57,7 +59,7 @@ export async function authenticate(ctx: any) {
     return;
   }
 
-    if (!auth) {
+  if (!auth) {
     ctx.set.status = 401;
     return { error: t('auth.missingToken', 'Missing auth token') };
   }
@@ -82,9 +84,12 @@ export async function authenticate(ctx: any) {
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOne({
       where: { id: decoded.userId },
-      relations: {"org":true,"userRoles":{"role":{"permissions":true,"parentRole":{"permissions":true}}}},
+      relations: {
+        org: true,
+        userRoles: { role: { permissions: true, parentRole: { permissions: true } } },
+      },
     });
-    
+
     if (!user) {
       ctx.set.status = 401;
       return { error: t('user.notFound', 'User not found') };
@@ -101,7 +106,9 @@ export async function authenticate(ctx: any) {
 
     if (user.pendingDeletionUntil && new Date(user.pendingDeletionUntil) > new Date()) {
       ctx.set.status = 403;
-      return { error: t('user.accountIsPendingDeletionAndCurrentlyFrozen', 'Account pending deletion') };
+      return {
+        error: t('user.accountIsPendingDeletionAndCurrentlyFrozen', 'Account pending deletion'),
+      };
     }
 
     ctx.user = user;
@@ -127,7 +134,7 @@ export async function authenticate(ctx: any) {
     return;
   } catch (e: any) {
     const apiKeyRepo = AppDataSource.getRepository(ApiKey);
-    const entry = await apiKeyRepo.findOne({ where: { key: rawToken }, relations: {"user":true} });
+    const entry = await apiKeyRepo.findOne({ where: { key: rawToken }, relations: { user: true } });
     if (entry) {
       if (entry.expiresAt && new Date(entry.expiresAt) < new Date()) {
         ctx.set.status = 401;
@@ -143,7 +150,7 @@ export async function authenticate(ctx: any) {
   const tokenRepo = AppDataSource.getRepository(OAuthToken);
   const oauthToken = await tokenRepo.findOne({
     where: { accessToken: rawToken, revoked: false },
-    relations: {"user":{"organisationMemberships":{"organisation":true}},"app":true},
+    relations: { user: { organisationMemberships: { organisation: true } }, app: true },
   });
   if (!oauthToken || new Date() > oauthToken.accessTokenExpiresAt) {
     ctx.set.status = 401;
@@ -152,4 +159,3 @@ export async function authenticate(ctx: any) {
   ctx.oauthToken = oauthToken;
   if (oauthToken.user) ctx.user = oauthToken.user;
 }
-

@@ -1,12 +1,4 @@
-import {
-  Body,
-  Container,
-  Head,
-  Html,
-  Preview,
-  Hr,
-  Section,
-} from '@react-email/components';
+import { Body, Container, Head, Html, Preview, Hr, Section } from '@react-email/components';
 import { ReactNode } from 'react';
 
 interface BaseEmailProps {
@@ -57,16 +49,32 @@ export function BaseEmail({ previewText, children, t }: BaseEmailProps) {
           }}
         >
           {children}
-          <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
+          <Hr
+            style={{
+              height: '1px',
+              border: '1px solid #2a2a4a',
+              marginTop: '32px',
+              paddingTop: '24px',
+            }}
+          />
           <Section style={footerStyle}>
             <p style={{ margin: 0 }}>
-              &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
+              &copy; 2026{' '}
+              <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under
+              Misiu LLC.
+              <br />
               {t ? t('email.footer.allRightsReserved') : 'All rights reserved.'}
             </p>
             <Section style={{ marginTop: '16px' }}>
-              <a href="https://ecli.app/legal" style={linkStyle}>{t ? t('email.footer.legalDocuments') : 'Legal Documents'}</a>
-              <a href="https://ecli.app/legal/imprint" style={linkStyle}>{t ? t('email.footer.impressum') : 'Impressum'}</a>
-              <a href="mailto:contact@ecli.app" style={linkStyle}>{t ? t('email.footer.contactUs') : 'Contact Us'}</a>
+              <a href="https://ecli.app/legal" style={linkStyle}>
+                {t ? t('email.footer.legalDocuments') : 'Legal Documents'}
+              </a>
+              <a href="https://ecli.app/legal/imprint" style={linkStyle}>
+                {t ? t('email.footer.impressum') : 'Impressum'}
+              </a>
+              <a href="mailto:contact@ecli.app" style={linkStyle}>
+                {t ? t('email.footer.contactUs') : 'Contact Us'}
+              </a>
             </Section>
           </Section>
         </Container>

@@ -54,16 +54,13 @@ export function TfaEmail({ name, code, t }: TfaEmailProps) {
         <p style={pStyle}>{_t('email.tfa.instruction')}</p>
       </Section>
 
-      <Section style={codeStyle}>
-        {code}
-      </Section>
+      <Section style={codeStyle}>{code}</Section>
 
       <Section style={infoBoxStyle}>
         <p style={{ color: '#ffffffb3', fontSize: '14px', margin: 0 }}>
           <strong>{_t('email.tfa.important')}:</strong> {_t('email.tfa.expires')}
         </p>
       </Section>
-
     </BaseEmail>
   );
 }

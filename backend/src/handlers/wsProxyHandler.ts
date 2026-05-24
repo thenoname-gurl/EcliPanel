@@ -58,11 +58,15 @@ export function wsProxyRoutes(app: any, prefix: string) {
     },
     close(...args: any[]) {
       const { ws } = unwrapArgs(arguments);
-      try { ws.close?.(); } catch {};
+      try {
+        ws.close?.();
+      } catch {}
     },
     error(...args: any[]) {
       const { ws } = unwrapArgs(arguments);
-      try { ws.close?.(); } catch {};
+      try {
+        ws.close?.();
+      } catch {}
     },
   });
 
@@ -119,7 +123,7 @@ class WingsProxySession {
     ws.data = ws.data || {};
     ws.data._ecliProxySession = this;
 
-    this.init().catch((err) => {
+    this.init().catch(err => {
       this.log('error', 'ws-proxy init failed', err);
       this.destroy();
     });
@@ -172,7 +176,9 @@ class WingsProxySession {
 
     if (cfg.suspended || cfg.dmca) {
       const actor = String(cfg.dmca ? cfg.dmcaBy : cfg.suspendedBy || 'system').trim() || 'system';
-      const reason = String(cfg.dmca ? cfg.dmcaReason : cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
+      const reason =
+        String(cfg.dmca ? cfg.dmcaReason : cfg.suspendedReason || 'No reason provided').trim() ||
+        'No reason provided';
       const message = cfg.dmca
         ? `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}. Please contact support.`
         : `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`;
@@ -184,7 +190,9 @@ class WingsProxySession {
       return;
     }
 
-    const node = cfg.nodeId ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
+    const node = cfg.nodeId
+      ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId })
+      : null;
     if (!node) {
       this.sendToClient({ event: 'error', args: ['Node not found'] });
       this.destroy();
@@ -222,7 +230,7 @@ class WingsProxySession {
 
       const user = await AppDataSource.getRepository(User).findOne({
         where: { id: decoded.userId },
-        relations: {"org":true,"userRoles":{"role":{"permissions":true}}},
+        relations: { org: true, userRoles: { role: { permissions: true } } },
       });
 
       if (!user) return null;
@@ -257,7 +265,9 @@ class WingsProxySession {
     if (hasPermissionSync({ user: this.user }, 'servers:console')) return true;
 
     try {
-      const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: this.serverId });
+      const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({
+        uuid: this.serverId,
+      });
       if (cfg && cfg.userId === this.user.id) {
         return true;
       }
@@ -292,7 +302,13 @@ class WingsProxySession {
   }
 
   private async sendDeauthToWings(): Promise<void> {
-    if (!this.wingsWs || this.wingsWs.readyState !== WebSocket.OPEN || !this.node || !this.user || !this.serverId) {
+    if (
+      !this.wingsWs ||
+      this.wingsWs.readyState !== WebSocket.OPEN ||
+      !this.node ||
+      !this.user ||
+      !this.serverId
+    ) {
       return;
     }
 
@@ -451,7 +467,9 @@ class WingsProxySession {
       } else if (data instanceof ArrayBuffer) {
         text = Buffer.from(data).toString('utf8');
       } else if (Array.isArray(data)) {
-        text = Buffer.concat(data.map(d => Buffer.isBuffer(d) ? d : Buffer.from(d))).toString('utf8');
+        text = Buffer.concat(data.map(d => (Buffer.isBuffer(d) ? d : Buffer.from(d)))).toString(
+          'utf8'
+        );
       } else {
         text = String(data);
       }
@@ -535,7 +553,7 @@ class WingsProxySession {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       if (!this.destroyed && this.clientWs) {
-        this.connectToWings().catch((err) => {
+        this.connectToWings().catch(err => {
           this.log('error', 'reconnect failed', err);
           this.scheduleReconnect();
         });
@@ -583,7 +601,7 @@ class WingsProxySession {
   private startAccessChecks() {
     this.stopAccessChecks();
     this.accessCheckTimer = setInterval(() => {
-      this.verifyConsoleAccess().catch((err) => {
+      this.verifyConsoleAccess().catch(err => {
         this.log('error', 'access check failed', err);
       });
     }, 10000);
@@ -618,7 +636,7 @@ class WingsProxySession {
 
     try {
       const parsed = JSON.parse(text);
-      
+
       if (parsed.event === 'auth') {
         const jwt = this.generateWingsJwt();
         text = JSON.stringify({ event: 'auth', args: [jwt] });
@@ -680,8 +698,10 @@ class WingsProxySession {
 
     if (this.wingsWs) {
       try {
-        if (this.wingsWs.readyState === WebSocket.OPEN || 
-            this.wingsWs.readyState === WebSocket.CONNECTING) {
+        if (
+          this.wingsWs.readyState === WebSocket.OPEN ||
+          this.wingsWs.readyState === WebSocket.CONNECTING
+        ) {
           this.wingsWs.close(1000, 'Client disconnected');
         }
       } catch {}

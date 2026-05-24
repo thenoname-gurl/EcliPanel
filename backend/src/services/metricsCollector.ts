@@ -22,8 +22,12 @@ export function extractStats(metrics: any) {
       memory_bytes: Number(metrics.memory_bytes ?? metrics.memory ?? 0),
       disk_bytes: Number(metrics.disk_bytes ?? metrics.disk ?? 0),
       network: {
-        rx_bytes: Number(metrics?.network?.rx_bytes ?? metrics?.network?.received ?? metrics?.network?.rx ?? 0),
-        tx_bytes: Number(metrics?.network?.tx_bytes ?? metrics?.network?.sent ?? metrics?.network?.tx ?? 0),
+        rx_bytes: Number(
+          metrics?.network?.rx_bytes ?? metrics?.network?.received ?? metrics?.network?.rx ?? 0
+        ),
+        tx_bytes: Number(
+          metrics?.network?.tx_bytes ?? metrics?.network?.sent ?? metrics?.network?.tx ?? 0
+        ),
       },
     };
   }

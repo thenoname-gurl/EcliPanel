@@ -44,7 +44,12 @@ export function generateInvisibleCaptcha() {
 }
 
 export function validateInvisibleCaptcha(token: string, elapsedMs: number | undefined): boolean {
-  if (!token || !elapsedMs || elapsedMs < INVISIBLE_MIN_TIME_MS || elapsedMs > INVISIBLE_MAX_TIME_MS) {
+  if (
+    !token ||
+    !elapsedMs ||
+    elapsedMs < INVISIBLE_MIN_TIME_MS ||
+    elapsedMs > INVISIBLE_MAX_TIME_MS
+  ) {
     return false;
   }
 
@@ -101,7 +106,14 @@ function escapeXml(value: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function getGlyphVariant(char: string, x: number, y: number, size: number, color: string, id: string) {
+function getGlyphVariant(
+  char: string,
+  x: number,
+  y: number,
+  size: number,
+  color: string,
+  id: string
+) {
   const rotation = randomInt(-25, 25);
   const skewX = randomInt(-15, 15);
   const skewY = randomInt(-8, 8);
@@ -109,8 +121,16 @@ function getGlyphVariant(char: string, x: number, y: number, size: number, color
   const scaleY = randomFloat(0.85, 1.15);
 
   const fonts = [
-    'Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New',
-    'Verdana', 'Impact', 'Comic Sans MS', 'Trebuchet MS', 'Arial Black'
+    'Arial',
+    'Helvetica',
+    'Georgia',
+    'Times New Roman',
+    'Courier New',
+    'Verdana',
+    'Impact',
+    'Comic Sans MS',
+    'Trebuchet MS',
+    'Arial Black',
   ];
   const font = fonts[randomInt(0, fonts.length - 1)];
 
@@ -222,8 +242,22 @@ function generateGridInterference(width: number, height: number) {
 function generateFakeQuestion(width: number, height: number, realQuestion: string) {
   let svg = '';
   const fakeQuestions = [
-    '9 + 1', '3 + 4', '2 + 5', '8 + 1', '4 + 3', '6 + 2', '1 + 7', '5 + 3',
-    '7 - 2', '9 - 4', '8 - 3', '6 - 1', '5 x 2', '3 x 3', '2 x 4', '4 x 2'
+    '9 + 1',
+    '3 + 4',
+    '2 + 5',
+    '8 + 1',
+    '4 + 3',
+    '6 + 2',
+    '1 + 7',
+    '5 + 3',
+    '7 - 2',
+    '9 - 4',
+    '8 - 3',
+    '6 - 1',
+    '5 x 2',
+    '3 x 3',
+    '2 x 4',
+    '4 x 2',
   ].filter(q => q !== realQuestion);
 
   for (let i = 0; i < randomInt(2, 4); i++) {
@@ -237,7 +271,12 @@ function generateFakeQuestion(width: number, height: number, realQuestion: strin
   return svg;
 }
 
-function generateStrikethroughs(width: number, height: number, textStartX: number, textEndX: number) {
+function generateStrikethroughs(
+  width: number,
+  height: number,
+  textStartX: number,
+  textEndX: number
+) {
   let svg = '';
   for (let i = 0; i < randomInt(3, 7); i++) {
     const y = height / 2 + randomInt(-15, 15);
@@ -254,14 +293,28 @@ function generateStrikethroughs(width: number, height: number, textStartX: numbe
 
 async function synthesizeSpeechToFile(text: string): Promise<Buffer> {
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'captcha-tts-'));
-  const outPath = path.join(tmpDir, `speech-${Date.now()}-${Math.random().toString(16).slice(2)}.wav`);
+  const outPath = path.join(
+    tmpDir,
+    `speech-${Date.now()}-${Math.random().toString(16).slice(2)}.wav`
+  );
 
   try {
-    const espeak = Bun.spawn(['espeak', '-v', TTS_VOICE, '-s', String(TTS_SPEED), '-w', outPath, text]);
+    const espeak = Bun.spawn([
+      'espeak',
+      '-v',
+      TTS_VOICE,
+      '-s',
+      String(TTS_SPEED),
+      '-w',
+      outPath,
+      text,
+    ]);
     const espeakCode = await espeak.exited;
     if (espeakCode !== 0) {
       const stderr = await new Response(espeak.stderr).text();
-      throw new Error(`espeak exited with code ${espeakCode}: ${stderr}. Is espeak installed? Run: sudo apt-get install espeak`);
+      throw new Error(
+        `espeak exited with code ${espeakCode}: ${stderr}. Is espeak installed? Run: sudo apt-get install espeak`
+      );
     }
 
     if (!(await Bun.file(outPath).exists())) {
@@ -274,8 +327,30 @@ async function synthesizeSpeechToFile(text: string): Promise<Buffer> {
   }
 }
 
-async function decodeAudioBufferToFloat32(audioBuf: Buffer, targetRate = SAMPLE_RATE): Promise<Float32Array> {
-  const ffmpeg: any = Bun.spawn(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 's16le', '-acodec', 'pcm_s16le', '-ar', String(targetRate), '-ac', '1', 'pipe:1'], { stdin: 'pipe' });
+async function decodeAudioBufferToFloat32(
+  audioBuf: Buffer,
+  targetRate = SAMPLE_RATE
+): Promise<Float32Array> {
+  const ffmpeg: any = Bun.spawn(
+    [
+      'ffmpeg',
+      '-hide_banner',
+      '-loglevel',
+      'error',
+      '-i',
+      'pipe:0',
+      '-f',
+      's16le',
+      '-acodec',
+      'pcm_s16le',
+      '-ar',
+      String(targetRate),
+      '-ac',
+      '1',
+      'pipe:1',
+    ],
+    { stdin: 'pipe' }
+  );
   const stdin: any = ffmpeg.stdin;
   stdin.write(audioBuf);
   stdin.end();
@@ -345,7 +420,7 @@ function encodeWav(samples: Float32Array, sampleRate = SAMPLE_RATE): Buffer {
 
 function applyPitchWobble(samples: Float32Array, sampleRate = SAMPLE_RATE): Float32Array {
   const lfoFreq = randomFloat(0.3, 1.5);
-  const lfoDepth = randomFloat(0.03, 0.10);
+  const lfoDepth = randomFloat(0.03, 0.1);
   const baseSpeed = randomFloat(0.88, 1.12);
 
   const estLength = Math.floor(samples.length / baseSpeed) + sampleRate;
@@ -378,8 +453,8 @@ function addEcho(samples: Float32Array, sampleRate = SAMPLE_RATE): Float32Array 
   const out = new Float32Array(samples.length);
   const delays = [
     { d: Math.floor(sampleRate * randomFloat(0.06, 0.12)), g: randomFloat(0.15, 0.3) },
-    { d: Math.floor(sampleRate * randomFloat(0.15, 0.30)), g: randomFloat(0.08, 0.18) },
-    { d: Math.floor(sampleRate * randomFloat(0.30, 0.50)), g: randomFloat(0.03, 0.10) },
+    { d: Math.floor(sampleRate * randomFloat(0.15, 0.3)), g: randomFloat(0.08, 0.18) },
+    { d: Math.floor(sampleRate * randomFloat(0.3, 0.5)), g: randomFloat(0.03, 0.1) },
   ];
 
   for (let i = 0; i < samples.length; i++) {
@@ -392,7 +467,12 @@ function addEcho(samples: Float32Array, sampleRate = SAMPLE_RATE): Float32Array 
   return out;
 }
 
-function applyBandpass(samples: Float32Array, centerFreq: number, q: number, sampleRate = SAMPLE_RATE): Float32Array {
+function applyBandpass(
+  samples: Float32Array,
+  centerFreq: number,
+  q: number,
+  sampleRate = SAMPLE_RATE
+): Float32Array {
   const w0 = (2 * Math.PI * centerFreq) / sampleRate;
   const alpha = Math.sin(w0) / (2 * q);
   const b0 = alpha;
@@ -403,14 +483,19 @@ function applyBandpass(samples: Float32Array, centerFreq: number, q: number, sam
   const a2 = 1 - alpha;
 
   const out = new Float32Array(samples.length);
-  let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+  let x1 = 0,
+    x2 = 0,
+    y1 = 0,
+    y2 = 0;
 
   for (let i = 0; i < samples.length; i++) {
     const x = samples[i];
     const y = (b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2) / a0;
     out[i] = y;
-    x2 = x1; x1 = x;
-    y2 = y1; y1 = y;
+    x2 = x1;
+    x1 = x;
+    y2 = y1;
+    y1 = y;
   }
 
   const mix = randomFloat(0.25, 0.5);
@@ -495,14 +580,26 @@ function questionToSpeechWords(question: string): string[] {
     .replace(/\+/g, 'plus')
     .replace(/-/g, 'minus')
     .split(' ')
-    .map((token) => {
+    .map(token => {
       if (/^\d+$/.test(token)) {
         const n = Number(token);
         const words: Record<number, string> = {
-          0: 'zero', 1: 'one', 2: 'two', 3: 'three', 4: 'four',
-          5: 'five', 6: 'six', 7: 'seven', 8: 'eight', 9: 'nine',
-          10: 'ten', 11: 'eleven', 12: 'twelve', 13: 'thirteen',
-          14: 'fourteen', 15: 'fifteen',
+          0: 'zero',
+          1: 'one',
+          2: 'two',
+          3: 'three',
+          4: 'four',
+          5: 'five',
+          6: 'six',
+          7: 'seven',
+          8: 'eight',
+          9: 'nine',
+          10: 'ten',
+          11: 'eleven',
+          12: 'twelve',
+          13: 'thirteen',
+          14: 'fourteen',
+          15: 'fifteen',
         };
         return words[n] ?? token;
       }
@@ -511,9 +608,25 @@ function questionToSpeechWords(question: string): string[] {
 }
 
 const ALL_SPOKEN_WORDS = [
-  'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine',
-  'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen',
-  'plus', 'minus', 'times',
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+  'ten',
+  'eleven',
+  'twelve',
+  'thirteen',
+  'fourteen',
+  'fifteen',
+  'plus',
+  'minus',
+  'times',
 ];
 
 async function fetchWordPCM(word: string): Promise<Float32Array> {
@@ -582,7 +695,7 @@ async function generateCaptchaAudio(question: string): Promise<string> {
   for (let decoyPcm of decoyResults) {
     decoyPcm = applyPitchWobble(decoyPcm);
 
-    const decoyVol = randomFloat(0.06, 0.20);
+    const decoyVol = randomFloat(0.06, 0.2);
     const quietDecoy = new Float32Array(decoyPcm.length);
     for (let j = 0; j < decoyPcm.length; j++) {
       quietDecoy[j] = decoyPcm[j] * decoyVol;
@@ -602,14 +715,19 @@ async function generateCaptchaAudio(question: string): Promise<string> {
     for (let i = 0; i < repeat.length; i++) {
       quietRepeat[i] = repeat[i] * repeatVol;
     }
-    combined = concatFloat32([combined, repeatGap, quietRepeat, generateSilence(randomInt(200, 500))]);
+    combined = concatFloat32([
+      combined,
+      repeatGap,
+      quietRepeat,
+      generateSilence(randomInt(200, 500)),
+    ]);
   }
 
   combined = addEcho(combined, SAMPLE_RATE);
   combined = applyBandpass(combined, randomFloat(500, 1400), randomFloat(0.5, 1.5), SAMPLE_RATE);
 
   const noise = generateAudioNoise(combined.length, SAMPLE_RATE);
-  const noiseLevel = randomFloat(0.12, 0.30);
+  const noiseLevel = randomFloat(0.12, 0.3);
   for (let i = 0; i < combined.length; i++) {
     combined[i] += noise[i] * noiseLevel;
   }
@@ -626,9 +744,27 @@ async function generateCaptchaAudio(question: string): Promise<string> {
 
 export async function generateCaptcha() {
   const operations = [
-    { gen: () => { const a = randomInt(1, 9); const b = randomInt(1, 9); return { q: `${a} + ${b}`, a: a + b }; } },
-    { gen: () => { const a = randomInt(5, 15); const b = randomInt(1, a - 1); return { q: `${a} - ${b}`, a: a - b }; } },
-    { gen: () => { const a = randomInt(2, 6); const b = randomInt(2, 5); return { q: `${a} × ${b}`, a: a * b }; } },
+    {
+      gen: () => {
+        const a = randomInt(1, 9);
+        const b = randomInt(1, 9);
+        return { q: `${a} + ${b}`, a: a + b };
+      },
+    },
+    {
+      gen: () => {
+        const a = randomInt(5, 15);
+        const b = randomInt(1, a - 1);
+        return { q: `${a} - ${b}`, a: a - b };
+      },
+    },
+    {
+      gen: () => {
+        const a = randomInt(2, 6);
+        const b = randomInt(2, 5);
+        return { q: `${a} × ${b}`, a: a * b };
+      },
+    },
   ];
 
   const op = operations[randomInt(0, operations.length - 1)];
@@ -695,7 +831,12 @@ export async function generateCaptcha() {
     svg += getGlyphVariant(ch, charX, charY, size, color, `${captchaId}${idx}`);
   });
 
-  svg += generateStrikethroughs(width, height, startX - 10, startX + (questionChars.length - 1) * glyphSpacing + 10);
+  svg += generateStrikethroughs(
+    width,
+    height,
+    startX - 10,
+    startX + (questionChars.length - 1) * glyphSpacing + 10
+  );
 
   for (let i = 0; i < randomInt(5, 10); i++) {
     svg += `<path d="M ${randomInt(0, width)} ${randomInt(0, height)} Q ${randomInt(0, width)} ${randomInt(0, height)}, ${randomInt(0, width)} ${randomInt(0, height)}" stroke="${randomColor()}" stroke-width="${randomFloat(1, 2)}" fill="none" opacity="${randomFloat(0.3, 0.6)}"/>`;
@@ -706,11 +847,14 @@ export async function generateCaptcha() {
 
   for (let i = 0; i < randomInt(4, 8); i++) {
     const text = watermarks[randomInt(0, watermarks.length - 1)];
-    const corrupted = text.split('').map(ch => {
-      if (Math.random() < 0.3) return corruptChars[randomInt(0, corruptChars.length - 1)];
-      if (Math.random() < 0.2) return String.fromCharCode(ch.charCodeAt(0) + randomInt(-3, 3));
-      return ch;
-    }).join('');
+    const corrupted = text
+      .split('')
+      .map(ch => {
+        if (Math.random() < 0.3) return corruptChars[randomInt(0, corruptChars.length - 1)];
+        if (Math.random() < 0.2) return String.fromCharCode(ch.charCodeAt(0) + randomInt(-3, 3));
+        return ch;
+      })
+      .join('');
     const x = randomInt(10, width - 10);
     const y = randomInt(15, height - 10);
     const size = randomInt(8, 14);
@@ -728,10 +872,30 @@ export async function generateCaptcha() {
     const edge = randomInt(0, 3);
     let x1: number, y1: number, x2: number, y2: number;
     switch (edge) {
-      case 0: x1 = randomInt(0, width); y1 = 0; x2 = randomInt(0, width); y2 = randomInt(10, 30); break;
-      case 1: x1 = width; y1 = randomInt(0, height); x2 = width - randomInt(10, 30); y2 = randomInt(0, height); break;
-      case 2: x1 = randomInt(0, width); y1 = height; x2 = randomInt(0, width); y2 = height - randomInt(10, 30); break;
-      default: x1 = 0; y1 = randomInt(0, height); x2 = randomInt(10, 30); y2 = randomInt(0, height); break;
+      case 0:
+        x1 = randomInt(0, width);
+        y1 = 0;
+        x2 = randomInt(0, width);
+        y2 = randomInt(10, 30);
+        break;
+      case 1:
+        x1 = width;
+        y1 = randomInt(0, height);
+        x2 = width - randomInt(10, 30);
+        y2 = randomInt(0, height);
+        break;
+      case 2:
+        x1 = randomInt(0, width);
+        y1 = height;
+        x2 = randomInt(0, width);
+        y2 = height - randomInt(10, 30);
+        break;
+      default:
+        x1 = 0;
+        y1 = randomInt(0, height);
+        x2 = randomInt(10, 30);
+        y2 = randomInt(0, height);
+        break;
     }
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${randomColor()}" stroke-width="${randomFloat(1, 3)}" opacity="${randomFloat(0.3, 0.7)}"/>`;
   }

@@ -31,7 +31,16 @@ export class WingsApiService {
     return url.toString();
   }
 
-  private async request<T = any>(path: string, opts: { method?: string; headers?: Record<string, string>; body?: any; params?: Record<string, any>; responseType?: 'json' | 'text' | 'arraybuffer' } = {}) {
+  private async request<T = any>(
+    path: string,
+    opts: {
+      method?: string;
+      headers?: Record<string, string>;
+      body?: any;
+      params?: Record<string, any>;
+      responseType?: 'json' | 'text' | 'arraybuffer';
+    } = {}
+  ) {
     const headers = { ...this.getAuthHeaders(), ...(opts.headers || {}) };
     return await httpRequest<T>(this.buildUrl(path, opts.params), {
       method: opts.method || 'GET',
@@ -101,15 +110,25 @@ export class WingsApiService {
 
   async readFile(serverId: string, path: string) {
     const url = `${this.baseUrl}/servers/${serverId}/files/contents`;
-    return this.request(`/servers/${serverId}/files/contents`, { params: { file: path }, responseType: 'text' });
+    return this.request(`/servers/${serverId}/files/contents`, {
+      params: { file: path },
+      responseType: 'text',
+    });
   }
 
   async downloadFile(serverId: string, path: string) {
     const url = `${this.baseUrl}/servers/${serverId}/files/contents`;
-    return this.request(`/servers/${serverId}/files/contents`, { params: { file: path }, responseType: 'arraybuffer' });
+    return this.request(`/servers/${serverId}/files/contents`, {
+      params: { file: path },
+      responseType: 'arraybuffer',
+    });
   }
 
-  async writeFile(serverId: string, filePath: string, content: Uint8Array | ArrayBuffer | Buffer | string) {
+  async writeFile(
+    serverId: string,
+    filePath: string,
+    content: Uint8Array | ArrayBuffer | Buffer | string
+  ) {
     const url = `${this.baseUrl}/servers/${serverId}/files/write`;
 
     let body: Buffer | string;
@@ -153,7 +172,11 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/files/compress', 'post', { root, files });
   }
 
-  async chmodFiles(serverId: string, root: string, files: Array<{ file: string; mode: string; recursive?: boolean }>) {
+  async chmodFiles(
+    serverId: string,
+    root: string,
+    files: Array<{ file: string; mode: string; recursive?: boolean }>
+  ) {
     return this.serverRequest(serverId, '/files/chmod', 'post', { root, files });
   }
 
@@ -247,7 +270,7 @@ export class WingsApiService {
     const processConfiguration = server.process_configuration || {};
 
     const sanitizeAllocations = (valueObject: any) => {
-      const raw = (valueObject && typeof valueObject === 'object') ? valueObject : {};
+      const raw = valueObject && typeof valueObject === 'object' ? valueObject : {};
       const mappings: Record<string, number[]> = {};
 
       const normalizeIp = (ip: string) => {
@@ -266,8 +289,8 @@ export class WingsApiService {
       for (const [ip, ports] of Object.entries(raw.mappings ?? {})) {
         const list = Array.isArray(ports) ? ports : [];
         const safe = list
-          .map((p) => Number(p))
-          .filter((p) => Number.isInteger(p) && p > 0 && p <= 65535);
+          .map(p => Number(p))
+          .filter(p => Number.isInteger(p) && p > 0 && p <= 65535);
         const normalizedIp = normalizeIp(ip);
         if (safe.length > 0 && normalizedIp) mappings[normalizedIp] = safe;
       }
@@ -285,7 +308,9 @@ export class WingsApiService {
       for (const [key, value] of Object.entries(raw.fqdns ?? {})) {
         const fqdn = String(value ?? '').trim();
         if (!fqdn) continue;
-        const match = String(key).trim().match(/^\[?(.*?)\]:(\d+)$/);
+        const match = String(key)
+          .trim()
+          .match(/^\[?(.*?)\]:(\d+)$/);
         if (!match) {
           fqdns[String(key).trim()] = fqdn;
           continue;
@@ -306,7 +331,7 @@ export class WingsApiService {
     };
 
     for (const [key, value] of Object.entries(payload)) {
-      const valueObject = (typeof value === 'object' && value !== null) ? value : {};
+      const valueObject = typeof value === 'object' && value !== null ? value : {};
 
       if (key === 'process_configuration') {
         server.process_configuration = { ...processConfiguration, ...valueObject };
@@ -332,15 +357,27 @@ export class WingsApiService {
         continue;
       }
 
-      if (key === 'build' || key === 'container' || key === 'meta' || key === 'allocations' || key === 'schedules' || key === 'environment' || key === 'labels' || key === 'backups' || key === 'mounts' || key === 'egg') {
+      if (
+        key === 'build' ||
+        key === 'container' ||
+        key === 'meta' ||
+        key === 'allocations' ||
+        key === 'schedules' ||
+        key === 'environment' ||
+        key === 'labels' ||
+        key === 'backups' ||
+        key === 'mounts' ||
+        key === 'egg'
+      ) {
         server.settings = {
           ...settings,
-          [key]: key === 'allocations'
-            ? sanitizeAllocations(valueObject)
-            : {
-              ...settings[key],
-              ...valueObject,
-            },
+          [key]:
+            key === 'allocations'
+              ? sanitizeAllocations(valueObject)
+              : {
+                  ...settings[key],
+                  ...valueObject,
+                },
         };
         continue;
       }
@@ -402,7 +439,11 @@ export class WingsApiService {
     }
   }
 
-  connectServerWebsocket(serverId: string, onMessage: (msg: any) => void, onError?: (err: Error) => void) {
+  connectServerWebsocket(
+    serverId: string,
+    onMessage: (msg: any) => void,
+    onError?: (err: Error) => void
+  ) {
     const url = this.baseUrl.replace(/^http/, 'ws') + `/servers/${serverId}/ws`;
 
     const wsOptions: WebSocket.ClientOptions = {
@@ -415,7 +456,7 @@ export class WingsApiService {
 
     const ws = new WebSocket(url, wsOptions);
 
-    ws.on('message', (data) => {
+    ws.on('message', data => {
       try {
         const parsed = JSON.parse(data.toString());
         onMessage(parsed);
@@ -424,7 +465,7 @@ export class WingsApiService {
       }
     });
 
-    ws.on('error', (err) => {
+    ws.on('error', err => {
       console.error('Wings websocket error:', err);
       onError?.(err);
     });

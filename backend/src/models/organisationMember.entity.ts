@@ -12,11 +12,15 @@ export class OrganisationMember {
   @Column({ nullable: true })
   organisationId: number;
 
-  @ManyToOne(() => require('./user.entity').User, (user: any) => user.organisationMemberships, { onDelete: 'CASCADE' })
+  @ManyToOne(() => require('./user.entity').User, (user: any) => user.organisationMemberships, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'userId' })
   user: import('./user.entity').User;
 
-  @ManyToOne(() => require('./organisation.entity').Organisation, (org: any) => org.memberships, { onDelete: 'CASCADE' })
+  @ManyToOne(() => require('./organisation.entity').Organisation, (org: any) => org.memberships, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'organisationId' })
   organisation: import('./organisation.entity').Organisation;
 

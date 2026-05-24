@@ -1,7 +1,2 @@
-export interface LegalDocument {
-  id: number;
-  type: string;
-  content: string;
-  version: string;
-  publishedAt: Date;
-}
+export { LegalDocument } from './legalDocument.entity';
+export type { LegalDocument as LegalDocumentEntity } from './legalDocument.entity';

@@ -58,13 +58,16 @@ export function Notification({ title, message, messageHtml, details, t }: Notifi
         )}
       </Section>
 
-      {details && (
-        <Section style={detailsStyle}>
-          {details}
-        </Section>
-      )}
+      {details && <Section style={detailsStyle}>{details}</Section>}
 
-      <Hr style={{ height: '1px', background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)', border: 'none', margin: '24px 0' }} />
+      <Hr
+        style={{
+          height: '1px',
+          background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)',
+          border: 'none',
+          margin: '24px 0',
+        }}
+      />
     </BaseEmail>
   );
 }

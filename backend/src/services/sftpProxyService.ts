@@ -30,7 +30,7 @@ function startProxy(node: Node): void {
 
   stopProxy(node.id);
 
-  const server = net.createServer((client) => {
+  const server = net.createServer(client => {
     let cleaned = false;
 
     const remote = net.createConnection({ host: targetHost, port: targetPort });
@@ -53,7 +53,7 @@ function startProxy(node: Node): void {
     client.on('error', () => cleanup());
     client.once('close', cleanup);
 
-    remote.on('error', (err) => {
+    remote.on('error', err => {
       console.error(`sftp-proxy [node ${node.id}]: remote error: ${err.message}`);
       cleanup();
     });
@@ -62,9 +62,7 @@ function startProxy(node: Node): void {
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
-      console.error(
-        `sftp-proxy [node ${node.id}]: port ${listenPort} already in use — skipping`,
-      );
+      console.error(`sftp-proxy [node ${node.id}]: port ${listenPort} already in use — skipping`);
     } else {
       console.error(`sftp-proxy [node ${node.id}]: server error: ${err.message}`);
     }
@@ -72,7 +70,7 @@ function startProxy(node: Node): void {
 
   server.listen(listenPort, '0.0.0.0', () => {
     console.log(
-      `sftp-proxy [node ${node.id} "${node.name}"]: listening on :${listenPort} → ${targetHost}:${targetPort}`,
+      `sftp-proxy [node ${node.id} "${node.name}"]: listening on :${listenPort} → ${targetHost}:${targetPort}`
     );
   });
 
@@ -108,9 +106,9 @@ export async function refreshAllSftpProxies(): Promise<void> {
   try {
     const nodeRepo = AppDataSource.getRepository(Node);
     const nodes = await nodeRepo.find();
-    const nodeIds = new Set(nodes.map((n) => n.id));
+    const nodeIds = new Set(nodes.map(n => n.id));
 
-    const stale = [...proxies.keys()].filter((id) => !nodeIds.has(id));
+    const stale = [...proxies.keys()].filter(id => !nodeIds.has(id));
     for (const id of stale) {
       stopProxy(id);
     }

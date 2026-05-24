@@ -1,6 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
-
 @Entity()
 export class DatabaseHost {
   @PrimaryGeneratedColumn()

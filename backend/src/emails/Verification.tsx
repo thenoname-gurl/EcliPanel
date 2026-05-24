@@ -36,7 +36,12 @@ const statusStyle = {
 
 export function Verification({ name, status, t }: VerificationProps) {
   const _t = t || ((key: string) => key);
-  const statusLabel = status === 'verified' ? _t('email.verification.statusVerified') : status === 'failed' ? _t('email.verification.statusFailed') : status;
+  const statusLabel =
+    status === 'verified'
+      ? _t('email.verification.statusVerified')
+      : status === 'failed'
+        ? _t('email.verification.statusFailed')
+        : status;
 
   return (
     <BaseEmail previewText={_t('email.verification.preview')} t={t}>
@@ -49,9 +54,7 @@ export function Verification({ name, status, t }: VerificationProps) {
         <p style={pStyle}>{_t('email.verification.updated')}</p>
       </Section>
 
-      <Section style={statusStyle}>
-        {statusLabel}
-      </Section>
+      <Section style={statusStyle}>{statusLabel}</Section>
     </BaseEmail>
   );
 }

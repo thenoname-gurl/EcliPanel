@@ -27,8 +27,8 @@ export class Node {
   @Column({ default: 'free', type: 'varchar' })
   nodeType: NodeType;
 
-  @ManyToOne(() => Organisation, (o) => o.id, { nullable: true, eager: false })
-  organisation?: Organisation; 
+  @ManyToOne(() => Organisation, o => o.id, { nullable: true, eager: false })
+  organisation?: Organisation;
 
   @Column({ nullable: true, type: 'text' })
   rootUser?: string;
@@ -36,7 +36,7 @@ export class Node {
   @Column({ nullable: true, type: 'text' })
   rootPassword?: string;
 
-  @OneToMany(() => ServerMapping, (m) => m.node)
+  @OneToMany(() => ServerMapping, m => m.node)
   mappings: ServerMapping[];
 
   @Column({ nullable: true })

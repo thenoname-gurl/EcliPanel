@@ -6,7 +6,12 @@ import { createActivityLog } from '../handlers/logHandler';
 import { escapeHtml, markdownToHtml } from '../utils/markdown';
 import { resolveLocale } from '../i18n/resolve';
 
-export async function createAdminBroadcastJob(adminId: number, subject: string, message: string, force: boolean) {
+export async function createAdminBroadcastJob(
+  adminId: number,
+  subject: string,
+  message: string,
+  force: boolean
+) {
   const repo = AppDataSource.getRepository(AdminBroadcastJob);
   const job = repo.create({
     adminId,
@@ -40,7 +45,10 @@ export async function processPendingAdminBroadcastJobs() {
     const htmlMessage = markdownToHtml(job.message);
     const adminUser = await userRepo.findOneBy({ id: job.adminId });
     const adminDetails = adminUser
-      ? [adminUser.firstName, adminUser.middleName, adminUser.lastName].filter(Boolean).join(' ').trim()
+      ? [adminUser.firstName, adminUser.middleName, adminUser.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim()
       : adminUser?.email || 'admin';
 
     try {
@@ -62,7 +70,9 @@ export async function processPendingAdminBroadcastJobs() {
               title: job.subject,
               message: job.message,
               messageHtml: htmlMessage,
-              details: escapeHtml(adminDetails ? `${adminDetails} — ${adminUser?.email || ''}` : ''),
+              details: escapeHtml(
+                adminDetails ? `${adminDetails} — ${adminUser?.email || ''}` : ''
+              ),
             },
             locale: resolveLocale({ user }),
           });

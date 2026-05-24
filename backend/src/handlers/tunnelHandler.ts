@@ -42,8 +42,7 @@ const TUNNEL_WS_SCHEMA = {
   detail: {
     summary: 'Tunnel agent websocket',
     tags: ['Tunnels'],
-    description:
-      'Establish a websocket control channel for tunnel client and server agents.',
+    description: 'Establish a websocket control channel for tunnel client and server agents.',
   },
 };
 
@@ -56,7 +55,9 @@ async function getAccessibleOrganisationIds(user: User): Promise<number[]> {
   if (user.org?.id && ['admin', 'owner'].includes(user.orgRole)) {
     orgIds.add(user.org.id);
   }
-  const membershipRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+  const membershipRepo = AppDataSource.getRepository(
+    require('../models/organisationMember.entity').OrganisationMember
+  );
   const memberships = await membershipRepo.find({ where: { userId: user.id } });
   memberships.forEach((membership: any) => {
     if (['admin', 'owner'].includes(membership.orgRole)) {
@@ -69,7 +70,7 @@ async function getAccessibleOrganisationIds(user: User): Promise<number[]> {
 async function deviceBelongsToUserOrOrg(device: TunnelDevice, user: User): Promise<boolean> {
   if (isAdminUser(user)) return true;
   if (device.ownerUser?.id === user.id) return true;
-  if (device.organisation?.id && await canManageOrganisation(user, device.organisation.id)) {
+  if (device.organisation?.id && (await canManageOrganisation(user, device.organisation.id))) {
     return true;
   }
   return false;
@@ -78,7 +79,9 @@ async function deviceBelongsToUserOrOrg(device: TunnelDevice, user: User): Promi
 async function canManageOrganisation(user: User, organisationId: number): Promise<boolean> {
   if (isAdminUser(user)) return true;
   if (user.org?.id === organisationId && ['admin', 'owner'].includes(user.orgRole)) return true;
-  const membershipRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+  const membershipRepo = AppDataSource.getRepository(
+    require('../models/organisationMember.entity').OrganisationMember
+  );
   const membership = await membershipRepo.findOne({ where: { userId: user.id, organisationId } });
   return !!membership && ['admin', 'owner'].includes(membership.orgRole);
 }
@@ -89,8 +92,12 @@ function isValidHostname(h: string): boolean {
 
 function getRequestBaseUrl(ctx: any): string {
   const headers = ctx?.headers || {};
-  const host = (headers['x-forwarded-host'] || headers['host'] || headers['Host']) as string | undefined;
-  const proto = (headers['x-forwarded-proto'] || headers['x-forwarded-protocol'] || headers['x-forwarded-scheme']) as string | undefined;
+  const host = (headers['x-forwarded-host'] || headers['host'] || headers['Host']) as
+    | string
+    | undefined;
+  const proto = (headers['x-forwarded-proto'] ||
+    headers['x-forwarded-protocol'] ||
+    headers['x-forwarded-scheme']) as string | undefined;
   if (host && proto && isValidHostname(String(host))) {
     const scheme = proto.toString().split(',')[0].trim();
     return `${scheme}://${host}`;
@@ -160,8 +167,8 @@ async function cleanupExpiredEnrollments(): Promise<void> {
   const now = Date.now();
   await Promise.all(
     expired
-      .filter((device) => device.expiresAt.getTime() <= now)
-      .map(async (device) => repo.remove(device).catch(() => {}))
+      .filter(device => device.expiresAt.getTime() <= now)
+      .map(async device => repo.remove(device).catch(() => {}))
   );
 }
 
@@ -200,48 +207,48 @@ async function requireTunnelRollout(ctx: any): Promise<true | { error: string }>
 }
 
 export function tunnelRoutes(app: any, prefix: string): void {
-    app.get(
-      `${prefix}/tunnel/server/download`,
-      async (ctx: any) => {
-        const binaryPath = path.resolve(
-          process.cwd(),
-          '..',
-          'tunnel',
-          'server',
-          'target',
-          'release',
-          'ecli-tunnel-server'
-        );
+  app.get(
+    `${prefix}/tunnel/server/download`,
+    async (ctx: any) => {
+      const binaryPath = path.resolve(
+        process.cwd(),
+        '..',
+        'tunnel',
+        'server',
+        'target',
+        'release',
+        'ecli-tunnel-server'
+      );
 
-        if (Bun.file(binaryPath).size === 0) {
-          ctx.set.status = 404;
-          return errorResponse('Tunnel server binary not available', 404);
-        }
-
-        const file = await Bun.file(binaryPath).arrayBuffer();
-        const fileName = path.basename(binaryPath);
-
-        return new Response(file, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/octet-stream',
-            'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
-            'Content-Length': String(Buffer.byteLength(file)),
-          },
-        });
-      },
-      {
-        response: {
-          200: t.Any(),
-          404: t.Object({ error: t.String() }),
-        },
-        detail: {
-          summary: 'Download the tunnel server binary',
-          tags: ['Tunnels'],
-        },
+      if (Bun.file(binaryPath).size === 0) {
+        ctx.set.status = 404;
+        return errorResponse('Tunnel server binary not available', 404);
       }
-    );
-  
+
+      const file = await Bun.file(binaryPath).arrayBuffer();
+      const fileName = path.basename(binaryPath);
+
+      return new Response(file, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
+          'Content-Length': String(Buffer.byteLength(file)),
+        },
+      });
+    },
+    {
+      response: {
+        200: t.Any(),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Download the tunnel server binary',
+        tags: ['Tunnels'],
+      },
+    }
+  );
+
   app.get(
     `${prefix}/tunnel/client/download`,
     async (ctx: any) => {
@@ -320,12 +327,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
   app.get(
     `${prefix}/tunnel/deploy.sh`,
     async (ctx: any) => {
-      const scriptPath = path.resolve(
-        process.cwd(),
-        '..',
-        'tunnel',
-        'deploy.sh'
-      );
+      const scriptPath = path.resolve(process.cwd(), '..', 'tunnel', 'deploy.sh');
 
       if (Bun.file(scriptPath).size === 0) {
         ctx.set.status = 404;
@@ -384,7 +386,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
 
       const organisationId = getNumberField(body, ['organisation_id', 'organisationId']);
-      if (organisationId && ctx.user && await canManageOrganisation(ctx.user, organisationId)) {
+      if (organisationId && ctx.user && (await canManageOrganisation(ctx.user, organisationId))) {
         const orgRepo = AppDataSource.getRepository(Organisation);
         const organisation = await orgRepo.findOne({ where: { id: organisationId } });
         if (organisation) {
@@ -418,8 +420,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       detail: {
         summary: 'Start tunnel device enrollment',
         tags: ['Tunnels'],
-        description:
-          'Begin device authorization for a tunnel client or server agent.',
+        description: 'Begin device authorization for a tunnel client or server agent.',
       },
     }
   );
@@ -452,10 +453,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('authorization_pending', 428);
       }
 
-      const tokenTtl = Math.max(
-        0,
-        Math.floor((device.expiresAt.getTime() - Date.now()) / 1000)
-      );
+      const tokenTtl = Math.max(0, Math.floor((device.expiresAt.getTime() - Date.now()) / 1000));
 
       return createJsonResponse({
         access_token: device.token,
@@ -520,10 +518,16 @@ export function tunnelRoutes(app: any, prefix: string): void {
       let device: TunnelDevice | null = null;
 
       if (userCode) {
-        device = await repo.findOne({ where: { userCode }, relations: {"ownerUser":true,"organisation":true} });
+        device = await repo.findOne({
+          where: { userCode },
+          relations: { ownerUser: true, organisation: true },
+        });
       }
       if (!device && deviceCode) {
-        device = await repo.findOne({ where: { deviceCode }, relations: {"ownerUser":true,"organisation":true} });
+        device = await repo.findOne({
+          where: { deviceCode },
+          relations: { ownerUser: true, organisation: true },
+        });
       }
 
       if (!device) {
@@ -637,8 +641,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       detail: {
         summary: 'Approve a tunnel device enrollment',
         tags: ['Tunnels'],
-        description:
-          'Authorize a pending tunnel client/server device and issue a JWT token.',
+        description: 'Authorize a pending tunnel client/server device and issue a JWT token.',
       },
     }
   );
@@ -659,7 +662,10 @@ export function tunnelRoutes(app: any, prefix: string): void {
       let devices: TunnelDevice[] = [];
 
       if (isAdminUser(ctx.user)) {
-        devices = await repo.find({ relations: {"organisation":true}, order: { createdAt: 'DESC' } });
+        devices = await repo.find({
+          relations: { organisation: true },
+          order: { createdAt: 'DESC' },
+        });
       } else if (ctx.user) {
         const orgIds = await getAccessibleOrganisationIds(ctx.user);
         const qb = repo.createQueryBuilder('device');
@@ -677,7 +683,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
 
       return createJsonResponse({
-        devices: devices.map((d) => ({
+        devices: devices.map(d => ({
           id: d.id,
           device_code: d.deviceCode,
           user_code: d.userCode,
@@ -741,14 +747,15 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
 
       const isDeviceAdmin = ctx.apiKey && ctx.apiKey.type === 'admin';
-      const canDelete = isDeviceAdmin || (ctx.user && await deviceBelongsToUserOrOrg(device, ctx.user));
+      const canDelete =
+        isDeviceAdmin || (ctx.user && (await deviceBelongsToUserOrOrg(device, ctx.user)));
       if (!canDelete) {
         return errorResponse('forbidden', 403);
       }
 
       const allocRepo = AppDataSource.getRepository(TunnelAllocation);
       const allocations = await allocRepo.find({
-        relations: {"clientDevice":true,"serverDevice":true},
+        relations: { clientDevice: true, serverDevice: true },
         where: [
           { clientDevice: { id: deviceId } } as any,
           { serverDevice: { id: deviceId } } as any,
@@ -955,7 +962,10 @@ export function tunnelRoutes(app: any, prefix: string): void {
         const deviceRepo = AppDataSource.getRepository(TunnelDevice);
         clientDevice = await deviceRepo.findOne({
           where: { id: clientDeviceId, kind: 'client', approved: true },
-          relations: {"ownerUser":{"org":true,"organisationMemberships":true},"organisation":true},
+          relations: {
+            ownerUser: { org: true, organisationMemberships: true },
+            organisation: true,
+          },
         });
         if (!clientDevice) {
           return errorResponse('invalid_client_device', 400);
@@ -973,17 +983,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('client_only_device', 403);
       }
 
-      const localHost = getStringField(
-        body,
-        ['local_host', 'localHost'],
-        '127.0.0.1'
-      );
+      const localHost = getStringField(body, ['local_host', 'localHost'], '127.0.0.1');
       const localPort = getNumberField(body, ['local_port', 'localPort']);
-      const protocol = getStringField(
-        body,
-        ['protocol', 'protocol'],
-        'tcp'
-      ).toLowerCase();
+      const protocol = getStringField(body, ['protocol', 'protocol'], 'tcp').toLowerCase();
 
       const VALID_PROTOCOLS = ['tcp', 'udp', 'http', 'https'];
       if (!VALID_PROTOCOLS.includes(protocol)) {
@@ -996,7 +998,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
       const reused = await tryReuseRecentPort(clientDevice, localHost, localPort);
       let port: number;
-      let reuseAllocation: TunnelAllocation | null = reused;
+      const reuseAllocation: TunnelAllocation | null = reused;
 
       if (reused) {
         port = reused.port;
@@ -1008,8 +1010,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         }
       }
 
-      const host =
-        process.env.TUNNEL_PUBLIC_HOST ?? 'n2.ecli.app';
+      const host = process.env.TUNNEL_PUBLIC_HOST ?? 'n2.ecli.app';
 
       const repo = AppDataSource.getRepository(TunnelAllocation);
       let tunnelLimit = 10;
@@ -1020,9 +1021,10 @@ export function tunnelRoutes(app: any, prefix: string): void {
         requestingUser = clientDevice.ownerUser;
       }
       if (requestingUser && !isAdminUser(requestingUser)) {
-        tunnelLimit = (requestingUser.limits && typeof requestingUser.limits.tunnelPortCount === 'number')
-          ? requestingUser.limits.tunnelPortCount
-          : 10;
+        tunnelLimit =
+          requestingUser.limits && typeof requestingUser.limits.tunnelPortCount === 'number'
+            ? requestingUser.limits.tunnelPortCount
+            : 10;
 
         const activeCount = await repo
           .createQueryBuilder('allocation')
@@ -1113,8 +1115,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       detail: {
         summary: 'Create tunnel allocation',
         tags: ['Tunnels'],
-        description:
-          'Reserve a public tunnel endpoint and bind it to a client device.',
+        description: 'Reserve a public tunnel endpoint and bind it to a client device.',
       },
     }
   );
@@ -1133,7 +1134,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       if (device) {
         allocations = await repo.find({
           where: { clientDevice: { id: device.id } },
-          relations: {"clientDevice":true,"serverDevice":true},
+          relations: { clientDevice: true, serverDevice: true },
           order: { createdAt: 'DESC' },
         });
       } else if (ctx.user) {
@@ -1158,7 +1159,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       }
 
       return createJsonResponse({
-        allocations: allocations.map((a) => ({
+        allocations: allocations.map(a => ({
           id: a.id,
           host: a.host,
           port: a.port,
@@ -1222,7 +1223,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const repo = AppDataSource.getRepository(TunnelAllocation);
       const allocation = await repo.findOne({
         where: { id: allocationId },
-        relations: {"clientDevice":true,"serverDevice":true},
+        relations: { clientDevice: true, serverDevice: true },
       });
 
       if (!allocation) {
@@ -1233,7 +1234,10 @@ export function tunnelRoutes(app: any, prefix: string): void {
         if (allocation.clientDevice?.id !== device.id) {
           return errorResponse('forbidden', 403);
         }
-      } else if (!ctx.user || !(await deviceBelongsToUserOrOrg(allocation.clientDevice, ctx.user))) {
+      } else if (
+        !ctx.user ||
+        !(await deviceBelongsToUserOrOrg(allocation.clientDevice, ctx.user))
+      ) {
         return errorResponse('forbidden', 403);
       }
 
@@ -1266,8 +1270,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       detail: {
         summary: 'Close a tunnel allocation',
         tags: ['Tunnels'],
-        description:
-          'Release a public tunnel endpoint and notify the server agent to unbind it.',
+        description: 'Release a public tunnel endpoint and notify the server agent to unbind it.',
       },
     }
   );
@@ -1291,7 +1294,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const repo = AppDataSource.getRepository(TunnelAllocation);
       const allocation = await repo.findOne({
         where: { id: allocationId },
-        relations: {"clientDevice":true,"serverDevice":true},
+        relations: { clientDevice: true, serverDevice: true },
       });
 
       if (!allocation) {
@@ -1302,7 +1305,10 @@ export function tunnelRoutes(app: any, prefix: string): void {
         if (allocation.clientDevice?.id !== device.id) {
           return errorResponse('forbidden', 403);
         }
-      } else if (!ctx.user || !(await deviceBelongsToUserOrOrg(allocation.clientDevice, ctx.user))) {
+      } else if (
+        !ctx.user ||
+        !(await deviceBelongsToUserOrOrg(allocation.clientDevice, ctx.user))
+      ) {
         return errorResponse('forbidden', 403);
       }
 
@@ -1364,7 +1370,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       const repo = AppDataSource.getRepository(TunnelAllocation);
       const allocation = await repo.findOne({
         where: { id: allocationId },
-        relations: {"clientDevice":true,"serverDevice":true},
+        relations: { clientDevice: true, serverDevice: true },
       });
 
       if (!allocation) {
@@ -1474,12 +1480,9 @@ export function tunnelRoutes(app: any, prefix: string): void {
         }
       };
 
-      const expectedVersion = device.kind === 'server'
-        ? readVersion('server', '0.2.0')
-        : readVersion('client', '0.2.0');
-      const updateAvailable = reportedVersion
-        ? reportedVersion !== expectedVersion
-        : true;
+      const expectedVersion =
+        device.kind === 'server' ? readVersion('server', '0.2.0') : readVersion('client', '0.2.0');
+      const updateAvailable = reportedVersion ? reportedVersion !== expectedVersion : true;
 
       ws.data = ws.data || {};
       ws.data._ecliDeviceCode = device.deviceCode;
@@ -1488,7 +1491,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
       registerAgent(device.deviceCode, ws);
 
       if (device.kind === 'server') {
-        await assignPendingAllocations(device).catch((err) => {
+        await assignPendingAllocations(device).catch(err => {
           console.error('[tunnel] Failed to assign pending allocations:', err);
         });
       }
@@ -1537,7 +1540,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
 
           case 'connection.open':
             if (deviceKind === 'server') {
-              handleServerConnectionOpen(msg, deviceCode).catch((err) => {
+              handleServerConnectionOpen(msg, deviceCode).catch(err => {
                 console.error('[tunnel] connection.open error:', err);
               });
             }
@@ -1594,7 +1597,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
                 `allocationId=${String((msg as any).allocationId ?? '')} ` +
                 `connectionId=${String((msg as any).connectionId ?? '')}`
             );
-            handleServerConnectionOpen(msg, deviceCode).catch((err) => {
+            handleServerConnectionOpen(msg, deviceCode).catch(err => {
               console.error('[tunnel] connection.open error:', err);
             });
           }
@@ -1625,9 +1628,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         unregisterAgent(deviceCode);
         cleanupConnectionsByAgent(deviceCode);
 
-        console.info(
-          `[tunnel] Agent disconnected: ${deviceCode} (code=${code}, reason=${reason})`
-        );
+        console.info(`[tunnel] Agent disconnected: ${deviceCode} (code=${code}, reason=${reason})`);
       }
     },
 

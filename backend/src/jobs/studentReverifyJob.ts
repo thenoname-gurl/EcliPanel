@@ -50,10 +50,14 @@ export async function runStudentReverifyJob() {
 export async function scheduleStudentReverifyJob() {
   console.log('Starting student reverify job...');
 
-  await runStudentReverifyJob().catch((e) => {console.log('Error running student reverify job', e)});
+  await runStudentReverifyJob().catch(e => {
+    console.log('Error running student reverify job', e);
+  });
   try {
     schedule('0 0 * * *', async () => {
-      await runStudentReverifyJob().catch((e) => {console.log('Error running student reverify job', e)});
+      await runStudentReverifyJob().catch(e => {
+        console.log('Error running student reverify job', e);
+      });
     });
   } catch (e) {
     console.error('Failed to schedule student reverify job via cron', e);

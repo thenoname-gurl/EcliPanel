@@ -1,7 +1,12 @@
 import { AppDataSource } from '../config/typeorm';
 import { TunnelDevice } from '../models/tunnelDevice.entity';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
-import type { AgentMessage, AllocationStatus, DeviceKind, TunnelServerType } from '../types/tunnels';
+import type {
+  AgentMessage,
+  AllocationStatus,
+  DeviceKind,
+  TunnelServerType,
+} from '../types/tunnels';
 import { sendAgentMessage } from './agent.service';
 
 const PORT_RANGE_DEFAULT = '20000-29999';
@@ -19,7 +24,7 @@ export async function verifyDeviceToken(
     const repo = AppDataSource.getRepository(TunnelDevice);
     const device = await repo.findOne({
       where: { deviceCode: payload.agent },
-      relations: {"ownerUser":{"org":true,"organisationMemberships":true},"organisation":true},
+      relations: { ownerUser: { org: true, organisationMemberships: true }, organisation: true },
     });
 
     if (!device?.approved || device.token !== token) return null;
@@ -34,9 +39,7 @@ export async function verifyDeviceToken(
 }
 
 export async function allocatePort(): Promise<number> {
-  const [min, max] = (process.env.TUNNEL_PORT_RANGE ?? PORT_RANGE_DEFAULT)
-    .split('-')
-    .map(Number);
+  const [min, max] = (process.env.TUNNEL_PORT_RANGE ?? PORT_RANGE_DEFAULT).split('-').map(Number);
 
   const safeMin = Number.isFinite(min) ? min : 20000;
   const safeMax = Number.isFinite(max) ? max : 29999;
@@ -54,18 +57,17 @@ export async function allocatePort(): Promise<number> {
   const cutoff = new Date(Date.now() - CLOSED_REUSE_HOURS * 60 * 60 * 1000);
   const usedPorts = new Set(
     allocations
-      .filter((a) => {
+      .filter(a => {
         if (a.status === 'closed') {
           return a.closedAt != null && a.closedAt >= cutoff;
         }
         return true;
       })
-      .map((a) => a.port)
+      .map(a => a.port)
   );
 
   for (let attempt = 0; attempt < MAX_PORT_ATTEMPTS; attempt++) {
-    const candidate =
-      Math.floor(Math.random() * (safeMax - safeMin + 1)) + safeMin;
+    const candidate = Math.floor(Math.random() * (safeMax - safeMin + 1)) + safeMin;
 
     if (!usedPorts.has(candidate)) return candidate;
   }
@@ -88,7 +90,7 @@ export async function tryReuseRecentPort(
       localPort,
       status: 'closed' as AllocationStatus,
     },
-    relations: {"clientDevice":true,"serverDevice":true},
+    relations: { clientDevice: true, serverDevice: true },
     order: { closedAt: 'DESC' },
   });
 
@@ -107,10 +109,7 @@ function normalizePortalType(portalType?: string): string {
   return portalType;
 }
 
-function serverTypeMatchesClient(
-  serverType: TunnelServerType,
-  clientPortalType: string
-): boolean {
+function serverTypeMatchesClient(serverType: TunnelServerType, clientPortalType: string): boolean {
   if (clientPortalType === 'enterprise') {
     return true;
   }
@@ -177,8 +176,14 @@ function getServerTypeRank(type: TunnelServerType) {
 }
 
 function compareServers(a: TunnelDevice, b: TunnelDevice, clientDevice: TunnelDevice) {
-  const aOrgMatch = a.organisation?.id && getClientOrganisationIds(clientDevice).includes(a.organisation.id) ? 0 : 1;
-  const bOrgMatch = b.organisation?.id && getClientOrganisationIds(clientDevice).includes(b.organisation.id) ? 0 : 1;
+  const aOrgMatch =
+    a.organisation?.id && getClientOrganisationIds(clientDevice).includes(a.organisation.id)
+      ? 0
+      : 1;
+  const bOrgMatch =
+    b.organisation?.id && getClientOrganisationIds(clientDevice).includes(b.organisation.id)
+      ? 0
+      : 1;
   if (aOrgMatch !== bOrgMatch) return aOrgMatch - bOrgMatch;
 
   const aRank = getServerTypeRank(a.serverType as TunnelServerType);
@@ -196,11 +201,13 @@ export async function getOnlineServerAgent(
 
   const servers = await repo.find({
     where: { kind: 'server' as DeviceKind, approved: true },
-    relations: {"ownerUser":true,"organisation":true},
+    relations: { ownerUser: true, organisation: true },
   });
 
-  const onlineServers = servers.filter((s) => agentConnections.has(s.deviceCode));
-  const eligibleServers = onlineServers.filter((server) => isServerEligibleForClient(server, clientDevice));
+  const onlineServers = servers.filter(s => agentConnections.has(s.deviceCode));
+  const eligibleServers = onlineServers.filter(server =>
+    isServerEligibleForClient(server, clientDevice)
+  );
 
   if (eligibleServers.length === 0) return null;
 
@@ -208,22 +215,20 @@ export async function getOnlineServerAgent(
   return eligibleServers[0];
 }
 
-export async function assignPendingAllocations(
-  serverDevice: TunnelDevice
-): Promise<void> {
+export async function assignPendingAllocations(serverDevice: TunnelDevice): Promise<void> {
   const repo = AppDataSource.getRepository(TunnelAllocation);
 
   const pending = await repo.find({
-    where: [
-      { status: 'pending' as AllocationStatus },
-      { status: 'active' as AllocationStatus },
-    ],
-    relations: {"clientDevice":{"ownerUser":{"org":true,"organisationMemberships":true},"organisation":true},"serverDevice":true},
+    where: [{ status: 'pending' as AllocationStatus }, { status: 'active' as AllocationStatus }],
+    relations: {
+      clientDevice: { ownerUser: { org: true, organisationMemberships: true }, organisation: true },
+      serverDevice: true,
+    },
   });
 
   // rebind allocations which were already assigned to this server
   const alreadyAssigned = pending.filter(
-    (a) => a.serverDevice?.deviceCode === serverDevice.deviceCode
+    a => a.serverDevice?.deviceCode === serverDevice.deviceCode
   );
   for (const alloc of alreadyAssigned) {
     sendAgentMessage(serverDevice.deviceCode, {
@@ -235,13 +240,13 @@ export async function assignPendingAllocations(
     });
   }
 
-  const unassigned = pending.filter((a) => !a.serverDevice);
-  const assignable = unassigned.filter((alloc) =>
+  const unassigned = pending.filter(a => !a.serverDevice);
+  const assignable = unassigned.filter(alloc =>
     isServerEligibleForClient(serverDevice, alloc.clientDevice)
   );
 
   await Promise.all(
-    assignable.map(async (alloc) => {
+    assignable.map(async alloc => {
       alloc.serverDevice = serverDevice;
       alloc.status = 'active';
       await repo.save(alloc);

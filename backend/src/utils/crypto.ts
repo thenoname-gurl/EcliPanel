@@ -136,7 +136,7 @@ function isEncryptedTextPayload(value: string): boolean {
   if (isPqEncryptedString(value)) return true;
   const parts = value.split(':');
   if (parts.length !== 3) return false;
-  return parts.every((part) => /^[A-Za-z0-9+/=]+$/.test(part));
+  return parts.every(part => /^[A-Za-z0-9+/=]+$/.test(part));
 }
 
 export function decrypt(enc: string): string {
@@ -156,7 +156,9 @@ export function decrypt(enc: string): string {
     }
     const sharedSecret = ml_kem768.decapsulate(encapsulated, pqKeypair.secretKey);
     const aesKey = deriveAesKey(sharedSecret);
-    const decrypted = decryptAesPayload(Buffer.concat([iv, tag, ciphertext]), aesKey).toString('utf8');
+    const decrypted = decryptAesPayload(Buffer.concat([iv, tag, ciphertext]), aesKey).toString(
+      'utf8'
+    );
     if (decrypted === '') {
       console.log(`crypto.decrypt: empty string result from PQ payload (len=${enc.length})`);
     }
@@ -187,7 +189,10 @@ export function encryptBuffer(data: Buffer): Buffer {
     const iv = payload.slice(0, 12).toString('base64');
     const tag = payload.slice(12, 28).toString('base64');
     const ciphertext = payload.slice(28).toString('base64');
-    return Buffer.from(`${PQ_PREFIX}${Buffer.from(encapsulated).toString('base64')}:${iv}:${tag}:${ciphertext}`, 'utf8');
+    return Buffer.from(
+      `${PQ_PREFIX}${Buffer.from(encapsulated).toString('base64')}:${iv}:${tag}:${ciphertext}`,
+      'utf8'
+    );
   }
 
   const iv = randomBytes(12);

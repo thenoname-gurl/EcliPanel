@@ -26,7 +26,7 @@
  * We include `uuid` at top level (Go needs it; Rust ignores it).
  * ─────────────────────────────────────────────────────────────────────────────
  * Thanks Claude Opus 4.6 for documentation assistance!
- * Warnign: This code is probably worst code in the history of code, 
+ * Warnign: This code is probably worst code in the history of code,
  * please forgive me, I am a bad programmer and I have no shame.
  * (And yet I somehow graduated academy :sob:)
  */
@@ -60,7 +60,8 @@ async function authenticateWings(ctx: any): Promise<unknown> {
   let raw = authHeader.replace(/^Bearer\s+/i, '').trim();
 
   if (!raw) {
-    const q = (ctx.query as any)?.token || (ctx.query as any)?.access_token || (ctx.query as any)?.api_key;
+    const q =
+      (ctx.query as any)?.token || (ctx.query as any)?.access_token || (ctx.query as any)?.api_key;
     if (typeof q === 'string') raw = q.trim();
   }
 
@@ -69,7 +70,7 @@ async function authenticateWings(ctx: any): Promise<unknown> {
     return { errors: [{ code: 'Unauthorized', detail: 'Missing bearer token' }] };
   }
 
-  // Wings usually sends "{token_id}.{token}" 
+  // Wings usually sends "{token_id}.{token}"
   const dotIdx = raw.indexOf('.');
   const tokenPart = dotIdx >= 0 ? raw.substring(dotIdx + 1) : raw;
 
@@ -86,9 +87,13 @@ async function authenticateWings(ctx: any): Promise<unknown> {
   }
   if (!node) {
     try {
-      const headers = Object.keys(ctx.request.headers || {}).slice(0, 20).join(', ');
+      const headers = Object.keys(ctx.request.headers || {})
+        .slice(0, 20)
+        .join(', ');
       const redact = (s: string) => (s ? `***${s.slice(-6)}` : s);
-      const tried = [tokenPart, raw, dotIdx >= 0 ? raw.substring(0, dotIdx) : ''].map(redact).join(', ');
+      const tried = [tokenPart, raw, dotIdx >= 0 ? raw.substring(0, dotIdx) : '']
+        .map(redact)
+        .join(', ');
       (ctx.app as any)?.log?.warn?.({ headers, tried }, 'Wings auth failed: token lookup mismatch');
     } catch (e) {
       // skip
@@ -189,7 +194,10 @@ function buildAllocationMappings(
 }
 
 /** Build sanitized FQDN mappings from allocation config */
-function buildAllocationFqdns(alloc: any, mappings: Record<string, number[]>): Record<string, string> {
+function buildAllocationFqdns(
+  alloc: any,
+  mappings: Record<string, number[]>
+): Record<string, string> {
   const fqdns: Record<string, string> = {};
   const rawByPort = new Map<number, string>();
 
@@ -197,7 +205,9 @@ function buildAllocationFqdns(alloc: any, mappings: Record<string, number[]>): R
     const fqdn = String(value ?? '').trim();
     if (!fqdn) continue;
 
-    const match = String(rawKey).trim().match(/^\[?(.*?)\]:(\d+)$/);
+    const match = String(rawKey)
+      .trim()
+      .match(/^\[?(.*?)\]:(\d+)$/);
     if (!match) continue;
 
     const port = Number(match[2]);
@@ -237,7 +247,12 @@ function buildAllocationDefault(alloc: any): { ip: string; port: number } | null
   return null;
 }
 
-function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[], nodeOverrides?: { portRangeEnd?: number; ipv6ExcludedPorts?: string }): object {
+function buildServerObject(
+  cfg: ServerConfig,
+  egg?: Egg | null,
+  mounts?: Mount[],
+  nodeOverrides?: { portRangeEnd?: number; ipv6ExcludedPorts?: string }
+): object {
   const eggProc = egg?.processConfig || {};
   const cfgProc = cfg.processConfig || {};
   const proc = { ...eggProc, ...cfgProc };
@@ -252,7 +267,7 @@ function buildServerObject(cfg: ServerConfig, egg?: Egg | null, mounts?: Mount[]
 
   // On god I hate this messy formatting, but wings is very particular
   // about it and changing it would break compatibility with both Go and Rust wings,
-  // which would be a nightmare to coordinate and support, so here we are, 
+  // which would be a nightmare to coordinate and support, so here we are,
   // in this beautiful mess of code, forever.
   // KILL ME
   return {
@@ -351,458 +366,579 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   // GET /api/remote/servers  — Wings fetches all its server configs at startup
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get(prefix + '/remote/servers', async (ctx) => {
-    const node = (ctx as any).wingNode as Node;
-    const { page = '0', per_page = '50' } = ctx.query as any;
+  app.get(
+    prefix + '/remote/servers',
+    async ctx => {
+      const node = (ctx as any).wingNode as Node;
+      const { page = '0', per_page = '50' } = ctx.query as any;
 
-    const pageNum = Math.max(0, Number(page));
-    const perPage = Math.min(100, Math.max(1, Number(per_page)));
+      const pageNum = Math.max(0, Number(page));
+      const perPage = Math.min(100, Math.max(1, Number(per_page)));
 
-    const [configs, total] = await repo().findAndCount({
-      where: { nodeId: node.id },
-      skip: pageNum * perPage,
-      take: perPage,
-      order: { createdAt: 'ASC' },
-    });
-
-    const eggIds = [...new Set(configs.map(c => c.eggId).filter(Boolean))] as number[];
-    const eggMap: Record<number, Egg> = {};
-    if (eggIds.length) {
-      const eggs = await AppDataSource.getRepository(Egg).findBy({ id: In(eggIds) });
-      for (const e of eggs) eggMap[e.id] = e;
-    }
-
-    const totalPages = Math.max(1, Math.ceil(total / perPage));
-
-    // TODO: Check if moutns work
-    const serverUuids = configs.map(c => c.uuid);
-    const mountMap: Record<string, Mount[]> = {};
-    if (serverUuids.length) {
-      const serverMounts = await AppDataSource.getRepository(ServerMount).find({
-        where: { serverUuid: In(serverUuids) },
+      const [configs, total] = await repo().findAndCount({
+        where: { nodeId: node.id },
+        skip: pageNum * perPage,
+        take: perPage,
+        order: { createdAt: 'ASC' },
       });
-      const mountIds = [...new Set(serverMounts.map(sm => sm.mountId))];
-      const allMounts: Record<number, Mount> = {};
-      if (mountIds.length) {
-        const mounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
-        for (const m of mounts) allMounts[m.id] = m;
+
+      const eggIds = [...new Set(configs.map(c => c.eggId).filter(Boolean))] as number[];
+      const eggMap: Record<number, Egg> = {};
+      if (eggIds.length) {
+        const eggs = await AppDataSource.getRepository(Egg).findBy({ id: In(eggIds) });
+        for (const e of eggs) eggMap[e.id] = e;
       }
-      for (const sm of serverMounts) {
-        const mount = allMounts[sm.mountId];
-        if (mount) {
-          (mountMap[sm.serverUuid] ??= []).push(mount);
+
+      const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+      // TODO: Check if moutns work
+      const serverUuids = configs.map(c => c.uuid);
+      const mountMap: Record<string, Mount[]> = {};
+      if (serverUuids.length) {
+        const serverMounts = await AppDataSource.getRepository(ServerMount).find({
+          where: { serverUuid: In(serverUuids) },
+        });
+        const mountIds = [...new Set(serverMounts.map(sm => sm.mountId))];
+        const allMounts: Record<number, Mount> = {};
+        if (mountIds.length) {
+          const mounts = await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) });
+          for (const m of mounts) allMounts[m.id] = m;
+        }
+        for (const sm of serverMounts) {
+          const mount = allMounts[sm.mountId];
+          if (mount) {
+            (mountMap[sm.serverUuid] ??= []).push(mount);
+          }
         }
       }
-    }
 
-    const nodeOverrides = { portRangeEnd: node.portRangeEnd, ipv6ExcludedPorts: node.ipv6ExcludedPorts };
-    return {
-      data: configs.map(cfg => buildServerObject(cfg, eggMap[cfg.eggId ?? -1] ?? null, mountMap[cfg.uuid], nodeOverrides)),
-      meta: {
-        current_page: pageNum + 1,
-        last_page: totalPages,
-        total,
-        pagination: {
-          total,
-          count: configs.length,
-          per_page: perPage,
+      const nodeOverrides = {
+        portRangeEnd: node.portRangeEnd,
+        ipv6ExcludedPorts: node.ipv6ExcludedPorts,
+      };
+      return {
+        data: configs.map(cfg =>
+          buildServerObject(cfg, eggMap[cfg.eggId ?? -1] ?? null, mountMap[cfg.uuid], nodeOverrides)
+        ),
+        meta: {
           current_page: pageNum + 1,
-          total_pages: totalPages,
-          links: {},
+          last_page: totalPages,
+          total,
+          pagination: {
+            total,
+            count: configs.length,
+            per_page: perPage,
+            current_page: pageNum + 1,
+            total_pages: totalPages,
+            links: {},
+          },
         },
-      },
-    };
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'List all servers for a node (Wings callback)', tags: ['Remote'] },
-    response: { 200: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+      };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'List all servers for a node (Wings callback)', tags: ['Remote'] },
+      response: { 200: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // GET /api/remote/servers/:uuid  — single server config
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get(prefix + '/remote/servers/:uuid', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const node = (ctx as any).wingNode as Node;
-    const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
-    }
-    let egg: Egg | null = null;
-    if (cfg.eggId) egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
+  app.get(
+    prefix + '/remote/servers/:uuid',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const node = (ctx as any).wingNode as Node;
+      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
+      }
+      let egg: Egg | null = null;
+      if (cfg.eggId) egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
 
-    const serverMounts = await AppDataSource.getRepository(ServerMount).findBy({ serverUuid: uuid });
-    const mountIds = serverMounts.map(sm => sm.mountId);
-    const mounts = mountIds.length
-      ? await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) })
-      : [];
+      const serverMounts = await AppDataSource.getRepository(ServerMount).findBy({
+        serverUuid: uuid,
+      });
+      const mountIds = serverMounts.map(sm => sm.mountId);
+      const mounts = mountIds.length
+        ? await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) })
+        : [];
 
-    try {
-      const nodeOverrides = { portRangeEnd: node.portRangeEnd, ipv6ExcludedPorts: node.ipv6ExcludedPorts };
-      const obj = buildServerObject(cfg, egg, mounts, nodeOverrides);
-      return obj;
-    } catch (err: any) {
-      (app as any).log?.error?.({ err, uuid, nodeId: node.id }, 'Failed to build server object for Wings');
-      ctx.set.status = 500;
-      return { errors: [{ code: 'ServerError', detail: 'Failed to build server configuration' }] };
+      try {
+        const nodeOverrides = {
+          portRangeEnd: node.portRangeEnd,
+          ipv6ExcludedPorts: node.ipv6ExcludedPorts,
+        };
+        const obj = buildServerObject(cfg, egg, mounts, nodeOverrides);
+        return obj;
+      } catch (err: any) {
+        (app as any).log?.error?.(
+          { err, uuid, nodeId: node.id },
+          'Failed to build server object for Wings'
+        );
+        ctx.set.status = 500;
+        return {
+          errors: [{ code: 'ServerError', detail: 'Failed to build server configuration' }],
+        };
+      }
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Get a single server config (Wings callback)', tags: ['Remote'] },
+      response: {
+        200: t.Any(),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+        404: t.Object({ errors: t.Array(t.Any()) }),
+        500: t.Object({ errors: t.Array(t.Any()) }),
+      },
     }
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Get a single server config (Wings callback)', tags: ['Remote'] },
-    response: { 200: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }), 404: t.Object({ errors: t.Array(t.Any()) }), 500: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/servers/reset  — Wings tells us it (re)started
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/servers/reset', async (ctx) => {
-    ctx.set.status = 204;
+  app.post(
+    prefix + '/remote/servers/reset',
+    async ctx => {
+      ctx.set.status = 204;
 
-    void (async () => {
-      try {
-        const node = (ctx as any).wingNode as Node;
-        if (!node) return;
-
-        const nodeSvc = nodeService;
-        const svc = await nodeSvc.getServiceForNode(node.id);
-        const configs = await repo().findBy({ nodeId: node.id });
-        for (const cfg of configs) {
-          try {
-            await svc.syncServer(cfg.uuid, {});
-          } catch (e: any) {
-            (app as any).log?.warn?.({ err: e, server: cfg.uuid, nodeId: node.id }, 'auto-sync failed for server');
-          }
-        }
+      void (async () => {
         try {
-          await restoreDesiredPowerStatesForNode(node.id);
-        } catch (e: any) {
-          (app as any).log?.warn?.({ err: e, nodeId: node.id }, 'failed to restore desired power state after wings reset');
-        }
-      } catch (e: any) {
-        (app as any).log?.warn?.({ err: e }, 'auto-sync failed after wings reset');
-      }
-    })();
+          const node = (ctx as any).wingNode as Node;
+          if (!node) return;
 
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Notify panel that Wings has restarted', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+          const nodeSvc = nodeService;
+          const svc = await nodeSvc.getServiceForNode(node.id);
+          const configs = await repo().findBy({ nodeId: node.id });
+          for (const cfg of configs) {
+            try {
+              await svc.syncServer(cfg.uuid, {});
+            } catch (e: any) {
+              (app as any).log?.warn?.(
+                { err: e, server: cfg.uuid, nodeId: node.id },
+                'auto-sync failed for server'
+              );
+            }
+          }
+          try {
+            await restoreDesiredPowerStatesForNode(node.id);
+          } catch (e: any) {
+            (app as any).log?.warn?.(
+              { err: e, nodeId: node.id },
+              'failed to restore desired power state after wings reset'
+            );
+          }
+        } catch (e: any) {
+          (app as any).log?.warn?.({ err: e }, 'auto-sync failed after wings reset');
+        }
+      })();
+
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Notify panel that Wings has restarted', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // GET /api/remote/servers/:uuid/install  — install script for a new server
   // Wings uses this when a server is first created / reinstalled.
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get(prefix + '/remote/servers/:uuid/install', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const node = (ctx as any).wingNode as Node;
-    const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
+  app.get(
+    prefix + '/remote/servers/:uuid/install',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const node = (ctx as any).wingNode as Node;
+      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
+      }
+
+      let egg: Egg | null = null;
+      if (cfg.eggId) {
+        egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
+      }
+
+      const installScript = egg?.installScript;
+
+      return {
+        container_image:
+          installScript?.container ??
+          egg?.dockerImage ??
+          cfg.dockerImage ??
+          'ghcr.io/pterodactyl/installers:debian',
+        entrypoint: installScript?.entrypoint ?? 'bash',
+        script:
+          installScript?.script ??
+          '#!/bin/bash\necho "EcliPanel: no install script configured for this egg."\nexit 0\n',
+        environment: cfg.environment || {},
+      };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Get install script for a server (Wings callback)', tags: ['Remote'] },
+      response: {
+        200: t.Any(),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+        404: t.Object({ errors: t.Array(t.Any()) }),
+      },
     }
-
-    let egg: Egg | null = null;
-    if (cfg.eggId) {
-      egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
-    }
-
-    const installScript = egg?.installScript;
-
-    return {
-      container_image: installScript?.container
-        ?? egg?.dockerImage
-        ?? cfg.dockerImage
-        ?? 'ghcr.io/pterodactyl/installers:debian',
-      entrypoint: installScript?.entrypoint ?? 'bash',
-      script: installScript?.script
-        ?? '#!/bin/bash\necho "EcliPanel: no install script configured for this egg."\nexit 0\n',
-      environment: cfg.environment || {},
-    };
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Get install script for a server (Wings callback)', tags: ['Remote'] },
-    response: { 200: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }), 404: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/servers/:uuid/install  — Wings reports install completion
   // body: { successful: boolean, reinstall: boolean }
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/servers/:uuid/install', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const node = (ctx as any).wingNode as Node;
-    const { successful } = ctx.body as any;
-    const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-    if (cfg) {
-      await AppDataSource.getRepository(UserLog).save(
-        AppDataSource.getRepository(UserLog).create({
-          userId: cfg.userId,
-          action: successful ? 'wings:install:complete' : 'wings:install:failed',
-          timestamp: new Date(),
-        }),
-      );
+  app.post(
+    prefix + '/remote/servers/:uuid/install',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const node = (ctx as any).wingNode as Node;
+      const { successful } = ctx.body as any;
+      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      if (cfg) {
+        await AppDataSource.getRepository(UserLog).save(
+          AppDataSource.getRepository(UserLog).create({
+            userId: cfg.userId,
+            action: successful ? 'wings:install:complete' : 'wings:install:failed',
+            timestamp: new Date(),
+          })
+        );
+      }
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Report install completion (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Report install completion (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/servers/:uuid/sync  — Wings pulls updated config
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/servers/:uuid/sync', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const node = (ctx as any).wingNode as Node;
-    const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-    if (!cfg) {
-      ctx.set.status = 404;
-      return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
+  app.post(
+    prefix + '/remote/servers/:uuid/sync',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const node = (ctx as any).wingNode as Node;
+      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
+      }
+      let egg: Egg | null = null;
+      if (cfg.eggId) egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
+
+      const serverMounts = await AppDataSource.getRepository(ServerMount).findBy({
+        serverUuid: uuid,
+      });
+      const mountIds = serverMounts.map(sm => sm.mountId);
+      const mounts = mountIds.length
+        ? await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) })
+        : [];
+
+      ctx.set.status = 200;
+      const nodeOverrides = {
+        portRangeEnd: node.portRangeEnd,
+        ipv6ExcludedPorts: node.ipv6ExcludedPorts,
+      };
+      return buildServerObject(cfg, egg, mounts, nodeOverrides);
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Sync server config (Wings callback)', tags: ['Remote'] },
+      response: {
+        200: t.Any(),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+        404: t.Object({ errors: t.Array(t.Any()) }),
+      },
     }
-    let egg: Egg | null = null;
-    if (cfg.eggId) egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
-
-    const serverMounts = await AppDataSource.getRepository(ServerMount).findBy({ serverUuid: uuid });
-    const mountIds = serverMounts.map(sm => sm.mountId);
-    const mounts = mountIds.length
-      ? await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) })
-      : [];
-
-    ctx.set.status = 200;
-    const nodeOverrides = { portRangeEnd: node.portRangeEnd, ipv6ExcludedPorts: node.ipv6ExcludedPorts };
-    return buildServerObject(cfg, egg, mounts, nodeOverrides);
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Sync server config (Wings callback)', tags: ['Remote'] },
-    response: { 200: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }), 404: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/servers/:uuid/ws/denied  — WS token denied by Wings
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/servers/:uuid/ws/denied', async (ctx) => {
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Wings reports WS token denied', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  app.post(
+    prefix + '/remote/servers/:uuid/ws/denied',
+    async ctx => {
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Wings reports WS token denied', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/activity  — Wings reports lifecycle events
   // body: { data: [ApiActivity, ...] }
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/activity', async (ctx) => {
-    const node = (ctx as any).wingNode as Node;
-    const body = ctx.body as any;
-    const events: any[] = Array.isArray(body) ? body : (body.data ?? [body]);
-    for (const evt of events) {
-      const uuid = evt.server ?? evt.uuid ?? '';
-      if (!uuid) continue;
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-      if (!cfg) continue;
-      try {
-        await createActivityLog({
-          userId: cfg.userId,
-          action: `wings:${evt.event ?? 'activity'}`,
-          targetId: uuid,
-          targetType: 'server',
-          metadata: { event: evt.event, payload: evt, nodeId: node.id, nodeName: node.name },
-          ipAddress: ctx.ip,
-          notify: false,
-        });
-      } catch (e) {
-        // skip
+  app.post(
+    prefix + '/remote/activity',
+    async ctx => {
+      const node = (ctx as any).wingNode as Node;
+      const body = ctx.body as any;
+      const events: any[] = Array.isArray(body) ? body : (body.data ?? [body]);
+      for (const evt of events) {
+        const uuid = evt.server ?? evt.uuid ?? '';
+        if (!uuid) continue;
+        const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+        if (!cfg) continue;
+        try {
+          await createActivityLog({
+            userId: cfg.userId,
+            action: `wings:${evt.event ?? 'activity'}`,
+            targetId: uuid,
+            targetType: 'server',
+            metadata: { event: evt.event, payload: evt, nodeId: node.id, nodeName: node.name },
+            ipAddress: ctx.ip,
+            notify: false,
+          });
+        } catch (e) {
+          // skip
+        }
       }
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Log Wings lifecycle activity', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Log Wings lifecycle activity', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/sftp/auth  — Wings validates SFTP login credentials
   // body: { type: "password"|"public_key", username: "email.8hexchars", password: "..." }
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/sftp/auth', async (ctx) => {
-    try {
-      const node = (ctx as any).wingNode as Node;
-      if (!node) {
-        ctx.set.status = 401;
-        return { errors: [{ code: 'Unauthorized', detail: 'Invalid node token' }] };
-      }
-
-      const { type: authType, username, password } = ctx.body as any;
-
-      if (!username || !password) {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Invalid credentials' }] };
-      }
-
-      // Username format: <user-identifier>.<first-8-hex-of-server-uuid>
-      // Learnt hard way of using entire server uuid and then wondering why it did not work
-      // HEAVENS FORBID WE CHANGE THIS FORMAT NOW, WINGS DEPENDS ON IT, 
-      // AND CHANGING IT WOULD BREAK COMPATIBILITY WITH BOTH GO AND RUST WINGS, 
-      // WHICH WOULD BE A NIGHTMARE TO COORDINATE AND SUPPORT
-      const lastDot = username.lastIndexOf('.');
-      if (lastDot < 1) {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Invalid username format' }] };
-      }
-
-      const userPart = username.substring(0, lastDot);
-      const serverHex = username.substring(lastDot + 1);
-
-      if (!/^[a-f0-9]{8}$/i.test(serverHex)) {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Invalid server identifier in username' }] };
-      }
-
-      // Find user by email cuz im afraid to do another identifier type 
-      // and also email is unique so it works
-      // DISPLAYNAMES ARE NOT UNIQUE SO NO, ALSO LEGAL NAMES ARE NOT UNIQUE SO NO
-      // ID LOOKS UGLY SO LETS JUST USE EMAIL, ALSO USERNAME IS A BIT MISLEADING BECAUSE 
-      // ITS NOT REALLY A USERNAME ITS AN EMAIL BUT WHATEVER
-      const userRepo = AppDataSource.getRepository(User);
-      const user = await userRepo
-        .createQueryBuilder('user')
-        .where('LOWER(user.email) = LOWER(:email)', { email: userPart })
-        .getOne();
-      if (!user) {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Unknown user' }] };
-      }
-
-      if (authType === 'password') {
-        const { comparePassword } = require('../utils/password');
-        const valid = await comparePassword(password, user.passwordHash);
-        if (!valid) {
-          ctx.set.status = 403;
-          return { errors: [{ code: 'Forbidden', detail: 'Invalid password' }] };
-        }
-      } else if (authType === 'public_key') {
-        const { SshKey } = require('../models/sshKey.entity');
-        const sshKeyRepo = AppDataSource.getRepository(SshKey);
-        const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
-
-        const submittedKey = password.trim();
-        const parsedSubmitted = parseSshPublicKey(submittedKey);
-
-        if (!parsedSubmitted || !isSupportedSshKeyType(parsedSubmitted.type)) {
-          ctx.set.status = 403;
-          return { errors: [{ code: 'Forbidden', detail: 'Invalid public key format' }] };
+  app.post(
+    prefix + '/remote/sftp/auth',
+    async ctx => {
+      try {
+        const node = (ctx as any).wingNode as Node;
+        if (!node) {
+          ctx.set.status = 401;
+          return { errors: [{ code: 'Unauthorized', detail: 'Invalid node token' }] };
         }
 
-        const submittedFinger = fingerprintSshPublicKey(submittedKey);
+        const { type: authType, username, password } = ctx.body as any;
 
-        const matched = userKeys.some((k: any) => {
-          const storedKey = (k.publicKey ?? '').trim();
-          const parsedStored = parseSshPublicKey(storedKey);
-          if (!parsedStored) return false;
+        if (!username || !password) {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Invalid credentials' }] };
+        }
 
-          if (k.fingerprint && submittedFinger && k.fingerprint === submittedFinger) {
-            return true;
+        // Username format: <user-identifier>.<first-8-hex-of-server-uuid>
+        // Learnt hard way of using entire server uuid and then wondering why it did not work
+        // HEAVENS FORBID WE CHANGE THIS FORMAT NOW, WINGS DEPENDS ON IT,
+        // AND CHANGING IT WOULD BREAK COMPATIBILITY WITH BOTH GO AND RUST WINGS,
+        // WHICH WOULD BE A NIGHTMARE TO COORDINATE AND SUPPORT
+        const lastDot = username.lastIndexOf('.');
+        if (lastDot < 1) {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Invalid username format' }] };
+        }
+
+        const userPart = username.substring(0, lastDot);
+        const serverHex = username.substring(lastDot + 1);
+
+        if (!/^[a-f0-9]{8}$/i.test(serverHex)) {
+          ctx.set.status = 403;
+          return {
+            errors: [{ code: 'Forbidden', detail: 'Invalid server identifier in username' }],
+          };
+        }
+
+        // Find user by email cuz im afraid to do another identifier type
+        // and also email is unique so it works
+        // DISPLAYNAMES ARE NOT UNIQUE SO NO, ALSO LEGAL NAMES ARE NOT UNIQUE SO NO
+        // ID LOOKS UGLY SO LETS JUST USE EMAIL, ALSO USERNAME IS A BIT MISLEADING BECAUSE
+        // ITS NOT REALLY A USERNAME ITS AN EMAIL BUT WHATEVER
+        const userRepo = AppDataSource.getRepository(User);
+        const user = await userRepo
+          .createQueryBuilder('user')
+          .where('LOWER(user.email) = LOWER(:email)', { email: userPart })
+          .getOne();
+        if (!user) {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Unknown user' }] };
+        }
+
+        if (authType === 'password') {
+          const { comparePassword } = require('../utils/password');
+          const valid = await comparePassword(password, user.passwordHash);
+          if (!valid) {
+            ctx.set.status = 403;
+            return { errors: [{ code: 'Forbidden', detail: 'Invalid password' }] };
+          }
+        } else if (authType === 'public_key') {
+          const { SshKey } = require('../models/sshKey.entity');
+          const sshKeyRepo = AppDataSource.getRepository(SshKey);
+          const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
+
+          const submittedKey = password.trim();
+          const parsedSubmitted = parseSshPublicKey(submittedKey);
+
+          if (!parsedSubmitted || !isSupportedSshKeyType(parsedSubmitted.type)) {
+            ctx.set.status = 403;
+            return { errors: [{ code: 'Forbidden', detail: 'Invalid public key format' }] };
           }
 
-          return parsedStored.type === parsedSubmitted.type && parsedStored.material === parsedSubmitted.material;
-        });
+          const submittedFinger = fingerprintSshPublicKey(submittedKey);
 
-        if (!matched) {
+          const matched = userKeys.some((k: any) => {
+            const storedKey = (k.publicKey ?? '').trim();
+            const parsedStored = parseSshPublicKey(storedKey);
+            if (!parsedStored) return false;
+
+            if (k.fingerprint && submittedFinger && k.fingerprint === submittedFinger) {
+              return true;
+            }
+
+            return (
+              parsedStored.type === parsedSubmitted.type &&
+              parsedStored.material === parsedSubmitted.material
+            );
+          });
+
+          if (!matched) {
+            ctx.set.status = 403;
+            return { errors: [{ code: 'Forbidden', detail: 'Public key not recognised' }] };
+          }
+        } else {
           ctx.set.status = 403;
-          return { errors: [{ code: 'Forbidden', detail: 'Public key not recognised' }] };
+          return { errors: [{ code: 'Forbidden', detail: 'Unsupported authentication type' }] };
         }
-      } else {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Unsupported authentication type' }] };
-      }
 
-      const configs = await repo().find({ where: { nodeId: node.id } });
-      let cfg = configs.find(c => c.uuid && c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase());
-      if (!cfg) {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Server not found' }] };
-      }
-
-      const isOwner = cfg.userId === user.id;
-      let isSubuser = false;
-      if (!isOwner) {
-        const { ServerSubuser } = require('../models/serverSubuser.entity');
-        const subuserRepo = AppDataSource.getRepository(ServerSubuser);
-        const sub = await subuserRepo.findOne({ where: { serverUuid: cfg.uuid, userId: user.id, accepted: true } });
-        if (sub && Array.isArray(sub.permissions) && (sub.permissions.includes('*') || sub.permissions.includes('files') || sub.permissions.includes('console'))) {
-          isSubuser = true;
+        const configs = await repo().find({ where: { nodeId: node.id } });
+        const cfg = configs.find(
+          c =>
+            c.uuid &&
+            c.uuid.replace(/-/g, '').substring(0, 8).toLowerCase() === serverHex.toLowerCase()
+        );
+        if (!cfg) {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Server not found' }] };
         }
-      }
 
-      if (!isOwner && !isSubuser) {
-        ctx.set.status = 403;
-        return { errors: [{ code: 'Forbidden', detail: 'Server not found or not authorized for user' }] };
-      }
+        const isOwner = cfg.userId === user.id;
+        let isSubuser = false;
+        if (!isOwner) {
+          const { ServerSubuser } = require('../models/serverSubuser.entity');
+          const subuserRepo = AppDataSource.getRepository(ServerSubuser);
+          const sub = await subuserRepo.findOne({
+            where: { serverUuid: cfg.uuid, userId: user.id, accepted: true },
+          });
+          if (
+            sub &&
+            Array.isArray(sub.permissions) &&
+            (sub.permissions.includes('*') ||
+              sub.permissions.includes('files') ||
+              sub.permissions.includes('console'))
+          ) {
+            isSubuser = true;
+          }
+        }
 
-      if (cfg.suspended || cfg.dmca) {
-        const actor = String(cfg.dmca ? cfg.dmcaBy : cfg.suspendedBy || 'system').trim() || 'system';
-        const reason = String(cfg.dmca ? cfg.dmcaReason : cfg.suspendedReason || 'No reason provided').trim() || 'No reason provided';
-        ctx.set.status = 403;
+        if (!isOwner && !isSubuser) {
+          ctx.set.status = 403;
+          return {
+            errors: [{ code: 'Forbidden', detail: 'Server not found or not authorized for user' }],
+          };
+        }
+
+        if (cfg.suspended || cfg.dmca) {
+          const actor =
+            String(cfg.dmca ? cfg.dmcaBy : cfg.suspendedBy || 'system').trim() || 'system';
+          const reason =
+            String(
+              cfg.dmca ? cfg.dmcaReason : cfg.suspendedReason || 'No reason provided'
+            ).trim() || 'No reason provided';
+          ctx.set.status = 403;
+          return {
+            errors: [
+              {
+                code: 'Forbidden',
+                detail: cfg.dmca
+                  ? `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}. Please contact support.`
+                  : `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`,
+              },
+            ],
+          };
+        }
+
+        ctx.set.status = 200;
         return {
-          errors: [{
-            code: 'Forbidden',
-            detail: cfg.dmca
-              ? `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}. Please contact support.`
-              : `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`,
-          }],
+          user: sha256Hex(String(user.id)).slice(0, 32),
+          server: cfg.uuid,
+          permissions: ['*'],
+          ignored_files: [],
         };
+      } catch (err) {
+        try {
+          (ctx.app as any)?.log?.error?.({ err }, 'SFTP auth handler error');
+        } catch {}
+        ctx.set.status = 500;
+        return { errors: [{ code: 'InternalServerError', detail: 'Unexpected error' }] };
       }
-
-      ctx.set.status = 200;
-      return {
-        user: sha256Hex(String(user.id)).slice(0, 32),
-        server: cfg.uuid,
-        permissions: ['*'],
-        ignored_files: [],
-      };
-    } catch (err) {
-      try {
-        (ctx.app as any)?.log?.error?.({ err }, 'SFTP auth handler error');
-      } catch { }
-      ctx.set.status = 500;
-      return { errors: [{ code: 'InternalServerError', detail: 'Unexpected error' }] };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Authenticate SFTP login from Wings', tags: ['Remote'] },
+      response: {
+        200: t.Any(),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+        403: t.Object({ errors: t.Array(t.Any()) }),
+      },
     }
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Authenticate SFTP login from Wings', tags: ['Remote'] },
-    response: { 200: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }), 403: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/servers/:uuid/backups — Wings requests a backup slot
   // Returns: { adapter: "wings", uuid: "<new-backup-uuid>" }
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/servers/:uuid/backups', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const backupUuid = crypto.randomUUID();
-    try {
-      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-      await repo.save(repo.create({ uuid: backupUuid, serverUuid: uuid, adapter: 'wings' }));
-      (app as any).log?.info?.({ serverUuid: uuid, backupUuid }, 'remote: reserved backup slot and persisted');
-    } catch (e) {
-      (app as any).log?.warn?.({ err: e, serverUuid: uuid, backupUuid }, 'remote: failed to persist reserved backup slot');
+  app.post(
+    prefix + '/remote/servers/:uuid/backups',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const backupUuid = crypto.randomUUID();
+      try {
+        const repo = AppDataSource.getRepository(
+          require('../models/serverBackup.entity').ServerBackup
+        );
+        await repo.save(repo.create({ uuid: backupUuid, serverUuid: uuid, adapter: 'wings' }));
+        (app as any).log?.info?.(
+          { serverUuid: uuid, backupUuid },
+          'remote: reserved backup slot and persisted'
+        );
+      } catch (e) {
+        (app as any).log?.warn?.(
+          { err: e, serverUuid: uuid, backupUuid },
+          'remote: failed to persist reserved backup slot'
+        );
+      }
+      ctx.set.status = 201;
+      return { adapter: 'wings', uuid: backupUuid };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Request a new backup slot (Wings callback)', tags: ['Remote'] },
+      response: {
+        201: t.Object({ adapter: t.String(), uuid: t.String() }),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+      },
     }
-    ctx.set.status = 201;
-    return { adapter: 'wings', uuid: backupUuid };
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Request a new backup slot (Wings callback)', tags: ['Remote'] },
-    response: { 201: t.Object({ adapter: t.String(), uuid: t.String() }), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // GET /api/remote/backups/:uuid — S3 multipart upload URLs (wings adapter = noop)
@@ -810,186 +946,259 @@ export async function remoteRoutes(app: any, prefix: string) {
   // DELETE /api/remote/backups/:uuid — Wings reports backup deletion
   // POST /api/remote/backups/:uuid/restore — Wings reports restore completion
   // ═══════════════════════════════════════════════════════════════════════════
-  app.get(prefix + '/remote/backups/:uuid', async (ctx) => {
-    ctx.set.status = 200;
-    return { parts: [], part_size: 0 };
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Get S3 multipart upload info for a backup (Wings callback)', tags: ['Remote'] },
-    response: { 200: t.Object({ parts: t.Array(t.Any()), part_size: t.Number() }), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  app.get(
+    prefix + '/remote/backups/:uuid',
+    async ctx => {
+      ctx.set.status = 200;
+      return { parts: [], part_size: 0 };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: {
+        summary: 'Get S3 multipart upload info for a backup (Wings callback)',
+        tags: ['Remote'],
+      },
+      response: {
+        200: t.Object({ parts: t.Array(t.Any()), part_size: t.Number() }),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+      },
+    }
+  );
 
-  app.post(prefix + '/remote/backups/:uuid', async (ctx) => {
-    const id = ctx.params?.uuid as string;
-    const body = ctx.body as any;
-    (app as any).log?.info?.({ backupUuid: id, body }, 'remote: backup completion callback received');
-    try {
-      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-      let rec = await repo.findOneBy({ uuid: id });
-      const payload: any = {
-        name: body?.name ?? body?.uuid ?? undefined,
-        bytes: Number(body?.bytes || body?.size || 0) || 0,
-        checksum: body?.checksum || body?.sha1 || body?.sha256 || undefined,
-        checksumType: body?.checksum_type || body?.checksumType || undefined,
-        browsable: !!body?.browsable,
-        streaming: !!body?.streaming,
-        parts: body?.parts ?? undefined,
-        progress: Number(body?.progress ?? body?.percent ?? 0) || 0,
-        status: body?.status ?? undefined,
-      };
-      if (rec) {
-        Object.assign(rec, payload);
-        await repo.save(rec);
-        (app as any).log?.info?.({ backupUuid: id }, 'remote: updated persisted backup record');
-      } else {
-        const newRec = repo.create({ uuid: id, adapter: body?.adapter || 'wings', ...payload });
-        await repo.save(newRec);
-        (app as any).log?.info?.({ backupUuid: id }, 'remote: created persisted backup record (no prior reservation)');
+  app.post(
+    prefix + '/remote/backups/:uuid',
+    async ctx => {
+      const id = ctx.params?.uuid as string;
+      const body = ctx.body as any;
+      (app as any).log?.info?.(
+        { backupUuid: id, body },
+        'remote: backup completion callback received'
+      );
+      try {
+        const repo = AppDataSource.getRepository(
+          require('../models/serverBackup.entity').ServerBackup
+        );
+        const rec = await repo.findOneBy({ uuid: id });
+        const payload: any = {
+          name: body?.name ?? body?.uuid ?? undefined,
+          bytes: Number(body?.bytes || body?.size || 0) || 0,
+          checksum: body?.checksum || body?.sha1 || body?.sha256 || undefined,
+          checksumType: body?.checksum_type || body?.checksumType || undefined,
+          browsable: !!body?.browsable,
+          streaming: !!body?.streaming,
+          parts: body?.parts ?? undefined,
+          progress: Number(body?.progress ?? body?.percent ?? 0) || 0,
+          status: body?.status ?? undefined,
+        };
+        if (rec) {
+          Object.assign(rec, payload);
+          await repo.save(rec);
+          (app as any).log?.info?.({ backupUuid: id }, 'remote: updated persisted backup record');
+        } else {
+          const newRec = repo.create({ uuid: id, adapter: body?.adapter || 'wings', ...payload });
+          await repo.save(newRec);
+          (app as any).log?.info?.(
+            { backupUuid: id },
+            'remote: created persisted backup record (no prior reservation)'
+          );
+        }
+      } catch (e) {
+        (app as any).log?.warn?.(
+          { err: e, backupUuid: id },
+          'remote: failed to persist backup completion'
+        );
       }
-    } catch (e) {
-      (app as any).log?.warn?.({ err: e, backupUuid: id }, 'remote: failed to persist backup completion');
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Report backup completion (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Report backup completion (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
-  app.delete(prefix + '/remote/backups/:uuid', async (ctx) => {
-    const id = ctx.params?.uuid as string;
-    (app as any).log?.info?.({ backupUuid: id }, 'remote: delete backup callback received');
-    try {
-      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-      await repo.delete({ uuid: id });
-      (app as any).log?.info?.({ backupUuid: id }, 'remote: deleted persisted backup record');
-    } catch (e) {
-      (app as any).log?.warn?.({ err: e, backupUuid: id }, 'remote: failed to delete persisted backup record');
-    }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Report backup deletion (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
-
-  app.post(prefix + '/remote/backups/:uuid/restore', async (ctx) => {
-    const id = ctx.params?.uuid as string;
-    const body = ctx.body as any;
-    try {
-      const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
-      const rec = await repo.findOneBy({ uuid: id });
-      if (rec) {
-        rec.status = body?.status ?? 'restored';
-        rec.progress = Number(body?.progress ?? 100) || 100;
-        await repo.save(rec);
-        (app as any).log?.info?.({ backupUuid: id }, 'remote: backup restore callback updated record');
+  app.delete(
+    prefix + '/remote/backups/:uuid',
+    async ctx => {
+      const id = ctx.params?.uuid as string;
+      (app as any).log?.info?.({ backupUuid: id }, 'remote: delete backup callback received');
+      try {
+        const repo = AppDataSource.getRepository(
+          require('../models/serverBackup.entity').ServerBackup
+        );
+        await repo.delete({ uuid: id });
+        (app as any).log?.info?.({ backupUuid: id }, 'remote: deleted persisted backup record');
+      } catch (e) {
+        (app as any).log?.warn?.(
+          { err: e, backupUuid: id },
+          'remote: failed to delete persisted backup record'
+        );
       }
-    } catch (e) {
-      (app as any).log?.warn?.({ err: e, backupUuid: id }, 'remote: failed to update backup restore status');
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Report backup deletion (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Report backup restore completion (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
+
+  app.post(
+    prefix + '/remote/backups/:uuid/restore',
+    async ctx => {
+      const id = ctx.params?.uuid as string;
+      const body = ctx.body as any;
+      try {
+        const repo = AppDataSource.getRepository(
+          require('../models/serverBackup.entity').ServerBackup
+        );
+        const rec = await repo.findOneBy({ uuid: id });
+        if (rec) {
+          rec.status = body?.status ?? 'restored';
+          rec.progress = Number(body?.progress ?? 100) || 100;
+          await repo.save(rec);
+          (app as any).log?.info?.(
+            { backupUuid: id },
+            'remote: backup restore callback updated record'
+          );
+        }
+      } catch (e) {
+        (app as any).log?.warn?.(
+          { err: e, backupUuid: id },
+          'remote: failed to update backup restore status'
+        );
+      }
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Report backup restore completion (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PUT /api/remote/servers/:uuid/startup/variables — schedule updates env var
   // PUT /api/remote/servers/:uuid/startup/command   — schedule updates startup
   // PUT /api/remote/servers/:uuid/startup/docker-image — schedule changes image
   // ═══════════════════════════════════════════════════════════════════════════
-  app.put(prefix + '/remote/servers/:uuid/startup/variables', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const node = (ctx as any).wingNode as Node;
-    const { env_variable, value } = ctx.body as any;
-    const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-    if (cfg && env_variable) {
-      const env = cfg.environment || {};
-      env[env_variable] = value;
-      cfg.environment = env;
-      await repo().save(cfg);
+  app.put(
+    prefix + '/remote/servers/:uuid/startup/variables',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const node = (ctx as any).wingNode as Node;
+      const { env_variable, value } = ctx.body as any;
+      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      if (cfg && env_variable) {
+        const env = cfg.environment || {};
+        env[env_variable] = value;
+        cfg.environment = env;
+        await repo().save(cfg);
+      }
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: {
+        summary: 'Schedule environment variable update (Wings callback)',
+        tags: ['Remote'],
+      },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Schedule environment variable update (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
-  app.put(prefix + '/remote/servers/:uuid/startup/command', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const node = (ctx as any).wingNode as Node;
-    const { command } = ctx.body as any;
-    const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-    if (cfg && command !== undefined) {
-      cfg.startup = command;
-      await repo().save(cfg);
+  app.put(
+    prefix + '/remote/servers/:uuid/startup/command',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const node = (ctx as any).wingNode as Node;
+      const { command } = ctx.body as any;
+      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      if (cfg && command !== undefined) {
+        cfg.startup = command;
+        await repo().save(cfg);
+      }
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Schedule startup command update (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Schedule startup command update (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
-  app.put(prefix + '/remote/servers/:uuid/startup/docker-image', async (ctx) => {
-    const { uuid } = ctx.params as any;
-    const node = (ctx as any).wingNode as Node;
-    const { image } = ctx.body as any;
-    const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-    if (cfg && image) {
-      cfg.dockerImage = image;
-      await repo().save(cfg);
+  app.put(
+    prefix + '/remote/servers/:uuid/startup/docker-image',
+    async ctx => {
+      const { uuid } = ctx.params as any;
+      const node = (ctx as any).wingNode as Node;
+      const { image } = ctx.body as any;
+      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      if (cfg && image) {
+        cfg.dockerImage = image;
+        await repo().save(cfg);
+      }
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Schedule docker image update (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Schedule docker image update (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/servers/:uuid/transfer/success
   // POST /api/remote/servers/:uuid/transfer/failure
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/servers/:uuid/transfer/success', async (ctx) => {
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Notify transfer success (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  app.post(
+    prefix + '/remote/servers/:uuid/transfer/success',
+    async ctx => {
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Notify transfer success (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
 
-  app.post(prefix + '/remote/servers/:uuid/transfer/failure', async (ctx) => {
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Notify transfer failure (Wings callback)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  app.post(
+    prefix + '/remote/servers/:uuid/transfer/failure',
+    async ctx => {
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Notify transfer failure (Wings callback)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/schedule — Wings reports schedule step completion
   // body: { data: [{ uuid, successful, errors, timestamp }] }
   // ═══════════════════════════════════════════════════════════════════════════
-  app.post(prefix + '/remote/schedule', async (ctx) => {
-    ctx.set.status = 204;
-    return;
-  }, {
-    beforeHandle: authenticateWings,
-    detail: { summary: 'Wings schedule callback (noop)', tags: ['Remote'] },
-    response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) }
-  });
+  app.post(
+    prefix + '/remote/schedule',
+    async ctx => {
+      ctx.set.status = 204;
+      return;
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Wings schedule callback (noop)', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
 }
 
 // ─── Helpers exported for use by serverHandler / adminHandler ─────────────────
@@ -1078,13 +1287,24 @@ export async function saveServerConfig(params: {
 
   if (existing.length > 1) {
     const toDelete = existing.slice(1).map((x: any) => ({ uuid: x.uuid, createdAt: x.createdAt }));
-    await r.delete(toDelete as any).catch(() => { });
+    await r.delete(toDelete as any).catch(() => {});
     try {
-      await createActivityLog({ userId: 0, action: 'servers:merge-duplicates', targetId: params.uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' });
+      await createActivityLog({
+        userId: 0,
+        action: 'servers:merge-duplicates',
+        targetId: params.uuid,
+        targetType: 'server',
+        metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete },
+        ipAddress: '',
+      });
     } catch (e) {
       // skip
     }
-    console.debug('remote: merged duplicate server configs', { uuid: params.uuid, kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete });
+    console.debug('remote: merged duplicate server configs', {
+      uuid: params.uuid,
+      kept: { uuid: keep.uuid, createdAt: keep.createdAt },
+      removed: toDelete,
+    });
   }
 
   return keep;
@@ -1096,7 +1316,8 @@ export async function saveServerConfig(params: {
  */
 export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<void> {
   const r = AppDataSource.getRepository(ServerConfig);
-  const normalize = (u: string | null | undefined) => (u || '').toString().replace(/-/g, '').toLowerCase();
+  const normalize = (u: string | null | undefined) =>
+    (u || '').toString().replace(/-/g, '').toLowerCase();
 
   const groups: Map<string, ServerConfig[]> = new Map();
 
@@ -1138,7 +1359,10 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
         keep.description = keep.description || o.description;
         keep.dockerImage = keep.dockerImage || o.dockerImage;
         keep.startup = keep.startup || o.startup;
-        keep.environment = keep.environment && Object.keys(keep.environment || {}).length > 0 ? keep.environment : o.environment;
+        keep.environment =
+          keep.environment && Object.keys(keep.environment || {}).length > 0
+            ? keep.environment
+            : o.environment;
         keep.memory = keep.memory ?? o.memory;
         keep.disk = keep.disk ?? o.disk;
         keep.cpu = keep.cpu ?? o.cpu;
@@ -1147,16 +1371,38 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
         keep.hibernated = keep.hibernated ?? o.hibernated;
         keep.eggId = keep.eggId ?? o.eggId;
         keep.skipEggScripts = keep.skipEggScripts ?? o.skipEggScripts;
-        keep.allocations = keep.allocations && Object.keys(keep.allocations || {}).length > 0 ? keep.allocations : o.allocations;
-        keep.processConfig = keep.processConfig && Object.keys(keep.processConfig || {}).length > 0 ? keep.processConfig : o.processConfig;
+        keep.allocations =
+          keep.allocations && Object.keys(keep.allocations || {}).length > 0
+            ? keep.allocations
+            : o.allocations;
+        keep.processConfig =
+          keep.processConfig && Object.keys(keep.processConfig || {}).length > 0
+            ? keep.processConfig
+            : o.processConfig;
       }
       await r.save(keep);
       const toDelete = others.map(rw => ({ uuid: rw.uuid, createdAt: rw.createdAt }));
-      await r.delete(toDelete as any).catch(() => { });
-      try { await createActivityLog({ userId: 0, action: 'servers:merge-duplicates-on-list', targetId: keep.uuid, targetType: 'server', metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete }, ipAddress: '' }); } catch (e) { }
-      console.info('remote: merged duplicate server configs (on-list)', { normalized: norm, kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete });
+      await r.delete(toDelete as any).catch(() => {});
+      try {
+        await createActivityLog({
+          userId: 0,
+          action: 'servers:merge-duplicates-on-list',
+          targetId: keep.uuid,
+          targetType: 'server',
+          metadata: { kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete },
+          ipAddress: '',
+        });
+      } catch (e) {}
+      console.info('remote: merged duplicate server configs (on-list)', {
+        normalized: norm,
+        kept: { uuid: keep.uuid, createdAt: keep.createdAt },
+        removed: toDelete,
+      });
     } catch (e) {
-      console.warn('remote: failed to merge duplicate server configs (on-list)', { err: e, normalized: norm });
+      console.warn('remote: failed to merge duplicate server configs (on-list)', {
+        err: e,
+        normalized: norm,
+      });
     }
   }
 }

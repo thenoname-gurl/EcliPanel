@@ -4,18 +4,20 @@ import { User } from '../models/user.entity';
 import { httpRequest } from '../utils/http';
 import { tForUser } from '../i18n';
 
-export type FraudScanResult = {
-  success: true;
-  userId: number;
-  fraudScore: number;
-  isSuspicious: boolean;
-  reasons: string[];
-  riskCategory: 'low' | 'medium' | 'high' | 'critical';
-  signals: FraudSignals;
-} | {
-  success: false;
-  error: string;
-};
+export type FraudScanResult =
+  | {
+      success: true;
+      userId: number;
+      fraudScore: number;
+      isSuspicious: boolean;
+      reasons: string[];
+      riskCategory: 'low' | 'medium' | 'high' | 'critical';
+      signals: FraudSignals;
+    }
+  | {
+      success: false;
+      error: string;
+    };
 
 export type FraudSignals = {
   identityRisk: number;
@@ -31,7 +33,8 @@ export async function getConfiguredFraudModels(): Promise<AIModel[]> {
 }
 
 function buildBillingInfo(user: User) {
-  const fullName = `${user.firstName || ''} ${user.middleName ? `${user.middleName} ` : ''}${user.lastName || ''}`.trim();
+  const fullName =
+    `${user.firstName || ''} ${user.middleName ? `${user.middleName} ` : ''}${user.lastName || ''}`.trim();
 
   return {
     identity: {
@@ -238,7 +241,7 @@ function parseFraudResult(aiReply: string): {
 
     const validCategories = ['low', 'medium', 'high', 'critical'] as const;
     const riskCategory = validCategories.includes(parsed.riskCategory)
-      ? parsed.riskCategory as 'low' | 'medium' | 'high' | 'critical'
+      ? (parsed.riskCategory as 'low' | 'medium' | 'high' | 'critical')
       : getRiskCategory(fraudScore);
 
     return { fraudScore, isSuspicious, riskCategory, reasons, signals };
@@ -298,7 +301,7 @@ export async function runFraudScanForUser(user: User): Promise<FraudScanResult> 
           },
         });
 
-        const aiReply = res.data?.choices?.[0]?.message?.content || '';
+        const aiReply = (res.data as any)?.choices?.[0]?.message?.content || '';
         const result = parseFraudResult(aiReply);
 
         if (result.isSuspicious) {
@@ -324,7 +327,10 @@ export async function runFraudScanForUser(user: User): Promise<FraudScanResult> 
         };
       } catch (err: any) {
         lastError = String(err?.message || t('fraud.scanFailed'));
-        console.error(`[fraudService:runFraudScanForUser] model="${model.name}" attempt ${attempt}/10 failed:`, lastError);
+        console.error(
+          `[fraudService:runFraudScanForUser] model="${model.name}" attempt ${attempt}/10 failed:`,
+          lastError
+        );
         if (attempt < 10) {
           await delay(Math.min(1000 * Math.pow(2, attempt - 1), 30000));
         }

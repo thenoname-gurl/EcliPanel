@@ -9,7 +9,7 @@ const MAILCOW_TIMEOUT_MS = Number(process.env.MAILCOW_TIMEOUT_MS || 30000);
 const MAILCOW_RETRIES = Math.max(1, Number(process.env.MAILCOW_RETRIES || 2));
 
 function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export function isMailcowConfigured() {
@@ -19,7 +19,7 @@ export function isMailcowConfigured() {
 function stringifyMailcowMsg(msg: any): string {
   if (msg === null || msg === undefined) return 'Unknown error';
   if (typeof msg === 'string') return msg;
-  if (Array.isArray(msg)) return msg.map((item) => stringifyMailcowMsg(item)).join(', ');
+  if (Array.isArray(msg)) return msg.map(item => stringifyMailcowMsg(item)).join(', ');
   if (typeof msg === 'object') {
     if (typeof msg.msg === 'string') return msg.msg;
     return JSON.stringify(msg);
@@ -95,7 +95,9 @@ async function mailcowFetch(path: string, data?: any, method: 'POST' | 'GET' = '
       lastError = err;
       const message = String(err?.message || err || 'Unknown Mailcow error');
       const isAbort = err?.name === 'AbortError' || /aborted|abort/i.test(message);
-      const isNetwork = err?.name === 'TypeError' || /fetch failed|network|connect|socket|econn|enotfound|etimedout/i.test(message);
+      const isNetwork =
+        err?.name === 'TypeError' ||
+        /fetch failed|network|connect|socket|econn|enotfound|etimedout/i.test(message);
       const retryable = isAbort || isNetwork;
 
       if (!retryable || attempt >= MAILCOW_RETRIES) {
@@ -126,7 +128,10 @@ function normalizeLocalPart(email: string) {
 }
 
 function randomPassword() {
-  return Buffer.from(randomBytes(16)).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
+  return Buffer.from(randomBytes(16))
+    .toString('base64')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 24);
 }
 
 function resolveMailboxDomain() {
@@ -229,14 +234,22 @@ export async function removeMailboxAccount(account: MailboxAccount) {
     }
     await deleteMailcowMailbox(account.localPart, account.domain);
   } catch (err: any) {
-    console.warn('[mailcowService] failed to remove mailbox account', account.email, err?.message || err);
+    console.warn(
+      '[mailcowService] failed to remove mailbox account',
+      account.email,
+      err?.message || err
+    );
     return;
   }
 
   try {
     await repo.delete({ id: account.id });
   } catch (err: any) {
-    console.warn('[mailcowService] failed to remove mailbox account row', account.email, err?.message || err);
+    console.warn(
+      '[mailcowService] failed to remove mailbox account row',
+      account.email,
+      err?.message || err
+    );
   }
 }
 
@@ -253,7 +266,11 @@ export async function isPanelAssignedMailboxEmail(email: string) {
   for (const account of accounts) {
     if (Array.isArray(account.aliases)) {
       for (const alias of account.aliases) {
-        if (String(alias?.address || '').trim().toLowerCase() === normalizedEmail) {
+        if (
+          String(alias?.address || '')
+            .trim()
+            .toLowerCase() === normalizedEmail
+        ) {
           return true;
         }
       }
@@ -281,7 +298,11 @@ export async function createMailcowMailbox(localPart: string, domain: string, di
   return { localPart, domain, password };
 }
 
-export async function createMailcowAlias(aliasAddress: string, targetMailbox: string, description?: string) {
+export async function createMailcowAlias(
+  aliasAddress: string,
+  targetMailbox: string,
+  description?: string
+) {
   const data = {
     address: aliasAddress,
     goto: targetMailbox,
@@ -326,7 +347,11 @@ export async function rotateMailboxPasswordForAccount(account: MailboxAccount) {
     console.info('[mailcowService] rotated password for mailbox id=%d', account.id);
     return { success: true, password: newPass };
   } catch (err: any) {
-    console.warn('[mailcowService] failed to rotate password for mailbox id=%d', account?.id, err?.message || err);
+    console.warn(
+      '[mailcowService] failed to rotate password for mailbox id=%d',
+      account?.id,
+      err?.message || err
+    );
     return { success: false, error: String(err?.message || err) };
   }
 }
@@ -343,7 +368,11 @@ export async function rotateAllMailboxPasswords() {
     try {
       await rotateMailboxPasswordForAccount(acc);
     } catch (e) {
-      console.warn('[mailcowService] rotateAllMailboxPasswords error for', acc.email, e?.message || e);
+      console.warn(
+        '[mailcowService] rotateAllMailboxPasswords error for',
+        acc.email,
+        e?.message || e
+      );
     }
   }
 }
@@ -354,7 +383,9 @@ export function scheduleMailboxPasswordRotation(cronExpr?: string) {
     const expr = String(cronExpr || process.env.MAILBOX_PASSWORD_ROTATION_CRON || '0 3 1 * *');
     schedule(expr, async () => {
       console.info('[mailcowService] starting scheduled mailbox password rotation');
-      await rotateAllMailboxPasswords().catch((e) => console.error('[mailcowService] scheduled rotation failed', e));
+      await rotateAllMailboxPasswords().catch(e =>
+        console.error('[mailcowService] scheduled rotation failed', e)
+      );
     });
     console.info('[mailcowService] scheduled mailbox password rotation');
   } catch (e) {
@@ -383,7 +414,11 @@ export async function ensureMailboxAccountForUser(user: User) {
     if (account.localPart !== canonicalLocalPart) account.localPart = canonicalLocalPart;
     if (account.email !== canonicalEmail) account.email = canonicalEmail;
 
-    if (account.domain !== domain || account.imapHost !== imapConfig.host || account.smtpHost !== smtpConfig.host) {
+    if (
+      account.domain !== domain ||
+      account.imapHost !== imapConfig.host ||
+      account.smtpHost !== smtpConfig.host
+    ) {
       account.domain = domain;
       account.imapHost = imapConfig.host;
       account.imapPort = imapConfig.port;
@@ -397,20 +432,25 @@ export async function ensureMailboxAccountForUser(user: User) {
     const existingMailbox = await getMailcowMailboxDetails(account.email).catch(() => null);
     if (!existingMailbox) {
       await ensureMailcowDomain(domain);
-      await createMailcowMailbox(account.localPart, domain, [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email);
+      await createMailcowMailbox(
+        account.localPart,
+        domain,
+        [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email
+      );
     }
 
     return account;
   }
 
   const uuid = canonicalUuid;
-  const displayName = [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email;
+  const displayName =
+    [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email;
   const aliasLocalPart = normalizeLocalPart(displayName).replace(/\s+/g, '') || 'user';
   const aliasAddress = buildMailboxAddress(`${aliasLocalPart}.${user.id}`, domain);
 
   await ensureMailcowDomain(domain);
   const mailbox = await createMailcowMailbox(uuid, domain, displayName);
-  
+
   const imapConfig = getImapConfig(domain);
   const smtpConfig = getSmtpConfig(domain);
   account = accountRepo.create({
@@ -432,8 +472,8 @@ export async function ensureMailboxAccountForUser(user: User) {
         address: aliasAddress,
         canSendFrom: true,
         createdAt: new Date().toISOString(),
-      }
-    ]
+      },
+    ],
   });
 
   const saved = await accountRepo.save(account);

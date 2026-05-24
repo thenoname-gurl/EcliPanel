@@ -1,6 +1,5 @@
 import { Entity, PrimaryColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
-
 @Entity()
 export class ServerConfig {
   @PrimaryColumn()

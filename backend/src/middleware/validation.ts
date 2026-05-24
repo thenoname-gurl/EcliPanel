@@ -2,10 +2,11 @@ import { validateCaptcha, validateInvisibleCaptcha, scoreBehavior } from '../uti
 import { isFeatureEnabled } from '../utils/featureToggles';
 import { getMinimumAgeForCountry } from '../utils/eu';
 import { validatePassword } from '../utils/passwordValidation';
+import { getAgeFromDate } from '../utils/user';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const FIELD_MAX_LENGTHS: Record<string, number> = {
+export const FIELD_MAX_LENGTHS: Record<string, number> = {
   firstName: 64,
   lastName: 64,
   middleName: 64,
@@ -20,21 +21,21 @@ const FIELD_MAX_LENGTHS: Record<string, number> = {
   phone: 32,
 };
 
-type ValidationErrorBody = {
-  type: 'validation'
-  on: 'body'
-  found: Record<string, string>
+export type ValidationErrorBody = {
+  type: 'validation';
+  on: 'body';
+  found: Record<string, string>;
 };
 
-function validationError(field: string, message: string): ValidationErrorBody {
+export function validationError(field: string, message: string): ValidationErrorBody {
   return { type: 'validation', on: 'body', found: { [field]: message } };
 }
 
-function validationErrors(errors: Record<string, string>): ValidationErrorBody {
+export function validationErrors(errors: Record<string, string>): ValidationErrorBody {
   return { type: 'validation', on: 'body', found: errors };
 }
 
-function validateFieldMaxLengths(body: Record<string, any>): Record<string, string> | null {
+export function validateFieldMaxLengths(body: Record<string, unknown>): Record<string, string> | null {
   const errors: Record<string, string> = {};
   for (const [field, max] of Object.entries(FIELD_MAX_LENGTHS)) {
     const val = body[field];
@@ -45,8 +46,29 @@ function validateFieldMaxLengths(body: Record<string, any>): Record<string, stri
   return Object.keys(errors).length > 0 ? errors : null;
 }
 
-export async function validateUserRegistration(ctx: any, _reply?: any, options?: { skipMinimumAge?: boolean, skipAddressFields?: boolean }): Promise<boolean> {
-  const { firstName, lastName, email, password, address, billingCity, billingZip, billingCountry, dateOfBirth, captchaAnswer, captchaToken } = ctx.body as any;
+export function isValidEmail(email: unknown): boolean {
+  if (typeof email !== 'string') return false;
+  return EMAIL_RE.test(email);
+}
+
+export async function validateUserRegistration(
+  ctx: any,
+  _reply?: any,
+  options?: { skipMinimumAge?: boolean; skipAddressFields?: boolean }
+): Promise<boolean> {
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    address,
+    billingCity,
+    billingZip,
+    billingCountry,
+    dateOfBirth,
+    captchaAnswer,
+    captchaToken,
+  } = ctx.body as any;
 
   const fields = [
     { key: 'firstName', value: firstName },
@@ -61,19 +83,22 @@ export async function validateUserRegistration(ctx: any, _reply?: any, options?:
       { key: 'address', value: address },
       { key: 'billingCity', value: billingCity },
       { key: 'billingZip', value: billingZip },
-      { key: 'billingCountry', value: billingCountry },
+      { key: 'billingCountry', value: billingCountry }
     );
   }
 
-  const missingFields = fields.filter((item) => !item.value);
+  const missingFields = fields.filter(item => !item.value);
 
   if (missingFields.length) {
     ctx.set.status = 400;
     (ctx as any).body = validationErrors(
-      missingFields.reduce((acc, field) => {
-        acc[field.key] = 'This field is required';
-        return acc;
-      }, {} as Record<string, string>)
+      missingFields.reduce(
+        (acc, field) => {
+          acc[field.key] = 'This field is required';
+          return acc;
+        },
+        {} as Record<string, string>
+      )
     );
     return false;
   }
@@ -96,18 +121,29 @@ export async function validateUserRegistration(ctx: any, _reply?: any, options?:
     if (captchaInvisibleEnabled && invisibleToken) {
       if (!validateInvisibleCaptcha(invisibleToken, invisibleDelay)) {
         ctx.set.status = 400;
-        (ctx as any).body = validationError('invisibleCaptchaToken', 'Invisible captcha token is invalid, expired, or has invalid timing.');
+        (ctx as any).body = validationError(
+          'invisibleCaptchaToken',
+          'Invisible captcha token is invalid, expired, or has invalid timing.'
+        );
         return false;
       }
 
       const behaviorScore = scoreBehavior(behaviorData);
       if (behaviorScore < 0.5) {
         ctx.set.status = 400;
-        (ctx as any).body = validationError('behaviorData', 'Behavior metrics look suspicious. Please try again after interacting naturally with the form.');
+        (ctx as any).body = validationError(
+          'behaviorData',
+          'Behavior metrics look suspicious. Please try again after interacting naturally with the form.'
+        );
         return false;
       }
     } else if (captchaEnabled) {
-      if (!captchaToken || captchaAnswer === undefined || captchaAnswer === null || captchaAnswer === '') {
+      if (
+        !captchaToken ||
+        captchaAnswer === undefined ||
+        captchaAnswer === null ||
+        captchaAnswer === ''
+      ) {
         ctx.set.status = 400;
         (ctx as any).body = validationErrors({
           captchaToken: 'Captcha token is required.',
@@ -118,7 +154,10 @@ export async function validateUserRegistration(ctx: any, _reply?: any, options?:
 
       if (!validateCaptcha(captchaToken, captchaAnswer)) {
         ctx.set.status = 400;
-        (ctx as any).body = validationError('captchaAnswer', 'Captcha answer is incorrect. Please solve the captcha again.');
+        (ctx as any).body = validationError(
+          'captchaAnswer',
+          'Captcha answer is incorrect. Please solve the captcha again.'
+        );
         return false;
       }
     } else {
@@ -128,25 +167,23 @@ export async function validateUserRegistration(ctx: any, _reply?: any, options?:
     }
   }
 
-  if (!EMAIL_RE.test(String(email))) {
+  if (!isValidEmail(email)) {
     ctx.set.status = 400;
-    (ctx as any).body = validationError('email', 'Please provide a valid email address (e.g. user@example.com).');
+    (ctx as any).body = validationError(
+      'email',
+      'Please provide a valid email address (e.g. user@example.com).'
+    );
     return false;
   }
 
-  const dob = new Date(String(dateOfBirth));
-  if (!dateOfBirth || isNaN(dob.getTime())) {
+  const age = getAgeFromDate(dateOfBirth);
+  if (age === null) {
     ctx.set.status = 400;
-    (ctx as any).body = validationError('dateOfBirth', 'Please provide a valid date of birth in YYYY-MM-DD format.');
+    (ctx as any).body = validationError(
+      'dateOfBirth',
+      'Please provide a valid date of birth in YYYY-MM-DD format.'
+    );
     return false;
-  }
-
-  const now = new Date();
-  let age = now.getUTCFullYear() - dob.getUTCFullYear();
-  const monthDiff = now.getUTCMonth() - dob.getUTCMonth();
-  const dayDiff = now.getUTCDate() - dob.getUTCDate();
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-    age -= 1;
   }
 
   const minimumAge = options?.skipMinimumAge ? 0 : await getMinimumAgeForCountry(billingCountry);
