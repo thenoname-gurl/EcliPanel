@@ -10,7 +10,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <DocSearch />
       <Sidebar />
       <div className="overflow-y-auto flex-1">
-        <div className="mx-auto px-6 py-6 bg-[#121212]">{children}</div>
+        <div className="mx-auto px-8 py-6 bg-[#121212] pt-16">{children}</div>
       </div>
       <TableOfContents />
     </div>
