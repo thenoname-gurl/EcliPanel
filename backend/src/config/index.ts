@@ -20,7 +20,7 @@ const WINGS_RETRY_MAX     = 10 * 60_000;
 
 function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) {
   const base = node.backendWingsUrl || node.url;
-  const sock = new WingsSocketService(base, node.token);
+  const sock = new WingsSocketService(base, node.token, node.id);
   const api = new WingsApiService(base, node.token);
   sock.listenToAll().then(async () => {
     try {
@@ -150,7 +150,7 @@ export async function setupConfig(app: any) {
   }
 
   const uploadDir = path.join(process.cwd(), 'uploads');
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+  if (Bun.file(uploadDir).size === 0) fs.mkdirSync(uploadDir, { recursive: true });
 
   try {
     const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);

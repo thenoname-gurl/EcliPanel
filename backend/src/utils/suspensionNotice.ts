@@ -4,6 +4,7 @@ import { Notification } from '../models/notification.entity';
 import { sendMail } from '../services/mailService';
 import { createMailboxMessageForUser } from './mailboxMessage';
 import { getMailboxAccountForUser } from '../services/mailcowService';
+import { resolveLocale } from '../i18n/resolve';
 
 type SuspendedServerRef = {
   uuid?: string;
@@ -104,6 +105,7 @@ export async function notifyServerOwnerSuspended(params: {
         message,
         details,
       },
+      locale: resolveLocale({ user }),
     });
 
     return { sent: true, skipped: false, recipient: Array.from(recipientAddresses).join(', ') };
@@ -183,6 +185,7 @@ export async function notifyServerOwnerDmca(params: {
         message,
         details,
       },
+      locale: resolveLocale({ user }),
     });
 
     return { sent: true, skipped: false, recipient: Array.from(recipientAddresses).join(', ') };
@@ -253,6 +256,7 @@ export async function notifyServerOwnerUnsuspended(params: {
         message,
         details,
       },
+      locale: resolveLocale({ user }),
     });
 
     return { sent: true, skipped: false, recipient: Array.from(recipientAddresses).join(', ') };

@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { t } from 'elysia';
-import { v4 as uuidv4 } from 'uuid';
 import { AppDataSource } from '../config/typeorm';
 import { TunnelDevice } from '../models/tunnelDevice.entity';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
@@ -195,7 +194,7 @@ async function requireTunnelRollout(ctx: any): Promise<true | { error: string }>
   const { inRollout } = await getRolloutTreatment(ctx.user.id, TUNNEL_ROLLOUT_KEY);
   if (!inRollout) {
     ctx.set.status = 403;
-    return { error: 'Tunnels feature is not yet available to you' };
+    return { error: ctx.t('system.tunnelsNotAvailable') };
   }
   return true;
 }
@@ -214,12 +213,12 @@ export function tunnelRoutes(app: any, prefix: string): void {
           'ecli-tunnel-server'
         );
 
-        if (!fs.existsSync(binaryPath)) {
+        if (Bun.file(binaryPath).size === 0) {
           ctx.set.status = 404;
           return errorResponse('Tunnel server binary not available', 404);
         }
 
-        const file = await fs.promises.readFile(binaryPath);
+        const file = await Bun.file(binaryPath).arrayBuffer();
         const fileName = path.basename(binaryPath);
 
         return new Response(file, {
@@ -256,12 +255,12 @@ export function tunnelRoutes(app: any, prefix: string): void {
         'ecli-tunnel-client'
       );
 
-      if (!fs.existsSync(binaryPath)) {
+      if (Bun.file(binaryPath).size === 0) {
         ctx.set.status = 404;
         return errorResponse('Tunnel client binary not available', 404);
       }
 
-      const file = await fs.promises.readFile(binaryPath);
+      const file = await Bun.file(binaryPath).arrayBuffer();
       const fileName = path.basename(binaryPath);
 
       return new Response(file, {
@@ -328,12 +327,12 @@ export function tunnelRoutes(app: any, prefix: string): void {
         'deploy.sh'
       );
 
-      if (!fs.existsSync(scriptPath)) {
+      if (Bun.file(scriptPath).size === 0) {
         ctx.set.status = 404;
         return errorResponse('Deploy script not available', 404);
       }
 
-      const content = await fs.promises.readFile(scriptPath, 'utf-8');
+      const content = await Bun.file(scriptPath).text();
       return new Response(content, {
         status: 200,
         headers: {
@@ -367,7 +366,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('forbidden', 403);
       }
 
-      const deviceCode = uuidv4();
+      const deviceCode = crypto.randomUUID();
       const userCode = generateUserCode();
       const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
@@ -858,7 +857,7 @@ export function tunnelRoutes(app: any, prefix: string): void {
         return errorResponse('forbidden', 403);
       }
 
-      const deviceCode = uuidv4();
+      const deviceCode = crypto.randomUUID();
       const userCode = generateUserCode();
       const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 

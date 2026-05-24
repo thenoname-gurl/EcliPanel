@@ -28,11 +28,9 @@
     "@tensorflow/tfjs-node": "latest",
     "@types/bun": "^1.3.14",
     "@vladmandic/face-api": "latest",
-    "axios": "latest",
     "base64url": "latest",
     "brace-expansion": "latest",
     "dompurify": "latest",
-    "dotenv": "latest",
     "elysia": "latest",
     "elysia-helmet": "latest",
     "file-type": "latest",
@@ -45,8 +43,6 @@
     "mlkem": "latest",
     "mysql": "latest",
     "mysql2": "^3.22.3",
-    "node-cron": "latest",
-    "node-fetch": "latest",
     "nodemailer": "latest",
     "pdfkit": "latest",
     "pg": "latest",
@@ -59,7 +55,6 @@
     "ssh2": "latest",
     "tar": "latest",
     "typeorm": "latest",
-    "uuid": "latest",
     "ws": "latest"
   },
   "dependenciesMeta": {
@@ -68,13 +63,11 @@
     }
   },
   "devDependencies": {
-    "@types/axios": "latest",
     "@types/base64url": "latest",
     "@types/jsonwebtoken": "latest",
     "@types/node": "latest",
     "@types/nodemailer": "latest",
     "@types/ssh2": "latest",
-    "@types/uuid": "latest",
     "@types/ws": "latest",
     "typescript": "latest"
   },

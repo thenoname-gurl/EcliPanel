@@ -5,6 +5,7 @@ interface InviteProps {
   name: string;
   orgName: string;
   link: string;
+  t?: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const headingStyle = {
@@ -35,58 +36,29 @@ const btnStyle = {
   textAlign: 'center' as const,
 };
 
-const footerStyle = {
-  color: '#9ca3af',
-  textAlign: 'center' as const,
-  marginTop: '32px',
-  paddingTop: '24px',
-  lineHeight: '1.5',
-  fontSize: '16px',
-};
+export function Invite({ name, orgName, link, t }: InviteProps) {
+  const _t = t || ((key: string) => key);
 
-const linkStyle = {
-  display: 'inline-block',
-  margin: '0 8px',
-  color: '#9ca3af',
-  textDecoration: 'none',
-  fontSize: '14px',
-};
-
-export function Invite({ name, orgName, link }: InviteProps) {
   return (
-    <BaseEmail previewText={`You're invited to join ${orgName}`}>
+    <BaseEmail previewText={_t('email.invite.preview', { orgName })} t={t}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
-        <h1 style={headingStyle}>Invitation to Join</h1>
+        <h1 style={headingStyle}>{_t('email.invite.heading')}</h1>
       </Section>
 
       <Section style={{ marginBottom: '24px' }}>
-        <p style={pStyle}>Hello {name},</p>
-        <p style={pStyle}>You have been invited to access <strong>{orgName}</strong>.</p>
-        <p style={pStyle}>Click the button below to review and accept the invite in your panel.</p>
+        <p style={pStyle}>{_t('email.invite.greeting', { name })}</p>
+        <p style={pStyle}>{_t('email.invite.invited', { orgName })}</p>
+        <p style={pStyle}>{_t('email.invite.cta')}</p>
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={link} style={btnStyle}>Accept Invitation</Button>
+        <Button href={link} style={btnStyle}>{_t('email.invite.button')}</Button>
       </Section>
 
       <Hr style={{ height: '1px', background: 'linear-gradient(to right, transparent, #2a2a4a 50%, transparent)', border: 'none', margin: '24px 0' }} />
 
       <Section style={{ marginBottom: '24px' }}>
-        <p style={pStyle}>If you did not expect this email, you can safely ignore it.</p>
-      </Section>
-
-      <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
-
-      <Section style={footerStyle}>
-        <p style={{ margin: 0 }}>
-          &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
-          All rights reserved.
-        </p>
-        <Section style={{ marginTop: '16px' }}>
-          <a href="https://ecli.app/legal" style={linkStyle}>Legal Documents</a>
-          <a href="https://ecli.app/legal/imprint" style={linkStyle}>Impressum</a>
-          <a href="mailto:contact@ecli.app" style={linkStyle}>Contact Us</a>
-        </Section>
+        <p style={pStyle}>{_t('email.invite.ignore')}</p>
       </Section>
     </BaseEmail>
   );

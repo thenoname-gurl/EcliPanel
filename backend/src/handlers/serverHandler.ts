@@ -9,7 +9,6 @@ import { User } from '../models/user.entity';
 import { UserLog } from '../models/userLog.entity';
 import { Node } from '../models/node.entity';
 import { Egg } from '../models/egg.entity';
-import { v4 as uuidv4 } from 'uuid';
 import { saveServerConfig, removeServerConfig, signWingsJwt, mergeDuplicateServerConfigs } from './remoteHandler';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { Mount } from '../models/mount.entity';
@@ -179,24 +178,24 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = (ctx as any).user;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: serverUuid });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     if (!cfg.kvmPassthroughEnabled) {
       ctx.set.status = 400;
-      return { error: 'SFTP access is only available for KVM servers' };
+      return { error: ctx.t('server.sftpOnlyKvm') };
     }
 
     const node = cfg.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
     if (!node) {
       ctx.set.status = 503;
-      return { error: 'Server node not found' };
+      return { error: ctx.t('server.serverNodeNotFound') };
     }
 
     const isOwner = cfg.userId === user.id;
@@ -220,7 +219,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!isOwner && !isSubuser) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     if (cfg.suspended || cfg.dmca) {
@@ -240,7 +239,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!password) {
       ctx.set.status = 401;
-      return { error: 'SFTP password required' };
+      return { error: ctx.t('server.sftpPasswordRequired') };
     }
 
     const kvmEndpoint = (() => {
@@ -257,7 +256,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!kvmEndpoint) {
       ctx.set.status = 503;
-      return { error: 'KVM allocation endpoint not available' };
+      return { error: ctx.t('server.kvmOnly') };
     }
 
     return { cfg, node, username: 'root', password, endpoint: kvmEndpoint };
@@ -802,7 +801,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const isAdmin = hasPermissionSync(ctx, 'servers:list');
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     if (!isAdmin) {
@@ -814,7 +813,7 @@ export async function serverRoutes(app: any, prefix = '') {
       });
       if (!owned && !subuser) {
         ctx.set.status = 403;
-        return { error: 'Insufficient permissions' };
+        return { error: ctx.t('common.insufficientPermissions') };
       }
     }
 
@@ -1021,12 +1020,12 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo.findOneBy({ uuid: id });
     if (cfg?.dmca && !isAdmin) {
       ctx.set.status = 403;
-      return { error: 'DMCA-protected servers cannot be deleted by server owners' };
+      return { error: ctx.t('server.dmcaProtected') };
     }
 
     if (force && !isAdmin) {
       ctx.set.status = 403;
-      return { error: 'Only admins may force delete servers' };
+      return { error: ctx.t('server.forceDeleteAdminsOnly') };
     }
 
     try {
@@ -1079,7 +1078,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const geoLevel = await getGeoBlockLevel(user.billingCountry);
     if (!isAdmin && geoLevel >= 4) {
       ctx.set.status = 403;
-      return { error: 'Server creation is disabled for your country under geo-block policy; you may still use subuser access.' };
+      return { error: ctx.t('user.serverCreationDisabled') };
     }
 
     let effectivePortalType = user.portalType;
@@ -1091,22 +1090,22 @@ export async function serverRoutes(app: any, prefix = '') {
       const hasSecurityMethod = passkeyCount > 0 || !!user.twoFactorEnabled;
       if (!hasSecurityMethod) {
         ctx.set.status = 403;
-        return { error: 'You must enable 2FA or register a passkey before creating servers' };
+        return { error: ctx.t('user.mustEnable2fa') };
       }
 
       if (geoLevel >= 3 && (effectivePortalType === 'free' || effectivePortalType === 'educational')) {
         ctx.set.status = 403;
-        return { error: 'Your country is restricted from free and educational portal services.' };
+        return { error: ctx.t('plan.restrictedCountryEdu') };
       }
       if (geoLevel >= 2 && effectivePortalType === 'free') {
         ctx.set.status = 403;
-        return { error: 'Your country is restricted from free portal services.' };
+        return { error: ctx.t('plan.restrictedCountry') };
       }
 
       if (effectivePortalType !== 'free') {
         if (!user.emailVerified) {
           ctx.set.status = 403;
-          return { error: 'You must verify your email before creating servers' };
+          return { error: ctx.t('user.mustVerifyEmail') };
         }
       }
     }
@@ -1116,7 +1115,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (body.requestIpv6 === true || String(body.requestIpv6) === 'true') {
       ctx.set.status = 400;
-      return { error: 'IPv6 allocation requests are no longer automatic. Please submit an IP request application instead.' };
+      return { error: ctx.t('server.ipv6AllocationNoLongerAutomatic') };
     }
 
     const ownerId: number = (userId && isAdmin) ? userId : user.id;
@@ -1149,15 +1148,15 @@ export async function serverRoutes(app: any, prefix = '') {
     if (!isAdmin) {
       if (memory < 1) {
         ctx.set.status = 400;
-        return { error: 'Memory must be at least 1 MB for non-admin users.' };
+        return { error: ctx.t('server.memoryMinimum') };
       }
       if (disk < 1) {
         ctx.set.status = 400;
-        return { error: 'Disk must be at least 1 MB for non-admin users.' };
+        return { error: ctx.t('server.diskMinimum') };
       }
       if (cpu < 1) {
         ctx.set.status = 400;
-        return { error: 'CPU must be at least 1% for non-admin users.' };
+        return { error: ctx.t('server.cpuMinimum') };
       }
     }
 
@@ -1192,7 +1191,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const owner = await userRepo().findOneBy({ id: ownerId });
       if (!owner) {
         ctx.set.status = 404;
-        return { error: 'Owner user not found' };
+        return { error: ctx.t('user.ownerUserNotFound') };
       }
 
       const now = Date.now();
@@ -1321,25 +1320,25 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!eggId) {
       ctx.set.status = 400;
-      return { error: 'eggId is required' };
+      return { error: ctx.t('validation.eggIdRequired') };
     }
 
     const egg = await eggRepo().findOneBy({ id: eggId });
     if (!egg) {
       ctx.set.status = 404;
-      return { error: 'Egg not found' };
+      return { error: ctx.t('server.eggNotFound') };
     }
 
     if (egg.requiresKvm) {
       kvmPassthroughEnabled = true;
     } else if (kvmPassthroughEnabled && !isAdmin) {
       ctx.set.status = 403;
-      return { error: 'Only admins may enable KVM during creation' };
+      return { error: ctx.t('server.kvmDisabled') };
     }
 
     if (!egg.visible && !isAdmin && egg.id !== 264) {
       ctx.set.status = 403;
-      return { error: 'Egg not available' };
+      return { error: ctx.t('server.eggNotAvailable') };
     }
 
     if (!isAdmin && Array.isArray((egg as any).allowedPortals) && (egg as any).allowedPortals.length > 0) {
@@ -1348,7 +1347,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const isActuallyAllowed = allowed.includes(effectivePortalType) || (isEducational && allowed.includes('paid'));
       if (!isActuallyAllowed) {
         ctx.set.status = 403;
-        return { error: 'Egg not available for your portal type' };
+        return { error: ctx.t('server.eggNotAvailableForPortal') };
       }
     }
 
@@ -1385,13 +1384,13 @@ export async function serverRoutes(app: any, prefix = '') {
     if (node.portRangeStart != null && node.portRangeEnd != null) {
       if (node.portRangeStart > node.portRangeEnd) {
         ctx.set.status = 500;
-        return { error: 'Node port range is misconfigured (start > end). Contact an administrator.' };
+        return { error: ctx.t('node.portRangeMisconfigured') };
       }
       const bindIp = node.defaultIp || '0.0.0.0';
       const excludedIpv6Ports = parsePortList(node.ipv6ExcludedPorts);
       const nodeConfigs = await cfgRepo().find({
         where: { nodeId: node.id },
-        select: ['allocations'],
+        select: { allocations: true },
       });
 
       const takenPorts = new Set<number>();
@@ -1439,7 +1438,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
     }
 
-    const serverUuid = uuidv4();
+    const serverUuid = crypto.randomUUID();
 
     const envObject: Record<string, string> = {};
     for (const entry of (egg.envVars || []) as any[]) {
@@ -1558,31 +1557,31 @@ export async function serverRoutes(app: any, prefix = '') {
       if (egg?.requiresKvm) {
         if (!kvmPassthroughEnabled) {
           ctx.set.status = 403;
-          return { error: 'This egg requires KVM and it cannot be disabled.' };
+          return { error: ctx.t('server.eggRequiresKvm') };
         }
       } else {
         ctx.set.status = 403;
-        return { error: 'Only admins may modify KVM passthrough on an existing server.' };
+        return { error: ctx.t('server.kvmPassthroughAdminsOnly') };
       }
     }
 
     if (ioWeight !== undefined && !isAdmin) {
       ctx.set.status = 403;
-      return { error: 'Only admins may modify IO weight on an existing server.' };
+      return { error: ctx.t('server.ioWeightAdminsOnly') };
     }
 
     if (!isAdmin) {
       if (memory !== undefined && Number(memory) < 1) {
         ctx.set.status = 400;
-        return { error: 'Memory must be at least 1 MB for non-admin users.' };
+        return { error: ctx.t('server.memoryMinimum') };
       }
       if (disk !== undefined && Number(disk) < 1) {
         ctx.set.status = 400;
-        return { error: 'Disk must be at least 1 MB for non-admin users.' };
+        return { error: ctx.t('server.diskMinimum') };
       }
       if (cpu !== undefined && Number(cpu) < 1) {
         ctx.set.status = 400;
-        return { error: 'CPU must be at least 1% for non-admin users.' };
+        return { error: ctx.t('server.cpuMinimum') };
       }
     }
 
@@ -1656,30 +1655,30 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!isAdmin) {
       ctx.set.status = 403;
-      return { error: 'Only administrators may manage IPv6 addresses for servers.' };
+      return { error: ctx.t('server.ipv6AdminsOnly') };
     }
 
     if (action !== 'assign' && action !== 'deassign') {
       ctx.set.status = 400;
-      return { error: 'Invalid action. Use assign or deassign.' };
+      return { error: ctx.t('validation.invalidAction') };
     }
 
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     if (!cfg.kvmPassthroughEnabled) {
       ctx.set.status = 400;
-      return { error: 'IPv6 assignment is only supported for KVM servers.' };
+      return { error: ctx.t('server.ipv6AssignmentKvmOnly') };
     }
 
     const node = cfg.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
     if (!node || !node.ipv6Subnet) {
       ctx.set.status = 400;
-      return { error: 'Server node does not have an IPv6 subnet configured.' };
+      return { error: ctx.t('server.ipv6NoSubnet') };
     }
 
     const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
@@ -1691,7 +1690,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (action === 'assign') {
       if (existingIpv6Address) {
-        return { success: true, ipv6: existingIpv6Address, message: 'IPv6 is already assigned.' };
+        return { success: true, ipv6: existingIpv6Address, message: ctx.t('server.ipv6AlreadyAssigned') };
       }
 
       let candidateIpv6: string | null = null;
@@ -1699,14 +1698,14 @@ export async function serverRoutes(app: any, prefix = '') {
         const normalized = String(ipv6Address).trim();
         if (!isValidIpv6(normalized) || !isIpv6InSubnet(normalized, node.ipv6Subnet)) {
           ctx.set.status = 400;
-          return { error: 'Invalid IPv6 address for this node subnet.' };
+          return { error: ctx.t('node.ipv6SubnetInvalid') };
         }
         if (isReservedIpv6(normalized, node.ipv6Subnet, node.ipv6ReservedCount)) {
           ctx.set.status = 400;
-          return { error: 'This IPv6 address is reserved and cannot be assigned.' };
+          return { error: ctx.t('server.ipv6AddressReserved') };
         }
         const usedAddresses = new Set<string>();
-        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
         for (const c of nodeConfigs) {
           const entry = c.allocations as any;
           if (!entry) continue;
@@ -1719,12 +1718,12 @@ export async function serverRoutes(app: any, prefix = '') {
         }
         if (usedAddresses.has(formatIpv6(parseIpv6(normalized)))) {
           ctx.set.status = 400;
-          return { error: 'IPv6 address is already in use on this node.' };
+          return { error: ctx.t('server.ipv6AlreadyInUse') };
         }
         candidateIpv6 = normalized;
       } else {
         const used = new Set<string>();
-        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+        const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
         for (const c of nodeConfigs) {
           const entry = c.allocations as any;
           if (!entry) continue;
@@ -1740,7 +1739,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
       if (!candidateIpv6) {
         ctx.set.status = 503;
-        return { error: 'No free IPv6 address available in node subnet.' };
+        return { error: ctx.t('server.ipv6NoFreeAddress') };
       }
 
       alloc.ipv6Address = candidateIpv6;
@@ -1767,7 +1766,7 @@ export async function serverRoutes(app: any, prefix = '') {
       : null;
     const ipv6Keys = Object.keys(alloc.mappings).filter((ip) => currentIpv6Address ? (isValidIpv6(ip) && formatIpv6(parseIpv6(ip)) === currentIpv6Address) : isValidIpv6(ip));
     if (!currentIpv6Address) {
-      return { success: true, message: 'No IPv6 address is currently assigned.' };
+      return { success: true, message: ctx.t('server.noIpv6Assigned') };
     }
 
     delete alloc.ipv6Address;
@@ -1993,7 +1992,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: id });
     if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
       ctx.set.status = 403;
-      return { error: 'Server is hibernated and cannot be started or restarted' };
+      return { error: ctx.t('server.hibernated') };
     }
 
     if (cfg?.suspended || cfg?.dmca) {
@@ -2055,14 +2054,14 @@ export async function serverRoutes(app: any, prefix = '') {
     const user = ctx.user;
     if (!user || !hasPermissionSync(ctx, 'servers:kvm')) {
       ctx.set.status = 403;
-      return { error: 'Insufficient permissions (admin only)' };
+      return { error: ctx.t('admin.insufficientPermissions') };
     }
 
     const cfgRepo = AppDataSource.getRepository(ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     cfg.kvmPassthroughEnabled = Boolean(enable);
@@ -2126,12 +2125,12 @@ export async function serverRoutes(app: any, prefix = '') {
     const { path } = ctx.query as any;
     if (!path) {
       ctx.set.status = 400;
-      return { error: 'path query param required' };
+      return { error: ctx.t('validation.pathQueryParamRequired') };
     }
 
     if (/\.qcow2$/i.test(String(path))) {
       ctx.set.status = 403;
-      return { error: 'Opening qcow2 images via the normal file manager is not allowed' };
+      return { error: ctx.t('server.qcow2NotAllowed') };
     }
 
     const svc = await serviceFor(id);
@@ -2156,7 +2155,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!path) {
       ctx.set.status = 400;
-      return { error: 'path query param required' };
+      return { error: ctx.t('validation.pathQueryParamRequired') };
     }
 
     const svc = await serviceFor(id);
@@ -2177,7 +2176,7 @@ export async function serverRoutes(app: any, prefix = '') {
         body = new TextEncoder().encode(res.data);
       } else {
         ctx.set.status = 500;
-        return { error: 'Unexpected response data type from Wings' };
+        return { error: ctx.t('server.wingsUnexpectedResponse') };
       }
 
       return new Response(Buffer.from(body), {
@@ -2212,7 +2211,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
     if (!pathParam) {
       ctx.set.status = 400;
-      return { error: 'path query param required' };
+      return { error: ctx.t('validation.pathQueryParamRequired') };
     }
 
     const svc = await serviceFor(id);
@@ -2221,7 +2220,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const contentType = String(ctx.request?.headers?.get('content-type') || '').toLowerCase();
       if (!contentType || !contentType.includes('octet-stream')) {
         ctx.set.status = 415;
-        return { error: 'Unsupported media type; expected application/octet-stream' };
+        return { error: ctx.t('validation.unsupportedMediaType') };
       }
 
       let binaryData: Uint8Array;
@@ -2286,7 +2285,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
         if (!uploadFile || typeof uploadFile.arrayBuffer !== 'function') {
           ctx.set.status = 400;
-          return { error: 'Invalid or missing file in upload' };
+          return { error: ctx.t('validation.missingFile') };
         }
 
         const destination = (body.path || body.destination || '/').replace(/\/+$/, '');
@@ -2319,7 +2318,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
       if (!filePath) {
         ctx.set.status = 400;
-        return { error: 'path is required' };
+        return { error: ctx.t('validation.pathRequired') };
       }
 
       // Convert content to raw bytes
@@ -2384,7 +2383,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (targetFiles.length === 0) {
       ctx.set.status = 400;
-      return { error: 'No files specified' };
+      return { error: ctx.t('validation.noFilesSpecified') };
     }
 
     const svc = await serviceFor(id);
@@ -2434,7 +2433,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { root = '/', files } = ctx.body as any;
     if (!Array.isArray(files) || files.length === 0) {
       ctx.set.status = 400;
-      return { error: 'files must be a non-empty array' };
+      return { error: ctx.t('validation.filesMustBeArray') };
     }
     const svc = await serviceFor(id);
     try {
@@ -2457,7 +2456,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { root = '/', files } = ctx.body as any;
     if (!Array.isArray(files) || files.length === 0) {
       ctx.set.status = 400;
-      return { error: 'files must be a non-empty array' };
+      return { error: ctx.t('validation.filesMustBeArray') };
     }
 
     const svc = await serviceFor(id);
@@ -2481,11 +2480,11 @@ export async function serverRoutes(app: any, prefix = '') {
     const { root = '/', files, destination } = ctx.body as any;
     if (!Array.isArray(files) || files.length === 0) {
       ctx.set.status = 400;
-      return { error: 'files must be a non-empty array' };
+      return { error: ctx.t('validation.filesMustBeArray') };
     }
     if (!destination || typeof destination !== 'string') {
       ctx.set.status = 400;
-      return { error: 'destination is required' };
+      return { error: ctx.t('validation.destinationRequired') };
     }
 
     const dest = destination.replace(/^\/+|\/+$/g, '');
@@ -2515,7 +2514,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { root = '/', files } = ctx.body as any;
     if (!Array.isArray(files) || files.length === 0) {
       ctx.set.status = 400;
-      return { error: 'files must be a non-empty array' };
+      return { error: ctx.t('validation.filesMustBeArray') };
     }
 
     const normalizedFiles = files.map((f: any) => {
@@ -2618,7 +2617,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const filePath = String(ctx.query?.path || '');
     if (!filePath) {
       ctx.set.status = 400;
-      return { error: 'path query param required' };
+      return { error: ctx.t('validation.pathQueryParamRequired') };
     }
 
     const auth = await resolveSftpAccess(id, ctx);
@@ -2654,7 +2653,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
     if (!pathParam) {
       ctx.set.status = 400;
-      return { error: 'path query param required' };
+      return { error: ctx.t('validation.pathQueryParamRequired') };
     }
 
     const auth = await resolveSftpAccess(id, ctx);
@@ -2700,7 +2699,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const filePath = String(body?.path || '');
       if (!filePath) {
         ctx.set.status = 400;
-        return { error: 'path is required' };
+        return { error: ctx.t('validation.pathRequired') };
       }
 
       let content = body?.content ?? '';
@@ -2737,7 +2736,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const filePath = String(root || '');
       if (!filePath) {
         ctx.set.status = 400;
-        return { error: 'path required' };
+        return { error: ctx.t('validation.pathRequired_1') };
       }
       const lastSlash = filePath.lastIndexOf('/');
       baseDir = filePath.substring(0, lastSlash) || '/';
@@ -2747,7 +2746,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (targetFiles.length === 0) {
       ctx.set.status = 400;
-      return { error: 'No files specified' };
+      return { error: ctx.t('validation.noFilesSpecified') };
     }
 
     try {
@@ -2768,7 +2767,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { path: dirPath } = ctx.body as any;
     if (!dirPath || typeof dirPath !== 'string') {
       ctx.set.status = 400;
-      return { error: 'path required' };
+      return { error: ctx.t('validation.pathRequired_1') };
     }
 
     const auth = await resolveSftpAccess(id, ctx);
@@ -2795,7 +2794,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { root = '/', files } = ctx.body as any;
     if (!Array.isArray(files) || files.length === 0) {
       ctx.set.status = 400;
-      return { error: 'files must be a non-empty array' };
+      return { error: ctx.t('validation.filesMustBeArray') };
     }
 
     const auth = await resolveSftpAccess(id, ctx);
@@ -2830,11 +2829,11 @@ export async function serverRoutes(app: any, prefix = '') {
     const { root = '/', files, destination } = ctx.body as any;
     if (!Array.isArray(files) || files.length === 0) {
       ctx.set.status = 400;
-      return { error: 'files must be a non-empty array' };
+      return { error: ctx.t('validation.filesMustBeArray') };
     }
     if (!destination || typeof destination !== 'string') {
       ctx.set.status = 400;
-      return { error: 'destination is required' };
+      return { error: ctx.t('validation.destinationRequired') };
     }
 
     const auth = await resolveSftpAccess(id, ctx);
@@ -2867,7 +2866,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const { root = '/', files } = ctx.body as any;
     if (!Array.isArray(files) || files.length === 0) {
       ctx.set.status = 400;
-      return { error: 'files must be a non-empty array' };
+      return { error: ctx.t('validation.filesMustBeArray') };
     }
 
     const auth = await resolveSftpAccess(id, ctx);
@@ -2945,7 +2944,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const backupRepo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       const ownerId = cfg?.userId || user?.id;
-      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: ['uuid'] }) : [];
+      const ownedServers = ownerId ? await cfgRepo().find({ where: { userId: ownerId }, select: { uuid: true } }) : [];
       const serverUuids = ownedServers.map((s: any) => s.uuid);
       const existingBackups = serverUuids.length > 0 ? await backupRepo.count({ where: { serverUuid: In(serverUuids) } }) : 0;
       if (existingBackups >= accountBackupsLimit) {
@@ -2955,7 +2954,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
     const body = ctx.body || {};
     const adapter = 'wings';
-    const uuid = body.uuid || uuidv4();
+    const uuid = body.uuid || crypto.randomUUID();
     const ignore = typeof body.ignore === 'string' ? body.ignore : '';
 
     try {
@@ -2974,7 +2973,7 @@ export async function serverRoutes(app: any, prefix = '') {
       if (e?.response?.status === 404) {
         console.log(e)
         ctx.set.status = 400;
-        return { error: 'Backups are not supported by this Wings version.' };
+        return { error: ctx.t('server.backupNotSupported') };
       }
       const status = e?.response?.status || 500;
       const msg = e?.response?.data?.error || e?.message || 'Failed to create backup';
@@ -3000,7 +2999,7 @@ export async function serverRoutes(app: any, prefix = '') {
     } catch (e: any) {
       if (e?.response?.status === 404) {
         ctx.set.status = 400;
-        return { error: 'Backups are not supported by this Wings version.' };
+        return { error: ctx.t('server.backupNotSupported') };
       }
       const status = e?.response?.status || 500;
       const msg = e?.response?.data?.error || e?.message || 'Failed to restore backup';
@@ -3025,7 +3024,7 @@ export async function serverRoutes(app: any, prefix = '') {
           const force = (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) || (ctx.body && ctx.body.force === true);
           if (!force) {
             ctx.set.status = 403;
-            return { error: 'Backup is locked and cannot be deleted' };
+            return { error: ctx.t('server.backupLocked') };
           }
         }
       } catch (e) {
@@ -3044,7 +3043,7 @@ export async function serverRoutes(app: any, prefix = '') {
     } catch (e: any) {
       if (e?.response?.status === 404) {
         ctx.set.status = 400;
-        return { error: 'Backups are not supported by this Wings version.' };
+        return { error: ctx.t('server.backupNotSupported') };
       }
       const status = e?.response?.status || 500;
       const msg = e?.response?.data?.error || e?.message || 'Failed to delete backup';
@@ -3065,7 +3064,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const rec = await repo.findOneBy({ uuid: bid });
       if (!rec) {
         ctx.set.status = 404;
-        return { error: 'Backup not found' };
+        return { error: ctx.t('server.backupNotFound') };
       }
       rec.locked = !!lock;
       await repo.save(rec);
@@ -3081,14 +3080,14 @@ export async function serverRoutes(app: any, prefix = '') {
     const { name } = ctx.body || {};
     if (typeof name !== 'string' || !name.trim()) {
       ctx.set.status = 400;
-      return { error: 'name is required' };
+      return { error: ctx.t('validation.nameRequired') };
     }
     try {
       const repo = AppDataSource.getRepository(require('../models/serverBackup.entity').ServerBackup);
       const rec = await repo.findOneBy({ uuid: bid });
       if (!rec) {
         ctx.set.status = 404;
-        return { error: 'Backup not found' };
+        return { error: ctx.t('server.backupNotFound') };
       }
       rec.displayName = name.trim();
       await repo.save(rec);
@@ -3179,10 +3178,10 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
     const schedule = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: body.name || '',
       cron_minute: body.cron_minute || '*',
       cron_hour: body.cron_hour || '*',
@@ -3207,7 +3206,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
     const schedules = (cfg.schedules ?? []).filter((s: any) => s.id !== sid);
     await cfgRepo().update({ uuid: id }, { schedules } as any);
@@ -3242,12 +3241,12 @@ export async function serverRoutes(app: any, prefix = '') {
         const node = await nodeRepo().findOneBy({ id: nodeId });
         if (!node) {
           ctx.set.status = 404;
-          return { error: 'Source node not found' };
+          return { error: ctx.t('node.sourceNotFound') };
         }
         svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
       } catch (e: any) {
         ctx.set.status = 500;
-        return { error: 'Failed to resolve source node' };
+        return { error: ctx.t('node.resolveFailed') };
       }
     }
 
@@ -3257,7 +3256,7 @@ export async function serverRoutes(app: any, prefix = '') {
         const targetNode = await nodeRepo().findOneBy({ id: targetId });
         if (!targetNode) {
           ctx.set.status = 404;
-          return { error: 'Target node not found' };
+          return { error: ctx.t('node.targetNotFound') };
         }
         const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
         const now = Math.floor(Date.now() / 1000);
@@ -3268,14 +3267,14 @@ export async function serverRoutes(app: any, prefix = '') {
           iat: now,
           nbf: now,
           exp: now + 600,
-          jti: uuidv4(),
+          jti: crypto.randomUUID(),
         }, targetNode.token);
 
         payload.url = targetUrl;
         payload.token = token;
       } catch (e: any) {
         ctx.set.status = 500;
-        return { error: 'Failed to resolve target node' };
+        return { error: ctx.t('node.resolveTargetFailed') };
       }
     }
 
@@ -3322,7 +3321,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const res = await svc.serverRequest(id, '/console');
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     } catch (e: any) {
-      if (e?.response?.status === 404) return { error: 'Not supported' };
+      if (e?.response?.status === 404) return { error: ctx.t('common.notSupported') };
       throw e;
     }
   }, {
@@ -3377,17 +3376,17 @@ export async function serverRoutes(app: any, prefix = '') {
     const requestIpv6 = body.requestIpv6 === true || String(body.requestIpv6) === 'true';
     if (count <= 0) {
       ctx.set.status = 400;
-      return { error: 'Invalid allocation count' };
+      return { error: ctx.t('server.allocationInvalidCount') };
     }
     if (requestIpv6 && count !== 1) {
       ctx.set.status = 400;
-      return { error: 'IPv6 allocation requests may only request one port at a time.' };
+      return { error: ctx.t('server.ipv6AllocationOnePort') };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     const user = ctx.user;
@@ -3397,7 +3396,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
       if (!owned && !subuser) {
         ctx.set.status = 403;
-        return { error: 'Insufficient permissions' };
+        return { error: ctx.t('common.insufficientPermissions') };
       }
     }
 
@@ -3436,15 +3435,15 @@ export async function serverRoutes(app: any, prefix = '') {
     const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
     if (!node) {
       ctx.set.status = 400;
-      return { error: 'Node does not support additional allocations' };
+      return { error: ctx.t('server.allocationNotFound') };
     }
     if (!requestIpv6 && (node.portRangeStart == null || node.portRangeEnd == null)) {
       ctx.set.status = 400;
-      return { error: 'Node does not support additional allocations' };
+      return { error: ctx.t('server.allocationNotFound') };
     }
     if (node.portRangeStart != null && node.portRangeEnd != null && node.portRangeStart > node.portRangeEnd) {
       ctx.set.status = 500;
-      return { error: 'Node port range is misconfigured (start > end). Contact an administrator.' };
+      return { error: ctx.t('node.portRangeMisconfigured') };
     }
 
     const excludedPorts = parsePortList(node.ipv6ExcludedPorts);
@@ -3475,7 +3474,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (requestIpv6) {
       ctx.set.status = 400;
-      return { error: 'IPv6 allocation requests are handled through an IP request application. Please submit a request to the admin team.' };
+      return { error: ctx.t('server.ipv6AllocationRequestRequired') };
     }
 
     const bindIp = node.defaultIp || '0.0.0.0';
@@ -3490,7 +3489,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (newPorts.length < count) {
       ctx.set.status = 503;
-      return { error: 'Not enough free ports available on this node' };
+      return { error: ctx.t('node.noFreePorts') };
     }
 
     alloc.mappings = alloc.mappings || {};
@@ -3518,17 +3517,17 @@ export async function serverRoutes(app: any, prefix = '') {
 
     if (!type || (type !== 'ipv4' && type !== 'ipv6')) {
       ctx.set.status = 400;
-      return { error: 'type is required and must be ipv4 or ipv6' };
+      return { error: ctx.t('validation.ipv4OrIpv6') };
     }
     if (!reason || typeof reason !== 'string' || !reason.trim()) {
       ctx.set.status = 400;
-      return { error: 'A reason for the IP request is required' };
+      return { error: ctx.t('validation.aReasonForTheIPRequestIsRequired') };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     if (!isAdmin) {
@@ -3536,7 +3535,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
       if (!owned && !subuser) {
         ctx.set.status = 403;
-        return { error: 'Insufficient permissions' };
+        return { error: ctx.t('common.insufficientPermissions') };
       }
     }
 
@@ -3579,13 +3578,13 @@ export async function serverRoutes(app: any, prefix = '') {
     const port = Number(body.port || 0);
     if (!ip || !port) {
       ctx.set.status = 400;
-      return { error: 'Invalid ip/port' };
+      return { error: ctx.t('server.invalidIpPort') };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     const user = ctx.user;
@@ -3595,14 +3594,14 @@ export async function serverRoutes(app: any, prefix = '') {
       const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
       if (!owned && !subuser) {
         ctx.set.status = 403;
-        return { error: 'Insufficient permissions' };
+        return { error: ctx.t('common.insufficientPermissions') };
       }
     }
 
     const alloc = cfg.allocations as any || {};
     if (alloc.default && alloc.default.ip === ip && Number(alloc.default.port) === port) {
       ctx.set.status = 400;
-      return { error: 'Cannot remove default allocation' };
+      return { error: ctx.t('server.allocationDefaultCannotRemove') };
     }
 
     const key = `${ip}:${port}`;
@@ -3610,7 +3609,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const owners: Record<string, any> = alloc.owners || {};
       if (owners[key] !== user.id) {
         ctx.set.status = 403;
-        return { error: 'Not owner of this allocation' };
+        return { error: ctx.t('server.allocationNotOwner') };
       }
     }
 
@@ -3644,7 +3643,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     const user = ctx.user;
@@ -3654,7 +3653,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const subuser = await AppDataSource.getRepository(require('../models/serverSubuser.entity').ServerSubuser).findOneBy({ serverUuid: id, userId: user?.id, accepted: true });
       if (!owned && !subuser) {
         ctx.set.status = 403;
-        return { error: 'Insufficient permissions' };
+        return { error: ctx.t('common.insufficientPermissions') };
       }
     }
 
@@ -3866,7 +3865,7 @@ export async function serverRoutes(app: any, prefix = '') {
     } catch (e: any) {
       console.error('stats history error', e);
       ctx.set.status = 500;
-      return { error: 'Unable to build historical stats' };
+      return { error: ctx.t('server.statsFailed') };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:read')],
@@ -3881,7 +3880,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
       if (!mapping) {
         ctx.set.status = 404;
-        return { error: 'No node mapping for server' };
+        return { error: ctx.t('server.nodeMappingNotFound') };
       }
       const unhealthyNodeIds = await getUnhealthyNodeIds();
       const node = mapping.node;
@@ -3979,7 +3978,7 @@ export async function serverRoutes(app: any, prefix = '') {
       return merged;
     } catch (e: any) {
       ctx.set.status = 502;
-      return { error: 'Unable to retrieve node stats' };
+      return { error: ctx.t('node.statsRetrieveFailed') };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:read')],
@@ -3997,7 +3996,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: {"node":true} });
       if (!mapping) {
         ctx.set.status = 404;
-        return { error: 'No node mapping for server' };
+        return { error: ctx.t('server.nodeMappingNotFound') };
       }
 
       const nodeMetricKey = `node:${mapping.node.id}`;
@@ -4029,7 +4028,7 @@ export async function serverRoutes(app: any, prefix = '') {
     } catch (e: any) {
       console.error('node stats history error', e);
       ctx.set.status = 500;
-      return { error: 'Unable to build node historical stats' };
+      return { error: ctx.t('server.nodeStatsFailed') };
     }
   }, {
     beforeHandle: [authenticate, authorize('servers:read')],
@@ -4131,7 +4130,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
     const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
     const eggProc = egg?.processConfig || {};
@@ -4185,13 +4184,13 @@ export async function serverRoutes(app: any, prefix = '') {
     const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as any;
     if (!environment && !incomingProcCfg && dockerImage === undefined) {
       ctx.set.status = 400;
-      return { error: 'environment, processConfig, or dockerImage is required' };
+      return { error: ctx.t('validation.environmentRequired') };
     }
 
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     const user = ctx.user;
@@ -4221,7 +4220,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
       if (!isAdmin && allowedImages.size > 0 && !allowedImages.has(String(dockerImage))) {
         ctx.set.status = 403;
-        return { error: 'Invalid docker image selection' };
+        return { error: ctx.t('server.invalidDockerImage') };
       }
 
       cfg.dockerImage = String(dockerImage);
@@ -4333,7 +4332,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo.findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     if (cfg.suspended || cfg.dmca) {
@@ -4344,20 +4343,20 @@ export async function serverRoutes(app: any, prefix = '') {
     const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
     if (!node) {
       ctx.set.status = 500;
-      return { error: 'Node not found for this server' };
+      return { error: ctx.t('system.targetNodeFailed') };
     }
 
     const normalizeUuid = (value: any) => {
-      if (!value) return uuidv4().replace(/-/g, '');
+      if (!value) return crypto.randomUUID().replace(/-/g, '');
       const s = String(value).toLowerCase().replace(/-/g, '');
       if (/^[0-9a-f]{32}$/.test(s)) return s;
-      return uuidv4().replace(/-/g, '');
+      return crypto.randomUUID().replace(/-/g, '');
     };
 
     const now = Math.floor(Date.now() / 1000);
-    const safeUserUuid = normalizeUuid(user?.uuid || user?.id || uuidv4());
+    const safeUserUuid = normalizeUuid(user?.uuid || user?.id || crypto.randomUUID());
     const safeServerUuid = normalizeUuid(id);
-    const jti = normalizeUuid(uuidv4());
+    const jti = normalizeUuid(crypto.randomUUID());
 
     console.debug('wings jwt payload lengths', {
       user_uuid: safeUserUuid.length,
@@ -4439,7 +4438,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo().findOneBy({ uuid: id });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     if (cfg.suspended || cfg.dmca) {
@@ -4450,7 +4449,7 @@ export async function serverRoutes(app: any, prefix = '') {
     const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
     if (!node) {
       ctx.set.status = 500;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
 
     const urlObj = (() => { try { return new URL(node.url); } catch { return null; } })();

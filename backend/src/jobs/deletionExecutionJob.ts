@@ -1,5 +1,4 @@
-import cron from 'node-cron';
-import { v4 as uuidv4 } from 'uuid';
+import { schedule } from '../utils/cron';
 import { AppDataSource } from '../config/typeorm';
 import { DeletionRequest } from '../models/deletionRequest.entity';
 import { User } from '../models/user.entity';
@@ -7,6 +6,7 @@ import { DeletedUserRetention } from '../models/deletedUserRetention.entity';
 import { Order } from '../models/order.entity';
 import { getMailboxAccountForUser, removeMailboxAccount } from '../services/mailcowService';
 import { sendMail } from '../services/mailService';
+import { resolveLocale } from '../i18n/resolve';
 
 export async function executeDeletionRequest(req: DeletionRequest, now = new Date()) {
   const reqRepo = AppDataSource.getRepository(DeletionRequest);
@@ -60,6 +60,7 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
       message: 'Your EclipseSystems account has been permanently deleted as requested.',
       details: `Your account and associated data have been removed from our systems.\n\nCertain information has been retained for legal and audit purposes as required by applicable law.\n\nIf you did not request this deletion, please contact our support team immediately at ${panelUrl}/contact.`,
     },
+    locale: resolveLocale({ user }),
   }).catch((e: any) => console.error('[deletionExecutionJob] failed to send deletion email', e));
 
   user.firstName = 'Deleted';
@@ -75,7 +76,7 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
   user.billingZip = undefined;
   user.billingCountry = undefined;
   user.avatarUrl = undefined;
-  user.passwordHash = uuidv4();
+  user.passwordHash = crypto.randomUUID();
   user.email = `deleted+${user.id}+${Date.now()}@deleted.local`;
   user.sessions = [];
   user.suspended = true;
@@ -118,7 +119,7 @@ export async function runDeletionExecutionJob() {
 
 export function scheduleDeletionExecutionJob() {
   runDeletionExecutionJob().catch((e) => console.error('[deletionExecutionJob] initial run failed', e));
-  cron.schedule('0 * * * *', async () => {
+  schedule('0 * * * *', async () => {
     await runDeletionExecutionJob().catch((e) => console.error('[deletionExecutionJob] run failed', e));
   });
 }

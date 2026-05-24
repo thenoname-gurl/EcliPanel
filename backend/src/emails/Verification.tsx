@@ -1,9 +1,10 @@
 import { BaseEmail } from './BaseEmail';
-import { Button, Hr, Section } from '@react-email/components';
+import { Section } from '@react-email/components';
 
 interface VerificationProps {
   name: string;
   status: string;
+  t?: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const headingStyle = {
@@ -33,53 +34,23 @@ const statusStyle = {
   margin: '20px 0',
 };
 
-const footerStyle = {
-  color: '#9ca3af',
-  textAlign: 'center' as const,
-  marginTop: '32px',
-  paddingTop: '24px',
-  lineHeight: '1.5',
-  fontSize: '16px',
-};
-
-const linkStyle = {
-  display: 'inline-block',
-  margin: '0 8px',
-  color: '#9ca3af',
-  textDecoration: 'none',
-  fontSize: '14px',
-};
-
-export function Verification({ name, status }: VerificationProps) {
-  const statusLabel = status === 'verified' ? 'Verified' : status === 'failed' ? 'Failed' : status;
+export function Verification({ name, status, t }: VerificationProps) {
+  const _t = t || ((key: string) => key);
+  const statusLabel = status === 'verified' ? _t('email.verification.statusVerified') : status === 'failed' ? _t('email.verification.statusFailed') : status;
 
   return (
-    <BaseEmail previewText="ID verification status updated">
+    <BaseEmail previewText={_t('email.verification.preview')} t={t}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
-        <h1 style={headingStyle}>ID Verification Status</h1>
+        <h1 style={headingStyle}>{_t('email.verification.heading')}</h1>
       </Section>
 
       <Section style={{ marginBottom: '24px' }}>
-        <p style={pStyle}>Hello {name},</p>
-        <p style={pStyle}>Your ID verification status has been updated.</p>
+        <p style={pStyle}>{_t('email.verification.greeting', { name })}</p>
+        <p style={pStyle}>{_t('email.verification.updated')}</p>
       </Section>
 
       <Section style={statusStyle}>
         {statusLabel}
-      </Section>
-
-      <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
-
-      <Section style={footerStyle}>
-        <p style={{ margin: 0 }}>
-          &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
-          All rights reserved.
-        </p>
-        <Section style={{ marginTop: '16px' }}>
-          <a href="https://ecli.app/legal" style={linkStyle}>Legal Documents</a>
-          <a href="https://ecli.app/legal/imprint" style={linkStyle}>Impressum</a>
-          <a href="mailto:contact@ecli.app" style={linkStyle}>Contact Us</a>
-        </Section>
       </Section>
     </BaseEmail>
   );

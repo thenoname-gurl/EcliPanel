@@ -1,5 +1,5 @@
-import fs from 'fs'
 import path from 'path'
+import fs from 'fs'
 
 let initialized = false
 let faceapi: any = null
@@ -25,18 +25,17 @@ async function downloadFile(filename: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to download FaceAPI model file ${filename}: ${response.status} ${response.statusText}`)
   }
-  const data = Buffer.from(await response.arrayBuffer())
-  fs.writeFileSync(path.join(MODEL_PATH, filename), data)
+  await Bun.write(path.join(MODEL_PATH, filename), response)
 }
 
 async function ensureModelFiles(): Promise<void> {
-  if (!fs.existsSync(MODEL_PATH)) {
+  if (Bun.file(MODEL_PATH).size === 0) {
     fs.mkdirSync(MODEL_PATH, { recursive: true })
   }
 
   for (const filename of REQUIRED_MODEL_FILES) {
     const filePath = path.join(MODEL_PATH, filename)
-    if (!fs.existsSync(filePath)) {
+    if (Bun.file(filePath).size === 0) {
       await downloadFile(filename)
     }
   }

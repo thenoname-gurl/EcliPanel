@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import { schedule } from '../utils/cron';
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { ensureMailboxAccountForUser, isMailcowConfigured } from '../services/mailcowService';
@@ -33,7 +33,7 @@ export function scheduleMailboxSyncJob() {
   syncMailboxAccounts().catch((e) => console.error('[mailboxSyncJob] Initial run failed', e));
 
   try {
-    cron.schedule('0 */4 * * *', async () => {
+    schedule('0 */4 * * *', async () => {
       await syncMailboxAccounts().catch((e) => console.error('[mailboxSyncJob] Cron run failed', e));
     });
   } catch (e) {

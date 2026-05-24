@@ -202,10 +202,7 @@ async function resolveUniqueFilename(
   let counter = 1;
 
   while (
-    await fsp
-      .stat(path.join(uploadDir, filename))
-      .then(() => true)
-      .catch(() => false)
+    await Bun.file(path.join(uploadDir, filename)).exists()
   ) {
     filename = `${base}-${counter++}${ext}`;
   }
@@ -258,7 +255,7 @@ async function saveAttachments(
 
     try {
       const encrypted = await encryptBufferWithWorker(content).catch(() => encryptBuffer(content));
-      await fsp.writeFile(filepath, encrypted);
+      await Bun.write(filepath, encrypted);
     } catch (err: any) {
       console.error(
         '[imapFetcher] failed to write attachment',
@@ -754,10 +751,9 @@ export function scheduleImapFetchJob(
     return;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const cron = require('node-cron');
+  const { schedule, validate } = require('../utils/cron');
 
-  if (!cron.validate(cronExpr)) {
+  if (!validate(cronExpr)) {
     console.error('[imapFetcher] Invalid cron expression:', cronExpr);
     return;
   }
@@ -768,7 +764,7 @@ export function scheduleImapFetchJob(
     console.error('[imapFetcher] initial fetch failed', e),
   );
 
-  cron.schedule(cronExpr, () => {
+  schedule(cronExpr, () => {
     console.info('[imapFetcher] cron tick');
     fetchMailForAllMailboxes().catch((e) =>
       console.error('[imapFetcher] scheduled fetch failed', e),

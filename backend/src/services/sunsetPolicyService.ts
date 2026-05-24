@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { sendMail } from './mailService';
 import { User } from '../models/user.entity';
 import { DeletionRequest } from '../models/deletionRequest.entity';
+import { resolveLocale } from '../i18n/resolve';
 
 /*
  I swear spamhaus hates me,
@@ -80,6 +81,7 @@ export async function processSunsetPolicy() {
           action_text: 'Log in now',
           details,
         },
+        locale: resolveLocale({ user }),
       });
     } catch (err: any) {
       console.warn('[sunsetPolicy] failed to send inactivity notice to', user.email, err?.message || err);

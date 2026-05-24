@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import { schedule } from '../utils/cron';
 import { AppDataSource } from '../config/typeorm';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
 import { LessThan } from 'typeorm';
@@ -7,7 +7,7 @@ const CLEANUP_INTERVAL = '*/10 * * * *';
 const CLOSED_RETENTION_HOURS = 1;
 
 export function scheduleTunnelCleanupJob() {
-  cron.schedule(CLEANUP_INTERVAL, async () => {
+  schedule(CLEANUP_INTERVAL, async () => {
     try {
       const repo = AppDataSource.getRepository(TunnelAllocation);
       const cutoff = new Date(Date.now() - CLOSED_RETENTION_HOURS * 60 * 60 * 1000);

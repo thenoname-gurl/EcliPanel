@@ -1,7 +1,8 @@
-import axios from 'axios';
 import { AppDataSource } from '../config/typeorm';
 import { AIModel } from '../models/aiModel.entity';
 import { User } from '../models/user.entity';
+import { httpRequest } from '../utils/http';
+import { tForUser } from '../i18n';
 
 export type FraudScanResult = {
   success: true;
@@ -257,15 +258,17 @@ function delay(ms: number) {
 }
 
 export async function runFraudScanForUser(user: User): Promise<FraudScanResult> {
+  const t = tForUser(user);
+
   const models = await getConfiguredFraudModels();
   if (models.length === 0) {
-    return { success: false, error: 'No AI model configured.' };
+    return { success: false, error: t('fraud.noModel') };
   }
 
   const userRepo = AppDataSource.getRepository(User);
   const current = await userRepo.findOneBy({ id: user.id });
   if (!current) {
-    return { success: false, error: 'User not found.' };
+    return { success: false, error: t('fraud.userNotFound') };
   }
 
   const billingInfo = buildBillingInfo(current);
@@ -277,9 +280,14 @@ export async function runFraudScanForUser(user: User): Promise<FraudScanResult> 
   for (const model of models) {
     for (let attempt = 1; attempt <= 10; attempt++) {
       try {
-        const res = await axios.post(
-          getFraudChatUrl(model.endpoint || ''),
-          {
+        const res = await httpRequest(getFraudChatUrl(model.endpoint || ''), {
+          method: 'POST',
+          timeoutMs: 30000,
+          headers: {
+            Authorization: `Bearer ${model.apiKey || 'none'}`,
+            'Content-Type': 'application/json',
+          },
+          body: {
             model: model.config?.modelId || model.name,
             messages: [
               { role: 'system', content: systemPrompt },
@@ -288,21 +296,14 @@ export async function runFraudScanForUser(user: User): Promise<FraudScanResult> 
             max_tokens: 1024,
             temperature: 0.1,
           },
-          {
-            headers: {
-              Authorization: `Bearer ${model.apiKey || 'none'}`,
-              'Content-Type': 'application/json',
-            },
-            timeout: 30000,
-          }
-        );
+        });
 
         const aiReply = res.data?.choices?.[0]?.message?.content || '';
         const result = parseFraudResult(aiReply);
 
         if (result.isSuspicious) {
           current.fraudFlag = true;
-          current.fraudReason = result.reasons.join('; ') || 'Suspicious billing information detected';
+          current.fraudReason = result.reasons.join('; ') || t('fraud.suspiciousBilling');
           current.fraudDetectedAt = new Date();
           await userRepo.save(current);
         } else if (current.fraudFlag) {
@@ -322,7 +323,7 @@ export async function runFraudScanForUser(user: User): Promise<FraudScanResult> 
           signals: result.signals,
         };
       } catch (err: any) {
-        lastError = String(err?.message || 'Fraud scan failed.');
+        lastError = String(err?.message || t('fraud.scanFailed'));
         console.error(`[fraudService:runFraudScanForUser] model="${model.name}" attempt ${attempt}/10 failed:`, lastError);
         if (attempt < 10) {
           await delay(Math.min(1000 * Math.pow(2, attempt - 1), 30000));

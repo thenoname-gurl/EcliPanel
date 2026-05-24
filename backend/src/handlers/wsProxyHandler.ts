@@ -7,7 +7,6 @@ import { User } from '../models/user.entity';
 import { hasPermissionSync } from '../middleware/authorize';
 import { signWingsJwt } from './remoteHandler';
 import { handleSocConnection } from './wsRoutes';
-import { v4 as uuidv4 } from 'uuid';
 
 interface ProxyCtx {
   params?: any;
@@ -300,7 +299,7 @@ class WingsProxySession {
     const now = Math.floor(Date.now() / 1000);
     const userUuid = this.normalizeUuid(this.user.id);
     const serverUuid = this.normalizeUuid(this.serverId);
-    const jti = this.normalizeUuid(uuidv4());
+    const jti = this.normalizeUuid(crypto.randomUUID());
 
     const payload = {
       iss: process.env.APP_URL || 'eclipanel',
@@ -367,10 +366,10 @@ class WingsProxySession {
   }
 
   private normalizeUuid(value: any): string {
-    if (!value) return uuidv4().replace(/-/g, '');
+    if (!value) return crypto.randomUUID().replace(/-/g, '');
     const s = String(value).toLowerCase().replace(/-/g, '');
     if (/^[0-9a-f]{32}$/.test(s)) return s;
-    return uuidv4().replace(/-/g, '');
+    return crypto.randomUUID().replace(/-/g, '');
   }
 
   private generateWingsJwt(): string {
@@ -378,7 +377,7 @@ class WingsProxySession {
 
     const userUuid = this.normalizeUuid(this.user?.id);
     const serverUuid = this.normalizeUuid(this.serverId);
-    const jti = this.normalizeUuid(uuidv4());
+    const jti = this.normalizeUuid(crypto.randomUUID());
 
     const payload = {
       iss: process.env.APP_URL || 'eclipanel',

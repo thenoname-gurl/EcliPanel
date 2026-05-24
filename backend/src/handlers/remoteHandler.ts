@@ -30,7 +30,7 @@
  * please forgive me, I am a bad programmer and I have no shame.
  * (And yet I somehow graduated academy :sob:)
  */
-import crypto from 'crypto';
+import { sha256Hex } from '../utils/bunCrypto';
 import { In } from 'typeorm';
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
@@ -330,12 +330,16 @@ function base64url(buf: Buffer): string {
   return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+function hmacSha256(data: string, secret: string): Uint8Array {
+  const hasher = new Bun.CryptoHasher('sha256', secret);
+  hasher.update(data);
+  return hasher.digest();
+}
+
 export function signWingsJwt(payload: object, secret: string): string {
   const header = base64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
   const body = base64url(Buffer.from(JSON.stringify(payload)));
-  const sig = base64url(
-    crypto.createHmac('sha256', secret).update(`${header}.${body}`).digest(),
-  );
+  const sig = base64url(Buffer.from(hmacSha256(`${header}.${body}`, secret)));
   return `${header}.${body}.${sig}`;
 }
 
@@ -760,7 +764,7 @@ export async function remoteRoutes(app: any, prefix: string) {
 
       ctx.set.status = 200;
       return {
-        user: crypto.createHash('sha256').update(String(user.id)).digest('hex').slice(0, 32),
+        user: sha256Hex(String(user.id)).slice(0, 32),
         server: cfg.uuid,
         permissions: ['*'],
         ignored_files: [],

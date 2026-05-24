@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import { schedule } from '../utils/cron';
 import { syncGithubContributors } from '../services/githubContributorsService';
 
 export async function runGithubContributorsJob() {
@@ -18,7 +18,7 @@ export async function scheduleGithubContributorsJob() {
     console.error('[GithubContributors] Initial sync failed:', error);
   });
 
-  cron.schedule('0 * * * *', async () => {
+  schedule('0 * * * *', async () => {
     await runGithubContributorsJob().catch((error) => {
       console.error('[GithubContributors] Scheduled sync failed:', error);
     });
