@@ -26,11 +26,11 @@ export function Sidebar() {
   const content = (
     <div className="p-2 w-70 bg-[#0D0D0D] pl-10 pr-5 h-full overflow-y-auto">
       <div className="flex flex-col gap-2">
-        <span className="flex items-center justify-between gap-1">
-          <span className="flex items-center gap-1">
+        <span className="flex items-center justify-between gap-1 cursor-pointer hover:bg-white/5 transition-colors">
+          <a href="/" className="flex items-center gap-1">
             <img src="/assets/icons/logo.png" alt="logo" className="w-10" />
             <p>{meta.title}</p>
-          </span>
+          </a>
           <button
             className="lg:hidden p-1 text-white/50 hover:text-white"
             onClick={() => setOpen(false)}
