@@ -1,0 +1,76 @@
+---
+title: Account & server sunset policy
+description: How inactivity notices work, grace periods, what happens to idle accounts and servers, and how to stay active.
+---
+
+Sunset policies keep inactive accounts secure and prevent unused servers from consuming resources indefinitely. This page explains both the account sunset flow and the server sunset flow, including timelines, what triggers them, and how to keep your services active.
+
+## Account sunset policy
+
+Account sunset applies to accounts that have not been accessed for an extended period. The goal is to protect dormant accounts and free up resources. This policy affects all account types — free, educational, and paid.
+
+| Stage                | Details                                                                                                                                                           |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inactivity threshold | If you have not logged in for approximately 1 year, your account becomes eligible for an inactivity notice. The clock resets every time you log in.               |
+| Inactivity notice    | An email is sent to your registered address with a direct link to the login page.                                                                                 |
+| Grace period         | After the notice is sent, you have 90 days to log in before deletion is scheduled. Logging in at any point cancels the deletion process.                          |
+| Account deletion     | If you do not log in within the grace period, your account and associated data are scheduled for deletion. Certain records may be retained where required by law. |
+
+### Frequently asked questions
+
+- **What keeps an account active?** Any login to the dashboard resets the inactivity timer. API key usage alone does not count — you must log in through the web interface.
+- **What happens to my servers if my account is deleted?** All servers, files, databases, and data are removed. Backups are also deleted unless stored externally.
+- **What if I return after deletion?** Once an account is deleted, it cannot be recovered. You would need to create a new account and redeploy your servers.
+- **Where is the confirmation link?** The inactivity notice email contains a direct link to the login page. Click it and sign in to cancel the pending deletion.
+- **Can I request early deletion?** Yes. You can request account deletion from Settings or by contacting support. See our [Terms of Service](/legal/terms-of-service) for the process.
+
+## Server sunset policy (free & educational)
+
+Server sunset applies only to free and educational accounts that have online servers. The purpose is to prevent abandoned servers from consuming node resources indefinitely. Paid and enterprise accounts are excluded from this policy.
+
+If your free or educational account has servers that are running but you have not been active on the dashboard, we will send a confirmation notice asking you to verify you are still using the service.
+
+| Stage                       | Details                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| New accounts                | If you have just created your account and have not yet been active, we send the first confirmation notice after approximately 24 hours of server online time.      |
+| Ongoing activity            | After you have actively used the panel, confirmation notices repeat approximately every 7 days if your servers remain online without dashboard activity.           |
+| Grace window                | Once a notice is sent, you have 24 hours to confirm your usage by logging in or interacting with the dashboard. After this window, online servers are powered off. |
+| What counts as confirmation | Any dashboard activity resets the timer — logging in, opening a server, checking settings, or using any panel feature. API key usage alone does not count.         |
+
+### Important details
+
+- **Only online servers are affected.** Servers that are stopped or hibernated are not targeted by sunset notices. If you stop your servers when not in use, they will not trigger sunset checks.
+- **Free and educational accounts only.** Paid plans and enterprise accounts are excluded. If you upgrade, the policy no longer applies to your servers.
+- **Servers are powered off, not deleted.** After the grace window expires, online servers receive a force stop. Your files and data remain intact. You can restart the servers after logging in.
+- **Notices are sent via email.** Make sure your registered email address is current and check your spam folder if you are not seeing notices.
+
+## Admin-requested confirmation
+
+Administrators can manually trigger a confirmation request for any account when they notice unusual activity patterns or need to verify account usage.
+
+When an admin triggers a confirmation:
+
+- An email is sent to your registered address immediately.
+- You have a 48-hour grace period to confirm usage by logging in.
+- If you do not respond within 48 hours, your online servers may be powered off.
+- Logging in at any point during the grace period clears the notice and resets the timer.
+
+## How to avoid sunset actions
+
+- **Log in regularly.** Even a quick visit to the dashboard resets the inactivity timer. Check in at least once a week if you have free or educational servers running.
+- **Stop servers when not in use.** Stopped servers do not trigger sunset notices and do not consume node resources.
+- **Keep your email current.** Update your email address in Settings if it changes. Sunset notices are sent to your registered email.
+- **Check your spam folder.** Add our email domain to your safe senders list to ensure you receive notices.
+- **Consider upgrading.** If you need servers to run continuously without sunset checks, consider upgrading to a paid plan.
+
+## What to do if you received a sunset email
+
+1. **Do not panic.** Your account and servers are not immediately deleted. You have time to respond.
+2. **Log in to the dashboard.** Click the link in the email or go to ecli.app and sign in. This alone clears the notice and resets the timer.
+3. **Check your servers.** If you have online servers, make sure they are still running and functioning as expected.
+4. **Stop unused servers.** If you have servers you no longer need, stop them to prevent future sunset notices.
+5. **Update your email.** If the email on your account is no longer valid, update it in **Settings → Profile**.
+
+---
+
+If you believe you received a sunset email in error, contact support from the dashboard or visit [Support & policies](/docs/support). For the full terms governing account deletion, see our [Terms of Service](/legal/terms-of-service).
