@@ -14,11 +14,48 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { User } from '../models/user.entity';
 import { OrganisationMember } from '../models/organisationMember.entity';
 import { createActivityLog } from '../handlers/logHandler';
+import type { Node } from '../models/node.entity';
+import type { Organisation } from '../models/organisation.entity';
+
+type ConfigApp = {
+  log: {
+    info: (msg: unknown, ...args: unknown[]) => void;
+    warn: (msg: unknown, ...args: unknown[]) => void;
+    error: (msg: unknown, ...args: unknown[]) => void;
+  };
+};
+
+type NodeWithBackendUrl = Node & {
+  backendWingsUrl?: string | null;
+};
+
+type ServerStub = {
+  uuid?: string | null;
+  id?: string | number | null;
+};
+
+type UserWithLegacyOrg = User & {
+  org?: Organisation | null;
+  orgRole?: string | null;
+};
+
+type LegacyOrgMember = {
+  uuid: string;
+  createdAt: Date;
+};
+
+type QueryRow = {
+  cnt?: string | number;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
 
 const WINGS_RETRY_INITIAL = 30_000;
 const WINGS_RETRY_MAX = 10 * 60_000;
 
-function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) {
+function connectNodeWithRetry(app: ConfigApp, node: NodeWithBackendUrl, delay = WINGS_RETRY_INITIAL) {
   const base = node.backendWingsUrl || node.url;
   const sock = new WingsSocketService(base, node.token, node.id);
   const api = new WingsApiService(base, node.token);
@@ -27,14 +64,16 @@ function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) 
     .then(async () => {
       try {
         const res = await api.getServers();
-        const servers: any[] = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
+        const servers = Array.isArray(res.data)
+          ? (res.data as ServerStub[])
+          : ((res.data as { servers?: ServerStub[] } | undefined)?.servers ?? []);
         for (const s of servers) {
-          const id: string = s.uuid || s.id;
+          const id = String(s.uuid || s.id || '');
           if (!id) continue;
           try {
             await api.syncServer(id, {});
             app.log.info({ node: node.name, server: id }, 'auto-sync initiated on node connect');
-          } catch (e: any) {
+          } catch (e: unknown) {
             app.log.warn(
               { err: e, node: node.name, server: id },
               'auto-sync failed on node connect'
@@ -43,30 +82,30 @@ function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) 
         }
         try {
           await restoreDesiredPowerStatesForNode(node.id);
-        } catch (e: any) {
+        } catch (e: unknown) {
           app.log.warn(
             { err: e, node: node.name },
             'failed to restore desired power state on node connect'
           );
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         app.log.warn(
           { err: e, node: node.name },
           'failed to list servers for auto-sync on node connect'
         );
       }
     })
-    .catch((e: any) => {
+    .catch((e: unknown) => {
       const isTransient = [
         'ECONNREFUSED',
         'ETIMEDOUT',
         'ECONNABORTED',
         'ENOTFOUND',
         'ECONNRESET',
-      ].includes(e?.code);
+      ].includes((isRecord(e) ? (e.code as string | undefined) : undefined) || '');
       if (isTransient) {
         app.log.warn(
-          { node: node.name, code: e.code, url: node.url },
+          { node: node.name, code: isRecord(e) ? e.code : undefined, url: node.url },
           `wings node unreachable — retrying in ${Math.round(delay / 1000)}s`
         );
       } else {
@@ -77,7 +116,7 @@ function connectNodeWithRetry(app: any, node: any, delay = WINGS_RETRY_INITIAL) 
     });
 }
 
-export async function setupConfig(app: any) {
+export async function setupConfig(app: ConfigApp) {
   const jwtSecret = process.env.JWT_SECRET;
   if (!jwtSecret) {
     if (process.env.NODE_ENV === 'production') {
@@ -103,21 +142,21 @@ export async function setupConfig(app: any) {
   try {
     const userRepo = AppDataSource.getRepository(User);
     const orgMemberRepo = AppDataSource.getRepository(OrganisationMember);
-    const users = await userRepo.find({ relations: { org: true } });
+    const users = (await userRepo.find({ relations: { org: true } })) as UserWithLegacyOrg[];
     for (const user of users) {
-      const org: any = (user as any).org;
+      const org = user.org;
       if (!org?.id) continue;
       const existing = await orgMemberRepo.findOne({
         where: { userId: user.id, organisationId: org.id },
       });
       if (existing) continue;
-      const inferredRole = user.id === org.ownerId ? 'owner' : (user as any).orgRole || 'member';
+      const inferredRole = user.id === org.ownerId ? 'owner' : user.orgRole || 'member';
       const link = orgMemberRepo.create({
         userId: user.id,
         organisationId: org.id,
         user,
         organisation: org,
-        orgRole: inferredRole as any,
+        orgRole: inferredRole,
         createdAt: new Date(),
       });
       await orgMemberRepo.save(link);
@@ -133,7 +172,7 @@ export async function setupConfig(app: any) {
         .where('createdAt IS NULL')
         .execute();
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     app.log?.warn(
       { err },
       'Failed to backfill organisation memberships from legacy user.org relation or createdAt values'
@@ -150,7 +189,7 @@ export async function setupConfig(app: any) {
             AND table_name = 'soc_data'
             AND index_name = 'IDX_soc_data_server_timestamp'`
       );
-      const count = Number((rows?.[0] as any)?.cnt ?? 0);
+      const count = Number((rows?.[0] as QueryRow | undefined)?.cnt ?? 0);
       if (count === 0) {
         await AppDataSource.query(
           'CREATE INDEX IDX_soc_data_server_timestamp ON soc_data (serverId, timestamp)'
@@ -161,21 +200,21 @@ export async function setupConfig(app: any) {
         'CREATE INDEX IF NOT EXISTS "IDX_soc_data_server_timestamp" ON "soc_data" ("serverId", "timestamp")'
       );
     }
-  } catch (err: any) {
+  } catch (err: unknown) {
     app.log?.warn({ err }, 'Failed to ensure soc_data(serverId,timestamp) index');
   }
 
   try {
     await connectRedis();
     (app.log ?? console).info('Redis connected');
-  } catch (err: any) {
+  } catch (err: unknown) {
     (app.log ?? console).error({ err }, 'Redis connection error');
   }
 
   try {
     await initMail();
     app.log.info('Mail transport ready');
-  } catch (err: any) {
+  } catch (err: unknown) {
     app.log.error({ err }, 'Mail initialization failed');
   }
 
@@ -186,7 +225,7 @@ export async function setupConfig(app: any) {
 
   try {
     await startAllSftpProxies();
-  } catch (e: any) {
+  } catch (e: unknown) {
     app.log.error({ err: e }, 'Failed to start SFTP proxies');
   }
 
@@ -195,7 +234,7 @@ export async function setupConfig(app: any) {
 
   try {
     const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
-    const nodes = await nodeRepo.find();
+    const nodes = (await nodeRepo.find()) as NodeWithBackendUrl[];
     try {
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
       const duplicates = await cfgRepo
@@ -246,8 +285,10 @@ export async function setupConfig(app: any) {
                   : o.processConfig;
             }
             await cfgRepo.save(keep);
-            const toDelete = others.map(r => ({ uuid: r.uuid, createdAt: r.createdAt }));
-            await cfgRepo.delete(toDelete as any).catch(() => {});
+            const toDelete: LegacyOrgMember[] = others.map(r => ({ uuid: r.uuid, createdAt: r.createdAt }));
+            await Promise.all(
+              toDelete.map(item => cfgRepo.delete({ uuid: item.uuid, createdAt: item.createdAt }))
+            ).catch(() => {});
             app.log.info(
               { uuid, kept: { uuid: keep.uuid, createdAt: keep.createdAt }, removed: toDelete },
               'startup: merged duplicate server configs'
@@ -264,7 +305,7 @@ export async function setupConfig(app: any) {
                 },
                 ipAddress: '',
               });
-            } catch (e) {}
+            } catch (e: unknown) {}
           } catch (e) {
             app.log.warn(
               { err: e, uuid },

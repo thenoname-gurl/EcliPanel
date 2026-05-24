@@ -64,6 +64,8 @@ import { createActivityLog } from './logHandler';
 import { escapeHtml, markdownToHtml } from '../utils/markdown';
 import { requestServerSunsetNoticeForUser } from '../services/serverSunsetPolicyService';
 import { httpRequest } from '../utils/http';
+import type { BaseHandlerContext } from '../types/handler';
+import type { JsonObject } from '../types/common';
 
 function getAgeFromDate(date?: Date | string | null): number | null {
   if (!date) return null;
@@ -101,27 +103,66 @@ type ContributorActivityEntry = {
   url?: string;
 };
 
-function normalizeContributorActivity(input: any): ContributorActivityEntry[] {
+type AdminApiKeyContext = {
+  type?: string;
+};
+
+type AdminRouteContext = BaseHandlerContext & {
+  user?: User;
+  apiKey?: AdminApiKeyContext;
+};
+
+type ContributorUser = User & {
+  githubLogin?: string | null;
+  githubProfileUrl?: string | null;
+  githubAvatarUrl?: string | null;
+  contributorTitle?: string | null;
+  contributorActivity?: unknown;
+};
+
+type NodeWithBackendUrl = Node & {
+  backendWingsUrl?: string | null;
+};
+
+type AIModelWithConfig = AIModel & {
+  config?: {
+    modelId?: string;
+  } | null;
+};
+
+type AIChatResponse = {
+  choices?: Array<{
+    message?: {
+      content?: unknown;
+    };
+  }>;
+};
+
+type UnknownRecord = Record<string, unknown>;
+
+function normalizeContributorActivity(input: unknown): ContributorActivityEntry[] {
   if (!Array.isArray(input)) return [];
   return input
     .map(item => {
-      const date = String(item?.date || '').trim();
-      const label = String(item?.label || '').trim();
+      if (typeof item !== 'object' || item === null) return null;
+      const raw = item as UnknownRecord;
+      const date = String(raw.date || '').trim();
+      const label = String(raw.label || '').trim();
       if (!date || !label) return null;
-      const entry: ContributorActivityEntry = { date, label };
-      const details = String(item?.details || '').trim();
-      const url = String(item?.url || '').trim();
-      const points = Number(item?.points);
-      if (details) entry.details = details;
-      if (url) entry.url = url;
-      if (Number.isFinite(points) && points > 0) entry.points = Math.round(points);
-      return entry;
+      const normalized: ContributorActivityEntry = { date, label };
+      const details = String(raw.details || '').trim();
+      const url = String(raw.url || '').trim();
+      const points = Number(raw.points);
+      if (details) normalized.details = details;
+      if (url) normalized.url = url;
+      if (Number.isFinite(points) && points > 0) normalized.points = Math.round(points);
+      return normalized;
     })
     .filter((item): item is ContributorActivityEntry => !!item)
     .slice(0, 200);
 }
 
-function buildContributorSummary(user: User) {
+function buildContributorSummary(user: ContributorUser) {
   const firstName = String(user.firstName || '').trim();
   const middleName = String(user.middleName || '').trim();
   const lastName = String(user.lastName || '').trim();
@@ -129,13 +170,13 @@ function buildContributorSummary(user: User) {
   const displayName = String(
     user.displayName || fallbackName || user.email || `User #${user.id}`
   ).trim();
-  const githubLogin = String((user as any).githubLogin || '').trim();
-  const githubProfileUrl = String((user as any).githubProfileUrl || '').trim();
-  const ecliAvatarUrl = String((user as any).avatarUrl || '').trim();
-  const githubAvatarUrl = String((user as any).githubAvatarUrl || '').trim();
+  const githubLogin = String(user.githubLogin || '').trim();
+  const githubProfileUrl = String(user.githubProfileUrl || '').trim();
+  const ecliAvatarUrl = String(user.avatarUrl || '').trim();
+  const githubAvatarUrl = String(user.githubAvatarUrl || '').trim();
   const chosenAvatarUrl = ecliAvatarUrl || githubAvatarUrl;
-  const contributorTitle = String((user as any).contributorTitle || '').trim();
-  const activity = normalizeContributorActivity((user as any).contributorActivity);
+  const contributorTitle = String(user.contributorTitle || '').trim();
+  const activity = normalizeContributorActivity(user.contributorActivity);
   const activityScore = activity.reduce(
     (sum, item) => sum + Math.max(1, Number(item.points) || 1),
     0
@@ -307,11 +348,12 @@ async function sendAntiAbuseAdminNotification(params: {
       },
     });
     return { sent: true, recipient: recipients.join(', ') };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errorMessage = err instanceof Error ? err.message : 'failed to send admin notification';
     return {
       sent: false,
       recipient: recipients.join(', '),
-      error: err?.message || 'failed to send admin notification',
+      error: errorMessage,
     };
   }
 }
@@ -341,13 +383,23 @@ async function attemptAutoSuspendServer(
     ? [preferredNode, ...allNodes.filter(n => n.id !== preferredNode.id)]
     : allNodes;
 
-  for (const n of nodes) {
+  for (const n of nodes as NodeWithBackendUrl[]) {
     try {
-      const base = (n as any).backendWingsUrl || n.url;
+      const base = n.backendWingsUrl || n.url;
       const svc = new WingsApiService(base, n.token);
       await svc.getServer(serverId);
 
-      const updateData: any = {
+      const updateData: {
+        suspended: boolean;
+        suspendedBy: string;
+        suspendedReason: string;
+        suspendedAt: Date;
+        dmca?: boolean;
+        dmcaBy?: string;
+        dmcaReason?: string;
+        dmcaAt?: Date;
+        dmcaDeletionAt?: Date;
+      } = {
         suspended: true,
         suspendedBy: actor,
         suspendedReason: reason,
@@ -432,7 +484,7 @@ function pickRandomPowerDiceFailureLine(): string {
   );
 }
 
-function isGamblingModeEnabled(user: any): boolean {
+function isGamblingModeEnabled(user: ContributorUser): boolean {
   const themeName = String(user?.settings?.theme?.name || '')
     .trim()
     .toLowerCase();
@@ -464,7 +516,7 @@ function getGamblingConfigFromMap(map: Record<string, string>) {
   };
 }
 
-function parseSizeToMB(input: any): number | null {
+function parseSizeToMB(input: unknown): number | null {
   if (input === null || input === undefined || input === '') return null;
   if (typeof input === 'number') return Number(input);
   if (typeof input !== 'string') return null;
@@ -492,7 +544,7 @@ function parseSizeToMB(input: any): number | null {
       return Math.round(n);
   }
 }
-function parseCpuInput(input: any): number | null {
+function parseCpuInput(input: unknown): number | null {
   if (input === null || input === undefined || input === '') return null;
   if (typeof input === 'number') return Number(input);
   if (typeof input !== 'string') return null;
@@ -511,7 +563,7 @@ function parseCpuInput(input: any): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
-function requireAdminCtx(ctx: any): true | { error: string } {
+function requireAdminCtx(ctx: AdminRouteContext): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user) {
     ctx.set.status = 401;
@@ -524,8 +576,8 @@ function requireAdminCtx(ctx: any): true | { error: string } {
   return true;
 }
 
-function requireAdminCtxOrAdminApiKey(ctx: any): true | { error: string } {
-  const apiKey = ctx.apiKey as any;
+function requireAdminCtxOrAdminApiKey(ctx: AdminRouteContext): true | { error: string } {
+  const apiKey = ctx.apiKey;
   if (apiKey && apiKey.type === 'admin') return true;
   return requireAdminCtx(ctx);
 }
@@ -591,16 +643,16 @@ const ADMIN_PAGE_PERMISSIONS = [
   'admin.shorturl.edit.any',
 ];
 
-function hasAnyAdminPermission(ctx: any): boolean {
-  const apiKey = ctx.apiKey as any;
+function hasAnyAdminPermission(ctx: AdminRouteContext): boolean {
+  const apiKey = ctx.apiKey;
   if (apiKey && apiKey.type === 'admin') return true;
   if (!ctx?.user) return false;
   if (hasPermissionSync(ctx, 'admin:access')) return true;
   return ADMIN_PAGE_PERMISSIONS.some(perm => hasPermissionSync(ctx, perm));
 }
 
-function requireAdminPageAccess(ctx: any): true | { error: string } {
-  const apiKey = ctx.apiKey as any;
+function requireAdminPageAccess(ctx: AdminRouteContext): true | { error: string } {
+  const apiKey = ctx.apiKey;
   const user = ctx.user as User | undefined;
   if (!user && !(apiKey && apiKey.type === 'admin')) {
     ctx.set.status = 401;
@@ -613,8 +665,11 @@ function requireAdminPageAccess(ctx: any): true | { error: string } {
   return true;
 }
 
-function requireAdminPermission(ctx: any, permission: string): true | { error: string } {
-  const apiKey = ctx.apiKey as any;
+function requireAdminPermission(
+  ctx: AdminRouteContext,
+  permission: string
+): true | { error: string } {
+  const apiKey = ctx.apiKey;
   const user = ctx.user as User | undefined;
   if (!user && !(apiKey && apiKey.type === 'admin')) {
     ctx.set.status = 401;
@@ -629,16 +684,16 @@ function requireAdminPermission(ctx: any, permission: string): true | { error: s
 }
 
 function requireAdminPermissionOrAdminApiKey(
-  ctx: any,
+  ctx: AdminRouteContext,
   permission: string
 ): true | { error: string } {
-  const apiKey = ctx.apiKey as any;
+  const apiKey = ctx.apiKey;
   if (apiKey && apiKey.type === 'admin') return true;
   return requireAdminPermission(ctx, permission);
 }
 
-function requireAdminMountsPermission(ctx: any): true | { error: string } {
-  const apiKey = ctx.apiKey as any;
+function requireAdminMountsPermission(ctx: AdminRouteContext): true | { error: string } {
+  const apiKey = ctx.apiKey;
   const user = ctx.user as User | undefined;
   if (!user && !(apiKey && apiKey.type === 'admin')) {
     ctx.set.status = 401;
@@ -689,7 +744,7 @@ const RESERVED_SHORT_URL_ROOT_CODES = new Set([
   'a',
 ]);
 
-function normalizeShortUrlCode(value: any): string {
+function normalizeShortUrlCode(value: unknown): string {
   return String(value || '')
     .trim()
     .replace(/^\/+|\/+$/g, '')
@@ -700,7 +755,7 @@ function isValidShortUrlCode(code: string): boolean {
   return /^[a-z0-9_-]{1,64}$/.test(code);
 }
 
-function getRedirectTarget(value: any): string | null {
+function getRedirectTarget(value: unknown): string | null {
   const input = String(value || '').trim();
   if (!input) return null;
   if (input.startsWith('/') && !input.startsWith('//')) {
@@ -720,7 +775,7 @@ function getShortUrlRepo() {
   return AppDataSource.getRepository(ShortUrl);
 }
 
-function sanitizeAntiAbuseText(input: any, max = 12_000): string {
+function sanitizeAntiAbuseText(input: unknown, max = 12_000): string {
   return String(input || '')
     .trim()
     .slice(0, max);
@@ -740,8 +795,8 @@ interface AntiAbuseParams {
   sourceIp: string | null;
   targetIp: string | null;
   targetPort: number | null;
-  metrics: any;
-  recentEvents: any[];
+  metrics: JsonObject;
+  recentEvents: JsonObject[];
 }
 
 interface StageResult {
@@ -808,7 +863,7 @@ function buildBaseUrl(endpoint: string): string {
 }
 
 async function callAiModel(
-  model: AIModel,
+  model: AIModelWithConfig,
   systemPrompt: string,
   userContent: string,
   maxTokens: number,
@@ -824,7 +879,7 @@ async function callAiModel(
       'Content-Type': 'application/json',
     },
     body: {
-      model: (model as any).config?.modelId || model.name,
+      model: model.config?.modelId || model.name,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userContent },
@@ -834,17 +889,19 @@ async function callAiModel(
     },
   });
 
-  const reply = (res.data as any)?.choices?.[0]?.message?.content || '';
+  const response = res.data as AIChatResponse | undefined;
+  const reply = response?.choices?.[0]?.message?.content || '';
   return String(reply)
     .replace(/```json?\s*/g, '')
     .replace(/```/g, '')
     .trim();
 }
 
-function safeParseJson(raw: string): any {
+function safeParseJson(raw: string): JsonObject {
   try {
     const match = raw.match(/\{[\s\S]*\}/);
-    return JSON.parse(match?.[0] ?? raw);
+    const parsed = JSON.parse(match?.[0] ?? raw);
+    return typeof parsed === 'object' && parsed !== null ? (parsed as JsonObject) : {};
   } catch {
     return {};
   }

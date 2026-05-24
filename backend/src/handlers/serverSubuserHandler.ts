@@ -1,6 +1,6 @@
 import { AppDataSource } from '../config/typeorm';
 import { t } from 'elysia';
-import { In } from 'typeorm';
+import { In, FindOptionsWhere } from 'typeorm';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { User } from '../models/user.entity';
@@ -11,6 +11,7 @@ import { createMailboxMessageForUser } from '../utils/mailboxMessage';
 import { getMailboxAccountForUser } from '../services/mailcowService';
 import { consumeRateLimit } from '../config/redis';
 import { resolvePanelBaseUrl } from '../utils/url';
+import type { RequestContext, AppLike, RouteMethod } from '../types/request';
 
 const VALID_PERMISSIONS = [
   'console',
@@ -27,11 +28,13 @@ const VALID_PERMISSIONS = [
   'mounts',
 ];
 
-async function canManageSubusers(ctx: any, serverUuid: string): Promise<boolean> {
-  const user = (ctx as any).user as User;
+// shared types moved to backend/src/types/request.ts
+
+async function canManageSubusers(ctx: RequestContext, serverUuid: string): Promise<boolean> {
+  const user = ctx.user as User | null;
   if (!user) return false;
 
-  if (hasPermissionSync(ctx, 'admin:access')) return true;
+  if (hasPermissionSync(ctx as unknown as Record<string, unknown>, 'admin:access')) return true;
 
   const cfgRepo = AppDataSource.getRepository(ServerConfig);
   const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
@@ -40,27 +43,27 @@ async function canManageSubusers(ctx: any, serverUuid: string): Promise<boolean>
   return false;
 }
 
-export async function serverSubuserRoutes(app: any, prefix = '') {
+export async function serverSubuserRoutes(app: AppLike, prefix = '') {
   const subuserRepo = () => AppDataSource.getRepository(ServerSubuser);
   const userRepo = () => AppDataSource.getRepository(User);
 
-  function getRequesterIp(ctx: any): string {
-    const forwarded = String((ctx as any)?.headers?.['x-forwarded-for'] || '').trim();
+  function getRequesterIp(ctx: RequestContext): string {
+    const forwarded = String((ctx.headers?.['x-forwarded-for'] as string) || '').trim();
     const firstForwarded = forwarded.split(',')[0]?.trim();
-    const direct = String((ctx as any)?.ip || (ctx as any)?.request?.ip || '').trim();
+    const direct = String(ctx.ip || ctx.request?.ip || '').trim();
     return (firstForwarded || direct || 'unknown').slice(0, 100);
   }
 
-  async function enforceSubuserInviteRateLimit(ctx: any, userId: number) {
+  async function enforceSubuserInviteRateLimit(ctx: RequestContext, userId: number) {
     try {
       const ip = getRequesterIp(ctx);
       const key = `rate:subuser-invite:user:${userId}:ip:${ip}`;
       const result = await consumeRateLimit(key, 10, 30);
       if (result.allowed) return null;
-
-      (ctx as any).set.status = 429;
-      (ctx as any).set.headers = {
-        ...((ctx as any).set.headers || {}),
+      if (!ctx.set) ctx.set = {} as { status?: number; headers?: Record<string, string> };
+      ctx.set.status = 429;
+      ctx.set.headers = {
+        ...(ctx.set.headers || {}),
         'Retry-After': String(result.retryAfterSeconds),
       };
       return { error: 'rate_limited', retryAfter: result.retryAfterSeconds };
@@ -69,37 +72,38 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     }
   }
 
-  async function attachSubuserUserInfo(entries: any[]) {
-    const ids = [...new Set(entries.map(entry => entry.userId).filter(Boolean))];
+  async function attachSubuserUserInfo(entries: Array<Record<string, unknown>>) {
+    const ids = [...new Set(entries.map(entry => entry.userId as number).filter(Boolean))];
     if (ids.length === 0) return entries;
     const users = await userRepo().find({ where: { id: In(ids) } });
     const userMap = new Map(users.map(u => [u.id, u]));
     return entries.map(entry => ({
       ...entry,
-      user: userMap.get(entry.userId) || null,
+      user: userMap.get(entry.userId as number) || null,
     }));
   }
 
   app.get(
     prefix + '/servers/:id/subusers',
-    async ctx => {
-      const { id } = ctx.params as any;
+    async (ctx: RequestContext) => {
+      const { id } = (ctx.params || {}) as Record<string, string>;
       if (await canManageSubusers(ctx, id)) {
         const subusers = await subuserRepo().find({
           where: { serverUuid: id },
           order: { createdAt: 'ASC' },
         });
-        return attachSubuserUserInfo(subusers);
+        return attachSubuserUserInfo(subusers as unknown as Array<Record<string, unknown>>);
       }
-      const user = (ctx as any).user as User;
+      const user = ctx.user as User | null;
       if (!user) {
+        if (!ctx.set) ctx.set = {} as { status?: number; headers?: Record<string, string> };
         ctx.set.status = 403;
-        return { error: ctx.t('common.forbidden') };
+        return { error: ctx.t ? ctx.t('common.forbidden') : 'forbidden' };
       }
       const entry = await subuserRepo().findOne({
         where: { serverUuid: id, userId: user.id, accepted: true },
       });
-      return entry ? await attachSubuserUserInfo([entry]) : [];
+      return entry ? await attachSubuserUserInfo([entry as unknown as Record<string, unknown>]) : [];
     },
     {
       beforeHandle: authenticate,
@@ -114,36 +118,36 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/subusers',
-    async ctx => {
-      const { id } = ctx.params as any;
-      const user = (ctx as any).user as User;
+    async (ctx: RequestContext) => {
+      const { id } = (ctx.params || {}) as Record<string, string>;
+      const user = ctx.user as User;
       const inviteRateLimit = await enforceSubuserInviteRateLimit(ctx, user.id);
       if (inviteRateLimit) return inviteRateLimit;
-
-      const { email, permissions } = ctx.body as any;
-      let actingAsSubuser: any = null;
+      const { email, permissions } = (ctx.body as Record<string, unknown>) || {};
+      let actingAsSubuser: ServerSubuser | null = null;
       if (!(await canManageSubusers(ctx, id))) {
-        const whereAny: any[] = [];
-        whereAny.push({ userId: (user as any).id, serverUuid: id, accepted: true });
-        if (user && (user as any).email)
-          whereAny.push({ userEmail: (user as any).email, serverUuid: id, accepted: true });
-        actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
+        const whereAny: Array<Record<string, unknown>> = [];
+        whereAny.push({ userId: user.id, serverUuid: id, accepted: true });
+        if (user && user.email) whereAny.push({ userEmail: user.email, serverUuid: id, accepted: true });
+        actingAsSubuser = await subuserRepo().findOne({ where: whereAny as FindOptionsWhere<ServerSubuser>[] });
 
         if (
           !actingAsSubuser ||
           !Array.isArray(actingAsSubuser.permissions) ||
           !actingAsSubuser.permissions.includes('subusersd')
         ) {
+          if (!ctx.set) ctx.set = {} as { status?: number; headers?: Record<string, string> };
           ctx.set.status = 403;
-          return { error: ctx.t('server.onlyOwnerCanManageSubusers') };
+          return { error: ctx.t ? ctx.t('server.onlyOwnerCanManageSubusers') : 'forbidden' };
         }
       }
       if (!email) {
+        if (!ctx.set) ctx.set = {} as { status?: number; headers?: Record<string, string> };
         ctx.set.status = 400;
-        return { error: ctx.t('validation.emailRequired') };
+        return { error: ctx.t ? ctx.t('validation.emailRequired') : 'email_required' };
       }
 
-      const target = await userRepo().findOneBy({ email });
+      const target = await userRepo().findOneBy({ email: String(email) });
       if (!target) {
         ctx.set.status = 404;
         return { error: ctx.t('user.notFoundEmail') };
@@ -238,16 +242,15 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/servers/:id/subusers/:subId',
-    async ctx => {
-      const { id, subId } = ctx.params as any;
-      const user = (ctx as any).user as User;
-      let actingAsSubuser: any = null;
+    async (ctx: RequestContext) => {
+      const { id, subId } = (ctx.params || {}) as Record<string, string>;
+      const user = ctx.user as User;
+      let actingAsSubuser: ServerSubuser | null = null;
       if (!(await canManageSubusers(ctx, id))) {
-        const whereAny: any[] = [];
-        whereAny.push({ userId: (user as any).id, serverUuid: id, accepted: true });
-        if (user && (user as any).email)
-          whereAny.push({ userEmail: (user as any).email, serverUuid: id, accepted: true });
-        actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
+        const whereAny: Array<Record<string, unknown>> = [];
+        whereAny.push({ userId: user.id, serverUuid: id, accepted: true });
+        if (user && user.email) whereAny.push({ userEmail: user.email, serverUuid: id, accepted: true });
+          actingAsSubuser = await subuserRepo().findOne({ where: whereAny as FindOptionsWhere<ServerSubuser>[] });
 
         if (
           !actingAsSubuser ||
@@ -265,7 +268,10 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
         return { error: ctx.t('server.subuserNotFound') };
       }
 
-      const { permissions, locked } = ctx.body as any;
+      const { permissions, locked } = ((ctx.body as Record<string, unknown>) || {}) as {
+        permissions?: unknown;
+        locked?: unknown;
+      };
       if (!Array.isArray(permissions)) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.permissionsArrayRequired') };
@@ -317,9 +323,9 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/servers/:id/subusers/:subId',
-    async ctx => {
-      const { id, subId } = ctx.params as any;
-      const user = (ctx as any).user as User;
+    async (ctx: RequestContext) => {
+      const { id, subId } = (ctx.params || {}) as Record<string, string>;
+      const user = ctx.user as User;
       const entry = await subuserRepo().findOneBy({ id: Number(subId), serverUuid: id });
       if (!entry) {
         ctx.set.status = 404;
@@ -330,11 +336,10 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
         if (entry.userId === user.id) {
           // skip
         } else {
-          const whereAny: any[] = [];
-          whereAny.push({ userId: (user as any).id, serverUuid: id, accepted: true });
-          if (user && (user as any).email)
-            whereAny.push({ userEmail: (user as any).email, serverUuid: id, accepted: true });
-          const actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
+          const whereAny: Array<Record<string, unknown>> = [];
+          whereAny.push({ userId: user.id, serverUuid: id, accepted: true });
+          if (user && user.email) whereAny.push({ userEmail: user.email, serverUuid: id, accepted: true });
+          const actingAsSubuser = await subuserRepo().findOne({ where: whereAny as FindOptionsWhere<ServerSubuser>[] });
           if (
             !actingAsSubuser ||
             !Array.isArray(actingAsSubuser.permissions) ||
@@ -378,8 +383,8 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/subusers/invites',
-    async ctx => {
-      const user = (ctx as any).user as User;
+    async (ctx: RequestContext) => {
+      const user = ctx.user as User | null;
       if (!user) {
         ctx.set.status = 401;
         return { error: ctx.t('auth.unauthorized') };
@@ -411,9 +416,9 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/subusers/invites/:inviteId/accept',
-    async ctx => {
-      const user = (ctx as any).user as User;
-      const { inviteId } = ctx.params as any;
+    async (ctx: RequestContext) => {
+      const user = ctx.user as User | null;
+      const { inviteId } = (ctx.params || {}) as Record<string, string>;
       if (!user) {
         ctx.set.status = 401;
         return { error: ctx.t('auth.unauthorized') };
@@ -452,9 +457,9 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/subusers/invites/:inviteId/reject',
-    async ctx => {
-      const user = (ctx as any).user as User;
-      const { inviteId } = ctx.params as any;
+    async (ctx: RequestContext) => {
+      const user = ctx.user as User | null;
+      const { inviteId } = (ctx.params || {}) as Record<string, string>;
       if (!user) {
         ctx.set.status = 401;
         return { error: ctx.t('auth.unauthorized') };

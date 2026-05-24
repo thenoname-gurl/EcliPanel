@@ -26,6 +26,40 @@ import path from 'path';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
 import { csrfProtection } from './middleware/csrf';
+import type { SignOptions } from 'jsonwebtoken';
+import type { JwtPayload as AppJwtPayload } from './types/context';
+import type { BaseHandlerContext } from './types/handler';
+
+interface AppServerLike {
+  requestIP?: (request: Request) => { address?: string | null } | null | undefined;
+}
+
+type AppRequestContext = Omit<BaseHandlerContext, 'request' | 't'> & {
+  request: Request & { ip?: string };
+  server?: AppServerLike;
+  query?: Record<string, string | undefined>;
+  params?: Record<string, string | undefined>;
+  user?: { id: number };
+  apiKey?: { type?: string };
+  jwtPayload?: AppJwtPayload;
+  clientIP?: string;
+  store?: Record<string, unknown> & { clientIP?: string };
+  t?: BaseHandlerContext['t'];
+};
+
+type AppErrorContext = AppRequestContext & {
+  error?: (Error & { status?: number }) | { status?: number; message?: string; stack?: string };
+  code?: number;
+};
+
+interface AppExtensions {
+  jwt: {
+    sign(payload: object, opts?: SignOptions): string;
+    verify<T = unknown>(token: string): T;
+  };
+  log: typeof console;
+  server?: AppServerLike;
+}
 
 function getSafeUploadPath(base: string, relPath: string) {
   const normalised = path
@@ -43,8 +77,8 @@ function getSafeUploadPath(base: string, relPath: string) {
 // Migrated from Fastify hence why code for Elysia could be a mess,
 // sorry about that.
 // I tried to clean it up but yes..
-const app = new Elysia()
-  .decorate('log', console as any)
+const app = new Elysia() as Elysia & AppExtensions;
+app.decorate('log', console)
   .use(
     openapi({
       documentation: {
@@ -246,7 +280,7 @@ const app = new Elysia()
   })
   .use(
     cors({
-      origin: (request: any) => {
+      origin: (request: Request) => {
         const origin = request?.headers?.get?.('origin') ?? undefined;
         const rawCfg = [process.env.FRONTEND_URL, process.env.PANEL_URL]
           .filter(Boolean)
@@ -265,7 +299,7 @@ const app = new Elysia()
         if (!origin) return true;
         if (rawCfg.length === 0) return true;
 
-        const normalize = (s: any) => {
+        const normalize = (s: unknown) => {
           if (!s && s !== '') return '';
           if (s instanceof URL) return s.origin;
           const str = typeof s === 'string' ? s : String(s);
@@ -320,23 +354,25 @@ const app = new Elysia()
   )
   .use(helmet())
   .use(jwt({ secret: process.env.JWT_SECRET }))
-  .onRequest(async (ctx: any) => {
+  .onRequest(async rawCtx => {
+    const ctx = rawCtx as unknown as AppRequestContext;
     try {
       if (typeof ctx.t !== 'function') {
-        ctx.t = (key: string, _vars?: Record<string, string | number>) => String(key);
+        ctx.t = (key: string) => String(key);
       }
     } catch {}
   })
   .use(i18n);
 
 const _jwtSecret = process.env.JWT_SECRET;
-(app as any).jwt = {
-  sign: (payload: object, opts?: any) => jsonwebtoken.sign(payload, _jwtSecret, opts),
-  verify: <T = any>(token: string) => jsonwebtoken.verify(token, _jwtSecret) as T,
+app.jwt = {
+  sign: (payload: object, opts?: SignOptions) => jsonwebtoken.sign(payload, _jwtSecret, opts),
+  verify: <T = unknown>(token: string) => jsonwebtoken.verify(token, _jwtSecret) as T,
 };
-(app as any).log = console;
+app.log = console;
 
-app.onError((ctx: any) => {
+app.onError(rawCtx => {
+  const ctx = rawCtx as unknown as AppErrorContext;
   let status = 500;
 
   if (
@@ -365,7 +401,7 @@ app.onError((ctx: any) => {
     });
   }
 
-  const log = (app as any).log || console;
+  const log = app.log || console;
   if (status >= 500) {
     log.error({ err: ctx.error, url: ctx.request.url }, 'Unhandled server error');
 
@@ -384,7 +420,7 @@ app.onError((ctx: any) => {
           (ctx.request as Request)?.headers?.get?.('x-forwarded-for') ||
           (ctx.request as Request)?.headers?.get?.('x-real-ip') ||
           '',
-      }).catch((e: any) => {
+      }).catch((e: unknown) => {
         console.log('Failed to log server error activity', { err: e });
       });
     } catch {
@@ -405,7 +441,7 @@ app.onError((ctx: any) => {
     });
   }
 
-  (app as any).log?.warn?.({ err: ctx.error, url: ctx.request.url, status }, 'Request error');
+  app.log?.warn?.({ err: ctx.error, url: ctx.request.url, status }, 'Request error');
 
   const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
   return new Response(JSON.stringify({ error: 'Request error' }), {
@@ -424,15 +460,16 @@ app.onError((ctx: any) => {
 declare module 'elysia' {
   interface Elysia {
     jwt: {
-      sign(payload: object, opts?: any): string;
-      verify<T = any>(token: string): T;
+      sign(payload: object, opts?: SignOptions): string;
+      verify<T = unknown>(token: string): T;
     };
-    log: any;
+    log: typeof console;
   }
 }
 
 const _rateBuckets = new Map<string, { count: number; resetAt: number }>();
-app.onRequest(async (ctx: any) => {
+app.onRequest(async rawCtx => {
+  const ctx = rawCtx as unknown as AppRequestContext;
   const req: Request = ctx.request;
   const headers = req?.headers;
 
@@ -464,7 +501,7 @@ app.onRequest(async (ctx: any) => {
 
   let remoteAddr: string | undefined;
   try {
-    const server = (ctx as any).server ?? (app as any).server;
+    const server = ctx.server ?? app.server;
     if (server?.requestIP) {
       const ipInfo = server.requestIP(req);
       remoteAddr = ipInfo?.address ?? undefined;
@@ -475,7 +512,7 @@ app.onRequest(async (ctx: any) => {
 
   if (!remoteAddr) {
     try {
-      const builtinIP = (ctx as any).ip;
+      const builtinIP = ctx.ip;
       if (builtinIP && builtinIP !== 'unknown' && builtinIP !== 'null') {
         remoteAddr = builtinIP;
       }
@@ -487,23 +524,23 @@ app.onRequest(async (ctx: any) => {
   const effectiveIP: string = cfIPv6 || cfIP || xForwardedFor || xRealIP || remoteAddr || 'unknown';
 
   try {
-    (ctx as any).ip = effectiveIP;
+    ctx.ip = effectiveIP;
   } catch {
     /* skip */
   }
   try {
-    (ctx.request as any).ip = effectiveIP;
+    ctx.request.ip = effectiveIP;
   } catch {
     /* skip */
   }
   try {
-    (ctx as any).clientIP = effectiveIP;
+    ctx.clientIP = effectiveIP;
   } catch {
     /* skip */
   }
   try {
-    (ctx as any).store = (ctx as any).store || {};
-    (ctx as any).store.clientIP = effectiveIP;
+    ctx.store = ctx.store || {};
+    ctx.store.clientIP = effectiveIP;
   } catch {
     /* skip */
   }
@@ -542,12 +579,12 @@ app.onRequest(async (ctx: any) => {
 
   try {
     const authHeader = getHeader('authorization') || '';
-    const qToken = (ctx as any).query?.token as string | undefined;
+    const qToken = ctx.query?.token;
     const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : qToken;
     if (rawToken) {
       try {
-        const decoded = (app as any).jwt.verify(rawToken) as any;
-        (ctx as any).jwtPayload = decoded;
+        const decoded = app.jwt.verify<unknown>(rawToken);
+        ctx.jwtPayload = decoded as AppJwtPayload;
       } catch {
         // skip
       }
@@ -630,7 +667,8 @@ export async function initApp() {
 
 app.get(
   '/health',
-  async (ctx: any) => {
+  async rawCtx => {
+    const ctx = rawCtx as unknown as AppRequestContext;
     if (!AppDataSource.isInitialized) {
       return new Response(JSON.stringify({ status: 'starting' }), {
         status: 503,
@@ -664,7 +702,8 @@ app.get(
 
 app.get(
   '/uploads/id-docs/*',
-  async (ctx: any) => {
+  async rawCtx => {
+    const ctx = rawCtx as unknown as AppRequestContext;
     const user = ctx.user;
     const apiKey = ctx.apiKey;
     if (!user && !apiKey) {
@@ -689,7 +728,7 @@ app.get(
       }
     }
 
-    const relPath = String((ctx.params as any)['*'] || '');
+    const relPath = String(ctx.params?.['*'] || '');
     let filepath: string;
     try {
       filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'id-docs'), relPath);
@@ -709,13 +748,13 @@ app.get(
       '.pdf': 'application/pdf',
     };
     try {
-      let buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
+      let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
       try {
         buf = decryptBuffer(buf);
       } catch {
         // skip
       }
-      return new Response(new Uint8Array(buf as any) as any, {
+      return new Response(new Uint8Array(buf), {
         status: 200,
         headers: {
           'Content-Type': mimeTypes[ext] || 'application/octet-stream',
@@ -737,8 +776,9 @@ app.get(
 
 app.get(
   '/uploads/mailbox/*',
-  async (ctx: any) => {
-    const relPath = String((ctx.params as any)['*'] || '');
+  async rawCtx => {
+    const ctx = rawCtx as unknown as AppRequestContext;
+    const relPath = String(ctx.params?.['*'] || '');
     let filepath: string;
     try {
       filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
@@ -797,13 +837,13 @@ app.get(
     };
 
     try {
-      let buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
+      let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
       try {
         buf = decryptBuffer(buf);
       } catch {
         // meow
       }
-      return new Response(new Uint8Array(buf as any) as any, {
+      return new Response(new Uint8Array(buf), {
         status: 200,
         headers: {
           'Content-Type': mimeTypes[ext] || 'application/octet-stream',
@@ -826,8 +866,9 @@ app.get(
 
 app.get(
   '/uploads/user-documents/*',
-  async (ctx: any) => {
-    const relPath = String((ctx.params as any)['*'] || '');
+  async rawCtx => {
+    const ctx = rawCtx as unknown as AppRequestContext;
+    const relPath = String(ctx.params?.['*'] || '');
     let filepath: string;
     try {
       filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'user-documents'), relPath);
@@ -883,13 +924,13 @@ app.get(
     };
 
     try {
-      let buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
+      let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
       try {
         buf = decryptBuffer(buf);
       } catch {
         // meow
       }
-      return new Response(new Uint8Array(buf as any) as any, {
+      return new Response(new Uint8Array(buf), {
         status: 200,
         headers: {
           'Content-Type': mimeTypes[ext] || 'application/octet-stream',
@@ -912,8 +953,9 @@ app.get(
 
 app.get(
   '/uploads/*',
-  async (ctx: any) => {
-    const relPath = String((ctx.params as any)['*'] || '');
+  async rawCtx => {
+    const ctx = rawCtx as unknown as AppRequestContext;
+    const relPath = String(ctx.params?.['*'] || '');
     let filepath: string;
     try {
       filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
@@ -933,8 +975,8 @@ app.get(
       '.svg': 'image/svg+xml',
     };
     try {
-      const buf: any = Buffer.from(await Bun.file(filepath).arrayBuffer());
-      return new Response(new Uint8Array(buf as any) as any, {
+      const buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
+      return new Response(new Uint8Array(buf), {
         status: 200,
         headers: {
           'Content-Type': mimeTypes[ext] || 'application/octet-stream',
