@@ -1,32 +1,16 @@
-import { headers } from "next/headers";
-import { NextIntlClientProvider } from "next-intl";
-import { getLocale, getMessages } from "next-intl/server";
-import { Sidebar } from "./sidebar";
-import { Menu } from "./_components/Menu";
+import { DocsLayout } from "fumadocs-ui/layouts/docs";
+import { source } from "@/lib/source";
+import { RootProvider } from "fumadocs-ui/provider/next";
+import "fumadocs-ui/style.css";
+import "./docs.css";
+import type { ReactNode } from "react";
 
-export default async function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
-  const locale = await getLocale();
-  const messages = await getMessages();
-
+export default function Layout({ children }: { children: ReactNode }) {
   return (
-    <html lang={locale} suppressHydrationWarning>
-      <head></head>
-      <body
-        className={`font-sans antialiased min-h-screen flex flex-col min-w-0 bg-black`}
-      >
-        <NextIntlClientProvider messages={messages}>
-          <style>{`footer { display: none !important; }`}</style>
-          <Menu />
-          <div className="flex h-219 overflow-hidden bg-black border-t border-white/20">
-            <Sidebar />
-            <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-              {children}
-            </div>
-          </div>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <RootProvider>
+      <DocsLayout tree={source.pageTree} nav={{ title: "EcliPanel Docs" }}>
+        {children}
+      </DocsLayout>
+    </RootProvider>
   );
 }

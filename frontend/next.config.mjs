@@ -1,9 +1,12 @@
 /** @type {import('next').NextConfig} */
-import createNextIntlPlugin from 'next-intl/plugin';
+import createNextIntlPlugin from "next-intl/plugin";
+import { createMDX } from "fumadocs-mdx/next";
 
-const backendUrl = process.env.BACKEND_URL || 'http://localhost:3001';
-const wingsBase = process.env.NEXT_PUBLIC_WINGS_BASE || 'http://localhost:8080';
-const withNextIntl = createNextIntlPlugin('./i18n/request.ts');
+const backendUrl = process.env.BACKEND_URL || "http://localhost:3001";
+const wingsBase = process.env.NEXT_PUBLIC_WINGS_BASE || "http://localhost:8080";
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+const withMDX = createMDX();
 
 const nextConfig = {
   typescript: {
@@ -13,31 +16,31 @@ const nextConfig = {
     unoptimized: true,
   },
   async redirects() {
-    return []
+    return [];
   },
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
+        source: "/api/:path*",
         destination: `${backendUrl}/api/:path*`,
       },
       {
-        source: '/public/:path*',
+        source: "/public/:path*",
         destination: `${backendUrl}/public/:path*`,
       },
       {
-        source: '/health',
+        source: "/health",
         destination: `${backendUrl}/health`,
       },
       {
-        source: '/wings/:path+',
+        source: "/wings/:path+",
         destination: `${wingsBase}/:path*`,
       },
       {
-        source: '/uploads/:path*',
+        source: "/uploads/:path*",
         destination: `${backendUrl}/uploads/:path*`,
       },
-    ]
+    ];
   },
   env: {
     NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE || backendUrl,
@@ -45,13 +48,12 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/:path*',
-        headers: [
-          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
-        ],
+        source: "/:path*",
+        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
       },
     ];
   },
-}
+  reactStrictMode: true,
+};
 
-export default withNextIntl(nextConfig)
+export default withNextIntl(withMDX(nextConfig));

@@ -1,0 +1,12 @@
+{
+  "title": "EcliPanel",
+  "pages": [
+    "index",
+    "getting-started",
+    "server-management",
+    "kvm",
+    "deploying-apps",
+    "sunset",
+    "support"
+  ]
+}
