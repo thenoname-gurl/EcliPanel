@@ -1,11 +1,12 @@
 import { BaseEmail } from './BaseEmail';
-import { Button, Hr, Section } from '@react-email/components';
+import { Button, Section } from '@react-email/components';
 
 interface EmailRestoreProps {
   name: string;
   restoreUrl: string;
   newEmail: string;
   oldEmail: string;
+  t?: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const headingStyle = {
@@ -43,62 +44,31 @@ const infoBoxStyle = {
   margin: '20px 0',
 };
 
-const footerStyle = {
-  color: '#9ca3af',
-  textAlign: 'center' as const,
-  marginTop: '32px',
-  paddingTop: '24px',
-  lineHeight: '1.5',
-  fontSize: '16px',
-};
+export function EmailRestore({ name, restoreUrl, newEmail, oldEmail, t }: EmailRestoreProps) {
+  const _t = t || ((key: string) => key);
 
-const linkStyle = {
-  display: 'inline-block',
-  margin: '0 8px',
-  color: '#9ca3af',
-  textDecoration: 'none',
-  fontSize: '14px',
-};
-
-export function EmailRestore({ name, restoreUrl, newEmail, oldEmail }: EmailRestoreProps) {
   return (
-    <BaseEmail previewText="Your email address was changed">
+    <BaseEmail previewText={_t('email.emailRestore.preview')} t={t}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
-        <h1 style={headingStyle}>Email Address Changed</h1>
+        <h1 style={headingStyle}>{_t('email.emailRestore.heading')}</h1>
       </Section>
 
       <Section style={{ marginBottom: '24px' }}>
-        <p style={pStyle}>Hello {name},</p>
+        <p style={pStyle}>{_t('email.emailRestore.greeting', { name })}</p>
         <p style={pStyle}>
-          Your account email address has been changed from <strong>{oldEmail}</strong> to <strong>{newEmail}</strong>.
+          {_t('email.emailRestore.changed', { oldEmail, newEmail })}
         </p>
-        <p style={pStyle}>
-          If you did not make this change, click the button below to restore your previous email address.
-        </p>
+        <p style={pStyle}>{_t('email.emailRestore.restorePrompt')}</p>
       </Section>
 
       <Section style={{ textAlign: 'center', margin: '24px 0' }}>
-        <Button href={restoreUrl} style={btnStyle}>Restore Previous Email</Button>
+        <Button href={restoreUrl} style={btnStyle}>{_t('email.emailRestore.button')}</Button>
       </Section>
 
       <Section style={infoBoxStyle}>
         <p style={{ color: '#ffffffb3', fontSize: '14px', margin: 0 }}>
-          <strong>Important:</strong> This link expires in 48 hours. If you made this change, you can safely ignore this email.
+          <strong>{_t('email.emailRestore.important')}:</strong> {_t('email.emailRestore.expires')}
         </p>
-      </Section>
-
-      <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
-
-      <Section style={footerStyle}>
-        <p style={{ margin: 0 }}>
-          &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
-          All rights reserved.
-        </p>
-        <Section style={{ marginTop: '16px' }}>
-          <a href="https://ecli.app/legal" style={linkStyle}>Legal Documents</a>
-          <a href="https://ecli.app/legal/imprint" style={linkStyle}>Impressum</a>
-          <a href="mailto:contact@ecli.app" style={linkStyle}>Contact Us</a>
-        </Section>
       </Section>
     </BaseEmail>
   );

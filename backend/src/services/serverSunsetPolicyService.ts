@@ -8,6 +8,7 @@ import { nodeService } from './nodeService';
 import { WingsApiService } from './wingsApiService';
 import { sendMail } from './mailService';
 import { createActivityLog } from '../handlers/logHandler';
+import { resolveLocale } from '../i18n/resolve';
 
 const FIRST_NOTICE_HOURS = 24;
 const REPEAT_NOTICE_DAYS = 7;
@@ -191,6 +192,7 @@ export async function requestServerSunsetNoticeForUser(params: {
         action_text: email.actionText,
         details: email.details,
       },
+      locale: resolveLocale({ user }),
     });
   } catch (err: any) {
     console.warn('[serverSunsetPolicy] failed to send admin notice to', user.email, err?.message || err);
@@ -289,6 +291,7 @@ export async function processServerSunsetPolicy() {
             action_text: email.actionText,
             details: email.details,
           },
+          locale: resolveLocale({ user }),
         });
       } catch (err: any) {
         console.warn('[serverSunsetPolicy] failed to send notice to', user.email, err?.message || err);

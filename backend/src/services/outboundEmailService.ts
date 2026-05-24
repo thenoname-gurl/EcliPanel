@@ -3,6 +3,7 @@ import { OutboundEmail } from '../models/outboundEmail.entity';
 import { Plan } from '../models/plan.entity';
 import { User } from '../models/user.entity';
 import { sendMail } from './mailService';
+import { resolveLocale } from '../i18n/resolve';
 import { getMailboxAccountForUser, rotateMailboxPasswordForAccount } from './mailcowService';
 import { MoreThanOrEqual, LessThanOrEqual } from 'typeorm';
 
@@ -158,7 +159,7 @@ export async function sendOutboundEmailImmediately(record: OutboundEmail, accoun
   try {
     const fromDesc = typeof fromOption === 'string' ? fromOption : `${fromOption.name || ''} <${fromOption.address || ''}>`;
     console.info(`[outboundEmail] Sending user=${user?.id ?? 'n/a'} from=${fromDesc} to=${record.toAddress}`);
-    const result = await sendMail({ ...sendOptions, smtp });
+    const result = await sendMail({ ...sendOptions, smtp, locale: resolveLocale({ user }) });
     console.info(`[outboundEmail] Sent user=${user?.id ?? 'n/a'} to=${record.toAddress} messageId=${result?.messageId || ''}`);
     return result;
   } catch (err: any) {
@@ -171,7 +172,7 @@ export async function sendOutboundEmailImmediately(record: OutboundEmail, accoun
         const retrySmtp = buildSmtpOptions(account);
         try {
           console.info(`[outboundEmail] Retrying after password rotation user=${user?.id ?? 'n/a'} to=${record.toAddress}`);
-          const retryResult = await sendMail({ ...sendOptions, smtp: retrySmtp });
+          const retryResult = await sendMail({ ...sendOptions, smtp: retrySmtp, locale: resolveLocale({ user }) });
           console.info(`[outboundEmail] Retry success user=${user?.id ?? 'n/a'} to=${record.toAddress} messageId=${retryResult?.messageId || ''}`);
           return retryResult;
         } catch (rerr) {
@@ -235,8 +236,8 @@ export async function processPendingOutboundEmails() {
 export function scheduleOutboundEmailRunner() {
   processPendingOutboundEmails().catch((e) => console.error('[outboundEmailRunner] Initial run failed', e));
   try {
-    const cron = require('node-cron');
-    cron.schedule('*/1 * * * *', async () => {
+    const { schedule } = require('../utils/cron');
+    schedule('*/1 * * * *', async () => {
       await processPendingOutboundEmails().catch((e) => console.error('[outboundEmailRunner] Cron run failed', e));
     });
   } catch (e) {

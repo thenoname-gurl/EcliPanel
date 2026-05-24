@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import { sha256Base64 } from './bunCrypto';
 
 export const SUPPORTED_SSH_KEY_TYPES = [
   'ssh-rsa',
@@ -43,11 +43,7 @@ export function fingerprintSshPublicKey(publicKey: string): string | null {
   try {
     const keyMaterial = Buffer.from(parsed.material, 'base64');
     if (keyMaterial.length === 0) return null;
-    const hash = crypto
-      .createHash('sha256')
-      .update(keyMaterial)
-      .digest('base64')
-      .replace(/=+$/, '');
+    const hash = sha256Base64(keyMaterial).replace(/=+$/, '');
     return `SHA256:${hash}`;
   } catch {
     return null;

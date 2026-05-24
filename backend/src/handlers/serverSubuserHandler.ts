@@ -75,7 +75,7 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     const user = (ctx as any).user as User;
     if (!user) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const entry = await subuserRepo().findOne({ where: { serverUuid: id, userId: user.id, accepted: true } });
     return entry ? await attachSubuserUserInfo([entry]) : [];
@@ -101,28 +101,28 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
       if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
         ctx.set.status = 403;
-        return { error: 'Only server owner, staff, or authorized subusers can manage subusers' };
+        return { error: ctx.t('server.onlyOwnerCanManageSubusers') };
       }
     }
     if (!email) {
       ctx.set.status = 400;
-      return { error: 'email is required' };
+      return { error: ctx.t('validation.emailRequired') };
     }
 
     const target = await userRepo().findOneBy({ email });
     if (!target) {
       ctx.set.status = 404;
-      return { error: 'User not found with that email' };
+      return { error: ctx.t('user.notFoundEmail') };
     }
     if (target.id === user.id) {
       ctx.set.status = 400;
-      return { error: 'Cannot add yourself as a subuser' };
+      return { error: ctx.t('server.cannotAddSelfAsSubuser') };
     }
 
     const existing = await subuserRepo().findOneBy({ serverUuid: id, userId: target.id });
     if (existing) {
       ctx.set.status = 409;
-      return { error: 'User is already a subuser of this server' };
+      return { error: ctx.t('server.alreadySubuser') };
     }
     const providedPerms = Array.isArray(permissions) ? permissions : ['console'];
     const allowedPermSet = actingAsSubuser && Array.isArray(actingAsSubuser.permissions)
@@ -167,6 +167,7 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
           orgName: `Server access to ${id}`,
           link: `${panelUrl}/dashboard/subusers/invites`,
         },
+        locale: ctx.locale,
       });
 
       if (mailboxAccount?.email) {
@@ -208,20 +209,20 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
 
       if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
         ctx.set.status = 403;
-        return { error: 'Only server owner, staff, or authorized subusers can manage subusers' };
+        return { error: ctx.t('server.onlyOwnerCanManageSubusers') };
       }
     }
 
     const entry = await subuserRepo().findOneBy({ id: Number(subId), serverUuid: id });
     if (!entry) {
       ctx.set.status = 404;
-      return { error: 'Subuser not found' };
+      return { error: ctx.t('server.subuserNotFound') };
     }
 
     const { permissions, locked } = ctx.body as any;
     if (!Array.isArray(permissions)) {
       ctx.set.status = 400;
-      return { error: 'permissions array required' };
+      return { error: ctx.t('validation.permissionsArrayRequired') };
     }
 
     const providedPerms = Array.isArray(permissions) ? permissions : [];
@@ -235,7 +236,7 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     if (typeof locked !== 'undefined') {
       if (!(await canManageSubusers(ctx, id))) {
         ctx.set.status = 403;
-        return { error: 'Only server owner or staff can change locked status' };
+        return { error: ctx.t('server.onlyOwnerCanTransfer') };
       }
       entry.locked = !!locked;
     }
@@ -263,7 +264,7 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     const entry = await subuserRepo().findOneBy({ id: Number(subId), serverUuid: id });
     if (!entry) {
       ctx.set.status = 404;
-      return { error: 'Subuser not found' };
+      return { error: ctx.t('server.subuserNotFound') };
     }
 
     if (!(await canManageSubusers(ctx, id))) {
@@ -276,12 +277,12 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
         const actingAsSubuser = await subuserRepo().findOne({ where: whereAny });
         if (!actingAsSubuser || !Array.isArray(actingAsSubuser.permissions) || !actingAsSubuser.permissions.includes('subusersd')) {
           ctx.set.status = 403;
-          return { error: 'Only server owner, admin, or authorized subusers can remove this entry' };
+          return { error: ctx.t('server.onlyOwnerCanRemove') };
         }
 
         if (entry.locked) {
           ctx.set.status = 403;
-          return { error: 'This subuser is locked and cannot be removed by other subusers' };
+          return { error: ctx.t('server.subuserLocked') };
         }
       }
     }
@@ -308,7 +309,7 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     const user = (ctx as any).user as User;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     const invites = await subuserRepo().find({ where: { userId: user.id, accepted: false }, order: { createdAt: 'ASC' } });
     const serverUuids = [...new Set(invites.map((invite) => invite.serverUuid))];
@@ -332,12 +333,12 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     const { inviteId } = ctx.params as any;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     const entry = await subuserRepo().findOneBy({ id: Number(inviteId), userId: user.id, accepted: false });
     if (!entry) {
       ctx.set.status = 404;
-      return { error: 'Invite not found' };
+      return { error: ctx.t('organisation.inviteNotFound') };
     }
     entry.accepted = true;
     await subuserRepo().save(entry);
@@ -361,12 +362,12 @@ export async function serverSubuserRoutes(app: any, prefix = '') {
     const { inviteId } = ctx.params as any;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     const entry = await subuserRepo().findOneBy({ id: Number(inviteId), userId: user.id, accepted: false });
     if (!entry) {
       ctx.set.status = 404;
-      return { error: 'Invite not found' };
+      return { error: ctx.t('organisation.inviteNotFound') };
     }
     await subuserRepo().delete({ id: entry.id });
     await createActivityLog({

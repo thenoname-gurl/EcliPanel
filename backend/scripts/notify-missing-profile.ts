@@ -3,7 +3,6 @@ import { AppDataSource } from '../src/config/typeorm';
 import { User } from '../src/models/user.entity';
 import { connectRedis, redisSet } from '../src/config/redis';
 import { sendMail } from '../src/services/mailService';
-import { v4 as uuidv4 } from 'uuid';
 
 const PANEL_URL = (process.env.PANEL_URL || 'https://ecli.app').replace(/\/+$/, '');
 const requiredFields = [
@@ -83,7 +82,7 @@ async function run() {
   if (testEmail) {
     const user = await repo.findOneBy({ email: testEmail });
     const missingFields = user ? getMissingFields(user) : ['firstName', 'lastName', 'address'];
-    const token = uuidv4();
+    const token = crypto.randomUUID();
     const ttl = 72 * 3600;
     if (user) {
       await redisSet(`password-reset:${token}`, String(user.id), ttl);
@@ -133,7 +132,7 @@ async function run() {
   for (const { user, missingFields } of candidates) {
     if (limit && sent >= limit) break;
 
-    const token = uuidv4();
+    const token = crypto.randomUUID();
     await redisSet(`password-reset:${token}`, String(user.id), ttl);
     const resetUrl = `${PANEL_URL}/reset-password/${token}`;
     const displayName = user.displayName || user.firstName || user.email.split('@')[0];

@@ -22,7 +22,7 @@
  * FUN FACT I HAVE NEVER EVER TESTED IT PROPERLY..
  * BURN IN HELLLLLLLLL OAUTH 2.0
  */
-import crypto from 'crypto';
+import { randomHex, sha256Base64Url, timingSafeEqual } from '../utils/bunCrypto';
 import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { OAuthApp, OAUTH_SCOPES } from '../models/oauthApp.entity';
@@ -36,12 +36,7 @@ import { hashPassword, comparePassword } from '../utils/password';
 import { consumeRateLimit } from '../config/redis';
 
 async function randomToken(bytes = 32) {
-  return new Promise<string>((resolve, reject) => {
-    crypto.randomBytes(bytes, (err, buf) => {
-      if (err) reject(err);
-      else resolve(buf.toString('hex'));
-    });
-  });
+  return Promise.resolve(randomHex(bytes));
 }
 
 function filterScopes(requested: string[], allowed: string[]): string[] {
@@ -57,20 +52,10 @@ function verifyPkce(
     return timingSafeEqual(verifier, challenge);
   }
   if (method === 'S256') {
-    const hash = crypto
-      .createHash('sha256')
-      .update(verifier)
-      .digest('base64url');
+    const hash = sha256Base64Url(verifier);
     return timingSafeEqual(hash, challenge);
   }
   return false;
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  return crypto.timingSafeEqual(ab, bb);
 }
 
 const ACCESS_TOKEN_TTL = 3600;
@@ -120,11 +105,11 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     if (!name) {
       ctx.set.status = 400;
-      return { error: 'name is required' };
+      return { error: ctx.t('validation.nameRequired') };
     }
     if (!redirectUris || !Array.isArray(redirectUris) || redirectUris.length === 0) {
       ctx.set.status = 400;
-      return { error: 'redirectUris must be a non-empty array' };
+      return { error: ctx.t('validation.redirectUrisRequired') };
     }
 
     const validScopes = filterScopes(
@@ -133,7 +118,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     );
     if (validScopes.length === 0) {
       ctx.set.status = 400;
-      return { error: 'No valid scopes provided' };
+      return { error: ctx.t('validation.scopeRequired') };
     }
 
     const allowedGrants = ['authorization_code', 'client_credentials', 'refresh_token'];
@@ -210,7 +195,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { clientId }, relations: {"owner":true} });
     if (!oauthApp || !oauthApp.active) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     return {
       clientId: oauthApp.clientId,
@@ -235,11 +220,11 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const { name, description, logoUrl, redirectUris, allowedScopes, grantTypes, active } =
       ctx.body as any;
@@ -267,11 +252,11 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const rawSecret = await randomToken(40);
     oauthApp.clientSecretHash = await hashPassword(rawSecret);
@@ -295,11 +280,11 @@ export async function oauthRoutes(app: any, prefix = '') {
     const oauthApp = await appRepo.findOne({ where: { id }, relations: {"owner":true} });
     if (!oauthApp) {
       ctx.set.status = 404;
-      return { error: 'App not found' };
+      return { error: ctx.t('common.appNotFound') };
     }
     if (oauthApp.owner?.id !== user.id && !hasPermissionSync(ctx, 'oauth:manage') && !hasPermissionSync(ctx, 'admin:oauth')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     await appRepo.remove(oauthApp);
     return { success: true };
@@ -331,7 +316,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     }
     if (!redirect_uri) {
       ctx.set.status = 400;
-      return { error: 'redirect_uri required' };
+      return { error: ctx.t('validation.redirectUriRequired') };
     }
 
     const oauthApp = await appRepo.findOne({
@@ -392,7 +377,7 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     if (!client_id || !redirect_uri) {
       ctx.set.status = 400;
-      return { error: 'client_id and redirect_uri required' };
+      return { error: ctx.t('validation.clientIdAndRedirectUriRequired') };
     }
 
     const oauthApp = await appRepo.findOne({
@@ -410,7 +395,7 @@ export async function oauthRoutes(app: any, prefix = '') {
     const stateValid = !state || /^[a-zA-Z0-9._~-]{0,256}$/.test(String(state));
     if (!stateValid) {
       ctx.set.status = 400;
-      return { error: 'invalid_state', error_description: 'State parameter contains invalid characters' };
+      return { error: ctx.t('common.invalidState'), error_description: 'State parameter contains invalid characters' };
     }
 
     const stateParam = state ? `&state=${encodeURIComponent(String(state))}` : '';
@@ -724,12 +709,12 @@ export async function oauthRoutes(app: any, prefix = '') {
 
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
 
     if (!oauthToken) {
       ctx.set.status = 403;
-      return { error: 'endpoint_only_for_oauth_tokens' };
+      return { error: ctx.t('auth.endpointOnlyForOauthTokens') };
     }
 
     const scopes = oauthToken.scopes;

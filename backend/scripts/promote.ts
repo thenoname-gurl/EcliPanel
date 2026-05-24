@@ -11,11 +11,7 @@
  *
  * Default role: rootAdmin
  */
-/// <reference types="node" />
-
-import dotenv from 'dotenv';
 import path from 'path';
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 import { AppDataSource } from '../src/config/typeorm';
 import { User } from '../src/models/user.entity';

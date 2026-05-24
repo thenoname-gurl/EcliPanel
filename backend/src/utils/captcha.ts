@@ -1,8 +1,7 @@
-import crypto from 'crypto';
+import { randomHex, timingSafeEqual } from './bunCrypto';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
-import { spawn } from 'child_process';
 
 const SECRET = process.env.CAPTCHA_SECRET!;
 const CAPTCHAS_INVISIBLE_SECRET = process.env.CAPTCHA_INVISIBLE_SECRET;
@@ -21,6 +20,12 @@ const TTS_SPEED = (() => {
   return Number.isFinite(raw) && raw >= 80 && raw <= 600 ? raw : 150;
 })();
 
+function hmacSha256Hex(secret: string | undefined, payload: string): string {
+  const hasher = new Bun.CryptoHasher('sha256', secret as string);
+  hasher.update(payload);
+  return hasher.digest('hex');
+}
+
 function randomInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
@@ -30,10 +35,10 @@ function randomFloat(min: number, max: number) {
 }
 
 export function generateInvisibleCaptcha() {
-  const nonce = crypto.randomBytes(8).toString('hex');
+  const nonce = randomHex(8);
   const created = Date.now();
   const payload = `${nonce}|${created}`;
-  const signature = crypto.createHmac('sha256', CAPTCHAS_INVISIBLE_SECRET).update(payload).digest('hex');
+  const signature = hmacSha256Hex(CAPTCHAS_INVISIBLE_SECRET, payload);
   const token = Buffer.from(`${payload}|${signature}`).toString('base64');
   return { token, created };
 }
@@ -59,9 +64,9 @@ export function validateInvisibleCaptcha(token: string, elapsedMs: number | unde
   if (created + INVISIBLE_TTL_MS < Date.now()) return false;
 
   const payload = `${nonce}|${created}`;
-  const expectedSignature = crypto.createHmac('sha256', CAPTCHAS_INVISIBLE_SECRET).update(payload).digest('hex');
+  const expectedSignature = hmacSha256Hex(CAPTCHAS_INVISIBLE_SECRET, payload);
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
+    if (!timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
       return false;
     }
   } catch {
@@ -252,89 +257,45 @@ async function synthesizeSpeechToFile(text: string): Promise<Buffer> {
   const outPath = path.join(tmpDir, `speech-${Date.now()}-${Math.random().toString(16).slice(2)}.wav`);
 
   try {
-    await new Promise<void>((resolve, reject) => {
-      const espeak = spawn('espeak', [
-        '-v', TTS_VOICE,
-        '-s', String(TTS_SPEED),
-        '-w', outPath,
-        text
-      ]);
+    const espeak = Bun.spawn(['espeak', '-v', TTS_VOICE, '-s', String(TTS_SPEED), '-w', outPath, text]);
+    const espeakCode = await espeak.exited;
+    if (espeakCode !== 0) {
+      const stderr = await new Response(espeak.stderr).text();
+      throw new Error(`espeak exited with code ${espeakCode}: ${stderr}. Is espeak installed? Run: sudo apt-get install espeak`);
+    }
 
-      const stderrChunks: Buffer[] = [];
-      espeak.stderr.on('data', (chunk) => stderrChunks.push(Buffer.from(chunk)));
-
-      espeak.on('error', (err) => {
-        reject(new Error(`espeak spawn failed: ${err.message}. Is espeak installed? Run: sudo apt-get install espeak`));
-      });
-
-      espeak.on('close', (code) => {
-        if (code !== 0) {
-          reject(new Error(`espeak exited with code ${code}: ${Buffer.concat(stderrChunks).toString()}`));
-        } else {
-          resolve();
-        }
-      });
-    });
-
-    const stat = await fs.stat(outPath).catch(() => null);
-    if (!stat || stat.size === 0) {
+    if (!(await Bun.file(outPath).exists())) {
       throw new Error(`espeak produced no output for "${text}"`);
     }
 
-    return await fs.readFile(outPath);
+    return Buffer.from(await Bun.file(outPath).arrayBuffer());
   } finally {
     await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
 async function decodeAudioBufferToFloat32(audioBuf: Buffer, targetRate = SAMPLE_RATE): Promise<Float32Array> {
-  return await new Promise((resolve, reject) => {
-    const ffmpeg = spawn('ffmpeg', [
-      '-hide_banner',
-      '-loglevel',
-      'error',
-      '-i',
-      'pipe:0',
-      '-f',
-      's16le',
-      '-acodec',
-      'pcm_s16le',
-      '-ar',
-      String(targetRate),
-      '-ac',
-      '1',
-      'pipe:1',
-    ]);
+  const ffmpeg: any = Bun.spawn(['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', 'pipe:0', '-f', 's16le', '-acodec', 'pcm_s16le', '-ar', String(targetRate), '-ac', '1', 'pipe:1'], { stdin: 'pipe' });
+  const stdin: any = ffmpeg.stdin;
+  stdin.write(audioBuf);
+  stdin.end();
 
-    const stdoutChunks: Buffer[] = [];
-    const stderrChunks: Buffer[] = [];
+  const ffCode = await ffmpeg.exited;
+  if (ffCode !== 0) {
+    const stderr = await new Response(ffmpeg.stderr).text();
+    throw new Error(`ffmpeg exited with code ${ffCode}: ${stderr}`);
+  }
 
-    ffmpeg.stdout.on('data', (chunk) => stdoutChunks.push(Buffer.from(chunk)));
-    ffmpeg.stderr.on('data', (chunk) => stderrChunks.push(Buffer.from(chunk)));
-    ffmpeg.on('error', (err) => reject(new Error(`ffmpeg spawn failed: ${err.message}`)));
+  const raw = Buffer.from(await new Response(ffmpeg.stdout).arrayBuffer());
+  if (raw.length < 2) {
+    throw new Error('ffmpeg produced no output');
+  }
 
-    ffmpeg.on('close', (code) => {
-      if (code !== 0) {
-        return reject(new Error(`ffmpeg exited with code ${code}: ${Buffer.concat(stderrChunks).toString()}`));
-      }
-
-      const raw = Buffer.concat(stdoutChunks);
-      if (raw.length < 2) {
-        return reject(new Error('ffmpeg produced no output'));
-      }
-
-      const samples = new Float32Array(Math.floor(raw.length / 2));
-      for (let i = 0; i < samples.length; i++) {
-        samples[i] = raw.readInt16LE(i * 2) / 0x7fff;
-      }
-
-      resolve(samples);
-    });
-
-    ffmpeg.stdin.on('error', (err) => reject(new Error(`ffmpeg stdin error: ${err.message}`)));
-    ffmpeg.stdin.write(audioBuf);
-    ffmpeg.stdin.end();
-  });
+  const samples = new Float32Array(Math.floor(raw.length / 2));
+  for (let i = 0; i < samples.length; i++) {
+    samples[i] = raw.readInt16LE(i * 2) / 0x7fff;
+  }
+  return samples;
 }
 
 function concatFloat32(buffers: Float32Array[]): Float32Array {
@@ -675,12 +636,12 @@ export async function generateCaptcha() {
 
   const expires = Date.now() + TTL_MS;
   const payload = `${answer}|${expires}`;
-  const signature = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+  const signature = hmacSha256Hex(SECRET, payload);
   const token = Buffer.from(`${payload}|${signature}`).toString('base64');
 
   const width = 220;
   const height = 90;
-  const captchaId = crypto.randomBytes(4).toString('hex');
+  const captchaId = randomHex(4);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">`;
   svg += `<defs>`;
@@ -801,10 +762,10 @@ export function validateCaptcha(token: string, answer: number | string): boolean
   if (!Number.isFinite(expires) || expires < Date.now()) return false;
 
   const payload = `${expectedAnswer}|${expires}`;
-  const expectedSignature = crypto.createHmac('sha256', SECRET).update(payload).digest('hex');
+  const expectedSignature = hmacSha256Hex(SECRET, payload);
 
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
+    if (!timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(expectedSignature, 'hex'))) {
       return false;
     }
   } catch {

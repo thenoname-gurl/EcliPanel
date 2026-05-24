@@ -12,7 +12,6 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { Node } from '../models/node.entity';
 import { WingsApiService } from './wingsApiService';
 import * as tar from 'tar';
-import { v4 as uuidv4 } from 'uuid';
 import { socEmitter } from './socSocketService';
 
 const EXPORT_FOLDER_PREFIX = 'ecli-export-';
@@ -106,7 +105,7 @@ export async function processExportJob(jobRow: ExportJob) {
     job = await updateJob(job, { progress: 20, message: 'Collected metadata' });
 
     const tmpRoot = os.tmpdir();
-    const outDir = path.join(tmpRoot, EXPORT_FOLDER_PREFIX + uuidv4());
+    const outDir = path.join(tmpRoot, EXPORT_FOLDER_PREFIX + crypto.randomUUID());
     await fsp.mkdir(outDir, { recursive: true });
 
     const serverData: any[] = [];
@@ -161,7 +160,7 @@ export async function processExportJob(jobRow: ExportJob) {
               continue;
             }
             await fsp.mkdir(path.dirname(destPath), { recursive: true });
-            await fsp.writeFile(destPath, fileData);
+            await Bun.write(destPath, fileData);
           } catch (e: any) {
             // skip
           }
@@ -177,7 +176,7 @@ export async function processExportJob(jobRow: ExportJob) {
     }
 
     const meta = { user, passkeys, tickets, logs, orgs, servers, serverData };
-    await fsp.writeFile(path.join(outDir, 'user-export.json'), JSON.stringify(meta, null, 2), 'utf8');
+    await Bun.write(path.join(outDir, 'user-export.json'), JSON.stringify(meta, null, 2));
     job = await updateJob(job, { progress: 50, message: 'Wrote metadata and server info' });
 
     const archivePath = path.join(tmpRoot, `export-${user.id}-${Date.now()}.tar.gz`);

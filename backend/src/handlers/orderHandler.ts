@@ -8,7 +8,6 @@ import { requireFeature } from '../middleware/featureToggle';
 import { t } from 'elysia';
 import PDFDocument from 'pdfkit';
 import stream from 'stream';
-import fs from 'fs';
 import path from 'path';
 import { generateInvoicePdf } from '../workers/pdfWorker';
 
@@ -16,9 +15,10 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
   try {
     const userRepo = AppDataSource.getRepository(User as any);
     const u = await userRepo.findOneBy({ id: order.userId }).catch(() => null);
-    const defaultLogo = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+    const defaultLogo = path.resolve(import.meta.dir, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
     const logoPath = process.env.INVOICE_LOGO_PATH
       ? path.resolve(process.env.INVOICE_LOGO_PATH)
+
       : defaultLogo;
     const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
     const issuedFrom = {
@@ -40,9 +40,9 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       doc.on('data', (d: Uint8Array) => bufs.push(d));
       doc.on('end', () => resolve(Buffer.concat(bufs)));
 
-      const defaultLogo = path.resolve(__dirname, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
+      const defaultLogo = path.resolve(import.meta.dir, '..', '..', '..', 'frontend', 'public', 'assets', 'icons', 'logo.png');
       const logoPath = process.env.INVOICE_LOGO_PATH ? path.resolve(process.env.INVOICE_LOGO_PATH) : defaultLogo;
-      if (fs.existsSync(logoPath)) {
+      if (Bun.file(logoPath).size !== -1) {
         try { doc.image(logoPath, 50, 45, { width: 90 }); } catch (e) { /* skip */ }
       }
       const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
@@ -191,23 +191,23 @@ export async function orderRoutes(app: any, prefix = '') {
     if (user.parentId) {
       if (body.orgId) {
         ctx.set.status = 403;
-        return { error: 'child_accounts_cannot_create_org_orders', message: 'Child accounts may not create organisation orders.' };
+        return { error: 'child_accounts_cannot_create_org_orders', message: ctx.t('orders.childCannotCreateOrg') };
       }
       if (body.amount != null && Number(body.amount) > 0) {
         ctx.set.status = 403;
-        return { error: 'child_accounts_cannot_create_paid_orders', message: 'Child accounts can only create free or education orders.' };
+        return { error: 'child_accounts_cannot_create_paid_orders', message: ctx.t('orders.childCanOnlyFreeOrEdu') };
       }
       if (body.planId != null) {
         const planRepo = AppDataSource.getRepository(Plan);
         const plan = await planRepo.findOneBy({ id: Number(body.planId) });
         if (!plan) {
           ctx.set.status = 400;
-          return { error: 'invalid_plan_id', message: 'Plan not found' };
+          return { error: 'invalid_plan_id', message: ctx.t('orders.planNotFound') };
         }
         const allowedTypes = ['free', 'edu'];
         if (!allowedTypes.includes(String(plan.type).toLowerCase())) {
           ctx.set.status = 403;
-          return { error: 'child_accounts_can_only_order_free_or_edu_plans', message: 'Child accounts may only order free or education plans.' };
+          return { error: 'child_accounts_can_only_order_free_or_edu_plans', message: ctx.t('orders.childCanOnlyOrderFreeOrEdu') };
         }
       }
     }
@@ -216,11 +216,11 @@ export async function orderRoutes(app: any, prefix = '') {
       const role = await getOrgMembershipRole(user.id, Number(body.orgId));
       if (!role) {
         ctx.set.status = 403;
-        return { error: 'Not member of organisation' };
+        return { error: ctx.t('organisation.notOwner') };
       }
       if (role !== 'admin' && role !== 'owner') {
         ctx.set.status = 403;
-        return { error: 'Insufficient organisation privileges' };
+        return { error: ctx.t('organisation.insufficientPrivileges') };
       }
     }
 
@@ -266,7 +266,7 @@ export async function orderRoutes(app: any, prefix = '') {
     const order = await orderRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!order) {
       ctx.set.status = 404;
-      return { error: 'Order not found' };
+      return { error: ctx.t('order.notFound') };
     }
     const user = ctx.user as any;
     if (order.userId === user.id) {
@@ -279,7 +279,7 @@ export async function orderRoutes(app: any, prefix = '') {
       }
     }
     ctx.set.status = 403;
-    return { error: 'Forbidden' };
+    return { error: ctx.t('common.forbidden') };
   }, {
     beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
@@ -291,7 +291,7 @@ export async function orderRoutes(app: any, prefix = '') {
     const order = await orderRepo.findOneBy({ id });
     if (!order) {
       ctx.set.status = 404;
-      return { error: 'Order not found' };
+      return { error: ctx.t('order.notFound') };
     }
     const user = ctx.user as any;
     if (order.userId === user.id) {
@@ -300,7 +300,7 @@ export async function orderRoutes(app: any, prefix = '') {
       const role = await getOrgMembershipRole(user.id, Number(order.orgId));
       if (role !== 'admin' && role !== 'owner') {
         ctx.set.status = 403;
-        return { error: 'Forbidden' };
+        return { error: ctx.t('common.forbidden') };
       }
     } else {
       const parentUser = await AppDataSource.getRepository(require('../models/user.entity').User).findOneBy({ id: user.id });
@@ -310,7 +310,7 @@ export async function orderRoutes(app: any, prefix = '') {
       const childUser = await AppDataSource.getRepository(require('../models/user.entity').User).findOneBy({ id: order.userId });
       if (!childUser || childUser.parentId !== user.id) {
         ctx.set.status = 403;
-        return { error: 'Forbidden' };
+        return { error: ctx.t('common.forbidden') };
       }
     }
 
@@ -326,7 +326,7 @@ export async function orderRoutes(app: any, prefix = '') {
     } catch (e: any) {
       console.error('invoice generation failed', e);
       ctx.set.status = 500;
-      return { error: 'Failed to generate invoice' };
+      return { error: ctx.t('system.invoiceGenerationFailed') };
     }
   }, {
     beforeHandle: [authenticate],

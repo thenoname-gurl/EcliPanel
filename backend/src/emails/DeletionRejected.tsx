@@ -1,5 +1,5 @@
 import { BaseEmail } from './BaseEmail';
-import { Button, Hr, Section } from '@react-email/components';
+import { Button, Section } from '@react-email/components';
 
 interface DeletionRejectedProps {
   title: string;
@@ -7,6 +7,7 @@ interface DeletionRejectedProps {
   action_url: string;
   action_text: string;
   details: string;
+  t?: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const headingStyle = {
@@ -49,26 +50,9 @@ const detailsStyle = {
   overflowX: 'auto',
 };
 
-const footerStyle = {
-  color: '#9ca3af',
-  textAlign: 'center' as const,
-  marginTop: '32px',
-  paddingTop: '24px',
-  lineHeight: '1.5',
-  fontSize: '16px',
-};
-
-const linkStyle = {
-  display: 'inline-block',
-  margin: '0 8px',
-  color: '#9ca3af',
-  textDecoration: 'none',
-  fontSize: '14px',
-};
-
-export function DeletionRejected({ title, message, action_url, action_text, details }: DeletionRejectedProps) {
+export function DeletionRejected({ title, message, action_url, action_text, details, t }: DeletionRejectedProps) {
   return (
-    <BaseEmail previewText={title}>
+    <BaseEmail previewText={title} t={t}>
       <Section style={{ marginBottom: '32px', paddingBottom: '24px' }}>
         <h1 style={headingStyle}>{title}</h1>
       </Section>
@@ -83,20 +67,6 @@ export function DeletionRejected({ title, message, action_url, action_text, deta
 
       <Section style={detailsStyle}>
         {details}
-      </Section>
-
-      <Hr style={{ height: '1px', border: '1px solid #2a2a4a', marginTop: '32px', paddingTop: '24px' }} />
-
-      <Section style={footerStyle}>
-        <p style={{ margin: 0 }}>
-          &copy; 2026 <span style={{ color: '#e594c7', fontWeight: '600' }}>EclipseSystems</span> under Misiu LLC.<br />
-          All rights reserved.
-        </p>
-        <Section style={{ marginTop: '16px' }}>
-          <a href="https://ecli.app/legal" style={linkStyle}>Legal Documents</a>
-          <a href="https://ecli.app/legal/imprint" style={linkStyle}>Impressum</a>
-          <a href="mailto:contact@ecli.app" style={linkStyle}>Contact Us</a>
-        </Section>
       </Section>
     </BaseEmail>
   );

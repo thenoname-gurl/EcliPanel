@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import { schedule } from '../utils/cron';
 import { AppDataSource } from '../config/typeorm';
 import { ExportJob } from '../models/exportJob.entity';
 import { cleanupExpiredExportArchives, processExportJob } from '../services/exportJobService';
@@ -41,7 +41,7 @@ export async function runPendingExportJobs() {
 export function scheduleExportJobRunner() {
   runPendingExportJobs().catch((e) => console.error('[exportJobRunner] Initial run failed', e));
   try {
-    cron.schedule('*/1 * * * *', async () => {
+    schedule('*/1 * * * *', async () => {
       await runPendingExportJobs().catch((e) => console.error('[exportJobRunner] Cron run failed', e));
     });
   } catch (e) {

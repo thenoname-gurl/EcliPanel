@@ -5,7 +5,6 @@ import { AIModelOrg } from '../models/aiModelOrg.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
-import axios from 'axios';
 import { redisClient } from '../config/redis';
 import { createActivityLog } from './logHandler';
 import { AIUsage } from '../models/aiUsage.entity';
@@ -13,6 +12,7 @@ import { User } from '../models/user.entity';
 import { t } from 'elysia';
 import { In } from 'typeorm';
 import { sanitizeError } from '../utils/sanitizeError';
+import { httpRequest } from '../utils/http';
 
 // I swear I hate this route handler, 
 // its a dumping ground ngl
@@ -20,11 +20,11 @@ function requireAiManagement(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user) {
     ctx.set.status = 401;
-    return { error: 'Unauthorized' };
+    return { error: ctx.t('auth.unauthorized') };
   }
   if (!hasPermissionSync(ctx, 'ai:manage')) {
     ctx.set.status = 403;
-    return { error: 'AI management permission required.' };
+    return { error: ctx.t('admin.aiPermissionRequired') };
   }
   return true;
 }
@@ -83,7 +83,7 @@ export async function aiRoutes(app: any, prefix = '') {
       const url = `${ep.base.replace(/\/$/, '')}${path.startsWith('/') ? path : '/' + path}`;
       const hdrs = { ...(headers || {}), Authorization: `Bearer ${ep.apiKey || ''}`, 'Content-Type': 'application/json' } as any;
       try {
-        const res = await axios.request({ method: method as any, url, data, headers: hdrs, timeout: timeoutMs });
+        const res = await httpRequest(url, { method: method as any, body: data, headers: hdrs, timeoutMs });
         return res;
       } catch (e: any) {
         const status = e.response?.status;
@@ -159,13 +159,13 @@ export async function aiRoutes(app: any, prefix = '') {
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
       ctx.set.status = 404;
-      return { error: 'Model not found' };
+      return { error: ctx.t('common.modelNotFound') };
     }
     const { userId, limits } = ctx.body as any;
     const user = await AppDataSource.getRepository(User).findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const existing = await modelUserRepo.findOne({ where: { model: { id: model.id }, user: { id: userId } } });
     if (existing) {
@@ -190,13 +190,13 @@ export async function aiRoutes(app: any, prefix = '') {
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
       ctx.set.status = 404;
-      return { error: 'Model not found' };
+      return { error: ctx.t('common.modelNotFound') };
     }
     const { orgId, limits } = ctx.body as any;
     const org = await AppDataSource.getRepository(require('../models/organisation.entity').Organisation).findOneBy({ id: orgId });
     if (!org) {
       ctx.set.status = 404;
-      return { error: 'Organisation not found' };
+      return { error: ctx.t('organisation.notFound') };
     }
     const link = modelOrgRepo.create({ model, organisation: org, limits });
     await modelOrgRepo.save(link);
@@ -243,11 +243,11 @@ export async function aiRoutes(app: any, prefix = '') {
 
     if (limits.tokens != null && tokens > limits.tokens) {
       ctx.set.status = 429;
-      return { error: 'Token limit exceeded' };
+      return { error: ctx.t('auth.tokenLimitExceeded') };
     }
     if (limits.requests != null && requests > limits.requests) {
       ctx.set.status = 429;
-      return { error: 'Request limit exceeded' };
+      return { error: ctx.t('common.requestLimitExceeded') };
     }
     const usage = usageRepo.create({ userId: user.id, organisationId: orgIds[0], modelId, tokens, requests, timestamp: new Date() });
     await usageRepo.save(usage);
@@ -267,7 +267,7 @@ export async function aiRoutes(app: any, prefix = '') {
     const { message, modelId, systemPrompt, history } = ctx.body as any;
     if (!message) {
       ctx.set.status = 400;
-      return { error: 'message required' };
+      return { error: ctx.t('validation.messageRequired') };
     }
 
     let model: any;
@@ -340,7 +340,7 @@ export async function aiRoutes(app: any, prefix = '') {
     }
     if (!model) {
       ctx.set.status = 400;
-      return { error: 'No model configured for your account' };
+      return { error: ctx.t('system.noModelForAccount') };
     }
 
     const allowedUserLink = await modelUserRepo.findOne({ where: { user: { id: user.id }, model: { id: model.id } } });
@@ -351,7 +351,7 @@ export async function aiRoutes(app: any, prefix = '') {
     }
     if (!allowed) {
       ctx.set.status = 403;
-      return { error: 'no access to model' };
+      return { error: ctx.t('system.noAccessToModel') };
     }
 
     try {
@@ -365,12 +365,12 @@ export async function aiRoutes(app: any, prefix = '') {
         return res.data;
       } catch (e: any) {
         ctx.set.status = 502;
-        return { error: 'AI service temporarily unavailable' };
+        return { error: ctx.t('system.aiUnavailable') };
       }
     } catch (err: any) {
       ctx.set.status = 502;
       console.error('[aiHandler:chat-completions-proxy]', err);
-      return { error: 'AI service temporarily unavailable' };
+      return { error: ctx.t('system.aiUnavailable') };
     }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -396,7 +396,7 @@ export async function aiRoutes(app: any, prefix = '') {
     }
     if (!model) {
       ctx.set.status = 400;
-      return { error: 'No model configured for your account' };
+      return { error: ctx.t('system.noModelForAccount') };
     }
 
     const allowedUserLink = await modelUserRepo.findOne({ where: { user: { id: user.id }, model: { id: model.id } } });
@@ -407,7 +407,7 @@ export async function aiRoutes(app: any, prefix = '') {
     }
     if (!allowed) {
       ctx.set.status = 403;
-      return { error: 'no access to model' };
+      return { error: ctx.t('system.noAccessToModel') };
     }
 
     try {
@@ -421,12 +421,12 @@ export async function aiRoutes(app: any, prefix = '') {
         return res.data;
       } catch (e: any) {
         ctx.set.status = 502;
-        return { error: 'AI service temporarily unavailable' };
+        return { error: ctx.t('system.aiUnavailable') };
       }
     } catch (err: any) {
       ctx.set.status = 502;
       console.error('[aiHandler:completions-proxy]', err);
-      return { error: 'AI service temporarily unavailable' };
+      return { error: ctx.t('system.aiUnavailable') };
     }
   }, {beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
@@ -438,7 +438,7 @@ export async function aiRoutes(app: any, prefix = '') {
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
       ctx.set.status = 404;
-      return { error: 'Model not found' };
+      return { error: ctx.t('common.modelNotFound') };
     }
 
     const user = ctx.user;
@@ -452,7 +452,7 @@ export async function aiRoutes(app: any, prefix = '') {
     }
     if (!allowed) {
       ctx.set.status = 403;
-      return { error: 'no access to model' };
+      return { error: ctx.t('system.noAccessToModel') };
     }
 
     const restPath = ctx.params['*'];
@@ -470,16 +470,12 @@ export async function aiRoutes(app: any, prefix = '') {
       if (ep.apiKey) headers.authorization = `Bearer ${ep.apiKey}`;
       delete headers.host;
       try {
-        const res2 = await axios({
+        const res2 = await fetch(url, {
           method: ctx.method as any,
-          url,
           headers,
-          data: ctx.raw,
-          responseType: 'stream',
-          maxContentLength: Infinity,
-          maxBodyLength: Infinity,
+          body: ['GET', 'HEAD'].includes(String(ctx.method || '').toUpperCase()) ? undefined : ctx.raw,
         });
-        const response = new Response(res2.data, { status: res2.status, headers: res2.headers as any });
+        const response = new Response(res2.body, { status: res2.status, headers: res2.headers as any });
         return response;
       } catch (e: any) {
         const status = e.response?.status;
@@ -499,7 +495,7 @@ export async function aiRoutes(app: any, prefix = '') {
     }
 
     ctx.set.status = 502;
-    return { error: 'AI service temporarily unavailable' };
+    return { error: ctx.t('system.aiUnavailable') };
   }, {beforeHandle: authenticate,
     detail: { summary: 'Proxy request to AI model endpoint', tags: ['AI'] }
   });
@@ -527,7 +523,7 @@ export async function aiRoutes(app: any, prefix = '') {
       return parsed;
     } catch (e: any) {
       ctx.set.status = 500;
-      return { error: 'Failed to read cooldowns' };
+      return { error: ctx.t('node.cooldownReadFailed') };
     }
   }, { beforeHandle: authenticate, response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) }, detail: { summary: 'Recent AI endpoint cooldowns (24h)', tags: ['AI','Admin'] } });
 
@@ -578,7 +574,7 @@ export async function aiRoutes(app: any, prefix = '') {
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
       ctx.set.status = 404;
-      return { error: 'Model not found' };
+      return { error: ctx.t('common.modelNotFound') };
     }
     const err = validateModelEndpoints(ctx.body);
     if (err) {
@@ -600,7 +596,7 @@ export async function aiRoutes(app: any, prefix = '') {
     const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
     if (!model) {
       ctx.set.status = 404;
-      return { error: 'Model not found' };
+      return { error: ctx.t('common.modelNotFound') };
     }
     await modelRepo.remove(model);
     return { success: true };

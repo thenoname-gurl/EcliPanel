@@ -1,6 +1,6 @@
 import { t } from 'elysia';
 import { In, MoreThan } from 'typeorm';
-import { randomBytes } from 'crypto';
+import { randomHex } from '../utils/bunCrypto';
 import { AppDataSource } from '../config/typeorm';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationFormInvite } from '../models/applicationFormInvite.entity';
@@ -176,33 +176,33 @@ async function ensureAuthenticatedSubmissionAllowed(opts: {
 
   if (status !== 'active') {
     ctx.set.status = 409;
-    return { error: status === 'closed' ? 'This form is closed (view only)' : 'This form is archived' };
+    return { error: status === 'closed' ? ctx.t('common.formClosed') : ctx.t('common.formArchived') };
   }
 
   if (visibility !== 'public_users') {
     ctx.set.status = 400;
-    return { error: 'This form does not accept authenticated direct submissions. Use its invite/public link.' };
+    return { error: ctx.t('organisation.applicationNotAuthenticated') };
   }
 
   if (!user) {
     ctx.set.status = 401;
-    return { error: 'Unauthorized' };
+    return { error: ctx.t('auth.unauthorized') };
   }
   if (user.suspended) {
     ctx.set.status = 403;
-    return { error: 'Suspended accounts cannot apply' };
+    return { error: ctx.t('user.suspendedCannotApply') };
   }
 
   const maxPerUser = Math.max(1, Number(form.maxSubmissionsPerUser || 1));
   const existingCount = await submissionRepo.count({ where: { formId: form.id, userId: user.id } });
   if (existingCount >= maxPerUser) {
     ctx.set.status = 409;
-    return { error: 'You have already applied to this form' };
+    return { error: ctx.t('organisation.alreadyApplied') };
   }
 
   if (!content) {
     ctx.set.status = 400;
-    return { error: 'content or answers are required' };
+    return { error: ctx.t('validation.contentOrAnswersRequired') };
   }
 
   return true;
@@ -222,19 +222,19 @@ async function ensurePublicSubmissionAllowed(opts: {
 
   if (status !== 'active') {
     ctx.set.status = 409;
-    return { error: status === 'closed' ? 'This form is closed (view only)' : 'This form is archived' };
+    return { error: status === 'closed' ? ctx.t('common.formClosed') : ctx.t('common.formArchived') };
   }
 
   if (visibility === 'public_users') {
     ctx.set.status = 401;
-    return { error: 'This form requires a panel account. Please log in first.' };
+    return { error: ctx.t('organisation.applicationRequiresAccount') };
   }
 
   if (visibility === 'private_invite') {
     const invite = await resolveInviteForForm(form.id, inviteToken);
     if (!invite) {
       ctx.set.status = 403;
-      return { error: 'A valid invite token is required for this private form' };
+      return { error: ctx.t('organisation.applicationRequiresInvite') };
     }
   }
 
@@ -248,13 +248,13 @@ async function ensurePublicSubmissionAllowed(opts: {
     if (recent) {
       const retryAt = new Date(recent.createdAt.getTime() + cooldown * 1000);
       ctx.set.status = 429;
-      return { error: 'Rate limit: once per hour per IP', retryAt };
+      return { error: ctx.t('rateLimit.perHour'), retryAt };
     }
   }
 
   if (!content) {
     ctx.set.status = 400;
-    return { error: 'content or answers are required' };
+    return { error: ctx.t('validation.contentOrAnswersRequired') };
   }
 
   return true;
@@ -294,7 +294,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!user) {
       ctx.set.status = 401;
-      return { error: 'Unauthorized' };
+      return { error: ctx.t('auth.unauthorized') };
     }
     return withRedisCache(`applications:my:${user.id}:v1`, 10, async () => {
       const rows = await submissionRepo().find({ where: { userId: user.id }, order: { id: 'DESC' } });
@@ -314,7 +314,7 @@ export async function applicationRoutes(app: any, prefix = '') {
 
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'Form not found' };
+      return { error: ctx.t('application.notFound') };
     }
 
     const allowed = await ensureAuthenticatedSubmissionAllowed({ form, user, content, ctx });
@@ -350,7 +350,7 @@ export async function applicationRoutes(app: any, prefix = '') {
 
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'Form not found' };
+      return { error: ctx.t('application.notFound') };
     }
 
     const allowed = await ensureAuthenticatedSubmissionAllowed({ form, user, content, ctx });
@@ -397,7 +397,7 @@ export async function applicationRoutes(app: any, prefix = '') {
 
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'Form not found' };
+      return { error: ctx.t('application.notFound') };
     }
 
     const ipAddress = getClientIp(ctx);
@@ -410,7 +410,7 @@ export async function applicationRoutes(app: any, prefix = '') {
       invite = await resolveInviteForForm(form.id, inviteToken);
       if (!invite) {
         ctx.set.status = 403;
-        return { error: 'A valid invite token is required for this private form' };
+        return { error: ctx.t('organisation.applicationRequiresInvite') };
       }
       invite.uses = Number(invite.uses || 0) + 1;
       await inviteRepo().save(invite);
@@ -446,13 +446,13 @@ export async function applicationRoutes(app: any, prefix = '') {
 
       if (!form) {
         ctx.set.status = 404;
-        return { error: 'Form not found' };
+        return { error: ctx.t('application.notFound') };
       }
 
       const invite = await resolveInviteForForm(form.id, inviteToken);
       if (!publicCanView(form, !!invite)) {
         ctx.set.status = 403;
-        return { error: 'This form is private or archived' };
+        return { error: ctx.t('organisation.applicationPrivate') };
       }
 
       const normalized = normalizeFormForRead(form);
@@ -476,7 +476,7 @@ export async function applicationRoutes(app: any, prefix = '') {
 
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'Form not found' };
+      return { error: ctx.t('application.notFound') };
     }
 
     const ipAddress = getClientIp(ctx);
@@ -489,7 +489,7 @@ export async function applicationRoutes(app: any, prefix = '') {
       invite = await resolveInviteForForm(form.id, inviteToken);
       if (!invite) {
         ctx.set.status = 403;
-        return { error: 'A valid invite token is required for this private form' };
+        return { error: ctx.t('organisation.applicationRequiresInvite') };
       }
       invite.uses = Number(invite.uses || 0) + 1;
       await inviteRepo().save(invite);
@@ -521,7 +521,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const forms = await formRepo().find({ order: { id: 'DESC' } });
     return forms.map(normalizeFormForRead);
@@ -535,7 +535,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const body = (ctx.body || {}) as any;
@@ -548,7 +548,7 @@ export async function applicationRoutes(app: any, prefix = '') {
 
     if (!title) {
       ctx.set.status = 400;
-      return { error: 'title is required' };
+      return { error: ctx.t('validation.titleRequired') };
     }
 
     const slugInput = sanitizeText(body.slug || title, 120);
@@ -586,13 +586,13 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const form = await formRepo().findOneBy({ id: Number(ctx.params.id) });
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'Form not found' };
+      return { error: ctx.t('application.notFound') };
     }
 
     const body = (ctx.body || {}) as any;
@@ -631,7 +631,7 @@ export async function applicationRoutes(app: any, prefix = '') {
 
     if (!form.title) {
       ctx.set.status = 400;
-      return { error: 'title is required' };
+      return { error: ctx.t('validation.titleRequired') };
     }
 
     if (!(form as any).slug) {
@@ -650,7 +650,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const id = Number(ctx.params.id);
     await inviteRepo().delete({ formId: id });
@@ -667,13 +667,13 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const formId = Number(ctx.params.id);
     const form = await formRepo().findOneBy({ id: formId });
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'Form not found' };
+      return { error: ctx.t('application.notFound') };
     }
     const rows = await inviteRepo().find({ where: { formId }, order: { id: 'DESC' } });
     return rows.map((row) => ({
@@ -690,22 +690,22 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const formId = Number(ctx.params.id);
     const form = await formRepo().findOneBy({ id: formId });
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'Form not found' };
+      return { error: ctx.t('application.notFound') };
     }
     const visibility = getEffectiveVisibility(form);
     if (visibility !== 'private_invite') {
       ctx.set.status = 400;
-      return { error: 'Invite links are only available for private_invite forms' };
+      return { error: ctx.t('organisation.applicationInviteOnly') };
     }
 
     const body = (ctx.body || {}) as any;
-    const token = randomBytes(20).toString('hex');
+    const token = randomHex(20);
     const maxUses = body.maxUses != null ? Math.max(1, Number(body.maxUses || 1)) : null;
     const expiresHours = body.expiresHours != null ? Math.max(1, Number(body.expiresHours || 24)) : null;
     const expiresAt = expiresHours ? new Date(Date.now() + expiresHours * 3600_000) : null;
@@ -734,14 +734,14 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const inviteId = Number(ctx.params.inviteId);
     const invite = await inviteRepo().findOneBy({ id: inviteId });
     if (!invite) {
       ctx.set.status = 404;
-      return { error: 'Invite not found' };
+      return { error: ctx.t('organisation.inviteNotFound') };
     }
 
     invite.revoked = true;
@@ -757,7 +757,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const status = String(ctx.query?.status || '').trim().toLowerCase();
@@ -807,19 +807,19 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const submission = await submissionRepo().findOneBy({ id: Number(ctx.params.id) });
     if (!submission) {
       ctx.set.status = 404;
-      return { error: 'Submission not found' };
+      return { error: ctx.t('organisation.submissionNotFound') };
     }
 
     const requestedStatus = String((ctx.body as any)?.status || '').trim().toLowerCase();
     if (!submissionStatuses.includes(requestedStatus as any)) {
       ctx.set.status = 400;
-      return { error: 'Invalid status' };
+      return { error: ctx.t('common.invalidStatus') };
     }
 
     submission.status = requestedStatus as any;
@@ -838,7 +838,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     await submissionRepo().delete(Number(ctx.params.id));
     return { success: true };
@@ -852,7 +852,7 @@ export async function applicationRoutes(app: any, prefix = '') {
     const user = ctx.user as User | undefined;
     if (!isAdmin(user)) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const body = (ctx.body || {}) as any;
@@ -862,7 +862,7 @@ export async function applicationRoutes(app: any, prefix = '') {
 
     if (ids.length === 0) {
       ctx.set.status = 400;
-      return { error: 'ids array is required' };
+      return { error: ctx.t('validation.idsArrayRequired') };
     }
 
     const result = await submissionRepo()

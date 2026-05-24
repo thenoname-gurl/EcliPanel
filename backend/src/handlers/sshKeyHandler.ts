@@ -17,7 +17,7 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     const keys = await sshKeyRepo().find({
       where: { userId: (ctx as any).user.id },
       order: { createdAt: 'ASC' },
-      select: ['id', 'name', 'fingerprint', 'createdAt'],
+      select: { id: true, name: true, fingerprint: true, createdAt: true },
     });
     return keys;
   }, {
@@ -30,7 +30,7 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     const { name, publicKey } = ctx.body as any;
     if (!name || !publicKey) {
       ctx.set.status = 400;
-      return { error: 'name and publicKey are required' };
+      return { error: ctx.t('validation.nameAndPublicKeyRequired') };
     }
 
     const trimmed = publicKey.trim();
@@ -49,7 +49,7 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     const existing = await sshKeyRepo().findOneBy({ userId: (ctx as any).user.id, fingerprint: fingerprint ?? undefined });
     if (existing) {
       ctx.set.status = 409;
-      return { error: 'This key is already registered on your account' };
+      return { error: ctx.t('sshKey.alreadyRegistered') };
     }
 
     const key = sshKeyRepo().create({
@@ -78,12 +78,12 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     const { name } = ctx.body as any;
     if (!name || !String(name).trim()) {
       ctx.set.status = 400;
-      return { error: 'name is required' };
+      return { error: ctx.t('validation.nameRequired') };
     }
     const key = await sshKeyRepo().findOneBy({ id: keyId, userId: (ctx as any).user.id });
     if (!key) {
       ctx.set.status = 404;
-      return { error: 'SSH key not found' };
+      return { error: ctx.t('sshKey.notFound') };
     }
     key.name = String(name).trim();
     await sshKeyRepo().save(key);
@@ -99,7 +99,7 @@ export async function sshKeyRoutes(app: any, prefix = '') {
     const key = await sshKeyRepo().findOneBy({ id: keyId, userId: (ctx as any).user.id });
     if (!key) {
       ctx.set.status = 404;
-      return { error: 'SSH key not found' };
+      return { error: ctx.t('sshKey.notFound') };
     }
     await sshKeyRepo().remove(key);
     return { success: true };

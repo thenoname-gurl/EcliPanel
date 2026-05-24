@@ -1,3 +1,7 @@
+import { defaultLocale } from '../i18n/config';
+import { getMessages } from '../i18n/loader';
+import { createT } from '../i18n/t';
+
 const SENSITIVE_PATTERNS = [
   /(['"]?password['"]?\s*[:=]\s*)[^'"\s,;}]+/gi,
   /(-----BEGIN\s+[A-Z]+\s+PRIVATE\s+KEY-----)/g,
@@ -11,7 +15,7 @@ function cleanErrorMessage(msg: string): string {
   return cleaned;
 }
 
-export function sanitizeError(e: any, context?: string): string {
+export function sanitizeError(e: any, context?: string, locale?: string): string {
   console.error(`[${context ?? 'error'}]`, e instanceof Error ? e.stack : e);
 
   if (e?.response?.data?.errors?.[0]?.detail) {
@@ -33,5 +37,6 @@ export function sanitizeError(e: any, context?: string): string {
     return cleaned;
   }
 
-  return 'An unexpected error occurred. Please try again later.';
+  const t = createT(getMessages(defaultLocale));
+  return t('common.unexpectedError');
 }

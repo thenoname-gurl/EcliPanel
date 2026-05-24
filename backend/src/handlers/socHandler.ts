@@ -13,7 +13,7 @@ export async function socRoutes(app: any, prefix = '') {
     try {
       const cached = await redisGet(key);
       if (cached) {
-        const raw = typeof cached === 'string' ? cached : cached.toString();
+        const raw = typeof cached === 'string' ? cached : String(cached);
         return JSON.parse(raw) as T;
       }
     } catch {}

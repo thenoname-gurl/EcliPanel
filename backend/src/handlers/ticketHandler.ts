@@ -4,7 +4,6 @@ import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { t } from 'elysia';
-import axios from 'axios';
 import { requireFeature } from '../middleware/featureToggle';
 import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
@@ -13,7 +12,9 @@ import { Plan } from '../models/plan.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { createActivityLog } from './logHandler';
 import { getGeoBlockRulesWithDefaults } from '../utils/eu';
+import { tForUser } from '../i18n';
 import { sanitizeError } from '../utils/sanitizeError';
+import { httpRequest } from '../utils/http';
 
 export async function ticketRoutes(app: any, prefix = '') {
   const repo = AppDataSource.getRepository(Ticket);
@@ -212,7 +213,7 @@ export async function ticketRoutes(app: any, prefix = '') {
       const url = `${ep.base.replace(/\/$/, '')}${path.startsWith('/') ? path : '/' + path}`;
       const hdrs = { ...(headers || {}), Authorization: `Bearer ${ep.apiKey || ''}`, 'Content-Type': 'application/json' } as any;
       try {
-        const res = await axios.request({ method: method as any, url, data, headers: hdrs, timeout: timeoutMs });
+        const res = await httpRequest(url, { method: method as any, body: data, headers: hdrs, timeoutMs });
         return res;
       } catch (e: any) {
         const status = e.response?.status;
@@ -262,6 +263,7 @@ export async function ticketRoutes(app: any, prefix = '') {
   }
 
   async function triggerAIForTicket(ticket: any, user: any, reason: 'creation' | 'user_reply') {
+    const _t = tForUser(user);
 
     const log = (userId: number, action: string, targetId: string, metadata: Record<string, any> = {}) =>
       createActivityLog({ userId, action, targetId, targetType: 'ticket', metadata, ipAddress: '' }).catch(() => { });
@@ -441,7 +443,7 @@ export async function ticketRoutes(app: any, prefix = '') {
       if (dir.spam) {
         const safe = sanitizeForDb(reply || 'Marked as spam by AI.');
         ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true, staffName: 'EcliAI', staffDisplayName: 'EcliAI' });
-        ticket.messages.push({ sender: 'system', message: 'System: AI marked this ticket as spam, set priority low, and disabled AI auto-response.', created: ts });
+        ticket.messages.push({ sender: 'system', message: _t('ticket.aiSpamMarked'), created: ts });
         ticket.adminReply = safe;
         Object.assign(ticket, { aiTouched: true, aiMarkedSpam: true, aiDisabled: true, priority: 'low' });
         await repo.save(ticket);
@@ -452,7 +454,7 @@ export async function ticketRoutes(app: any, prefix = '') {
       if (dir.close) {
         const safe = sanitizeForDb(reply || 'Closed by AI. Human verification required.');
         ticket.messages.push({ sender: 'staff', message: safe, created: ts, ai: true, staffName: 'EcliAI', staffDisplayName: 'EcliAI' });
-        ticket.messages.push({ sender: 'system', message: 'System: AI closed the ticket and marked for human verification.', created: ts });
+        ticket.messages.push({ sender: 'system', message: _t('ticket.aiClosedForVerification'), created: ts });
         ticket.adminReply = safe;
         Object.assign(ticket, { aiTouched: true, aiClosed: true, aiDisabled: true, status: 'closed' });
         await repo.save(ticket);
@@ -1060,12 +1062,12 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const { subject, message, priority, department } = ctx.body as any;
     if (!subject || !message) {
       ctx.set.status = 400;
-      return { error: 'subject and message required' };
+      return { error: ctx.t('validation.subjectAndMessageRequired') };
     }
 
     if (user?.supportBanned) {
       ctx.set.status = 403;
-      return { error: 'You are banned from creating support tickets.' };
+      return { error: ctx.t('user.bannedFromTickets') };
     }
 
     const now = new Date();
@@ -1133,13 +1135,13 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const ticket = await repo.findOneBy({ id: Number(ctx.params.id) });
     if (!ticket) {
       ctx.set.status = 404;
-      return { error: 'Ticket not found' };
+      return { error: ctx.t('ticket.notFound') };
     }
     const isAdminApiKey = ctx.apiKey?.type === 'admin';
     const canTicketRead = isAdminApiKey || hasPermissionSync(ctx, 'tickets:read') || hasPermissionSync(ctx, 'admin:ticket:staff');
     if (ticket.userId !== user.id && !canTicketRead) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const output: any = { ...ticket, status: normalizeStatus(ticket.status), lastReply: computeLastReply(ticket) };
@@ -1186,7 +1188,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const ticket = await repo.findOneBy({ id: Number(ctx.params.id) });
     if (!ticket) {
       ctx.set.status = 404;
-      return { error: 'Ticket not found' };
+      return { error: ctx.t('ticket.notFound') };
     }
 
     const { status, priority, reply, replyAs, message, assignedTo, department, aiDisabled, aiTouched, archived } = ctx.body as any;
@@ -1195,7 +1197,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
     if (!canAdminWrite && !canStaffReply && ticket.userId !== user.id) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
 
     const now = new Date();
@@ -1300,7 +1302,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const user = ctx.user;
     if (!hasPermissionSync(ctx, 'tickets:delete')) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     await repo.delete(Number(ctx.params.id));
     return { success: true };

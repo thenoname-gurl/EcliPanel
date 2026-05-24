@@ -18,8 +18,6 @@ import { AIModel } from '../models/aiModel.entity';
 import { Egg } from '../models/egg.entity';
 import { nodeService } from '../services/nodeService';
 import { getConfiguredFraudModels, runFraudScanForUser } from '../services/fraudService';
-import { v4 as uuidv4 } from 'uuid';
-import axios from 'axios';
 import { t } from 'elysia';
 import { createExportJob, getExportJob, listExportJobs } from '../services/exportJobService';
 import { ExportJob } from '../models/exportJob.entity';
@@ -31,6 +29,7 @@ import { ServerMount } from '../models/serverMount.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { sanitizeError } from '../utils/sanitizeError';
+import { createT, getMessages, defaultLocale } from '../i18n';
 import { In, MoreThanOrEqual } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Plan } from '../models/plan.entity';
@@ -55,6 +54,7 @@ import { isValidIpv6, isIpv6InSubnet, parseIpv6, formatIpv6 } from '../utils/ipv
 import { createActivityLog } from './logHandler';
 import { escapeHtml, markdownToHtml } from '../utils/markdown';
 import { requestServerSunsetNoticeForUser } from '../services/serverSunsetPolicyService';
+import { httpRequest } from '../utils/http';
 
 function getAgeFromDate(date?: Date | string | null): number | null {
   if (!date) return null;
@@ -291,6 +291,7 @@ async function attemptAutoSuspendServer(
   actor: string,
   dmca = false,
 ): Promise<{ success: boolean; attempted: boolean; emailSent: boolean; emailRecipient: string | null; emailError: string | null; message: string }> {
+  const _t = createT(getMessages(defaultLocale));
   const nodeRepo = AppDataSource.getRepository(Node);
   const cfgRepo = AppDataSource.getRepository(ServerConfig);
   const existingCfg = await cfgRepo.findOneBy({ uuid: serverId });
@@ -343,7 +344,7 @@ async function attemptAutoSuspendServer(
         emailSent: adminNotification.sent,
         emailRecipient: adminNotification.recipient,
         emailError: adminNotification.error || null,
-        message: 'Server suspended successfully',
+        message: _t('admin.serverSuspended'),
       };
     } catch {
       continue;
@@ -356,7 +357,7 @@ async function attemptAutoSuspendServer(
     emailSent: false,
     emailRecipient: null,
     emailError: 'server not found on any node',
-    message: 'Server not found on any node',
+    message: _t('admin.serverNotFoundOnNode'),
   };
 }
 
@@ -453,11 +454,11 @@ function requireAdminCtx(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user) {
     ctx.set.status = 401;
-    return { error: 'Unauthorized' };
+    return { error: ctx.t('auth.unauthorized') };
   }
   if (!hasPermissionSync(ctx, 'admin:access')) {
     ctx.set.status = 403;
-    return { error: 'Admin access required.' };
+    return { error: ctx.t('admin.accessRequired') };
   }
   return true;
 }
@@ -542,11 +543,11 @@ function requireAdminPageAccess(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user && !(apiKey && apiKey.type === 'admin')) {
     ctx.set.status = 401;
-    return { error: 'Unauthorized' };
+    return { error: ctx.t('auth.unauthorized') };
   }
   if (!hasAnyAdminPermission(ctx)) {
     ctx.set.status = 403;
-    return { error: 'Admin page access required.' };
+    return { error: ctx.t('admin.pageAccessRequired') };
   }
   return true;
 }
@@ -556,7 +557,7 @@ function requireAdminPermission(ctx: any, permission: string): true | { error: s
   const user = ctx.user as User | undefined;
   if (!user && !(apiKey && apiKey.type === 'admin')) {
     ctx.set.status = 401;
-    return { error: 'Unauthorized' };
+    return { error: ctx.t('auth.unauthorized') };
   }
   if (apiKey && apiKey.type === 'admin') return true;
   if (hasPermissionSync(ctx, permission)) {
@@ -577,14 +578,14 @@ function requireAdminMountsPermission(ctx: any): true | { error: string } {
   const user = ctx.user as User | undefined;
   if (!user && !(apiKey && apiKey.type === 'admin')) {
     ctx.set.status = 401;
-    return { error: 'Unauthorized' };
+    return { error: ctx.t('auth.unauthorized') };
   }
   if (apiKey && apiKey.type === 'admin') return true;
   if (hasPermissionSync(ctx, 'admin.mounts.add/remove') || hasPermissionSync(ctx, 'admin:servers:manage')) {
     return true;
   }
   ctx.set.status = 403;
-  return { error: 'Admin permission admin.mounts.add/remove required.' };
+  return { error: ctx.t('admin.mountAddRemoveRequired') };
 }
 
 const RESERVED_SHORT_URL_ROOT_CODES = new Set([
@@ -745,9 +746,14 @@ async function callAiModel(
 ): Promise<string> {
   const chatUrl = `${buildBaseUrl(model.endpoint)}/v1/chat/completions`;
 
-  const res = await axios.post(
-    chatUrl,
-    {
+  const res = await httpRequest(chatUrl, {
+    method: 'POST',
+    timeoutMs,
+    headers: {
+      Authorization: `Bearer ${model.apiKey || 'none'}`,
+      'Content-Type': 'application/json',
+    },
+    body: {
       model: (model as any).config?.modelId || model.name,
       messages: [
         { role: 'system', content: systemPrompt },
@@ -756,14 +762,7 @@ async function callAiModel(
       max_tokens: maxTokens,
       temperature: 0.1,
     },
-    {
-      headers: {
-        Authorization: `Bearer ${model.apiKey || 'none'}`,
-        'Content-Type': 'application/json',
-      },
-      timeout: timeoutMs,
-    }
-  );
+  });
 
   const reply = res.data?.choices?.[0]?.message?.content || '';
   return String(reply)
@@ -1358,24 +1357,24 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (!code || !isValidShortUrlCode(code)) {
       ctx.set.status = 400;
-      return { error: 'Invalid short URL code.' };
+      return { error: ctx.t('system.invalidShortUrlCode') };
     }
 
     if (!targetUrl) {
       ctx.set.status = 400;
-      return { error: 'Invalid target URL.' };
+      return { error: ctx.t('system.invalidTargetUrl') };
     }
 
     if (prefixValue === 'root' && RESERVED_SHORT_URL_ROOT_CODES.has(code)) {
       ctx.set.status = 400;
-      return { error: 'This root path is reserved and cannot be used.' };
+      return { error: ctx.t('system.rootPathReserved') };
     }
 
     const repo = getShortUrlRepo();
     const existing = await repo.findOne({ where: { code, prefix: prefixValue } });
     if (existing) {
       ctx.set.status = 409;
-      return { error: 'Short URL code already exists for this prefix.' };
+      return { error: ctx.t('system.shortUrlCodeExists') };
     }
 
     const user = ctx.user as User;
@@ -1422,7 +1421,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const entity = await repo.findOne({ where: { id: Number(ctx.params?.id) } });
     if (!entity) {
       ctx.set.status = 404;
-      return { error: 'Short URL not found.' };
+      return { error: ctx.t('system.shortUrlNotFound') };
     }
 
     const canEditAny = hasPermissionSync(ctx, 'admin.shorturl.edit.any');
@@ -1430,7 +1429,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const user = ctx.user as User;
       if (!user || entity.ownerId !== user.id || !hasPermissionSync(ctx, 'admin.shorturl.edit.own')) {
         ctx.set.status = 403;
-        return { error: 'Permission denied.' };
+        return { error: ctx.t('admin.permissionDenied') };
       }
     }
 
@@ -1441,21 +1440,21 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (!code || !isValidShortUrlCode(code)) {
       ctx.set.status = 400;
-      return { error: 'Invalid short URL code.' };
+      return { error: ctx.t('system.invalidShortUrlCode') };
     }
     if (!targetUrl) {
       ctx.set.status = 400;
-      return { error: 'Invalid target URL.' };
+      return { error: ctx.t('system.invalidTargetUrl') };
     }
     if (prefixValue === 'root' && RESERVED_SHORT_URL_ROOT_CODES.has(code)) {
       ctx.set.status = 400;
-      return { error: 'This root path is reserved and cannot be used.' };
+      return { error: ctx.t('system.rootPathReserved') };
     }
 
     const conflict = await repo.findOne({ where: { code, prefix: prefixValue } });
     if (conflict && conflict.id !== entity.id) {
       ctx.set.status = 409;
-      return { error: 'Short URL code already exists for this prefix.' };
+      return { error: ctx.t('system.shortUrlCodeExists') };
     }
 
     entity.code = code;
@@ -1501,7 +1500,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const entity = await repo.findOne({ where: { id: Number(ctx.params?.id) } });
     if (!entity) {
       ctx.set.status = 404;
-      return { error: 'Short URL not found.' };
+      return { error: ctx.t('system.shortUrlNotFound') };
     }
 
     await repo.delete({ id: entity.id });
@@ -1783,7 +1782,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const { subject, message, force = false, test = false } = body;
     if (!subject || !message) {
       ctx.set.status = 400;
-      return { error: 'subject and message are required' };
+      return { error: ctx.t('validation.subjectAndMessageRequired') };
     }
 
     if (test) {
@@ -1791,7 +1790,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const toEmail = adminUser?.email;
       if (!toEmail) {
         ctx.set.status = 400;
-        return { error: 'No admin email available to send test to' };
+        return { error: ctx.t('admin.noAdminEmail') };
       }
       try {
         const htmlMessage = markdownToHtml(message);
@@ -1811,14 +1810,15 @@ export async function adminRoutes(app: any, prefix = '') {
             message,
             messageHtml: htmlMessage,
             details: escapeHtml(detailsStr),
-          }
+          },
+          locale: ctx.locale,
         });
         const logRepo = AppDataSource.getRepository(UserLog);
         await logRepo.save(logRepo.create({ userId: ctx.user?.id, action: 'admin-send-product-update-test', targetType: 'test', metadata: { subject, recipients: 1 }, timestamp: new Date() } as any));
         return { success: true, recipients: 1 };
       } catch (e) {
         ctx.set.status = 500;
-        return { error: 'Failed to send test email' };
+        return { error: ctx.t('admin.testEmailFailed') };
       }
     }
 
@@ -1828,7 +1828,7 @@ export async function adminRoutes(app: any, prefix = '') {
     return {
       success: true,
       status: 'queued',
-      message: 'Broadcast has been queued and will be sent in the background. Check activity logs for progress.',
+      message: ctx.t('admin.broadcastQueued'),
       recipients: 0,
     };
   }, {
@@ -1910,13 +1910,13 @@ export async function adminRoutes(app: any, prefix = '') {
     const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
     if (adminErr !== true) return adminErr;
     const targetId = Number(ctx.params.id);
-    if (Number.isNaN(targetId)) { ctx.set.status = 400; return { error: 'Invalid user id' }; }
+    if (Number.isNaN(targetId)) { ctx.set.status = 400; return { error: ctx.t('validation.invalidUserId') }; }
     try {
       const job = await createExportJob(ctx.user?.id, targetId);
       return { success: true, jobId: job.id };
     } catch (e) {
       ctx.set.status = 500;
-      return { error: 'Failed to create export job' };
+      return { error: ctx.t('server.exportFailed') };
     }
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -1932,7 +1932,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (adminErr !== true) return adminErr;
     const id = String(ctx.params.id || '');
     const job = await getExportJob(id);
-    if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
+    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.jobNotFound') }; }
     return { job };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -1973,14 +1973,14 @@ export async function adminRoutes(app: any, prefix = '') {
     if (adminErr !== true) return adminErr;
     const id = String(ctx.params.id || '');
     const job = await getExportJob(id);
-    if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
-    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: 'Job not completed or no archive available' }; }
+    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.jobNotFound') }; }
+    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: ctx.t('server.jobNotCompleted') }; }
     try {
-      const data = await fsp.readFile(job.resultPath);
+      const data = await Bun.file(job.resultPath).arrayBuffer();
       return new Response(data, { status: 200, headers: { 'Content-Type': 'application/gzip', 'Content-Disposition': `attachment; filename="export-${job.userId}.tar.gz"` } });
     } catch (e) {
       ctx.set.status = 500;
-      return { error: 'Failed to read archive' };
+      return { error: ctx.t('application.archiveFailed') };
     }
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -1997,12 +1997,12 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const id = String(ctx.params.id || '');
     const job = await getExportJob(id) as any;
-    if (!job) { ctx.set.status = 404; return { error: 'Job not found' }; }
-    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: 'Job must be completed with archive before sharing' }; }
+    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.jobNotFound') }; }
+    if (job.status !== 'completed' || !job.resultPath) { ctx.set.status = 400; return { error: ctx.t('server.jobMustCompleteBeforeShare') }; }
 
     const expiresHoursRaw = Number((ctx.body as any)?.expiresHours ?? 24);
     const expiresHours = Number.isFinite(expiresHoursRaw) ? Math.min(Math.max(1, Math.floor(expiresHoursRaw)), 24 * 30) : 24;
-    const shareToken = `${uuidv4().replace(/-/g, '')}${uuidv4().replace(/-/g, '')}`;
+    const shareToken = `${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`;
     const shareLinkExpiresAt = new Date(Date.now() + expiresHours * 60 * 60 * 1000);
 
     const repo = AppDataSource.getRepository(ExportJob);
@@ -2036,31 +2036,31 @@ export async function adminRoutes(app: any, prefix = '') {
 
   app.get(prefix + '/public/export-shares/:token', async (ctx) => {
     const token = String(ctx.params.token || '');
-    if (!token) { ctx.set.status = 400; return { error: 'Missing token' }; }
+    if (!token) { ctx.set.status = 400; return { error: ctx.t('auth.missingToken') }; }
 
     const repo = AppDataSource.getRepository(ExportJob);
     const job = await repo.findOne({ where: { shareToken: token } as any });
-    if (!job) { ctx.set.status = 404; return { error: 'Share link not found' }; }
+    if (!job) { ctx.set.status = 404; return { error: ctx.t('server.shareLinkNotFound') }; }
 
     if (!job.shareDownloadsRemaining || job.shareDownloadsRemaining < 1) {
       ctx.set.status = 410;
-      return { error: 'Share link has already been used' };
+      return { error: ctx.t('server.shareLinkUsed') };
     }
     if (job.shareLinkExpiresAt && new Date(job.shareLinkExpiresAt).getTime() < Date.now()) {
       ctx.set.status = 410;
-      return { error: 'Share link expired' };
+      return { error: ctx.t('server.shareLinkExpired') };
     }
     if (!job.resultPath) {
       ctx.set.status = 404;
-      return { error: 'Export archive unavailable' };
+      return { error: ctx.t('server.archiveUnavailable') };
     }
 
     let data: any;
     try {
-      data = await fsp.readFile(job.resultPath);
+      data = await Bun.file(job.resultPath).arrayBuffer();
     } catch {
       ctx.set.status = 404;
-      return { error: 'Archive file not found' };
+      return { error: ctx.t('server.archiveNotFound') };
     }
 
     const consume = await repo.createQueryBuilder()
@@ -2076,7 +2076,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (!consume.affected || consume.affected < 1) {
       ctx.set.status = 410;
-      return { error: 'Share link has already been used' };
+      return { error: ctx.t('server.shareLinkUsed') };
     }
 
     return new Response(data as any, {
@@ -2113,7 +2113,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const {
@@ -2206,42 +2206,42 @@ export async function adminRoutes(app: any, prefix = '') {
         const outLimits: any = { ...limits };
         if (limits.memory !== undefined) {
           const pm = parseSizeToMB(limits.memory);
-          if (pm === null || pm < 0) { ctx.set.status = 400; return { error: 'Invalid memory value in limits' }; }
+          if (pm === null || pm < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsMemory') }; }
           outLimits.memory = pm;
         }
         if (limits.disk !== undefined) {
           const pd = parseSizeToMB(limits.disk);
-          if (pd === null || pd < 0) { ctx.set.status = 400; return { error: 'Invalid disk value in limits' }; }
+          if (pd === null || pd < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsDisk') }; }
           outLimits.disk = pd;
         }
         if (limits.cpu !== undefined) {
           const pc = parseCpuInput(limits.cpu);
-          if (pc === null || pc < 0) { ctx.set.status = 400; return { error: 'Invalid cpu value in limits' }; }
+          if (pc === null || pc < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsCpu') }; }
           outLimits.cpu = pc;
         }
         if (limits.serverLimit !== undefined) {
           const sl = Number(limits.serverLimit);
-          if (!Number.isFinite(sl) || sl < 0) { ctx.set.status = 400; return { error: 'Invalid serverLimit value in limits' }; }
+          if (!Number.isFinite(sl) || sl < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsServers') }; }
           outLimits.serverLimit = Math.round(sl);
         }
         if (limits.portsPerServer !== undefined) {
           const pp = Number(limits.portsPerServer);
-          if (!Number.isFinite(pp) || pp < 0) { ctx.set.status = 400; return { error: 'Invalid portsPerServer value in limits' }; }
+          if (!Number.isFinite(pp) || pp < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsPorts') }; }
           outLimits.portsPerServer = Math.round(pp);
         }
         if (limits.tunnelPortCount !== undefined) {
           const tp = Number(limits.tunnelPortCount);
-          if (!Number.isFinite(tp) || tp < 0) { ctx.set.status = 400; return { error: 'Invalid tunnelPortCount value in limits' }; }
+          if (!Number.isFinite(tp) || tp < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsTunnelPorts') }; }
           outLimits.tunnelPortCount = Math.round(tp);
         }
         if (limits.databases !== undefined) {
           const d = Number(limits.databases);
-          if (!Number.isFinite(d) || d < 0) { ctx.set.status = 400; return { error: 'Invalid databases value in limits' }; }
+          if (!Number.isFinite(d) || d < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsDatabases') }; }
           outLimits.databases = Math.round(d);
         }
         if (limits.backups !== undefined) {
           const b = Number(limits.backups);
-          if (!Number.isFinite(b) || b < 0) { ctx.set.status = 400; return { error: 'Invalid backups value in limits' }; }
+          if (!Number.isFinite(b) || b < 0) { ctx.set.status = 400; return { error: ctx.t('server.invalidLimitsBackups') }; }
           outLimits.backups = Math.round(b);
         }
         user.limits = outLimits;
@@ -2269,7 +2269,7 @@ export async function adminRoutes(app: any, prefix = '') {
         const dob = new Date(String(dateOfBirth));
         if (isNaN(dob.getTime())) {
           ctx.set.status = 400;
-          return { error: 'invalid_date_of_birth', message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
+          return { error: ctx.t('common.invalidDateOfBirth'), message: 'dateOfBirth must be a valid date string in YYYY-MM-DD format.' };
         }
         const updatedAge = getAgeFromDate(dob);
         const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
@@ -2288,11 +2288,11 @@ export async function adminRoutes(app: any, prefix = '') {
         const nextParentId = Number(parentId);
         if (!Number.isInteger(nextParentId) || nextParentId <= 0) {
           ctx.set.status = 400;
-          return { error: 'Invalid parent user id' };
+          return { error: ctx.t('validation.invalidParentUserId') };
         }
         if (nextParentId === user.id) {
           ctx.set.status = 400;
-          return { error: 'A user cannot be their own parent' };
+          return { error: ctx.t('user.cannotBeOwnParent') };
         }
         user.parentId = nextParentId;
       }
@@ -2379,7 +2379,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const previousParentId = user.parentId ?? null;
@@ -2417,7 +2417,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const parentId = Number(ctx.params.id);
     if (!Number.isInteger(parentId) || parentId <= 0) {
       ctx.set.status = 400;
-      return { error: 'invalid_parent_id', message: 'Invalid parent user id.' };
+      return { error: ctx.t('user.invalidParentId'), message: 'Invalid parent user id.' };
     }
     const children = await userRepo.find({ where: { parentId }, order: { id: 'ASC' } });
     return { success: true, children };
@@ -2443,7 +2443,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const target = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!target) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const body = (ctx.body || {}) as any;
     const removePortal = body.removePortal === undefined ? true : !!body.removePortal;
@@ -2483,7 +2483,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const target = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!target) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     target.studentVerified = false;
@@ -2520,7 +2520,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const userId = Number(ctx.params.id);
     if (!Number.isFinite(userId) || userId <= 0) {
       ctx.set.status = 400;
-      return { error: 'Invalid user id' };
+      return { error: ctx.t('validation.invalidUserId') };
     }
 
     const body = (ctx.body || {}) as any;
@@ -2537,7 +2537,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const reason = result.reason || 'unknown_error';
       if (reason === 'user_not_found') {
         ctx.set.status = 404;
-        return { error: 'User not found' };
+        return { error: ctx.t('user.notFound') };
       }
       ctx.set.status = 400;
       return { error: `Unable to send sunset notice: ${reason}` };
@@ -2576,11 +2576,11 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     if (ctx.user?.id === user.id) {
       ctx.set.status = 400;
-      return { error: 'Cannot delete your own account' };
+      return { error: ctx.t('user.cannotDeleteOwn') };
     }
     await userRepo.remove(user);
     return { success: true };
@@ -2601,7 +2601,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const canReadTickets = isAdminApiKey || hasPermissionSync(ctx, 'tickets:read') || hasPermissionSync(ctx, 'admin:ticket:staff');
     if (!canReadTickets) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const userRepo = AppDataSource.getRepository(User);
@@ -2668,7 +2668,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const tickets = await qb.skip((p - 1) * per).take(per).getMany();
 
     const userIds = [...new Set(tickets.map((t: any) => t.userId))];
-    const users = userIds.length ? await userRepo.findByIds(userIds) : [];
+    const users = userIds.length ? await userRepo.findBy({ id: In(userIds) }) : [];
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -2696,13 +2696,13 @@ export async function adminRoutes(app: any, prefix = '') {
     const canStaffReply = isAdminApiKey || hasPermissionSync(ctx, 'admin:ticket:staff');
     if (!canAdminWrite && !canStaffReply) {
       ctx.set.status = 403;
-      return { error: 'Forbidden' };
+      return { error: ctx.t('common.forbidden') };
     }
     const ticketRepo = AppDataSource.getRepository(Ticket);
     const ticket = await ticketRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!ticket) {
       ctx.set.status = 404;
-      return { error: 'Ticket not found' };
+      return { error: ctx.t('ticket.notFound') };
     }
 
     const {
@@ -2795,7 +2795,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const { ids, archived } = ctx.body as any;
     if (!Array.isArray(ids) || ids.length === 0) {
       ctx.set.status = 400;
-      return { error: 'ids array is required' };
+      return { error: ctx.t('validation.idsArrayRequired') };
     }
 
     const archiveFlag = Boolean(archived);
@@ -2825,7 +2825,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const records = await verRepo.find({ order: { id: 'DESC' } });
     const userIds = [...new Set(records.map((r) => r.userId))];
-    const users = await userRepo.findByIds(userIds);
+    const users = await userRepo.findBy({ id: In(userIds) });
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -2857,12 +2857,12 @@ export async function adminRoutes(app: any, prefix = '') {
     const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     const { status } = ctx.body as any;
     if (!['verified', 'failed'].includes(status)) {
       ctx.set.status = 400;
-      return { error: 'status must be verified or failed' };
+      return { error: ctx.t('common.statusMustBeVerifiedOrFailed') };
     }
     rec.status = status;
     if (status === 'verified') {
@@ -2897,7 +2897,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     const uploadDir = process.cwd();
     for (const field of ['idDocumentUrl', 'selfieUrl'] as const) {
@@ -2934,7 +2934,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     const records = await delRepo.find({ order: { requestedAt: 'DESC' } });
     const userIds = [...new Set(records.map((r) => r.userId))];
-    const users = await userRepo.findByIds(userIds);
+    const users = await userRepo.findBy({ id: In(userIds) });
     const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -2958,12 +2958,12 @@ export async function adminRoutes(app: any, prefix = '') {
     const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     const { status } = ctx.body as any;
     if (status !== 'approved' && status !== 'rejected') {
       ctx.set.status = 400;
-      return { error: 'Invalid status' };
+      return { error: ctx.t('common.invalidStatus') };
     }
     rec.status = status;
     rec.approvedBy = adminUser.id;
@@ -2990,12 +2990,13 @@ export async function adminRoutes(app: any, prefix = '') {
           template: 'deletion-approved',
           vars: {
             title: 'Account Deletion Approved',
-            message: 'Your account deletion request has been approved. Your account will be permanently deleted in 14 days. If you change your mind, you can log in and cancel the deletion before it is processed.',
+            message: ctx.t('admin.deletionApprovedMsg'),
             action_url: `${panelUrl}/login`,
             action_text: 'Log in to Cancel',
             details: `Scheduled deletion: ${rec.scheduledDeletionAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}\n\nOnce deleted, your account and data cannot be recovered.`,
           },
-        }).catch((e: any) => console.error('[adminHandler] failed to send approval email', e));
+          locale: ctx.locale,
+}).catch((e: any) => console.error('[adminHandler] failed to send approval email', e));
       }
     }
 
@@ -3006,12 +3007,13 @@ export async function adminRoutes(app: any, prefix = '') {
           template: 'deletion-rejected',
           vars: {
             title: 'Account Deletion Request Declined',
-            message: 'Your account deletion request has been reviewed and declined. If you believe this decision was made in error or if you have any questions, please contact our support team.',
+            message: ctx.t('admin.deletionDeclinedMsg'),
             action_url: `${panelUrl}/contact`,
             action_text: 'Contact Support',
             details: 'For assistance, please reply to this email or contact our support team through the panel.',
           },
-        }).catch((e: any) => console.error('[adminHandler] failed to send rejection email', e));
+          locale: ctx.locale,
+}).catch((e: any) => console.error('[adminHandler] failed to send rejection email', e));
       }
     }
 
@@ -3040,11 +3042,11 @@ export async function adminRoutes(app: any, prefix = '') {
     const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     if (rec.status !== 'pending_deletion' && rec.status !== 'approved') {
       ctx.set.status = 400;
-      return { error: 'Deletion request is not in pending deletion state' };
+      return { error: ctx.t('deletion.notPending') };
     }
     if (rec.status === 'approved') {
       rec.status = 'pending_deletion';
@@ -3076,11 +3078,11 @@ export async function adminRoutes(app: any, prefix = '') {
     const rec = await delRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!rec) {
       ctx.set.status = 404;
-      return { error: 'Not found' };
+      return { error: ctx.t('common.notFound') };
     }
     if (rec.status !== 'pending_deletion') {
       ctx.set.status = 400;
-      return { error: 'Only pending deletion requests can be cancelled' };
+      return { error: ctx.t('deletion.onlyPendingCancellable') };
     }
 
     const targetUser = await userRepo.findOneBy({ id: rec.userId });
@@ -3149,7 +3151,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const orgs = await qb.skip((p - 1) * per).take(per).getMany();
 
     const ownerIds = [...new Set(orgs.map((o: any) => o.ownerId))];
-    const owners = ownerIds.length ? await userRepo.findByIds(ownerIds) : [];
+    const owners = ownerIds.length ? await userRepo.findBy({ id: In(ownerIds) }) : [];
     const ownerMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
     for (const u of owners) ownerMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
 
@@ -3194,7 +3196,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!org) {
       ctx.set.status = 404;
-      return { error: 'Organisation not found' };
+      return { error: ctx.t('organisation.notFound') };
     }
 
     const { name, handle, portalTier, ownerId, isStaff } = ctx.body as any;
@@ -3260,17 +3262,17 @@ export async function adminRoutes(app: any, prefix = '') {
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!org) {
       ctx.set.status = 404;
-      return { error: 'Organisation not found' };
+      return { error: ctx.t('organisation.notFound') };
     }
     const { userId, orgRole = 'member' } = ctx.body as any;
     if (!userId) {
       ctx.set.status = 400;
-      return { error: 'userId required' };
+      return { error: ctx.t('validation.userIdRequired') };
     }
     const target = await userRepo.findOneBy({ id: Number(userId) });
     if (!target) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const existing = await orgMemberRepo.findOne({ where: { userId: target.id, organisationId: org.id } });
@@ -3324,16 +3326,16 @@ export async function adminRoutes(app: any, prefix = '') {
     const org = await orgRepo.findOneBy({ id: orgId });
     if (!org) {
       ctx.set.status = 404;
-      return { error: 'Organisation not found' };
+      return { error: ctx.t('organisation.notFound') };
     }
     const membership = await orgMemberRepo.findOne({ where: { userId: targetUserId, organisationId: orgId } });
     if (!membership) {
       ctx.set.status = 404;
-      return { error: 'User not found in organisation' };
+      return { error: ctx.t('user.notFoundOrg') };
     }
     if (targetUserId === Number(org.ownerId) || membership.orgRole === 'owner') {
       ctx.set.status = 403;
-      return { error: 'Cannot remove organisation owner' };
+      return { error: ctx.t('organisation.cannotRemoveOwner') };
     }
     await orgMemberRepo.remove(membership);
     return { success: true };
@@ -3359,7 +3361,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const org = await orgRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!org) {
       ctx.set.status = 404;
-      return { error: 'Organisation not found' };
+      return { error: ctx.t('organisation.notFound') };
     }
 
     try {
@@ -3369,7 +3371,7 @@ export async function adminRoutes(app: any, prefix = '') {
     } catch (e: any) {
       console.error('Failed to clear organisation members before delete:', e?.message || e);
       ctx.set.status = 500;
-      return { error: 'Failed to delete organisation' };
+      return { error: ctx.t('organisation.deleteFailed') };
     }
     return { success: true };
   }, {
@@ -3513,7 +3515,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const serverId = String(ctx.params.id || '').trim();
     if (!serverId) {
       ctx.set.status = 400;
-      return { error: 'Server ID is required' };
+      return { error: ctx.t('validation.serverIDIsRequired') };
     }
 
     const formRepo = AppDataSource.getRepository(ApplicationForm);
@@ -3594,18 +3596,18 @@ export async function adminRoutes(app: any, prefix = '') {
     const gamblingConfig = getGamblingConfigFromMap(settingsMap);
     if (!['start', 'stop', 'restart', 'kill'].includes(action)) {
       ctx.set.status = 400;
-      return { error: 'Invalid action. Must be start, stop, restart or kill.' };
+      return { error: ctx.t('server.invalidAction') };
     }
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     const node = cfg ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
     if (cfg?.hibernated && (action === 'start' || action === 'restart')) {
       ctx.set.status = 403;
-      return { error: 'Server is hibernated and cannot be started or restarted' };
+      return { error: ctx.t('server.hibernated') };
     }
 
     if (gamblingConfig.gamblingEnabled && isGamblingModeEnabled(requester) && POWER_DICE_ACTIONS.has(String(action || '').toLowerCase()) && Math.random() < gamblingConfig.gamblingPowerDenyChance) {
@@ -3659,7 +3661,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     const currentProcessConfig = (cfg.processConfig && typeof cfg.processConfig === 'object')
@@ -3682,7 +3684,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found for server' };
+      return { error: ctx.t('server.nodeNotFound') };
     }
 
     try {
@@ -3719,24 +3721,24 @@ export async function adminRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
     if (name !== undefined) cfg.name = name;
     if (description !== undefined) cfg.description = description;
     if (userId !== undefined) cfg.userId = Number(userId);
     if (memory !== undefined) {
       const pm = parseSizeToMB(memory);
-      if (pm === null || pm < 0) { ctx.set.status = 400; return { error: 'Invalid memory value' }; }
+      if (pm === null || pm < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidMemoryValue') }; }
       cfg.memory = pm;
     }
     if (disk !== undefined) {
       const pd = parseSizeToMB(disk);
-      if (pd === null || pd < 0) { ctx.set.status = 400; return { error: 'Invalid disk value' }; }
+      if (pd === null || pd < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidDiskValue') }; }
       cfg.disk = pd;
     }
     if (cpu !== undefined) {
       const pc = parseCpuInput(cpu);
-      if (pc === null || pc < 0) { ctx.set.status = 400; return { error: 'Invalid cpu value' }; }
+      if (pc === null || pc < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidCpuValue') }; }
       cfg.cpu = pc;
     }
     if (swap !== undefined) cfg.swap = Number(swap);
@@ -3745,13 +3747,13 @@ export async function adminRoutes(app: any, prefix = '') {
     if (ignoreAntiAbuse !== undefined) cfg.ignoreAntiAbuse = Boolean(ignoreAntiAbuse);
 
     if (cfg.memory != null && (!(Number.isFinite(Number(cfg.memory)) && Number(cfg.memory) >= 0))) {
-      ctx.set.status = 400; return { error: 'Invalid memory value' };
+      ctx.set.status = 400; return { error: ctx.t('validation.invalidMemoryValue') };
     }
     if (cfg.disk != null && (!(Number.isFinite(Number(cfg.disk)) && Number(cfg.disk) >= 0))) {
-      ctx.set.status = 400; return { error: 'Invalid disk value' };
+      ctx.set.status = 400; return { error: ctx.t('validation.invalidDiskValue') };
     }
     if (cfg.cpu != null && (!(Number.isFinite(Number(cfg.cpu)) && Number(cfg.cpu) >= 0))) {
-      ctx.set.status = 400; return { error: 'Invalid cpu value' };
+      ctx.set.status = 400; return { error: ctx.t('validation.invalidCpuValue') };
     }
     if (oomDisabled !== undefined) cfg.oomDisabled = Boolean(oomDisabled);
     if (dockerImage !== undefined) cfg.dockerImage = dockerImage;
@@ -3847,7 +3849,7 @@ export async function adminRoutes(app: any, prefix = '') {
       } catch { }
     }
     ctx.set.status = 404;
-    return { error: 'Server not found on any node' };
+    return { error: ctx.t('server.notFoundOnNode') };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
@@ -3872,38 +3874,38 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (!ip || !type) {
       ctx.set.status = 400;
-      return { error: 'ip and type are required' };
+      return { error: ctx.t('validation.ipTypeRequired') };
     }
     if (type !== 'ipv4' && type !== 'ipv6') {
       ctx.set.status = 400;
-      return { error: 'type must be ipv4 or ipv6' };
+      return { error: ctx.t('validation.typeIpv4OrIpv6') };
     }
 
     if (type === 'ipv4' && !/^(\d{1,3}\.){3}\d{1,3}$/.test(String(ip))) {
       ctx.set.status = 400;
-      return { error: 'Invalid IPv4 address format' };
+      return { error: ctx.t('server.invalidIpv4') };
     }
     if (type === 'ipv6' && !isValidIpv6(String(ip))) {
       ctx.set.status = 400;
-      return { error: 'Invalid IPv6 address format' };
+      return { error: ctx.t('server.invalidIpv6') };
     }
 
     const cfgRepo = AppDataSource.getRepository(ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     if (!cfg.kvmPassthroughEnabled) {
       ctx.set.status = 400;
-      return { error: 'Dedicated IP assignment is only supported for KVM servers.' };
+      return { error: ctx.t('server.dedicatedIpKvmOnly') };
     }
 
     const node = cfg.nodeId ? await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId }) : null;
     if (!node) {
       ctx.set.status = 400;
-      return { error: 'Server node not found' };
+      return { error: ctx.t('server.serverNodeNotFound') };
     }
 
     const alloc = (cfg.allocations as any) || { mappings: {}, owners: {}, dedicatedIps: [] };
@@ -3915,22 +3917,22 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (alloc.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
       ctx.set.status = 400;
-      return { error: 'This IP is already assigned as a dedicated IP to this server.' };
+      return { error: ctx.t('server.dedicatedIpAlreadyAssigned') };
     }
 
-    const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: ['allocations'] });
+    const nodeConfigs = await cfgRepo.find({ where: { nodeId: node.id }, select: { allocations: true } });
     for (const c of nodeConfigs) {
       const a = c.allocations as any;
       if (!a) continue;
       if (a.dedicatedIps && Array.isArray(a.dedicatedIps)) {
         if (a.dedicatedIps.some((d: any) => d.ip === normalizedIp)) {
           ctx.set.status = 400;
-          return { error: 'This IP is already in use as a dedicated IP on this node.' };
+          return { error: ctx.t('server.dedicatedIpInUseNode') };
         }
       }
       if (a.mappings && Object.keys(a.mappings).some((mip) => mip === normalizedIp)) {
         ctx.set.status = 400;
-        return { error: 'This IP is already in use in allocations on this node.' };
+        return { error: ctx.t('server.dedicatedIpInUseAllocations') };
       }
     }
 
@@ -3983,14 +3985,14 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (!ip) {
       ctx.set.status = 400;
-      return { error: 'ip is required' };
+      return { error: ctx.t('validation.ipRequired') };
     }
 
     const cfgRepo = AppDataSource.getRepository(ServerConfig);
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server not found' };
+      return { error: ctx.t('server.notFound') };
     }
 
     const alloc = (cfg.allocations as any) || {};
@@ -3998,7 +4000,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const idx = dedicatedIps.findIndex((d: any) => d.ip === String(ip).trim());
     if (idx === -1) {
       ctx.set.status = 404;
-      return { error: 'Dedicated IP not found on this server.' };
+      return { error: ctx.t('server.dedicatedIpNotFound') };
     }
 
     dedicatedIps.splice(idx, 1);
@@ -4053,15 +4055,15 @@ export async function adminRoutes(app: any, prefix = '') {
     const parsedMemory = parseSizeToMB(memory);
     const parsedDisk = parseSizeToMB(disk);
     const parsedCpu = parseCpuInput(cpu);
-    if (parsedMemory === null || parsedMemory < 0) { ctx.set.status = 400; return { error: 'Invalid memory value' }; }
-    if (parsedDisk === null || parsedDisk < 0) { ctx.set.status = 400; return { error: 'Invalid disk value' }; }
-    if (parsedCpu === null || parsedCpu < 0) { ctx.set.status = 400; return { error: 'Invalid cpu value' }; }
+    if (parsedMemory === null || parsedMemory < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidMemoryValue') }; }
+    if (parsedDisk === null || parsedDisk < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidDiskValue') }; }
+    if (parsedCpu === null || parsedCpu < 0) { ctx.set.status = 400; return { error: ctx.t('validation.invalidCpuValue') }; }
     memory = parsedMemory;
     disk = parsedDisk;
     cpu = parsedCpu;
     if (!nodeId) {
       ctx.set.status = 400;
-      return { error: 'nodeId is required' };
+      return { error: ctx.t('validation.nodeIdRequired') };
     }
 
     const ownerId: number = userId ? Number(userId) : ctx.user?.id;
@@ -4069,7 +4071,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const node = await AppDataSource.getRepository(Node).findOneBy({ id: Number(nodeId) });
     if (!node) {
       ctx.set.status = 404;
-      return { error: 'Node not found' };
+      return { error: ctx.t('node.notFound') };
     }
 
     if ((node as any).deploymentsDisabled) {
@@ -4077,7 +4079,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { error: (node as any).deploymentNotice || 'This node is temporarily unavailable for deployments' };
     }
 
-    const serverUuid = uuidv4();
+    const serverUuid = crypto.randomUUID();
     let dockerImage = 'ghcr.io/pterodactyl/yolks:nodejs_18';
     let startup = 'node index.js';
     let envObject: Record<string, string> = {};
@@ -4301,7 +4303,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     return {
       status: 'queued',
-      message: 'Sync to Wings has been queued and will complete in the background. Check your activity notifications for updates.',
+      message: ctx.t('admin.syncQueued'),
     };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -4414,7 +4416,7 @@ export async function adminRoutes(app: any, prefix = '') {
       } catch { }
     }
     ctx.set.status = 404;
-    return { error: 'Server not found on any node' };
+    return { error: ctx.t('server.notFoundOnNode') };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
@@ -4470,7 +4472,7 @@ export async function adminRoutes(app: any, prefix = '') {
       } catch { }
     }
     ctx.set.status = 404;
-    return { error: 'Server not found on any node' };
+    return { error: ctx.t('server.notFoundOnNode') };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     schema: {
@@ -4492,7 +4494,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const serverId = String(ctx.params.id || '').trim();
     if (!serverId) {
       ctx.set.status = 400;
-      return { error: 'Server ID is required' };
+      return { error: ctx.t('validation.serverIDIsRequired') };
     }
 
     const body = (ctx.body || {}) as any;
@@ -4507,7 +4509,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const cfg = await cfgRepo.findOneBy({ uuid: serverId });
     if (!cfg) {
       ctx.set.status = 404;
-      return { error: 'Server config not found' };
+      return { error: ctx.t('server.configNotFound') };
     }
 
     const restoreCpu = Math.max(1, Number(cfg.cpu || 100));
@@ -4527,7 +4529,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (!found) {
       ctx.set.status = 404;
-      return { error: 'Server not found on any node' };
+      return { error: ctx.t('server.notFoundOnNode') };
     }
 
     await cfgRepo.update({ uuid: serverId }, { cpu: cpuLimitPercent as any });
@@ -4748,7 +4750,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const id = Number((ctx.params as any)?.id);
     if (!Number.isFinite(id) || id <= 0) {
       ctx.set.status = 400;
-      return { error: 'valid incident id is required' };
+      return { error: ctx.t('validation.validIncidentIdRequired') };
     }
 
     const body = (ctx.body || {}) as any;
@@ -4766,7 +4768,7 @@ export async function adminRoutes(app: any, prefix = '') {
       nextStatus = 'pending';
     } else {
       ctx.set.status = 400;
-      return { error: 'invalid action, expected resolve|dismiss|archive|pending' };
+      return { error: ctx.t('admin.incidentInvalidAction') };
     }
 
     const formRepo = AppDataSource.getRepository(ApplicationForm);
@@ -4774,13 +4776,13 @@ export async function adminRoutes(app: any, prefix = '') {
     const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'antiabuse incidents form not found' };
+      return { error: ctx.t('admin.antiabuseFormNotFound') };
     }
 
     const row = await submissionRepo.findOne({ where: { id, formId: form.id } as any });
     if (!row) {
       ctx.set.status = 404;
-      return { error: 'incident not found' };
+      return { error: ctx.t('organisation.incidentNotFound') };
     }
 
     const meta = (row.meta && typeof row.meta === 'object') ? { ...row.meta } : {};
@@ -4828,7 +4830,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (ids.length === 0) {
       ctx.set.status = 400;
-      return { error: 'ids array is required' };
+      return { error: ctx.t('validation.idsArrayRequired') };
     }
 
     const action = sanitizeAntiAbuseText(body.action || body.status || '', 40).toLowerCase();
@@ -4845,7 +4847,7 @@ export async function adminRoutes(app: any, prefix = '') {
       nextStatus = 'pending';
     } else {
       ctx.set.status = 400;
-      return { error: 'invalid action, expected resolve|dismiss|archive|pending' };
+      return { error: ctx.t('admin.incidentInvalidAction') };
     }
 
     const formRepo = AppDataSource.getRepository(ApplicationForm);
@@ -4853,7 +4855,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'antiabuse incidents form not found' };
+      return { error: ctx.t('admin.antiabuseFormNotFound') };
     }
 
     const rows = await submissionRepo.findBy({ formId: form.id } as any);
@@ -4904,7 +4906,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const id = Number((ctx.params as any)?.id);
     if (!Number.isFinite(id) || id <= 0) {
       ctx.set.status = 400;
-      return { error: 'valid incident id is required' };
+      return { error: ctx.t('validation.validIncidentIdRequired') };
     }
 
     const formRepo = AppDataSource.getRepository(ApplicationForm);
@@ -4912,13 +4914,13 @@ export async function adminRoutes(app: any, prefix = '') {
     const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'antiabuse incidents form not found' };
+      return { error: ctx.t('admin.antiabuseFormNotFound') };
     }
 
     const result = await submissionRepo.delete({ id, formId: form.id } as any);
     if (!result.affected) {
       ctx.set.status = 404;
-      return { error: 'incident not found' };
+      return { error: ctx.t('organisation.incidentNotFound') };
     }
 
     return { success: true, deleted: Number(result.affected || 0) };
@@ -4947,7 +4949,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (ids.length === 0) {
       ctx.set.status = 400;
-      return { error: 'ids array is required' };
+      return { error: ctx.t('validation.idsArrayRequired') };
     }
 
     const formRepo = AppDataSource.getRepository(ApplicationForm);
@@ -4955,7 +4957,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
     if (!form) {
       ctx.set.status = 404;
-      return { error: 'antiabuse incidents form not found' };
+      return { error: ctx.t('admin.antiabuseFormNotFound') };
     }
 
     const result = await submissionRepo
@@ -4995,7 +4997,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
     if (!serverId || !reason) {
       ctx.set.status = 400;
-      return { error: 'serverId and reason are required' };
+      return { error: ctx.t('validation.serverIdAndReasonRequired') };
     }
 
     const cfgRepo = AppDataSource.getRepository(ServerConfig);
@@ -5007,7 +5009,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return {
         success: true,
         ignored: true,
-        message: 'Anti-Abuse reporting is disabled for this server.',
+        message: ctx.t('admin.antiAbuseDisabled'),
       };
     }
 
@@ -5250,6 +5252,7 @@ export async function adminRoutes(app: any, prefix = '') {
           from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
           subject: `[AntiAbuse] ${cfg?.name || serverId} suspended (${detectionType})`,
           text: lines.join('\n'),
+          locale: ctx.locale,
         });
         emailSent = true;
       } catch (e: any) {
@@ -5356,7 +5359,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const AIModelUser = require('../models/aiModelUser.entity').AIModelUser;
@@ -5455,7 +5458,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const body = (ctx.body || {}) as any;
@@ -5513,20 +5516,20 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const { file, name, description } = (ctx.body || {}) as any;
     const uploadFile = Array.isArray(file) ? file[0] : file;
     if (!uploadFile) {
       ctx.set.status = 400;
-      return { error: 'No file' };
+      return { error: ctx.t('validation.noFile') };
     }
 
     const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
     if (mime !== 'application/pdf') {
       ctx.set.status = 400;
-      return { error: 'Invalid file type; only PDF supported' };
+      return { error: ctx.t('validation.fileTypePdfOnly') };
     }
 
     const ab = await uploadFile.arrayBuffer();
@@ -5543,7 +5546,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const { encryptBuffer } = require('../utils/crypto');
       return encryptBuffer(buffer);
     });
-    fs.writeFileSync(filepath, encrypted);
+    await Bun.write(filepath, encrypted);
 
     const backendBase = (process.env.BACKEND_URL || '').replace(/\/+$/, '') || (() => {
       const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
@@ -5562,7 +5565,7 @@ export async function adminRoutes(app: any, prefix = '') {
       : { agreed: Array.isArray(currentDocs?.agreed) ? currentDocs.agreed : [], admin: Array.isArray(currentDocs?.admin) ? currentDocs.admin : [] };
 
     const newDoc = {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       name: String(name || originalName),
       description: description ? String(description) : undefined,
       filename,
@@ -5599,7 +5602,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const passkeyRepo = AppDataSource.getRepository(Passkey);
@@ -5772,7 +5775,7 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     }
 
-    const dataExportDir = path.join(os.tmpdir(), `data-export-${Date.now()}-${uuidv4()}`);
+    const dataExportDir = path.join(os.tmpdir(), `data-export-${Date.now()}-${crypto.randomUUID()}`);
     await fsp.mkdir(dataExportDir, { recursive: true });
 
     const metadataPath = path.join(dataExportDir, 'user-export.json');
@@ -5793,15 +5796,15 @@ export async function adminRoutes(app: any, prefix = '') {
       serverFiles: serverFilesMap,
       exportedAt: new Date().toISOString(),
     };
-    await fsp.writeFile(metadataPath, JSON.stringify(payload, null, 2), 'utf8');
+    await Bun.write(metadataPath, JSON.stringify(payload, null, 2));
 
     for (const [serverUuid, logs] of Object.entries(serverLogs)) {
       const logFile = path.join(dataExportDir, `server-${serverUuid}-logs.txt`);
-      await fsp.writeFile(logFile, logs.join('\n'), 'utf8');
+      await Bun.write(logFile, logs.join('\n'));
     }
     for (const [serverUuid, backups] of Object.entries(serverBackups)) {
       const backupFile = path.join(dataExportDir, `server-${serverUuid}-backups.json`);
-      await fsp.writeFile(backupFile, JSON.stringify(backups, null, 2), 'utf8');
+      await Bun.write(backupFile, JSON.stringify(backups, null, 2));
     }
 
     for (const s of servers) {
@@ -5824,14 +5827,12 @@ export async function adminRoutes(app: any, prefix = '') {
           const res = await svc.downloadFile(serverUuid, file.path);
           const rawData = res.data;
           await fsp.mkdir(path.dirname(target), { recursive: true });
-          if (rawData instanceof Buffer) {
-            await fsp.writeFile(target, rawData);
-          } else if (rawData instanceof ArrayBuffer) {
-            await fsp.writeFile(target, Buffer.from(rawData));
+          if (rawData instanceof Buffer || rawData instanceof ArrayBuffer) {
+            await Bun.write(target, rawData);
           } else if (typeof rawData === 'string') {
-            await fsp.writeFile(target, rawData, 'utf8');
+            await Bun.write(target, rawData);
           } else {
-            await fsp.writeFile(target, JSON.stringify(rawData), 'utf8');
+            await Bun.write(target, JSON.stringify(rawData));
           }
         } catch (e) {
           // skip
@@ -5864,6 +5865,7 @@ export async function adminRoutes(app: any, prefix = '') {
           subject: `EcliPanel user data export for ${out.email || userId}`,
           text: `Attached archive includes full data export for user #${userId}.`,
           attachments: [{ filename: archiveName, path: archivePath }],
+          locale: ctx.locale,
         });
       }
     } catch (error) {
@@ -5899,7 +5901,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const userLogRepo = AppDataSource.getRepository(UserLog);
@@ -5922,7 +5924,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
     if (!link) {
       ctx.set.status = 404;
-      return { error: 'Link not found' };
+      return { error: ctx.t('system.linkNotFound') };
     }
     await repo.remove(link);
     return { success: true };
@@ -5943,7 +5945,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const link = await repo.findOneBy({ id: Number(ctx.params.linkId) });
     if (!link) {
       ctx.set.status = 404;
-      return { error: 'Link not found' };
+      return { error: ctx.t('system.linkNotFound') };
     }
     const { limits } = ctx.body as any;
     if (limits !== undefined) link.limits = limits;
@@ -6086,7 +6088,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const result = await runFraudScanForUser(user);
@@ -6100,7 +6102,7 @@ export async function adminRoutes(app: any, prefix = '') {
         return { error: result.error };
       }
       ctx.set.status = 500;
-      return { error: 'Fraud scan failed.' };
+      return { error: ctx.t('user.fraudScanFailed') };
     }
 
     return { success: true, ...result };
@@ -6128,7 +6130,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const models = await getConfiguredFraudModels();
     if (models.length === 0) {
       ctx.set.status = 400;
-      return { error: 'No AI model configured.' };
+      return { error: ctx.t('system.noAiModel') };
     }
 
     await createActivityLog({
@@ -6183,7 +6185,7 @@ export async function adminRoutes(app: any, prefix = '') {
       }
     })();
 
-    return { success: true, message: 'Fraud scan initiated — results will be available shortly.' };
+    return { success: true, message: ctx.t('admin.fraudScanStarted') };
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
     response: {
@@ -6201,12 +6203,12 @@ export async function adminRoutes(app: any, prefix = '') {
     const userRepo = AppDataSource.getRepository(User);
     const alerts = await userRepo.find({
       where: { fraudFlag: true },
-      select: [
-        'id', 'firstName', 'lastName', 'email', 'fraudReason',
-        'fraudDetectedAt', 'address', 'address2', 'billingCity',
-        'billingState', 'billingZip', 'billingCountry', 'billingCompany',
-        'phone', 'suspended',
-      ],
+      select: {
+        id: true, firstName: true, lastName: true, email: true, fraudReason: true,
+        fraudDetectedAt: true, address: true, address2: true, billingCity: true,
+        billingState: true, billingZip: true, billingCountry: true, billingCompany: true,
+        phone: true, suspended: true,
+      },
       order: { fraudDetectedAt: 'DESC' },
     });
     return alerts;
@@ -6228,7 +6230,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
     const { action } = ctx.body as any;
     if (action === 'dismiss') {
@@ -6263,7 +6265,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const ids = Array.isArray(body?.ids) ? body.ids.map((v: any) => Number(v)).filter((n: number) => Number.isFinite(n)) : [];
     if (ids.length === 0) {
       ctx.set.status = 400;
-      return { error: 'ids array is required' };
+      return { error: ctx.t('validation.idsArrayRequired') };
     }
     const userRepo = AppDataSource.getRepository(User);
     try {
@@ -6276,7 +6278,7 @@ export async function adminRoutes(app: any, prefix = '') {
       return { success: true, dismissed: ids.length };
     } catch (e) {
       ctx.set.status = 500;
-      return { error: 'Failed to dismiss alerts' };
+      return { error: ctx.t('admin.dismissAlertsFailed') };
     }
   }, {
     beforeHandle: [authenticate, authorize('admin:access')],
@@ -6396,7 +6398,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const adminErr = requireAdminPermission(ctx, 'admin:geoblock:view');
     if (adminErr !== true) return adminErr;
     const userRepo = AppDataSource.getRepository(User);
-    const users = await userRepo.find({ select: ['billingCountry'] });
+    const users = await userRepo.find({ select: { billingCountry: true } });
     const rules = await getGeoBlockRules();
     const { decrypt, isEncryptedString } = require('../utils/crypto');
 
@@ -6578,7 +6580,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
     if (!name || !source || !target) {
       ctx.set.status = 400;
-      return { error: 'name, source, and target are required' };
+      return { error: ctx.t('validation.nameSourceTargetRequired') };
     }
     const repo = AppDataSource.getRepository(Mount);
     const mount = repo.create({ name, description, source, target, read_only: !!read_only, allowed_eggs });
@@ -6613,7 +6615,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const mount = await repo.findOneBy({ id: Number(ctx.params.id) });
     if (!mount) {
       ctx.set.status = 404;
-      return { error: 'Mount not found' };
+      return { error: ctx.t('server.mountNotFound') };
     }
     const { name, description, source, target, read_only, allowed_eggs } = ctx.body as any;
     if (name !== undefined) mount.name = name;
@@ -6655,7 +6657,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const mount = await repo.findOneBy({ id });
     if (!mount) {
       ctx.set.status = 404;
-      return { error: 'Mount not found' };
+      return { error: ctx.t('server.mountNotFound') };
     }
     await AppDataSource.getRepository(ServerMount).delete({ mountId: id });
     await repo.remove(mount);
@@ -6681,18 +6683,18 @@ export async function adminRoutes(app: any, prefix = '') {
     const { mountId } = ctx.body as any;
     if (!mountId) {
       ctx.set.status = 400;
-      return { error: 'mountId is required' };
+      return { error: ctx.t('validation.mountIdRequired') };
     }
     const mount = await AppDataSource.getRepository(Mount).findOneBy({ id: Number(mountId) });
     if (!mount) {
       ctx.set.status = 404;
-      return { error: 'Mount not found' };
+      return { error: ctx.t('server.mountNotFound') };
     }
     const smRepo = AppDataSource.getRepository(ServerMount);
     const existing = await smRepo.findOneBy({ serverUuid: uuid, mountId: mount.id });
     if (existing) {
       ctx.set.status = 409;
-      return { error: 'Mount already attached' };
+      return { error: ctx.t('server.mountAlreadyAttached') };
     }
     const link = smRepo.create({ serverUuid: uuid, mountId: mount.id });
     await smRepo.save(link);
@@ -6723,7 +6725,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const link = await smRepo.findOneBy({ serverUuid: uuid, mountId: Number(mountId) });
     if (!link) {
       ctx.set.status = 404;
-      return { error: 'Mount link not found' };
+      return { error: ctx.t('server.mountLinkNotFound') };
     }
     await smRepo.remove(link);
     return { success: true };
@@ -6784,14 +6786,14 @@ export async function adminRoutes(app: any, prefix = '') {
     const { userId, description, planId, amount, items, expiresAt, notes } = ctx.body as any;
     if (!userId) {
       ctx.set.status = 400;
-      return { error: 'userId is required' };
+      return { error: ctx.t('validation.userIdRequired') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOneBy({ id: Number(userId) });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const orderRepo = AppDataSource.getRepository(Order);
@@ -6839,7 +6841,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!order) {
       ctx.set.status = 404;
-      return { error: 'Order not found' };
+      return { error: ctx.t('order.notFound') };
     }
     const { status, notes, expiresAt, description, amount, planId, items, userId } = ctx.body as any;
     if (status !== undefined) order.status = status;
@@ -6852,7 +6854,7 @@ export async function adminRoutes(app: any, prefix = '') {
     if (userId !== undefined) {
       const userRepo = AppDataSource.getRepository(User);
       const u = await userRepo.findOneBy({ id: Number(userId) });
-      if (!u) { ctx.set.status = 404; return { error: 'User not found' }; }
+      if (!u) { ctx.set.status = 404; return { error: ctx.t('user.notFound') }; }
       order.userId = Number(userId);
     }
     await orderRepo.save(order);
@@ -6880,7 +6882,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
     if (!order) {
       ctx.set.status = 404;
-      return { error: 'Order not found' };
+      return { error: ctx.t('order.notFound') };
     }
     await orderRepo.remove(order);
     return { success: true };
@@ -7100,7 +7102,7 @@ export async function adminRoutes(app: any, prefix = '') {
     const { planId, temporary, expiresAt, notes, orgId } = ctx.body as any;
     if (!planId) {
       ctx.set.status = 400;
-      return { error: 'planId is required' };
+      return { error: ctx.t('validation.planIdRequired') };
     }
 
     const userRepo = AppDataSource.getRepository(User);
@@ -7110,13 +7112,13 @@ export async function adminRoutes(app: any, prefix = '') {
     const user = await userRepo.findOneBy({ id: userId });
     if (!user) {
       ctx.set.status = 404;
-      return { error: 'User not found' };
+      return { error: ctx.t('user.notFound') };
     }
 
     const plan = await planRepo.findOneBy({ id: Number(planId) });
     if (!plan) {
       ctx.set.status = 404;
-      return { error: 'Plan not found' };
+      return { error: ctx.t('plan.notFound') };
     }
 
     let limits: Record<string, number> = {};
