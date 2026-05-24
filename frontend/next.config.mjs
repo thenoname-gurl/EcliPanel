@@ -1,12 +1,9 @@
 /** @type {import('next').NextConfig} */
 import createNextIntlPlugin from "next-intl/plugin";
-import { createMDX } from "fumadocs-mdx/next";
 
 const backendUrl = process.env.BACKEND_URL || "http://localhost:3001";
 const wingsBase = process.env.NEXT_PUBLIC_WINGS_BASE || "http://localhost:8080";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
-
-const withMDX = createMDX();
 
 const nextConfig = {
   typescript: {
@@ -53,7 +50,6 @@ const nextConfig = {
       },
     ];
   },
-  reactStrictMode: true,
 };
 
-export default withNextIntl(withMDX(nextConfig));
+export default withNextIntl(nextConfig);
