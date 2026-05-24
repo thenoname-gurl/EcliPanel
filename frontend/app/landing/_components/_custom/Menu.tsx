@@ -16,9 +16,10 @@ interface MenuProps {
     label: string;
     href: string;
   }[];
+  sticky?: boolean;
 }
 
-export function Menu({ customCTA, customMenu }: MenuProps) {
+export function Menu({ customCTA, customMenu, sticky = true }: MenuProps) {
   const [open, setOpen] = useState(false);
   const t = useTranslations("landing");
   const { isLoggedIn } = useAuth();
@@ -32,7 +33,9 @@ export function Menu({ customCTA, customMenu }: MenuProps) {
 
   return (
     <>
-      <div className="w-full fixed top-5 z-1101 flex justify-between items-center px-6 sm:px-12 lg:px-40">
+      <div
+        className={`w-full ${sticky ? "fixed" : "relative"} top-5 z-1101 flex justify-between items-center px-6 sm:px-12 lg:px-40`}
+      >
         <a href="/">
           <img
             src="/assets/icons/logo.png"
