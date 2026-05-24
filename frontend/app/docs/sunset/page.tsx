@@ -1,7 +1,7 @@
----
-title: Account & server sunset policy
-description: How inactivity notices work, grace periods, what happens to idle accounts and servers, and how to stay active.
----
+import { Md } from "../_components/md";
+
+const content = `
+# Account & server sunset policy
 
 Sunset policies keep inactive accounts secure and prevent unused servers from consuming resources indefinitely. This page explains both the account sunset flow and the server sunset flow, including timelines, what triggers them, and how to keep your services active.
 
@@ -9,12 +9,12 @@ Sunset policies keep inactive accounts secure and prevent unused servers from co
 
 Account sunset applies to accounts that have not been accessed for an extended period. The goal is to protect dormant accounts and free up resources. This policy affects all account types — free, educational, and paid.
 
-| Stage                | Details                                                                                                                                                           |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Inactivity threshold | If you have not logged in for approximately 1 year, your account becomes eligible for an inactivity notice. The clock resets every time you log in.               |
-| Inactivity notice    | An email is sent to your registered address with a direct link to the login page.                                                                                 |
-| Grace period         | After the notice is sent, you have 90 days to log in before deletion is scheduled. Logging in at any point cancels the deletion process.                          |
-| Account deletion     | If you do not log in within the grace period, your account and associated data are scheduled for deletion. Certain records may be retained where required by law. |
+| Stage | Details |
+|---|---|
+| Inactivity threshold | If you have not logged in for approximately 1 year, your account becomes eligible for an inactivity notice. The clock resets every time you log in. |
+| Inactivity notice | An email is sent to your registered address with a direct link to the login page. |
+| Grace period | After the notice is sent, you have 90 days to log in before deletion is scheduled. Logging in at any point cancels the deletion process. |
+| Account deletion | If you do not log in within the grace period, your account and associated data are scheduled for deletion. Certain records may be retained where required by law. |
 
 ### Frequently asked questions
 
@@ -30,12 +30,12 @@ Server sunset applies only to free and educational accounts that have online ser
 
 If your free or educational account has servers that are running but you have not been active on the dashboard, we will send a confirmation notice asking you to verify you are still using the service.
 
-| Stage                       | Details                                                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| New accounts                | If you have just created your account and have not yet been active, we send the first confirmation notice after approximately 24 hours of server online time.      |
-| Ongoing activity            | After you have actively used the panel, confirmation notices repeat approximately every 7 days if your servers remain online without dashboard activity.           |
-| Grace window                | Once a notice is sent, you have 24 hours to confirm your usage by logging in or interacting with the dashboard. After this window, online servers are powered off. |
-| What counts as confirmation | Any dashboard activity resets the timer — logging in, opening a server, checking settings, or using any panel feature. API key usage alone does not count.         |
+| Stage | Details |
+|---|---|
+| New accounts | If you have just created your account and have not yet been active, we send the first confirmation notice after approximately 24 hours of server online time. |
+| Ongoing activity | After you have actively used the panel, confirmation notices repeat approximately every 7 days if your servers remain online without dashboard activity. |
+| Grace window | Once a notice is sent, you have 24 hours to confirm your usage by logging in or interacting with the dashboard. After this window, online servers are powered off. |
+| What counts as confirmation | Any dashboard activity resets the timer — logging in, opening a server, checking settings, or using any panel feature. API key usage alone does not count. |
 
 ### Important details
 
@@ -74,3 +74,8 @@ When an admin triggers a confirmation:
 ---
 
 If you believe you received a sunset email in error, contact support from the dashboard or visit [Support & policies](/docs/support). For the full terms governing account deletion, see our [Terms of Service](/legal/terms-of-service).
+`;
+
+export default function Page() {
+  return <Md>{content}</Md>;
+}

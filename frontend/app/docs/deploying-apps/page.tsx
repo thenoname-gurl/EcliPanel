@@ -1,0 +1,95 @@
+import { Md } from "../_components/md";
+
+const content = `
+# Deploy applications and game servers
+
+## Available templates
+
+The panel shows only visible templates that are allowed by your plan and portal configuration. Template availability is controlled by node administrators and may vary between instances.
+
+### Game server templates
+
+| Template | Description |
+|---|---|
+| Paper | High-performance Minecraft server fork with plugin support, optimizations, and a large ecosystem. The most popular choice for Minecraft servers. |
+| BungeeCord | Minecraft proxy for connecting multiple servers into a single network. Players connect to BungeeCord and are routed to backend servers. |
+| Velocity | Modern Minecraft proxy designed for speed and flexibility. Faster than BungeeCord with better security and a modern plugin API. |
+
+### Developer tools
+
+| Template | Description |
+|---|---|
+| AIO | Java 21, Node.js, Go, Rust, .NET SDK and other dev/runtime tools pre-installed. Ideal for developers who need multiple languages available. |
+| Code-Server | Run VS Code in the browser for remote development. Access your code from anywhere with a full IDE experience. |
+
+### Service templates
+
+**Minio S3** — S3-compatible object storage server. Use it for backups, file hosting, or as storage for applications that support the S3 API.
+
+### Virtual machine
+
+**QEMU - Debian 13 VM** — Full Debian 13 (Trixie) virtual machine using QEMU/KVM. Complete isolation, root access, SSH, and the ability to install and run anything. This is the most flexible option but requires more Linux knowledge. See the [KVM guide](/docs/kvm) for deployment, security hardening, and essential commands.
+
+## Choosing the right template
+
+| Goal | Template |
+|---|---|
+| Minecraft server with plugins | **Paper** for a single server |
+| Minecraft network | **Velocity** (modern) or **BungeeCord** as proxy, **Paper** for backends |
+| Remote development | **Code-Server** for browser-based VS Code, or **AIO** for SSH-based multi-language dev |
+| Full control over the OS | **QEMU - Debian 13 VM** |
+| Object storage | **Minio S3** |
+| Standalone database server | **MariaDB 10.3**, add **phpMyAdmin** for web-based management |
+
+## Deployment workflow
+
+The deployment process is the same for all templates.
+
+1. Open **Servers** from the dashboard and click **New Server**.
+2. Select your desired template. If you do not see the template you need, it may be hidden for your plan or unavailable on your selected node.
+3. Choose an available node. Pick the one with the most free resources or closest to your location.
+4. Set a descriptive server name.
+5. Allocate resources (CPU, RAM, disk). Stay within your plan limits. When in doubt, start small and increase later if needed.
+6. Click **Deploy** and wait for provisioning. The status will show "Installing" then change to "Running" when complete.
+7. Open the server details to access the console, files, startup settings, and other tabs.
+
+## Environment and startup configuration
+
+After deployment, the Startup tab is where you customize how your server launches.
+
+- **Startup command** — The command that runs when the server starts. For game servers, this is usually pre-configured. For custom apps, you set it yourself.
+- **Environment variables** — Key-value pairs that configure your server at launch. Common variables include \`MAX_PLAYERS\`, \`SERVER_PORT\`, \`JAVA_VERSION\`, and memory limits. Each template exposes different variables.
+- **Docker image** — The base image used to run your server. Changing the image may break your server unless you know what you are doing.
+- **Changes take effect on restart** — After modifying startup settings, restart the server for changes to apply.
+
+## Example: Deploying a Node.js web app
+
+1. Deploy the **QEMU - Debian 13 VM** template with at least 2 CPU cores and 2 GB RAM.
+2. SSH into the VM using the primary allocation port shown in the server details.
+3. Update the system: \`sudo apt update && sudo apt upgrade -y\`
+4. Install Node.js: \`curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -\` then \`sudo apt install -y nodejs\`
+5. Verify the installation: \`node -v\` and \`npm -v\`
+6. Clone your application: \`git clone https://github.com/your/repo.git && cd repo\`
+7. Install dependencies: \`npm install\`
+8. Set environment variables if needed: \`export PORT=3000\` or create a \`.env\` file.
+9. Start the app: \`npm start\` or use PM2 for production: \`npm install -g pm2 && pm2 start app.js --name myapp\`
+10. Go to the panel Firewall tab and forward a public port to port 3000.
+11. Test by visiting \`http://YOUR_IP:FORWARDED_PORT\` in your browser.
+
+## Example: Setting up a Minecraft server network
+
+1. Deploy a **Velocity** server as your proxy. This will be the entry point for players.
+2. Deploy one or more **Paper** servers as your backend game servers.
+3. Note the primary allocation port of each Paper server from the server details.
+4. Edit the Velocity configuration (\`velocity.toml\`) to add each Paper server as a backend using their internal IP and port.
+5. Configure player forwarding between Velocity and Paper servers by copying the \`forwarding.secret\` file.
+6. Start all servers. Players connect to the Velocity proxy port and are routed to the appropriate backend.
+
+---
+
+For Linux VM setup, SSH configuration, and security hardening, see the [KVM guide](/docs/kvm). For server controls, file management, and troubleshooting, see [Server management](/docs/server-management).
+`;
+
+export default function Page() {
+  return <Md>{content}</Md>;
+}

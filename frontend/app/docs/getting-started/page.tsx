@@ -1,18 +1,18 @@
----
-title: Your first steps with EcliPanel
-description: This guide walks you through the entire onboarding process, explains every part of the dashboard, and helps you deploy and manage your first server with confidence.
----
+import { Md } from "../_components/md";
+
+const content = `
+# Your first steps with EcliPanel
 
 ## What is the dashboard?
 
 The EcliPanel dashboard is your central control center. Once logged in, it gives you access to everything: servers, support tickets, account settings, billing, activity history, and workspace tools. The layout is designed to be intuitive — your servers are front and center, with navigation to other sections along the sidebar or top bar depending on your configuration.
 
-| Section           | What it does                                                                                                                                                             |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Servers           | Create, manage, and monitor virtual servers. Each server card shows status, resource usage rings, and quick action buttons for start, stop, restart, and console access. |
-| Tickets           | Open support tickets, track replies, and communicate with the support team directly from inside the panel.                                                               |
-| Settings          | Update your profile, configure security (2FA, passkeys), set notification preferences, choose your theme, and manage locale options.                                     |
-| Billing & account | View invoices, manage payment methods, review plan limits, and check usage. Available when billing is enabled on your instance.                                          |
+| Section | What it does |
+|---|---|
+| Servers | Create, manage, and monitor virtual servers. Each server card shows status, resource usage rings, and quick action buttons for start, stop, restart, and console access. |
+| Tickets | Open support tickets, track replies, and communicate with the support team directly from inside the panel. |
+| Settings | Update your profile, configure security (2FA, passkeys), set notification preferences, choose your theme, and manage locale options. |
+| Billing & account | View invoices, manage payment methods, review plan limits, and check usage. Available when billing is enabled on your instance. |
 
 ## Step 1: Register or log in
 
@@ -54,14 +54,14 @@ This is where the panel becomes useful. Deploying a server takes just a few clic
 
 Once your server is running, click on its card to open the detail page. Most servers have the following tabs:
 
-| Tab       | What it does                                                                                        |
-| --------- | --------------------------------------------------------------------------------------------------- |
-| Overview  | Server status, resource graphs, quick actions, and connection details.                              |
-| Console   | Live terminal output and command input. Use this to interact with your server process directly.     |
-| Files     | Web-based file manager. Upload, download, edit, rename, and delete files.                           |
+| Tab | What it does |
+|---|---|
+| Overview | Server status, resource graphs, quick actions, and connection details. |
+| Console | Live terminal output and command input. Use this to interact with your server process directly. |
+| Files | Web-based file manager. Upload, download, edit, rename, and delete files. |
 | Databases | Create and manage databases attached to your server. Copy connection strings for your applications. |
-| Startup   | Configure the startup command, environment variables, and Docker image.                             |
-| Firewall  | Map public ports to internal VM ports. Only forwarded ports are reachable from the internet.        |
+| Startup | Configure the startup command, environment variables, and Docker image. |
+| Firewall | Map public ports to internal VM ports. Only forwarded ports are reachable from the internet. |
 
 ## Step 6: Configure notifications
 
@@ -78,3 +78,8 @@ Go to **Settings → Appearance** to choose your theme (14 options including dar
 - [KVM guide](/docs/kvm) — Full Linux VM deployment, SSH setup, and security hardening.
 - [Sunset policy](/docs/sunset) — How inactivity affects your account and servers.
 - [Support & policies](/docs/support) — How to open tickets and find legal resources.
+`;
+
+export default function Page() {
+  return <Md>{content}</Md>;
+}
