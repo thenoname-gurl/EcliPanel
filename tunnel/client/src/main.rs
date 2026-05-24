@@ -244,7 +244,7 @@ async fn main() {
   let env_filter = std::env::var("RUST_LOG").ok();
   let filter = env_filter.unwrap_or_else(|| {
     if args.verbose {
-      "info".to_string()
+      "debug".to_string()
     } else {
       "info".to_string()
     }
@@ -644,7 +644,7 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
   let (update_tx, mut update_rx) = tokio::sync::oneshot::channel::<()>();
   let update_tx = Arc::new(Mutex::new(Some(update_tx)));
 
-  let ws_task = {
+  let mut ws_task = {
     let local_connections = local_connections.clone();
     let backend = config.backend.clone();
     let update_tx = update_tx.clone();
@@ -692,19 +692,21 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
                       continue;
                     }
 
-                    let local_addr: SocketAddr =
-                      match format!("{}:{}", open.local_host, open.local_port).parse() {
-                        Ok(addr) => addr,
-                        Err(err) => {
-                          error!(%err, "invalid local target address");
-                          continue;
-                        }
-                      };
+                    let local_target = (open.local_host.as_str(), open.local_port);
 
-                    let local_stream = match TcpStream::connect(local_addr).await {
+                    let local_stream = match TcpStream::connect(local_target).await {
                       Ok(stream) => stream,
                       Err(err) => {
-                        error!(%err, connection_id = %open.connection_id, "failed to connect local target at {}", local_addr);
+                        error!(%err, connection_id = %open.connection_id, local_host = %open.local_host, local_port = open.local_port, "failed to connect local target");
+                        let close = OutgoingMessage {
+                          type_name: "connection.close",
+                          allocation_id: None,
+                          connection_id: Some(open.connection_id.clone()),
+                          data: None,
+                        };
+                        if let Ok(payload) = serde_json::to_string(&close) {
+                          write_clone.lock().await.send(Message::Text(payload)).await.ok();
+                        }
                         continue;
                       }
                     };
@@ -865,6 +867,9 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
       info!("update triggered, restarting service");
       ws_task.abort();
       restart_client_service();
+    }
+    _ = &mut ws_task => {
+      info!("websocket connection closed");
     }
   }
   Ok(())
