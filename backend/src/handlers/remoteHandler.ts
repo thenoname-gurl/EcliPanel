@@ -46,11 +46,14 @@ import { createActivityLog } from './logHandler';
 import { nodeService } from '../services/nodeService';
 import { restoreDesiredPowerStatesForNode } from '../services/serverDesiredStateService';
 import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
+import type { AllocationLike, RemoteNodeOverrides, WingsApp, WingsContext } from '../types/remote';
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 
-async function authenticateWings(ctx: any): Promise<unknown> {
-  const headers: any = ctx.request.headers || {};
+async function authenticateWings(ctx: WingsContext): Promise<unknown> {
+  const headers = (ctx.request?.headers || {}) as Record<string, string | string[] | undefined> & {
+    get?: (name: string) => string | null;
+  };
   const getHeader = (name: string) => {
     if (typeof headers.get === 'function') return headers.get(name);
     return headers[name.toLowerCase()] || headers[name];
@@ -61,7 +64,9 @@ async function authenticateWings(ctx: any): Promise<unknown> {
 
   if (!raw) {
     const q =
-      (ctx.query as any)?.token || (ctx.query as any)?.access_token || (ctx.query as any)?.api_key;
+      (ctx.query?.token as string | undefined) ||
+      (ctx.query?.access_token as string | undefined) ||
+      (ctx.query?.api_key as string | undefined);
     if (typeof q === 'string') raw = q.trim();
   }
 
@@ -94,14 +99,14 @@ async function authenticateWings(ctx: any): Promise<unknown> {
       const tried = [tokenPart, raw, dotIdx >= 0 ? raw.substring(0, dotIdx) : '']
         .map(redact)
         .join(', ');
-      (ctx.app as any)?.log?.warn?.({ headers, tried }, 'Wings auth failed: token lookup mismatch');
+      ctx.app?.log?.warn?.({ headers, tried }, 'Wings auth failed: token lookup mismatch');
     } catch (e) {
       // skip
     }
     ctx.set.status = 401;
     return { errors: [{ code: 'Unauthorized', detail: 'Invalid node token' }] };
   }
-  (ctx as any).wingNode = node;
+  ctx.wingNode = node;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -131,12 +136,12 @@ function allocationHostKey(ip: string, port: number): string {
   return cleanIp.includes(':') ? `[${cleanIp}]:${port}` : `${cleanIp}:${port}`;
 }
 
-function isValidPort(port: any): port is number {
+function isValidPort(port: unknown): port is number {
   const num = Number(port);
   return Number.isInteger(num) && num > 0 && num <= 65535;
 }
 
-function parsePortList(raw: any): Set<number> {
+function parsePortList(raw: unknown): Set<number> {
   const ports = new Set<number>();
   if (raw == null) return ports;
   const values = Array.isArray(raw) ? raw : String(raw).split(/[\s,]+/);
@@ -150,8 +155,8 @@ function parsePortList(raw: any): Set<number> {
 }
 
 function buildAllocationMappings(
-  alloc: any,
-  nodeOverrides?: { portRangeEnd?: number; ipv6ExcludedPorts?: string }
+  alloc: AllocationLike,
+  nodeOverrides?: RemoteNodeOverrides
 ): Record<string, number[]> {
   const mappings: Record<string, number[]> = {};
 
@@ -159,7 +164,7 @@ function buildAllocationMappings(
     const normalizedIp = normalizeAllocationIp(String(ip));
     if (normalizedIp.includes(':')) continue;
     const portList = Array.isArray(ports) ? ports : [];
-    const validPorts = portList.map((p: any) => Number(p)).filter(isValidPort);
+    const validPorts = portList.map((p) => Number(p)).filter(isValidPort);
     if (validPorts.length > 0) {
       mappings[normalizedIp] = validPorts;
     }
@@ -195,7 +200,7 @@ function buildAllocationMappings(
 
 /** Build sanitized FQDN mappings from allocation config */
 function buildAllocationFqdns(
-  alloc: any,
+  alloc: AllocationLike,
   mappings: Record<string, number[]>
 ): Record<string, string> {
   const fqdns: Record<string, string> = {};
@@ -235,7 +240,7 @@ function buildAllocationFqdns(
   return fqdns;
 }
 
-function buildAllocationDefault(alloc: any): { ip: string; port: number } | null {
+function buildAllocationDefault(alloc: AllocationLike): { ip: string; port: number } | null {
   if (alloc.default && typeof alloc.default === 'object') {
     const rawIp = String(alloc.default.ip ?? '').trim();
     const ip = normalizeAllocationIp(rawIp);
@@ -251,7 +256,7 @@ function buildServerObject(
   cfg: ServerConfig,
   egg?: Egg | null,
   mounts?: Mount[],
-  nodeOverrides?: { portRangeEnd?: number; ipv6ExcludedPorts?: string }
+  nodeOverrides?: RemoteNodeOverrides
 ): object {
   const eggProc = egg?.processConfig || {};
   const cfgProc = cfg.processConfig || {};
@@ -339,6 +344,38 @@ function buildServerObject(
   };
 }
 
+type RemoteBackupBody = {
+  name?: string;
+  uuid?: string;
+  bytes?: number | string;
+  size?: number | string;
+  checksum?: string;
+  sha1?: string;
+  sha256?: string;
+  checksum_type?: string;
+  checksumType?: string;
+  browsable?: boolean;
+  streaming?: boolean;
+  parts?: unknown;
+  progress?: number | string;
+  percent?: number | string;
+  status?: string;
+  adapter?: string;
+};
+
+type SftpAuthBody = {
+  type?: 'password' | 'public_key' | string;
+  username?: string;
+  password?: string;
+};
+
+type RemoteActivityEvent = {
+  server?: string;
+  uuid?: string;
+  event?: string;
+  [key: string]: unknown;
+};
+
 // ─── JWT helpers for WebSocket auth ───────────────────────────────────────────
 
 function base64url(buf: Buffer): string {
@@ -360,7 +397,7 @@ export function signWingsJwt(payload: object, secret: string): string {
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
-export async function remoteRoutes(app: any, prefix: string) {
+export async function remoteRoutes(app: WingsApp, prefix: string) {
   const repo = () => AppDataSource.getRepository(ServerConfig);
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -368,9 +405,9 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.get(
     prefix + '/remote/servers',
-    async ctx => {
-      const node = (ctx as any).wingNode as Node;
-      const { page = '0', per_page = '50' } = ctx.query as any;
+    async (ctx: WingsContext) => {
+      const node = ctx.wingNode as Node;
+      const { page = '0', per_page = '50' } = (ctx.query || {}) as Record<string, unknown>;
 
       const pageNum = Math.max(0, Number(page));
       const perPage = Math.min(100, Math.max(1, Number(per_page)));
@@ -447,9 +484,9 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.get(
     prefix + '/remote/servers/:uuid',
-    async ctx => {
-      const { uuid } = ctx.params as any;
-      const node = (ctx as any).wingNode as Node;
+    async (ctx: WingsContext) => {
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const node = ctx.wingNode as Node;
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -473,8 +510,8 @@ export async function remoteRoutes(app: any, prefix: string) {
         };
         const obj = buildServerObject(cfg, egg, mounts, nodeOverrides);
         return obj;
-      } catch (err: any) {
-        (app as any).log?.error?.(
+      } catch (err) {
+        app.log?.error?.(
           { err, uuid, nodeId: node.id },
           'Failed to build server object for Wings'
         );
@@ -501,12 +538,12 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/servers/reset',
-    async ctx => {
+    async (ctx: WingsContext) => {
       ctx.set.status = 204;
 
       void (async () => {
         try {
-          const node = (ctx as any).wingNode as Node;
+          const node = ctx.wingNode as Node;
           if (!node) return;
 
           const nodeSvc = nodeService;
@@ -515,8 +552,8 @@ export async function remoteRoutes(app: any, prefix: string) {
           for (const cfg of configs) {
             try {
               await svc.syncServer(cfg.uuid, {});
-            } catch (e: any) {
-              (app as any).log?.warn?.(
+            } catch (e) {
+              app.log?.warn?.(
                 { err: e, server: cfg.uuid, nodeId: node.id },
                 'auto-sync failed for server'
               );
@@ -524,14 +561,14 @@ export async function remoteRoutes(app: any, prefix: string) {
           }
           try {
             await restoreDesiredPowerStatesForNode(node.id);
-          } catch (e: any) {
-            (app as any).log?.warn?.(
+          } catch (e) {
+            app.log?.warn?.(
               { err: e, nodeId: node.id },
               'failed to restore desired power state after wings reset'
             );
           }
-        } catch (e: any) {
-          (app as any).log?.warn?.({ err: e }, 'auto-sync failed after wings reset');
+        } catch (e) {
+          app.log?.warn?.({ err: e }, 'auto-sync failed after wings reset');
         }
       })();
 
@@ -550,9 +587,9 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.get(
     prefix + '/remote/servers/:uuid/install',
-    async ctx => {
-      const { uuid } = ctx.params as any;
-      const node = (ctx as any).wingNode as Node;
+    async (ctx: WingsContext) => {
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const node = ctx.wingNode as Node;
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -596,10 +633,10 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/servers/:uuid/install',
-    async ctx => {
-      const { uuid } = ctx.params as any;
-      const node = (ctx as any).wingNode as Node;
-      const { successful } = ctx.body as any;
+    async (ctx: WingsContext) => {
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const node = ctx.wingNode as Node;
+      const { successful } = (ctx.body || {}) as Record<string, unknown>;
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
       if (cfg) {
         await AppDataSource.getRepository(UserLog).save(
@@ -625,9 +662,9 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/servers/:uuid/sync',
-    async ctx => {
-      const { uuid } = ctx.params as any;
-      const node = (ctx as any).wingNode as Node;
+    async (ctx: WingsContext) => {
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const node = ctx.wingNode as Node;
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -667,7 +704,7 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/servers/:uuid/ws/denied',
-    async ctx => {
+    async (ctx: WingsContext) => {
       ctx.set.status = 204;
       return;
     },
@@ -684,12 +721,13 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/activity',
-    async ctx => {
-      const node = (ctx as any).wingNode as Node;
-      const body = ctx.body as any;
-      const events: any[] = Array.isArray(body) ? body : (body.data ?? [body]);
-      for (const evt of events) {
-        const uuid = evt.server ?? evt.uuid ?? '';
+    async (ctx: WingsContext) => {
+      const node = ctx.wingNode as Node;
+      const body = ctx.body as Record<string, unknown> | Array<Record<string, unknown>> | undefined;
+      const events = Array.isArray(body) ? body : (body?.data as Array<Record<string, unknown>> | Record<string, unknown> | undefined);
+      const eventList = Array.isArray(events) ? events : events ? [events] : [];
+      for (const evt of eventList) {
+        const uuid = String(evt.server ?? evt.uuid ?? '');
         if (!uuid) continue;
         const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
         if (!cfg) continue;
@@ -731,7 +769,9 @@ export async function remoteRoutes(app: any, prefix: string) {
           return { errors: [{ code: 'Unauthorized', detail: 'Invalid node token' }] };
         }
 
-        const { type: authType, username, password } = ctx.body as any;
+        const { type: authType, username, password } = (ctx.body || {}) as Record<string, unknown>;
+        const usernameStr = typeof username === 'string' ? username : '';
+        const passwordStr = typeof password === 'string' ? password : '';
 
         if (!username || !password) {
           ctx.set.status = 403;
@@ -743,14 +783,14 @@ export async function remoteRoutes(app: any, prefix: string) {
         // HEAVENS FORBID WE CHANGE THIS FORMAT NOW, WINGS DEPENDS ON IT,
         // AND CHANGING IT WOULD BREAK COMPATIBILITY WITH BOTH GO AND RUST WINGS,
         // WHICH WOULD BE A NIGHTMARE TO COORDINATE AND SUPPORT
-        const lastDot = username.lastIndexOf('.');
+        const lastDot = usernameStr.lastIndexOf('.');
         if (lastDot < 1) {
           ctx.set.status = 403;
           return { errors: [{ code: 'Forbidden', detail: 'Invalid username format' }] };
         }
 
-        const userPart = username.substring(0, lastDot);
-        const serverHex = username.substring(lastDot + 1);
+        const userPart = usernameStr.substring(0, lastDot);
+        const serverHex = usernameStr.substring(lastDot + 1);
 
         if (!/^[a-f0-9]{8}$/i.test(serverHex)) {
           ctx.set.status = 403;
@@ -776,7 +816,7 @@ export async function remoteRoutes(app: any, prefix: string) {
 
         if (authType === 'password') {
           const { comparePassword } = require('../utils/password');
-          const valid = await comparePassword(password, user.passwordHash);
+          const valid = await comparePassword(passwordStr, user.passwordHash);
           if (!valid) {
             ctx.set.status = 403;
             return { errors: [{ code: 'Forbidden', detail: 'Invalid password' }] };
@@ -786,7 +826,7 @@ export async function remoteRoutes(app: any, prefix: string) {
           const sshKeyRepo = AppDataSource.getRepository(SshKey);
           const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
 
-          const submittedKey = password.trim();
+          const submittedKey = passwordStr.trim();
           const parsedSubmitted = parseSshPublicKey(submittedKey);
 
           if (!parsedSubmitted || !isSupportedSshKeyType(parsedSubmitted.type)) {
@@ -796,7 +836,7 @@ export async function remoteRoutes(app: any, prefix: string) {
 
           const submittedFinger = fingerprintSshPublicKey(submittedKey);
 
-          const matched = userKeys.some((k: any) => {
+          const matched = userKeys.some((k) => {
             const storedKey = (k.publicKey ?? '').trim();
             const parsedStored = parseSshPublicKey(storedKey);
             if (!parsedStored) return false;
@@ -886,7 +926,7 @@ export async function remoteRoutes(app: any, prefix: string) {
         };
       } catch (err) {
         try {
-          (ctx.app as any)?.log?.error?.({ err }, 'SFTP auth handler error');
+          ctx.app?.log?.error?.({ err }, 'SFTP auth handler error');
         } catch {}
         ctx.set.status = 500;
         return { errors: [{ code: 'InternalServerError', detail: 'Unexpected error' }] };
@@ -910,19 +950,19 @@ export async function remoteRoutes(app: any, prefix: string) {
   app.post(
     prefix + '/remote/servers/:uuid/backups',
     async ctx => {
-      const { uuid } = ctx.params as any;
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
       const backupUuid = crypto.randomUUID();
       try {
         const repo = AppDataSource.getRepository(
           require('../models/serverBackup.entity').ServerBackup
         );
         await repo.save(repo.create({ uuid: backupUuid, serverUuid: uuid, adapter: 'wings' }));
-        (app as any).log?.info?.(
+        app.log?.info?.(
           { serverUuid: uuid, backupUuid },
           'remote: reserved backup slot and persisted'
         );
       } catch (e) {
-        (app as any).log?.warn?.(
+        app.log?.warn?.(
           { err: e, serverUuid: uuid, backupUuid },
           'remote: failed to persist reserved backup slot'
         );
@@ -969,8 +1009,8 @@ export async function remoteRoutes(app: any, prefix: string) {
     prefix + '/remote/backups/:uuid',
     async ctx => {
       const id = ctx.params?.uuid as string;
-      const body = ctx.body as any;
-      (app as any).log?.info?.(
+      const body = (ctx.body || {}) as RemoteBackupBody;
+      app.log?.info?.(
         { backupUuid: id, body },
         'remote: backup completion callback received'
       );
@@ -979,7 +1019,7 @@ export async function remoteRoutes(app: any, prefix: string) {
           require('../models/serverBackup.entity').ServerBackup
         );
         const rec = await repo.findOneBy({ uuid: id });
-        const payload: any = {
+        const payload = {
           name: body?.name ?? body?.uuid ?? undefined,
           bytes: Number(body?.bytes || body?.size || 0) || 0,
           checksum: body?.checksum || body?.sha1 || body?.sha256 || undefined,
@@ -993,17 +1033,17 @@ export async function remoteRoutes(app: any, prefix: string) {
         if (rec) {
           Object.assign(rec, payload);
           await repo.save(rec);
-          (app as any).log?.info?.({ backupUuid: id }, 'remote: updated persisted backup record');
+          app.log?.info?.({ backupUuid: id }, 'remote: updated persisted backup record');
         } else {
           const newRec = repo.create({ uuid: id, adapter: body?.adapter || 'wings', ...payload });
           await repo.save(newRec);
-          (app as any).log?.info?.(
+          app.log?.info?.(
             { backupUuid: id },
             'remote: created persisted backup record (no prior reservation)'
           );
         }
       } catch (e) {
-        (app as any).log?.warn?.(
+        app.log?.warn?.(
           { err: e, backupUuid: id },
           'remote: failed to persist backup completion'
         );
@@ -1022,15 +1062,15 @@ export async function remoteRoutes(app: any, prefix: string) {
     prefix + '/remote/backups/:uuid',
     async ctx => {
       const id = ctx.params?.uuid as string;
-      (app as any).log?.info?.({ backupUuid: id }, 'remote: delete backup callback received');
+      app.log?.info?.({ backupUuid: id }, 'remote: delete backup callback received');
       try {
         const repo = AppDataSource.getRepository(
           require('../models/serverBackup.entity').ServerBackup
         );
         await repo.delete({ uuid: id });
-        (app as any).log?.info?.({ backupUuid: id }, 'remote: deleted persisted backup record');
+        app.log?.info?.({ backupUuid: id }, 'remote: deleted persisted backup record');
       } catch (e) {
-        (app as any).log?.warn?.(
+        app.log?.warn?.(
           { err: e, backupUuid: id },
           'remote: failed to delete persisted backup record'
         );
@@ -1049,7 +1089,7 @@ export async function remoteRoutes(app: any, prefix: string) {
     prefix + '/remote/backups/:uuid/restore',
     async ctx => {
       const id = ctx.params?.uuid as string;
-      const body = ctx.body as any;
+      const body = (ctx.body || {}) as RemoteBackupBody;
       try {
         const repo = AppDataSource.getRepository(
           require('../models/serverBackup.entity').ServerBackup
@@ -1059,13 +1099,13 @@ export async function remoteRoutes(app: any, prefix: string) {
           rec.status = body?.status ?? 'restored';
           rec.progress = Number(body?.progress ?? 100) || 100;
           await repo.save(rec);
-          (app as any).log?.info?.(
+          app.log?.info?.(
             { backupUuid: id },
             'remote: backup restore callback updated record'
           );
         }
       } catch (e) {
-        (app as any).log?.warn?.(
+        app.log?.warn?.(
           { err: e, backupUuid: id },
           'remote: failed to update backup restore status'
         );
@@ -1088,13 +1128,15 @@ export async function remoteRoutes(app: any, prefix: string) {
   app.put(
     prefix + '/remote/servers/:uuid/startup/variables',
     async ctx => {
-      const { uuid } = ctx.params as any;
-      const node = (ctx as any).wingNode as Node;
-      const { env_variable, value } = ctx.body as any;
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const node = ctx.wingNode as Node;
+      const { env_variable, value } = (ctx.body || {}) as Record<string, unknown>;
+      const envKey = typeof env_variable === 'string' ? env_variable : '';
+      const envValue = typeof value === 'string' ? value : '';
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-      if (cfg && env_variable) {
+      if (cfg && envKey) {
         const env = cfg.environment || {};
-        env[env_variable] = value;
+        env[envKey] = envValue;
         cfg.environment = env;
         await repo().save(cfg);
       }
@@ -1114,12 +1156,13 @@ export async function remoteRoutes(app: any, prefix: string) {
   app.put(
     prefix + '/remote/servers/:uuid/startup/command',
     async ctx => {
-      const { uuid } = ctx.params as any;
-      const node = (ctx as any).wingNode as Node;
-      const { command } = ctx.body as any;
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const node = ctx.wingNode as Node;
+      const { command } = (ctx.body || {}) as Record<string, unknown>;
+      const commandValue = typeof command === 'string' ? command : '';
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-      if (cfg && command !== undefined) {
-        cfg.startup = command;
+      if (cfg && commandValue) {
+        cfg.startup = commandValue;
         await repo().save(cfg);
       }
       ctx.set.status = 204;
@@ -1135,12 +1178,13 @@ export async function remoteRoutes(app: any, prefix: string) {
   app.put(
     prefix + '/remote/servers/:uuid/startup/docker-image',
     async ctx => {
-      const { uuid } = ctx.params as any;
-      const node = (ctx as any).wingNode as Node;
-      const { image } = ctx.body as any;
+      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const node = ctx.wingNode as Node;
+      const { image } = (ctx.body || {}) as Record<string, unknown>;
+      const imageValue = typeof image === 'string' ? image : '';
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-      if (cfg && image) {
-        cfg.dockerImage = image;
+      if (cfg && imageValue) {
+        cfg.dockerImage = imageValue;
         await repo().save(cfg);
       }
       ctx.set.status = 204;
@@ -1159,7 +1203,7 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/servers/:uuid/transfer/success',
-    async ctx => {
+    async (ctx: WingsContext) => {
       ctx.set.status = 204;
       return;
     },
@@ -1172,7 +1216,7 @@ export async function remoteRoutes(app: any, prefix: string) {
 
   app.post(
     prefix + '/remote/servers/:uuid/transfer/failure',
-    async ctx => {
+    async (ctx: WingsContext) => {
       ctx.set.status = 204;
       return;
     },
@@ -1189,7 +1233,7 @@ export async function remoteRoutes(app: any, prefix: string) {
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/schedule',
-    async ctx => {
+    async (ctx: WingsContext) => {
       ctx.set.status = 204;
       return;
     },
@@ -1223,8 +1267,8 @@ export async function saveServerConfig(params: {
   eggId?: number;
   skipEggScripts?: boolean;
   kvmPassthroughEnabled?: boolean;
-  allocations?: Record<string, any>;
-  processConfig?: Record<string, any>;
+  allocations?: Record<string, unknown>;
+  processConfig?: Record<string, unknown>;
   lastActivityAt?: Date;
   hibernated?: boolean;
   ignoreAntiAbuse?: boolean;
@@ -1286,8 +1330,8 @@ export async function saveServerConfig(params: {
   await r.save(keep);
 
   if (existing.length > 1) {
-    const toDelete = existing.slice(1).map((x: any) => ({ uuid: x.uuid, createdAt: x.createdAt }));
-    await r.delete(toDelete as any).catch(() => {});
+    const toDelete = existing.slice(1).map((x) => ({ uuid: x.uuid, createdAt: x.createdAt }));
+    await r.delete(toDelete).catch(() => {});
     try {
       await createActivityLog({
         userId: 0,
@@ -1345,7 +1389,7 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
   for (const [norm, rows] of groups.entries()) {
     if (!rows || rows.length <= 1) continue;
     try {
-      rows.sort((a: any, b: any) => {
+      rows.sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return aTime - bTime;
@@ -1382,7 +1426,7 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
       }
       await r.save(keep);
       const toDelete = others.map(rw => ({ uuid: rw.uuid, createdAt: rw.createdAt }));
-      await r.delete(toDelete as any).catch(() => {});
+      await r.delete(toDelete).catch(() => {});
       try {
         await createActivityLog({
           userId: 0,
