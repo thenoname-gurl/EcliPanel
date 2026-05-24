@@ -20,29 +20,9 @@ const TEMPLATE_CARDS = [
 export default function KvmDocsPage() {
   return (
     <main className="px-auto w-full px-4 py-10 sm:px-6 lg:px-8 flex justify-center bg-black">
-      <GradualBlurMemo
-        target="page"
-        position="top"
-        height="13rem"
-        strength={2}
-        divCount={5}
-        curve="bezier"
-        exponential
-        opacity={1}
-      />
-      <Menu
-        customMenu={[
-          { label: "Getting Started", href: "/docs/getting-started" },
-          { label: "Server Management", href: "/docs/server-management" },
-          { label: "KVM Guide", href: "/docs/kvm" },
-          { label: "Deploying Apps", href: "/docs/deploying-apps" },
-          { label: "Sunset Policy", href: "/docs/sunset" },
-          { label: "Support", href: "/docs/support" },
-        ]}
-        customCTA={{ label: "Back", href: "/docs" }}
-      />
-      <div className="space-y-8 max-w-6xl mt-20">
-        <section className="text-center shadow-xl shadow-black/5 mt-10">
+  
+      <div className="space-y-8 max-w-6xl">
+        <section className="text-center shadow-xl shadow-black/5">
           <div className="">
             <p className="text-[clamp(2.5rem,8vw,6.5rem)] leading-[0.95] font-semibold tracking-tight text-foreground">
               KVM & Linux beginner guide
