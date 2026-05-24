@@ -2,23 +2,22 @@ import { authenticate } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
-import { In } from 'typeorm';
+import { In, type FindOptionsWhere } from 'typeorm';
 import { WingsApiService } from '../services/wingsApiService';
 import { socEmitter } from '../services/socSocketService';
 import { aiEmitter } from '../services/aiSocketService';
+import type WebSocket from 'ws';
+import type { ApiKey } from '../models/apiKey.entity';
+import type { User } from '../models/user.entity';
+import { OrganisationMember } from '../models/organisationMember.entity';
+import type { RequestHeaderLike, RequestContext } from '../types/request';
+import type { WsSocket, SocUpdatePayload, AiUsagePayload, RawRequest, AuthRequest } from '../types/ws';
 
-export interface RawRequest {
-  params?: any;
-  query?: any;
-  headers?: any;
-  url?: string;
-  user?: any;
-  apiKey?: any;
-}
+import { wsRawDataToText } from '../types/ws';
 
-export async function handleSocConnection(app: any, socket: any, req: RawRequest) {
+export async function handleSocConnection(_app: unknown, socket: WsSocket, req: RawRequest) {
   try {
-    await authenticate(req as any);
+    await authenticate(req as AuthRequest);
   } catch {
     sendError(socket, 'Authentication failed');
     socket.close();
@@ -41,7 +40,7 @@ export async function handleSocConnection(app: any, socket: any, req: RawRequest
     allowedIds = await getAllowedServerIds(user, apiKey);
   }
 
-  const listener = (data: any) => {
+  const listener = (data: SocUpdatePayload) => {
     if (allowedIds && data.serverId && !allowedIds.includes(data.serverId)) {
       return;
     }
@@ -59,7 +58,7 @@ export async function handleSocConnection(app: any, socket: any, req: RawRequest
     socEmitter.off('update', listener);
   });
 
-  socket.on('error', (err: any) => {
+  socket.on('error', (err: unknown) => {
     console.error('SOC socket error:', err);
     socEmitter.off('update', listener);
   });
@@ -69,9 +68,9 @@ export async function handleSocConnection(app: any, socket: any, req: RawRequest
   } catch {}
 }
 
-export async function handleAiConnection(app: any, socket: any, req: RawRequest) {
+export async function handleAiConnection(_app: unknown, socket: WsSocket, req: RawRequest) {
   try {
-    await authenticate(req as any);
+    await authenticate(req as AuthRequest);
   } catch {
     sendError(socket, 'Authentication failed');
     socket.close();
@@ -88,16 +87,14 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
   }
 
   const isAdmin = hasPermissionSync(req, 'ai:read') || apiKey?.type === 'admin';
-  const orgMemberRepo = AppDataSource.getRepository(
-    require('../models/organisationMember.entity').OrganisationMember
-  );
+  const orgMemberRepo = AppDataSource.getRepository(OrganisationMember);
   const userOrgIds = user
-    ? (await orgMemberRepo.find({ where: { userId: user.id } })).map((m: any) =>
+    ? (await orgMemberRepo.find({ where: { userId: user.id } })).map(m =>
         Number(m.organisationId)
       )
     : [];
 
-  const listener = (data: any) => {
+  const listener = (data: AiUsagePayload) => {
     let allowed = false;
 
     if (isAdmin) {
@@ -125,7 +122,7 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
     aiEmitter.off('usage', listener);
   });
 
-  socket.on('error', (err: any) => {
+  socket.on('error', (err: unknown) => {
     console.error('AI socket error:', err);
     aiEmitter.off('usage', listener);
   });
@@ -135,9 +132,9 @@ export async function handleAiConnection(app: any, socket: any, req: RawRequest)
   } catch {}
 }
 
-export async function handleServerConnection(app: any, socket: any, req: RawRequest) {
+export async function handleServerConnection(_app: unknown, socket: WsSocket, req: RawRequest) {
   try {
-    await authenticate(req as any);
+    await authenticate(req as AuthRequest);
   } catch {
     sendError(socket, 'Authentication failed');
     socket.close();
@@ -157,7 +154,7 @@ export async function handleServerConnection(app: any, socket: any, req: RawRequ
     return;
   }
 
-  let remoteWs: any = null;
+  let remoteWs: WebSocket | null = null;
 
   try {
     const { nodeService } = require('../services/nodeService');
@@ -169,7 +166,7 @@ export async function handleServerConnection(app: any, socket: any, req: RawRequ
       return;
     }
 
-    remoteWs = svc.connectServerWebsocket(serverId, (msg: any) => {
+    remoteWs = svc.connectServerWebsocket(serverId, (msg: unknown) => {
       try {
         const text = typeof msg === 'string' ? msg : JSON.stringify(msg);
         socket.send(text);
@@ -178,10 +175,10 @@ export async function handleServerConnection(app: any, socket: any, req: RawRequ
       }
     });
 
-    socket.on('message', (m: any) => {
+    socket.on('message', (m: WebSocket.RawData) => {
       if (!remoteWs) return;
       try {
-        const text = typeof m === 'string' ? m : m.toString();
+        const text = wsRawDataToText(m);
         remoteWs.send(text);
       } catch (err) {
         console.error('Failed to send to Wings:', err);
@@ -197,7 +194,7 @@ export async function handleServerConnection(app: any, socket: any, req: RawRequ
       }
     });
 
-    socket.on('error', (err: any) => {
+    socket.on('error', (err: unknown) => {
       console.error('Server socket error:', err);
       if (remoteWs) {
         try {
@@ -213,23 +210,21 @@ export async function handleServerConnection(app: any, socket: any, req: RawRequ
   }
 }
 
-async function getAllowedServerIds(user: any, apiKey: any): Promise<string[]> {
+async function getAllowedServerIds(user?: User | null, apiKey?: ApiKey | null): Promise<string[]> {
   const allowedIds: string[] = [];
 
   try {
     const nodesRepo = AppDataSource.getRepository(Node);
 
-    let whereClause: any = {};
+    let whereClause: FindOptionsWhere<Node> = {};
     if (user?.id) {
-      const orgMemberRepo = AppDataSource.getRepository(
-        require('../models/organisationMember.entity').OrganisationMember
-      );
+      const orgMemberRepo = AppDataSource.getRepository(OrganisationMember);
       const memberships = await orgMemberRepo.find({ where: { userId: user.id } });
       const orgIds = memberships
-        .map((m: any) => Number(m.organisationId))
+        .map(m => Number(m.organisationId))
         .filter((v: number) => Number.isFinite(v));
       if (orgIds.length > 0) {
-        whereClause = { organisation: { id: In(orgIds) } } as any;
+        whereClause = { organisation: { id: In(orgIds) } };
       }
     }
     const nodes = await nodesRepo.find({ where: whereClause });
@@ -258,7 +253,7 @@ async function getAllowedServerIds(user: any, apiKey: any): Promise<string[]> {
   return allowedIds;
 }
 
-function sendError(socket: any, message: string) {
+function sendError(socket: WsSocket, message: string) {
   try {
     socket.send(JSON.stringify({ type: 'error', message }));
   } catch {}
