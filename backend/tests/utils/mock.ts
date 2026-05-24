@@ -1,21 +1,30 @@
-export type MockRepository<T = any> = {
-  create: (entity?: Partial<T>) => T;
-  save: (entity: T) => Promise<T>;
-  find: (options?: any) => Promise<T[]>;
-  findOne: (options: any) => Promise<T | null>;
-  findOneBy: (where: any) => Promise<T | null>;
-  findBy: (where: any) => Promise<T[]>;
-  update: (criteria: any, partial: Partial<T>) => Promise<any>;
-  delete: (criteria: any) => Promise<any>;
-  remove: (entity: T) => Promise<T>;
-  count: (options?: any) => Promise<number>;
-  query: (sql: string, parameters?: any[]) => Promise<any>;
-  insert: (entity: any) => Promise<any>;
-  upsert: (entityOrEntities: any, conflictPathsOrOptions: string | string[]) => Promise<any>;
-  [key: string]: any;
+export type FindOptions = {
+  where?: Record<string, unknown> | Partial<Record<string, unknown>>;
+  order?: Record<string, 'ASC' | 'DESC'>;
+  take?: number;
 };
 
-export function createMockRepository<T = any>(initialData: T[] = []): MockRepository<T> {
+export type MockRepository<T = unknown> = {
+  create: (entity?: Partial<T>) => T;
+  save: (entity: T) => Promise<T>;
+  find: (options?: FindOptions) => Promise<T[]>;
+  findOne: (options?: FindOptions) => Promise<T | null>;
+  findOneBy: (where: Partial<T> | Record<string, unknown>) => Promise<T | null>;
+  findBy: (where: Partial<T> | Record<string, unknown>) => Promise<T[]>;
+  update: (criteria: Partial<T> | number | string, partial: Partial<T>) => Promise<{ affected: number }>;
+  delete: (criteria: Partial<T> | number | string) => Promise<{ affected: number }>;
+  remove: (entity: T) => Promise<T>;
+  count: (options?: FindOptions) => Promise<number>;
+  query: (sql: string, parameters?: unknown[]) => Promise<unknown[]>;
+  insert: (entity: Partial<T> | T) => Promise<{ identifiers: Array<{ id: number }> }>;
+  upsert: (
+    entityOrEntities: Partial<T> | Partial<T>[],
+    conflictPathsOrOptions: string | string[]
+  ) => Promise<{ identifiers: Array<{ id: number }> }>;
+  [key: string]: unknown;
+};
+
+export function createMockRepository<T = unknown>(initialData: T[] = []): MockRepository<T> {
   let data: T[] = [...initialData];
   let nextId = 1;
 
@@ -27,33 +36,34 @@ export function createMockRepository<T = any>(initialData: T[] = []): MockReposi
     } as unknown as T),
 
     save: async (entity: T) => {
-      const idx = data.findIndex((d: any) => d.id === (entity as any).id);
+      const idx = data.findIndex(d => (d as unknown as Record<string, unknown>).id === (entity as unknown as Record<string, unknown>).id);
       if (idx >= 0) {
         data[idx] = { ...entity };
       } else {
-        if (!(entity as any).id) {
-          (entity as any).id = nextId++;
+        if ((entity as unknown as Record<string, unknown>).id === undefined) {
+          (entity as unknown as Record<string, unknown>).id = nextId++ as unknown as number;
         }
         data.push(entity);
       }
       return entity;
     },
 
-    find: async (options?: any) => {
+    find: async (options?: FindOptions) => {
       let result = [...data];
       if (options?.where) {
-        result = result.filter((item: any) => {
-          for (const [key, value] of Object.entries(options.where as Record<string, any>)) {
-            if (value !== undefined && item[key] !== value) return false;
+        const where = options.where as Record<string, unknown>;
+        result = result.filter(item => {
+          for (const [key, value] of Object.entries(where)) {
+            if (value !== undefined && (item as unknown as Record<string, unknown>)[key] !== value) return false;
           }
           return true;
         });
       }
       if (options?.order) {
-        const [sortKey, sortDir] = Object.entries(options.order)[0] as [string, 'ASC' | 'DESC'];
-        result.sort((a: any, b: any) => {
-          const aVal = a[sortKey];
-          const bVal = b[sortKey];
+        const [sortKey, sortDir] = Object.entries(options.order!)[0] as [string, 'ASC' | 'DESC'];
+        result.sort((a, b) => {
+          const aVal = (a as unknown as Record<string, unknown>)[sortKey];
+          const bVal = (b as unknown as Record<string, unknown>)[sortKey];
           if (aVal < bVal) return sortDir === 'ASC' ? -1 : 1;
           if (aVal > bVal) return sortDir === 'ASC' ? 1 : -1;
           return 0;
@@ -65,21 +75,22 @@ export function createMockRepository<T = any>(initialData: T[] = []): MockReposi
       return result;
     },
 
-    findOne: async (options: any) => {
+    findOne: async (options?: FindOptions) => {
       let result = [...data];
       if (options?.where) {
-        result = result.filter((item: any) => {
-          for (const [key, value] of Object.entries(options.where as Record<string, any>)) {
-            if (value !== undefined && item[key] !== value) return false;
+        const where = options.where as Record<string, unknown>;
+        result = result.filter(item => {
+          for (const [key, value] of Object.entries(where)) {
+            if (value !== undefined && (item as unknown as Record<string, unknown>)[key] !== value) return false;
           }
           return true;
         });
       }
       if (options?.order) {
-        const [sortKey, sortDir] = Object.entries(options.order)[0] as [string, 'ASC' | 'DESC'];
-        result.sort((a: any, b: any) => {
-          const aVal = a[sortKey];
-          const bVal = b[sortKey];
+        const [sortKey, sortDir] = Object.entries(options.order!)[0] as [string, 'ASC' | 'DESC'];
+        result.sort((a, b) => {
+          const aVal = (a as unknown as Record<string, unknown>)[sortKey];
+          const bVal = (b as unknown as Record<string, unknown>)[sortKey];
           if (aVal < bVal) return sortDir === 'ASC' ? -1 : 1;
           if (aVal > bVal) return sortDir === 'ASC' ? 1 : -1;
           return 0;
@@ -88,11 +99,12 @@ export function createMockRepository<T = any>(initialData: T[] = []): MockReposi
       return result[0] || null;
     },
 
-    findOneBy: async (where: any) => {
+    findOneBy: async (where: Partial<T> | Record<string, unknown>) => {
+      const whereObj = where as Record<string, unknown>;
       for (const item of data) {
         let match = true;
-        for (const [key, value] of Object.entries(where as Record<string, any>)) {
-          if (value !== undefined && (item as any)[key] !== value) {
+        for (const [key, value] of Object.entries(whereObj)) {
+          if (value !== undefined && (item as unknown as Record<string, unknown>)[key] !== value) {
             match = false;
             break;
           }
@@ -102,41 +114,42 @@ export function createMockRepository<T = any>(initialData: T[] = []): MockReposi
       return null;
     },
 
-    findBy: async (where: any) => {
-      return data.filter((item: any) => {
-        for (const [key, value] of Object.entries(where as Record<string, any>)) {
-          if (value !== undefined && item[key] !== value) return false;
+    findBy: async (where: Partial<T> | Record<string, unknown>) => {
+      const whereObj = where as Record<string, unknown>;
+      return data.filter(item => {
+        for (const [key, value] of Object.entries(whereObj)) {
+          if (value !== undefined && (item as unknown as Record<string, unknown>)[key] !== value) return false;
         }
         return true;
       });
     },
 
-    update: async (criteria: any, partial: Partial<T>) => {
-      const criteriaObj = typeof criteria === 'object' ? criteria : { id: criteria };
+    update: async (criteria: Partial<T> | number | string, partial: Partial<T>) => {
+      const criteriaObj = typeof criteria === 'object' ? (criteria as Record<string, unknown>) : { id: criteria };
       let affected = 0;
-      data = data.map((item: any) => {
+      data = data.map(item => {
         let match = true;
         for (const [key, value] of Object.entries(criteriaObj)) {
-          if (value !== undefined && item[key] !== value) {
+          if (value !== undefined && (item as unknown as Record<string, unknown>)[key] !== value) {
             match = false;
             break;
           }
         }
         if (match) {
           affected++;
-          return { ...item, ...partial };
+          return { ...item, ...(partial as unknown as T) } as T;
         }
         return item;
       });
       return { affected };
     },
 
-    delete: async (criteria: any) => {
-      const criteriaObj = typeof criteria === 'object' ? criteria : { id: criteria };
+    delete: async (criteria: Partial<T> | number | string) => {
+      const criteriaObj = typeof criteria === 'object' ? (criteria as Record<string, unknown>) : { id: criteria };
       const before = data.length;
-      data = data.filter((item: any) => {
+      data = data.filter(item => {
         for (const [key, value] of Object.entries(criteriaObj)) {
-          if (value !== undefined && item[key] !== value) return true;
+          if (value !== undefined && (item as unknown as Record<string, unknown>)[key] !== value) return true;
         }
         return false;
       });
@@ -144,17 +157,18 @@ export function createMockRepository<T = any>(initialData: T[] = []): MockReposi
     },
 
     remove: async (entity: T) => {
-      const id = (entity as any).id;
-      data = data.filter((item: any) => item.id !== id);
+      const id = (entity as unknown as Record<string, unknown>).id as unknown as number | undefined;
+      data = data.filter(item => (item as unknown as Record<string, unknown>).id !== id);
       return entity;
     },
 
-    count: async (options?: any) => {
+    count: async (options?: FindOptions) => {
       let result = [...data];
       if (options?.where) {
-        result = result.filter((item: any) => {
-          for (const [key, value] of Object.entries(options.where as Record<string, any>)) {
-            if (value !== undefined && item[key] !== value) return false;
+        const where = options.where as Record<string, unknown>;
+        result = result.filter(item => {
+          for (const [key, value] of Object.entries(where)) {
+            if (value !== undefined && (item as unknown as Record<string, unknown>)[key] !== value) return false;
           }
           return true;
         });
@@ -162,25 +176,26 @@ export function createMockRepository<T = any>(initialData: T[] = []): MockReposi
       return result.length;
     },
 
-    query: async (sql: string, parameters?: any[]) => {
+    query: async (sql: string, parameters?: unknown[]) => {
       if (sql === 'SELECT 1') return [{ '1': 1 }];
       return [];
     },
 
-    insert: async (entity: any) => {
-      if (!entity.id) {
-        entity.id = nextId++;
+    insert: async (entity: Partial<T> | T) => {
+      const e = entity as unknown as Record<string, unknown>;
+      if (e.id === undefined) {
+        e.id = nextId++ as unknown as number;
       }
-      data.push(entity);
-      return { identifiers: [{ id: entity.id }] };
+      data.push(entity as T);
+      return { identifiers: [{ id: e.id as unknown as number }] };
     },
 
-    upsert: async (entityOrEntities: any, conflictPathsOrOptions: string | string[]) => {
+    upsert: async (entityOrEntities: Partial<T> | Partial<T>[], conflictPathsOrOptions: string | string[]) => {
       const entities = Array.isArray(entityOrEntities) ? entityOrEntities : [entityOrEntities];
       for (const entity of entities) {
-        await repo.save(entity);
+        await repo.save(entity as unknown as T);
       }
-      return { identifiers: entities.map((e: any) => ({ id: e.id || nextId++ })) };
+      return { identifiers: entities.map(e => ({ id: Number((e as unknown as Record<string, unknown>).id) || nextId++ })) };
     },
   };
 
@@ -188,30 +203,30 @@ export function createMockRepository<T = any>(initialData: T[] = []): MockReposi
 }
 
 type MockDataSource = {
-  getRepository: (entity: any) => MockRepository;
+  getRepository: (entity: Function | string) => MockRepository<unknown>;
   isInitialized: boolean;
   initialize: () => Promise<void>;
   destroy: () => Promise<void>;
-  query: (sql: string, parameters?: any[]) => Promise<any>;
-  transaction: (runInTransaction: (manager: any) => Promise<any>) => Promise<any>;
-  manager: any;
+  query: (sql: string, parameters?: unknown[]) => Promise<unknown[]>;
+  transaction: (runInTransaction: (manager: unknown) => Promise<unknown>) => Promise<unknown>;
+  manager: unknown;
 };
 
-const globalMocks: Record<string, MockRepository> = {};
+  const globalMocks: Record<string, MockRepository<unknown>> = {};
 
 export function mockDataSource(): MockDataSource {
   const dataSource: MockDataSource = {
     isInitialized: true,
     initialize: async () => {},
     destroy: async () => {},
-    query: async (sql: string, parameters?: any[]) => {
+    query: async (sql: string, parameters?: unknown[]) => {
       if (sql === 'SELECT 1') return [{ '1': 1 }];
       return [];
     },
-    transaction: async (runInTransaction: (manager: any) => Promise<any>) => {
+    transaction: async (runInTransaction: (manager: unknown) => Promise<unknown>) => {
       return runInTransaction(dataSource.manager);
     },
-    getRepository: (entity: any) => {
+    getRepository: (entity: Function | string) => {
       const entityName = typeof entity === 'function' ? entity.name : String(entity);
       if (!globalMocks[entityName]) {
         globalMocks[entityName] = createMockRepository();
@@ -230,11 +245,11 @@ export function clearAllMocks(): void {
   }
 }
 
-export function setMockData(entityName: string, data: any[]): void {
-  globalMocks[entityName] = createMockRepository(data);
+export function setMockData(entityName: string, data: unknown[]): void {
+  globalMocks[entityName] = createMockRepository(data as unknown[]);
 }
 
-export function getMockRepository(entityName: string): MockRepository {
+export function getMockRepository(entityName: string): MockRepository<unknown> {
   if (!globalMocks[entityName]) {
     globalMocks[entityName] = createMockRepository();
   }
