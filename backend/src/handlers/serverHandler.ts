@@ -57,8 +57,14 @@ import {
   normalizeStartupDonePatterns,
 } from '../utils/startupDetection';
 import { sanitizeError } from '../utils/sanitizeError';
+import type { AuthenticatedHandlerContext, ServerApp } from '../types';
+import type {
+  ServerAllocationLike,
+  ServerProcessConfigLike,
+  ServerSftpInfo,
+} from '../types/server';
 
-export async function serverRoutes(app: any, prefix = '') {
+export async function serverRoutes(app: ServerApp, prefix = '') {
   const nodeSvc = nodeService;
   const logRepo = () => AppDataSource.getRepository(UserLog);
   const userRepo = () => AppDataSource.getRepository(User);
@@ -132,7 +138,7 @@ export async function serverRoutes(app: any, prefix = '') {
     '🎲 Blahaj refused to hug you.',
   ];
 
-  function isGamblingModeEnabled(user: any): boolean {
+  function isGamblingModeEnabled(user: User): boolean {
     const themeName = String(user?.settings?.theme?.name || '')
       .trim()
       .toLowerCase();
@@ -148,7 +154,7 @@ export async function serverRoutes(app: any, prefix = '') {
     return Math.max(0, Math.min(1, value));
   }
 
-  function normalizeBadgeList(raw: any): string[] {
+  function normalizeBadgeList(raw: unknown): string[] {
     if (!Array.isArray(raw)) return [];
     return raw
       .map(v => String(v || '').trim())
@@ -156,7 +162,7 @@ export async function serverRoutes(app: any, prefix = '') {
       .slice(0, 128);
   }
 
-  function parsePortList(raw: any): Set<number> {
+  function parsePortList(raw: unknown): Set<number> {
     const ports = new Set<number>();
     if (raw == null) return ports;
     const values = Array.isArray(raw) ? raw : String(raw).split(/[\s,]+/);
@@ -169,7 +175,7 @@ export async function serverRoutes(app: any, prefix = '') {
     return ports;
   }
 
-  function parseVmPorts(raw: any): Set<number> {
+  function parseVmPorts(raw: unknown): Set<number> {
     const ports = new Set<number>();
     if (raw == null) return ports;
     const values = Array.isArray(raw) ? raw : String(raw).split(/\s*,\s*/);
@@ -184,7 +190,7 @@ export async function serverRoutes(app: any, prefix = '') {
     return ports;
   }
 
-  function normalizeIpv6Host(value: any): string {
+  function normalizeIpv6Host(value: unknown): string {
     const raw = String(value ?? '').trim();
     if (raw.startsWith('[') && raw.endsWith(']')) {
       return raw.slice(1, -1).trim();
@@ -201,7 +207,7 @@ export async function serverRoutes(app: any, prefix = '') {
     return addr >= first && addr <= reservedEnd;
   }
 
-  function mergeBadges(existing: any, earned: string[]): string[] {
+  function mergeBadges(existing: unknown, earned: string[]): string[] {
     const merged = new Set<string>([
       ...normalizeBadgeList(existing),
       ...normalizeBadgeList(earned),
@@ -209,8 +215,8 @@ export async function serverRoutes(app: any, prefix = '') {
     return Array.from(merged);
   }
 
-  async function resolveSftpAccess(serverUuid: string, ctx: any) {
-    const user = (ctx as any).user;
+  async function resolveSftpAccess(serverUuid: string, ctx: AuthenticatedHandlerContext) {
+    const user = ctx.user;
     if (!user) {
       ctx.set.status = 401;
       return { error: ctx.t('auth.unauthorized') };
@@ -263,7 +269,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const password = String(
-      ctx.request?.headers?.get('x-sftp-password') || (ctx.body?.password ?? '') || ''
+      ctx.request?.headers?.get('x-sftp-password') || (String((ctx.body as Record<string, unknown>)?.password ?? '')) || ''
     ).trim();
 
     if (!password) {
@@ -272,7 +278,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     const kvmEndpoint = (() => {
-      const alloc = cfg.allocations as any;
+      const alloc = cfg.allocations;
       if (!alloc?.default || !alloc.default.ip) return null;
       const ip = String(alloc.default.ip);
       const port = Number(alloc.default.port ?? 2022);
@@ -406,7 +412,7 @@ export async function serverRoutes(app: any, prefix = '') {
     );
   }
 
-  function normalizeGamblingStats(raw: any) {
+  function normalizeGamblingStats(raw: Record<string, unknown> | null | undefined) {
     return {
       gambleCount: Math.max(0, Number(raw?.gambleCount ?? raw?.rollCount ?? 0)),
       rollCount: Math.max(0, Number(raw?.rollCount ?? raw?.gambleCount ?? 0)),
@@ -423,7 +429,7 @@ export async function serverRoutes(app: any, prefix = '') {
   }
 
   function applyGambleOutcome(
-    raw: any,
+    raw: Record<string, unknown> | null | undefined,
     didWin: boolean,
     meta?: { luckyHit?: boolean; bonusActivated?: boolean }
   ) {
@@ -453,7 +459,7 @@ export async function serverRoutes(app: any, prefix = '') {
     return stats;
   }
 
-  function buildGamblingBadges(stats: any): string[] {
+  function buildGamblingBadges(stats: Record<string, unknown> | null | undefined): string[] {
     const normalized = normalizeGamblingStats(stats);
     const badges: string[] = [];
     if (normalized.gambleCount >= 1) badges.push('Beginner Gambler');
@@ -499,8 +505,8 @@ export async function serverRoutes(app: any, prefix = '') {
   }
 
   async function pickNode(
-    ctx: any,
-    user: any,
+    ctx: AuthenticatedHandlerContext,
+    user: User,
     preferredNodeId?: number,
     assignedNodeId?: number
   ): Promise<Node> {
@@ -517,9 +523,9 @@ export async function serverRoutes(app: any, prefix = '') {
     if (portalType === 'enterprise' && assignedNodeId) {
       const n = await nodeRepo().findOneBy({ id: assignedNodeId });
       if (!n) throw new Error('Assigned enterprise node not found');
-      if ((n as any).deploymentsDisabled) {
+      if (n.deploymentsDisabled) {
         throw new Error(
-          (n as any).deploymentNotice || 'This node is temporarily unavailable for deployments'
+          n.deploymentNotice || 'This node is temporarily unavailable for deployments'
         );
       }
       if (unhealthyNodeIds.includes(n.id)) {
@@ -539,7 +545,7 @@ export async function serverRoutes(app: any, prefix = '') {
         if (portalType === 'enterprise') {
           const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
           const orgIds = memberships
-            .map((m: any) => Number(m.organisationId))
+            .map((m: { organisationId: number }) => Number(m.organisationId))
             .filter((v: number) => Number.isFinite(v));
           if (!n.organisation?.id || !orgIds.includes(Number(n.organisation.id))) {
             throw new Error('Node not available for your organisation');
@@ -553,9 +559,9 @@ export async function serverRoutes(app: any, prefix = '') {
         }
       }
 
-      if ((n as any).deploymentsDisabled) {
+      if (n.deploymentsDisabled) {
         throw new Error(
-          (n as any).deploymentNotice || 'This node is temporarily unavailable for deployments'
+          n.deploymentNotice || 'This node is temporarily unavailable for deployments'
         );
       }
 
@@ -569,10 +575,10 @@ export async function serverRoutes(app: any, prefix = '') {
     if (portalType === 'enterprise') {
       const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
       const orgIds = memberships
-        .map((m: any) => Number(m.organisationId))
+        .map((m: { organisationId: number }) => Number(m.organisationId))
         .filter((v: number) => Number.isFinite(v));
       if (orgIds.length > 0) {
-        const where: any = { organisation: { id: In(orgIds) } };
+        const where: Record<string, unknown> = { organisation: { id: In(orgIds) } };
         if (unhealthyNodeIds.length) {
           where.id = Not(In(unhealthyNodeIds));
         }
@@ -587,7 +593,7 @@ export async function serverRoutes(app: any, prefix = '') {
     }
 
     for (const t of types) {
-      const where: any = { nodeType: t as any };
+      const where: Record<string, unknown> = { nodeType: t };
       if (unhealthyNodeIds.length) {
         where.id = Not(In(unhealthyNodeIds));
       }
@@ -607,35 +613,33 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       try {
         await mergeDuplicateServerConfigs();
       } catch (e) {
         /* skip */
       }
       const nodes = await nodeRepo().find();
-      const cfgRepo = AppDataSource.getRepository(
-        require('../models/serverConfig.entity').ServerConfig
-      );
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
 
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'servers:list');
 
-      const configs = isAdmin
+      const configs = (isAdmin
         ? await cfgRepo.find()
         : await (async () => {
             const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
               where: { userId: user.id },
             });
             const subuserUuids = subuserEntries.map(s => s.serverUuid);
-            const where: any[] = [{ userId: user.id }];
+            const where: Record<string, unknown>[] = [{ userId: user.id }];
             if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
             const found = await cfgRepo.find({ where });
             return found;
-          })();
+          })()) as ServerConfig[];
 
-      const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
-      const all: any[] = [];
+      const cfgMap = new Map(configs.map((c: ServerConfig) => [c.uuid, c]));
+      const all: Record<string, unknown>[] = [];
 
       if (isAdmin) {
         const unhealthyNodeIds = await getUnhealthyNodeIds();
@@ -643,7 +647,7 @@ export async function serverRoutes(app: any, prefix = '') {
           nodes.map(async n => {
             if (unhealthyNodeIds.includes(n.id)) return null;
             try {
-              const base = (n as any).backendWingsUrl || n.url;
+              const base = n.backendWingsUrl || n.url;
               const svc = new WingsApiService(base, n.token);
               const res = await svc.getServers();
               return { node: n, servers: res.data || [] };
@@ -674,7 +678,7 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         for (const c of configs) {
-          if (!all.some((s: any) => s.uuid === c.uuid)) {
+          if (!all.some((s: Record<string, unknown>) => s.uuid === c.uuid)) {
             all.push({
               uuid: c.uuid,
               name: c.name || c.uuid,
@@ -691,12 +695,12 @@ export async function serverRoutes(app: any, prefix = '') {
           }
         }
       } else {
-        const allowedUuids = new Set(configs.map((c: any) => c.uuid));
+        const allowedUuids = new Set(configs.map((c: ServerConfig) => c.uuid));
 
         const nodeMap = new Map(nodes.map(n => [n.id, n]));
         const unhealthyNodeIds = await getUnhealthyNodeIds();
 
-        const configsByNode = new Map<number, any[]>();
+        const configsByNode = new Map<number, ServerConfig[]>();
         for (const c of configs) {
           if (!allowedUuids.has(c.uuid)) continue;
           const node = nodeMap.get(c.nodeId);
@@ -747,19 +751,19 @@ export async function serverRoutes(app: any, prefix = '') {
 
           nodePromises.push(
             (async () => {
-              const base = (node as any).backendWingsUrl || node.url;
+              const base = node.backendWingsUrl || node.url;
               const svc = new WingsApiService(base, node.token);
               const promises = cfgList.map(async c => {
                 try {
                   const res = await svc.getServer(c.uuid);
-                  const s = res.data;
+                  const s = res.data as Record<string, unknown>;
                   const norm = applyStartupStatusOverride(
-                    normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c),
+                    normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c) ?? {},
                     c
                   );
                   all.push({
                     ...norm,
-                    name: c.name || norm.name,
+                    name: c.name || (norm.name as string),
                     nodeId: node.id,
                     nodeName: node.name,
                     userId: c.userId,
@@ -772,14 +776,14 @@ export async function serverRoutes(app: any, prefix = '') {
                 try {
                   await svc.syncServer(c.uuid, {});
                   const retry = await svc.getServer(c.uuid);
-                  const s2 = retry.data;
+                  const s2 = retry.data as Record<string, unknown>;
                   const norm2 = applyStartupStatusOverride(
-                    normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c),
+                    normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c) ?? {},
                     c
                   );
                   all.push({
                     ...norm2,
-                    name: c.name || norm2.name,
+                    name: c.name || (norm2.name as string),
                     nodeId: node.id,
                     nodeName: node.name,
                     userId: c.userId,
@@ -811,7 +815,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       const seen = new Set<string>();
-      const unique = all.filter((s: any) => {
+      const unique = all.filter((s: Record<string, unknown>) => {
         const uuid = String(s?.uuid || s?.id || '');
         if (!uuid) return false;
         if (seen.has(uuid)) return false;
@@ -832,22 +836,23 @@ export async function serverRoutes(app: any, prefix = '') {
     }
   );
 
-  function normalizeServer(raw: any, overrideStatus?: string, persistedCfg?: any): any {
+  function normalizeServer(raw: Record<string, unknown> | null | undefined, overrideStatus?: string, persistedCfg?: ServerConfig): Record<string, unknown> | null | undefined {
     if (!raw) return raw;
-    const cfg = raw.configuration || {};
-    const meta = cfg.meta || {};
-    const build = cfg.build || {};
-    const ctr = cfg.container || cfg.docker || {};
+    const r = raw as Record<string, unknown>;
+    const cfg = (r.configuration as Record<string, unknown>) || {};
+    const meta = (cfg.meta as Record<string, unknown>) || {};
+    const build = (cfg.build as Record<string, unknown>) || {};
+    const ctr = (cfg.container as Record<string, unknown>) || (cfg.docker as Record<string, unknown>) || {};
     const isSuspended = Boolean(
-      raw.is_suspended ?? raw.suspended ?? cfg.suspended ?? persistedCfg?.suspended ?? false
+      r.is_suspended ?? r.suspended ?? cfg.suspended ?? persistedCfg?.suspended ?? false
     );
-    const isDmca = Boolean(raw.is_dmca ?? raw.dmca ?? cfg.dmca ?? persistedCfg?.dmca ?? false);
-    const baseStatus = overrideStatus ?? raw.state ?? raw.status ?? 'unknown';
+    const isDmca = Boolean(r.is_dmca ?? r.dmca ?? cfg.dmca ?? persistedCfg?.dmca ?? false);
+    const baseStatus = (overrideStatus ?? r.state ?? r.status ?? 'unknown') as string;
     const status = isDmca ? 'dmca' : isSuspended ? 'suspended' : baseStatus;
     return {
-      uuid: cfg.uuid || raw.uuid,
-      name: meta.name || raw.name || cfg.uuid || raw.uuid,
-      description: meta.description || raw.description,
+      uuid: cfg.uuid || r.uuid,
+      name: meta.name || r.name || cfg.uuid || r.uuid,
+      description: meta.description as string | undefined,
       status,
       hibernated: status === 'hibernated',
       is_suspended: isSuspended || isDmca,
@@ -859,36 +864,37 @@ export async function serverRoutes(app: any, prefix = '') {
       suspendedAt: cfg.suspendedAt ?? persistedCfg?.suspendedAt ?? null,
       suspendedReason: cfg.suspendedReason ?? persistedCfg?.suspendedReason ?? null,
       suspendedBy: cfg.suspendedBy ?? persistedCfg?.suspendedBy ?? null,
-      resources: raw.utilization || raw.resources || null,
+      resources: r.utilization || r.resources || null,
       build: {
-        memory_limit: build.memory_limit ?? persistedCfg?.memory ?? 0,
-        disk_space: build.disk_space ?? persistedCfg?.disk ?? 0,
-        cpu_limit: build.cpu_limit ?? persistedCfg?.cpu ?? 0,
-        swap: build.swap ?? persistedCfg?.swap ?? 0,
-        io_weight: build.io_weight ?? persistedCfg?.ioWeight ?? 500,
-        oom_disabled: build.oom_disabled ?? false,
+        memory_limit: (build.memory_limit as number) ?? persistedCfg?.memory ?? 0,
+        disk_space: (build.disk_space as number) ?? persistedCfg?.disk ?? 0,
+        cpu_limit: (build.cpu_limit as number) ?? persistedCfg?.cpu ?? 0,
+        swap: (build.swap as number) ?? persistedCfg?.swap ?? 0,
+        io_weight: (build.io_weight as number) ?? persistedCfg?.ioWeight ?? 500,
+        oom_disabled: (build.oom_disabled as boolean) ?? false,
       },
       container: {
-        image: ctr.image || ctr.images?.[0] || null,
-        startup: cfg.invocation || raw.invocation || null,
+        image: (ctr.image as string) || ((ctr.images as string[])?.[0]) || null,
+        startup: (cfg.invocation as string) || (r.invocation as string) || null,
       },
-      invocation: cfg.invocation || raw.invocation || null,
-      environment: cfg.environment || raw.environment || {},
+      invocation: (cfg.invocation as string) || (r.invocation as string) || null,
+      environment: (cfg.environment as Record<string, string>) || (r.environment as Record<string, string>) || {},
       configuration: cfg,
     };
   }
 
-  function applyStartupStatusOverride(server: any, cfg?: any): any {
+  function applyStartupStatusOverride(server: Record<string, unknown>, cfg?: ServerConfig): Record<string, unknown> {
     if (!server || server.status !== 'starting') return server;
 
-    const processCfg = cfg?.processConfig;
+    const processCfg = cfg?.processConfig as Record<string, unknown> | undefined;
     if (!processCfg || typeof processCfg !== 'object') {
       server.status = 'running';
       server.hibernated = false;
       return server;
     }
 
-    const donePatterns = normalizeStartupDonePatterns(processCfg?.startup?.done);
+    const startup = processCfg.startup as Record<string, unknown> | undefined;
+    const donePatterns = normalizeStartupDonePatterns(startup?.done);
     if (donePatterns.includes(DEFAULT_STARTUP_DETECTION_PATTERN)) {
       server.status = 'running';
       server.hibernated = false;
@@ -899,8 +905,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
 
       const user = ctx.user;
@@ -926,7 +932,7 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       let nodeName: string | null = null;
-      let sftpInfo: Record<string, any> | null = null;
+      let sftpInfo: ServerSftpInfo | null = null;
       let node: Node | null = null;
       if (cfg?.nodeId) {
         node = await nodeRepo().findOneBy({ id: cfg.nodeId });
@@ -1023,11 +1029,12 @@ export async function serverRoutes(app: any, prefix = '') {
           cfg
         );
         if (cfg && norm && norm.configuration) {
-          norm.configuration.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
-          const dbAlloc = cfg.allocations as any;
+          const normCfg = norm.configuration as Record<string, unknown>;
+          normCfg.autoSyncOnEggChange = cfg.autoSyncOnEggChange;
+          const dbAlloc = cfg.allocations;
           if (dbAlloc?.dedicatedIps) {
-            norm.configuration.allocations = {
-              ...(norm.configuration.allocations || {}),
+            normCfg.allocations = {
+              ...((normCfg.allocations as Record<string, unknown>) || {}),
               dedicatedIps: dbAlloc.dedicatedIps,
             };
           }
@@ -1054,7 +1061,7 @@ export async function serverRoutes(app: any, prefix = '') {
               }
             : {}),
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cfg) {
           try {
             const svc = await serviceFor(id);
@@ -1065,10 +1072,11 @@ export async function serverRoutes(app: any, prefix = '') {
               cfg
             );
             if (norm?.configuration) {
-              const dbAlloc = cfg.allocations as any;
+              const normCfg = norm.configuration as Record<string, unknown>;
+              const dbAlloc = cfg.allocations;
               if (dbAlloc?.dedicatedIps) {
-                norm.configuration.allocations = {
-                  ...(norm.configuration.allocations || {}),
+                normCfg.allocations = {
+                  ...((normCfg.allocations as Record<string, unknown>) || {}),
                   dedicatedIps: dbAlloc.dedicatedIps,
                 };
               }
@@ -1147,7 +1155,7 @@ export async function serverRoutes(app: any, prefix = '') {
           };
         }
         ctx.set.status = 502;
-        return { error: e?.message || 'Server fetch failed' };
+        return { error: (e instanceof Error ? e.message : '') || 'Server fetch failed' };
       }
     },
     {
@@ -1164,16 +1172,14 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/servers/:id',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'admin:access');
       const force =
         (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) ||
-        (ctx.body && ctx.body.force === true);
-      const cfgRepo = AppDataSource.getRepository(
-        require('../models/serverConfig.entity').ServerConfig
-      );
+        (ctx.body && (ctx.body as Record<string, unknown>).force === true);
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
       const cfg = await cfgRepo.findOneBy({ uuid: id });
       if (cfg?.dmca && !isAdmin) {
         ctx.set.status = 403;
@@ -1198,9 +1204,11 @@ export async function serverRoutes(app: any, prefix = '') {
         });
         await removeServerConfig(id);
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 502;
-        const errMsg = String(e?.message || '');
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 502;
+        const errMsg = String(err instanceof Error ? err.message : '');
         const mappingMissing = errMsg.includes('No node mapping');
         if (isAdmin && (mappingMissing || status === 404 || force)) {
           try {
@@ -1214,7 +1222,7 @@ export async function serverRoutes(app: any, prefix = '') {
             targetType: 'server',
             metadata: {
               serverUuid: id,
-              wingsError: e?.message || String(e),
+              wingsError: err instanceof Error ? err.message : String(err),
               mappingMissing,
               status,
             },
@@ -1224,7 +1232,8 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         ctx.set.status = status === 404 ? 502 : status;
-        const msg = e?.response?.data?.error || e?.message || 'Failed to delete server';
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to delete server';
         return { error: msg };
       }
     },
@@ -1242,7 +1251,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
@@ -1284,8 +1293,8 @@ export async function serverRoutes(app: any, prefix = '') {
         }
       }
 
-      const body = ctx.body as any;
-      let {
+      const body = ctx.body as Record<string, unknown>;
+      const {
         eggId,
         name,
         nodeId,
@@ -1293,8 +1302,16 @@ export async function serverRoutes(app: any, prefix = '') {
         memory: reqMemory,
         disk: reqDisk,
         cpu: reqCpu,
-        kvmPassthroughEnabled,
-      } = body;
+      } = body as {
+        eggId?: number;
+        name?: string;
+        nodeId?: number;
+        userId?: number;
+        memory?: number;
+        disk?: number;
+        cpu?: number;
+      };
+      let kvmPassthroughEnabled = Boolean(body.kvmPassthroughEnabled);
 
       if (body.requestIpv6 === true || String(body.requestIpv6) === 'true') {
         ctx.set.status = 400;
@@ -1302,7 +1319,6 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       const ownerId: number = userId && isAdmin ? userId : user.id;
-      kvmPassthroughEnabled = Boolean(kvmPassthroughEnabled);
 
       let limits: { memory?: number; disk?: number; cpu?: number; serverLimit?: number } = {};
 
@@ -1366,7 +1382,7 @@ export async function serverRoutes(app: any, prefix = '') {
       let node: Node;
       try {
         node = await pickNode(ctx, user, nodeId, user.nodeId);
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 503;
         return { error: sanitizeError(e, 'serverHandler:pick-node') };
       }
@@ -1484,15 +1500,15 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         const existingMemory = existingRegularServers.reduce(
-          (sum: number, s: any) => sum + (s.memory || 0),
+          (sum: number, s: ServerConfig) => sum + (s.memory || 0),
           0
         );
         const existingDisk = existingRegularServers.reduce(
-          (sum: number, s: any) => sum + (s.disk || 0),
+          (sum: number, s: ServerConfig) => sum + (s.disk || 0),
           0
         );
         const existingCpu = existingRegularServers.reduce(
-          (sum: number, s: any) => sum + (s.cpu || 0),
+          (sum: number, s: ServerConfig) => sum + (s.cpu || 0),
           0
         );
 
@@ -1541,10 +1557,10 @@ export async function serverRoutes(app: any, prefix = '') {
 
       if (
         !isAdmin &&
-        Array.isArray((egg as any).allowedPortals) &&
-        (egg as any).allowedPortals.length > 0
+        Array.isArray(egg.allowedPortals) &&
+        egg.allowedPortals.length > 0
       ) {
-        const allowed = (egg as any).allowedPortals as string[];
+        const allowed = egg.allowedPortals as string[];
         const isEducational = effectivePortalType === 'educational';
         const isActuallyAllowed =
           allowed.includes(effectivePortalType) || (isEducational && allowed.includes('paid'));
@@ -1583,16 +1599,16 @@ export async function serverRoutes(app: any, prefix = '') {
         }
       }
 
-      if ((node as any).deploymentsDisabled) {
+      if (node.deploymentsDisabled) {
         ctx.set.status = 403;
         return {
           error:
-            (node as any).deploymentNotice ||
+            node.deploymentNotice ||
             'This node is temporarily unavailable for deployments',
         };
       }
 
-      let autoAllocation: Record<string, any> | null = null;
+      let autoAllocation: ServerAllocationLike | null = null;
       const assignedIpv6: string | null = null;
       if (node.portRangeStart != null && node.portRangeEnd != null) {
         if (node.portRangeStart > node.portRangeEnd) {
@@ -1608,7 +1624,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
         const takenPorts = new Set<number>();
         for (const c of nodeConfigs) {
-          const alloc = c.allocations as any;
+          const alloc = c.allocations;
           if (!alloc) continue;
           if (alloc.default?.port) {
             const p = Number(alloc.default.port);
@@ -1658,9 +1674,9 @@ export async function serverRoutes(app: any, prefix = '') {
       const serverUuid = crypto.randomUUID();
 
       const envObject: Record<string, string> = {};
-      for (const entry of (egg.envVars || []) as any[]) {
+      for (const entry of (egg.envVars || [])) {
         if (typeof entry === 'string') {
-          const [k, ...rest] = entry.split('=');
+          const [k, ...rest] = (entry as string).split('=');
           if (k) envObject[k.trim()] = rest.join('=').trim();
         } else if (entry && typeof entry === 'object') {
           const k = entry.env_variable || entry.key || entry.name;
@@ -1679,7 +1695,7 @@ export async function serverRoutes(app: any, prefix = '') {
         'BASH_ENV',
         'BASH_FUNC_mc',
       ]);
-      const envOverrides: Record<string, string> = body.environment || {};
+      const envOverrides: Record<string, string> = (body.environment as Record<string, string>) || {};
       for (const key of Object.keys(envOverrides)) {
         if (!DENIED_ENV_KEYS.has(key)) {
           envObject[key] = envOverrides[key];
@@ -1708,7 +1724,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
       const hasEulaFeature =
         Array.isArray(egg.features) &&
-        egg.features.some((feature: any) => String(feature).toLowerCase() === 'eula');
+        egg.features.some((feature: string) => feature.toLowerCase() === 'eula');
 
       await nodeSvc.mapServer(serverUuid, node.id);
       await saveServerConfig({
@@ -1727,7 +1743,7 @@ export async function serverRoutes(app: any, prefix = '') {
         ...(autoAllocation ? { allocations: autoAllocation } : {}),
       });
 
-      const base = (node as any).backendWingsUrl || node.url;
+      const base = node.backendWingsUrl || node.url;
       const svc = new WingsApiService(base, node.token);
 
       try {
@@ -1736,7 +1752,7 @@ export async function serverRoutes(app: any, prefix = '') {
         if (hasEulaFeature) {
           try {
             await svc.writeFile(serverUuid, 'eula.txt', 'EULA=true');
-          } catch (fileErr: any) {
+          } catch (fileErr: unknown) {
             console.error(`[serverHandler:create-server] failed to write eula.txt ${fileErr}`);
           }
         }
@@ -1759,7 +1775,7 @@ export async function serverRoutes(app: any, prefix = '') {
         });
 
         return { uuid: serverUuid, nodeId: node.id, gambling: gamblingResult, ...res.data };
-      } catch (e: any) {
+      } catch (e: unknown) {
         await Promise.allSettled([removeServerConfig(serverUuid), nodeSvc.unmapServer(serverUuid)]);
         ctx.set.status = 502;
         console.error('[serverHandler:create-server]', e);
@@ -1783,10 +1799,10 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/servers/:id',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const { memory, disk, cpu, swap, ioWeight, environment, name, kvmPassthroughEnabled } =
-        ctx.body as any;
+        ctx.body as Record<string, unknown>;
 
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'admin:access');
@@ -1835,13 +1851,13 @@ export async function serverRoutes(app: any, prefix = '') {
       try {
         const svc = await serviceFor(id);
 
-        const build: any = {};
+        const build: Record<string, unknown> = {};
         if (memory !== undefined) build.memory_limit = Number(memory);
         if (disk !== undefined) build.disk_space = Number(disk);
         if (cpu !== undefined) build.cpu_limit = Number(cpu);
         if (swap !== undefined) build.swap = Number(swap);
         if (ioWeight !== undefined) build.io_weight = Number(ioWeight);
-        const syncPayload: any = {};
+        const syncPayload: Record<string, unknown> = {};
         if (Object.keys(build).length) syncPayload.build = build;
         if (environment !== undefined) syncPayload.environment = environment;
         if (name !== undefined) syncPayload.name = name;
@@ -1887,7 +1903,7 @@ export async function serverRoutes(app: any, prefix = '') {
           ipAddress: ctx.ip,
         });
         return { success: true };
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 502;
         console.error('[serverHandler:update-server]', e);
         return { error: sanitizeError(e, 'serverHandler:update-server') };
@@ -1907,9 +1923,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/ipv6',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { action, ipv6Address } = (ctx.body as any) || {};
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { action, ipv6Address } = (ctx.body as Record<string, unknown>) || {};
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
@@ -1923,9 +1939,7 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: ctx.t('validation.invalidAction') };
       }
 
-      const cfgRepo = AppDataSource.getRepository(
-        require('../models/serverConfig.entity').ServerConfig
-      );
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
       const cfg = await cfgRepo.findOneBy({ uuid: id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -1943,7 +1957,7 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: ctx.t('server.ipv6NoSubnet') };
       }
 
-      const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
+      const alloc = (cfg.allocations) || { mappings: {}, owners: {} };
       alloc.mappings = alloc.mappings || {};
       alloc.owners = alloc.owners || {};
       const existingIpv6Address =
@@ -1977,7 +1991,7 @@ export async function serverRoutes(app: any, prefix = '') {
             select: { allocations: true },
           });
           for (const c of nodeConfigs) {
-            const entry = c.allocations as any;
+            const entry = c.allocations;
             if (!entry) continue;
             if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
               usedAddresses.add(formatIpv6(parseIpv6(String(entry.default.ip))));
@@ -1998,7 +2012,7 @@ export async function serverRoutes(app: any, prefix = '') {
             select: { allocations: true },
           });
           for (const c of nodeConfigs) {
-            const entry = c.allocations as any;
+            const entry = c.allocations;
             if (!entry) continue;
             if (entry.default?.ip && isValidIpv6(String(entry.default.ip))) {
               used.add(formatIpv6(parseIpv6(String(entry.default.ip))));
@@ -2069,7 +2083,7 @@ export async function serverRoutes(app: any, prefix = '') {
         if (fallbackIp && fallbackPort != null) {
           alloc.default = { ip: fallbackIp, port: Number(fallbackPort) };
         } else {
-          alloc.default = null as any;
+          alloc.default = null as unknown as Record<string, unknown>;
         }
       }
 
@@ -2107,10 +2121,10 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/suspend',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       try {
-        const body = (ctx.body || {}) as any;
+        const body = (ctx.body || {}) as Record<string, unknown>;
         const providedReason = typeof body.reason === 'string' ? body.reason.trim() : '';
         const providedSource = typeof body.source === 'string' ? body.source.trim() : '';
         const dmcaMark = Boolean(body.dmca);
@@ -2130,7 +2144,7 @@ export async function serverRoutes(app: any, prefix = '') {
         );
         const existingCfg = await cfgRepo.findOneBy({ uuid: id });
         const alreadySuspended = !!existingCfg?.suspended;
-        const updateData: any = {
+        const updateData: Record<string, unknown> = {
           suspended: true,
           suspendedBy: actor,
           suspendedReason: reason,
@@ -2205,7 +2219,7 @@ export async function serverRoutes(app: any, prefix = '') {
           emailReason: notice.reason || null,
           emailRecipient: notice.recipient || null,
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 502;
         console.error('[serverHandler:suspend-server]', e);
         return { error: sanitizeError(e, 'serverHandler:suspend-server') };
@@ -2238,8 +2252,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/unsuspend',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       try {
         const cfgRepo = AppDataSource.getRepository(
           require('../models/serverConfig.entity').ServerConfig
@@ -2284,7 +2298,7 @@ export async function serverRoutes(app: any, prefix = '') {
           ipAddress: ctx.ip,
         });
         return { success: true };
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 502;
         console.error('[serverHandler:unsuspend-server]', e);
         return { error: sanitizeError(e, 'serverHandler:unsuspend-server') };
@@ -2304,9 +2318,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/power',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { action } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { action } = ctx.body as Record<string, unknown>;
       const user = ctx.user;
       const gamblingConfig = await getGamblingConfig();
       const gamblingPowerEnabled = gamblingConfig.enabled && isGamblingModeEnabled(user);
@@ -2345,7 +2359,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
       try {
         const svc = await serviceFor(id);
-        const res = await svc.powerServer(id, action);
+        const res = await svc.powerServer(id, action as string);
         if (gamblingPowerEnabled) {
           await recordPowerGambleOutcome(Number(user.id), true);
         }
@@ -2363,9 +2377,12 @@ export async function serverRoutes(app: any, prefix = '') {
           ipAddress: ctx.ip,
         });
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 502;
-        const msg = e?.response?.data?.error || e?.message || 'Power action failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 502;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Power action failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2383,9 +2400,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/kvm',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { enable } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { enable } = ctx.body as Record<string, unknown>;
 
       const user = ctx.user;
       if (!user || !hasPermissionSync(ctx, 'servers:kvm')) {
@@ -2406,9 +2423,10 @@ export async function serverRoutes(app: any, prefix = '') {
       try {
         const svc = await serviceFor(id);
         await svc.syncServer(id, {});
-      } catch (e: any) {
+      } catch (e: unknown) {
+        const errMsg = e instanceof Error ? e.message : '';
         ctx.set.status = 502;
-        return { error: `KVM toggle failed: ${e?.message || 'unable to sync to node'}` };
+        return { error: `KVM toggle failed: ${errMsg || 'unable to sync to node'}` };
       }
 
       await createActivityLog({
@@ -2435,37 +2453,43 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/files',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { path } = ctx.query as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const path = ctx.query.path as string;
       const dir = path || '/';
       try {
         const svc = await serviceFor(id);
-        let res: any;
+        let res: Record<string, unknown>;
         try {
           res = await svc.serverRequest(
             id,
             `/files/list-directory?directory=${encodeURIComponent(dir)}`
           );
-        } catch (e1: any) {
-          if (e1?.response?.status === 404) {
+        } catch (e1: unknown) {
+          const e1Err = e1 as Record<string, unknown>;
+          const e1Response = e1Err?.response as Record<string, unknown> | undefined;
+          if (e1Response?.status === 404) {
             res = await svc.serverRequest(id, `/files/list?directory=${encodeURIComponent(dir)}`);
           } else {
             throw e1;
           }
         }
         const data = res.data;
+        const dataObj = data as Record<string, unknown>;
         const entries =
           (Array.isArray(data) ? data : null) ??
-          (Array.isArray(data?.entries) ? data.entries : null) ??
-          (Array.isArray(data?.data) ? data.data : null) ??
-          (Array.isArray(data?.files) ? data.files : null) ??
+          (Array.isArray(dataObj?.entries) ? dataObj.entries : null) ??
+          (Array.isArray(dataObj?.data) ? dataObj.data : null) ??
+          (Array.isArray(dataObj?.files) ? dataObj.files : null) ??
           [];
         return entries;
-      } catch (e: any) {
-        if (e?.response?.status === 404) return [];
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Failed to list files';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        if (errResponse?.status === 404) return [];
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to list files';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2484,9 +2508,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/files/contents',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { path } = ctx.query as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const path = ctx.query.path as string;
       if (!path) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.pathQueryParamRequired') };
@@ -2501,9 +2525,12 @@ export async function serverRoutes(app: any, prefix = '') {
       try {
         const res = await svc.readFile(id, path);
         return res.data ?? '';
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Failed to read file';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to read file';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2523,9 +2550,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/files/download',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
-      const { path } = ctx.query;
+      const path = ctx.query.path as string;
 
       if (!path) {
         ctx.set.status = 400;
@@ -2563,9 +2590,12 @@ export async function serverRoutes(app: any, prefix = '') {
             'Content-Length': String(body.byteLength),
           },
         });
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Failed to download file';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to download file';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2586,7 +2616,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/files/upload',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
       if (!pathParam) {
@@ -2611,13 +2641,13 @@ export async function serverRoutes(app: any, prefix = '') {
         } else if (Buffer.isBuffer(ctx.body)) {
           binaryData = new Uint8Array(ctx.body);
         } else {
-          const rawBody = await ctx.request.arrayBuffer();
+          const rawBody = await (ctx.request as unknown as Request).arrayBuffer();
           binaryData = new Uint8Array(rawBody);
         }
 
         const res = await svc.writeFile(id, pathParam, binaryData);
 
-        const user = (ctx as any).store?.user ?? (ctx as any).user;
+        const user = (ctx.store?.user as User) ?? ctx.user;
         if (user?.id) {
           await createActivityLog({
             userId: user.id,
@@ -2630,9 +2660,12 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'File upload failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'File upload failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2653,13 +2686,13 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/files/write',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const svc = await serviceFor(id);
 
       try {
-        const body = ctx.body as any;
-        const user = (ctx as any).store?.user ?? (ctx as any).user;
+        const body = ctx.body as Record<string, unknown>;
+        const user = (ctx.store?.user as User) ?? ctx.user;
 
         // ── Multipart file upload ──
         if (body && (body.file || body.files)) {
@@ -2672,7 +2705,7 @@ export async function serverRoutes(app: any, prefix = '') {
             return { error: ctx.t('validation.missingFile') };
           }
 
-          const destination = (body.path || body.destination || '/').replace(/\/+$/, '');
+          const destination = String(body?.path || body?.destination || '/').replace(/\/+$/, '');
           const fileName = uploadFile.name || 'upload';
           const filePath = destination.endsWith('/')
             ? `${destination}${fileName}`
@@ -2701,8 +2734,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
         // ── JSON body — text content write ──
         const { path: filePath, content } = body;
+        const fPath = String(filePath ?? '');
 
-        if (!filePath) {
+        if (!fPath) {
           ctx.set.status = 400;
           return { error: ctx.t('validation.pathRequired') };
         }
@@ -2719,7 +2753,7 @@ export async function serverRoutes(app: any, prefix = '') {
           binaryData = new TextEncoder().encode(String(content ?? ''));
         }
 
-        const res = await svc.writeFile(id, filePath, binaryData);
+        const res = await svc.writeFile(id, fPath, binaryData);
 
         if (user?.id) {
           await createActivityLog({
@@ -2733,9 +2767,12 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'File write failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'File write failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2755,19 +2792,20 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/files/delete',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { path: filePath, files, bulk } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { path: filePath, files, bulk } = ctx.body as Record<string, unknown>;
       let root = '/';
       let targetFiles: string[] = [];
 
+      const fPath = filePath as string;
       if (bulk && Array.isArray(files)) {
-        root = typeof filePath === 'string' && filePath.length > 0 ? filePath : '/';
-        targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
+        root = typeof fPath === 'string' && fPath.length > 0 ? fPath : '/';
+        targetFiles = files.filter((f: unknown) => typeof f === 'string' && f.trim().length > 0);
       } else {
-        const lastSlash = filePath.lastIndexOf('/');
-        root = lastSlash > 0 ? filePath.substring(0, lastSlash) : '/';
-        const fileName = filePath.substring(lastSlash + 1);
+        const lastSlash = fPath.lastIndexOf('/');
+        root = lastSlash > 0 ? fPath.substring(0, lastSlash) : '/';
+        const fileName = fPath.substring(lastSlash + 1);
         targetFiles = fileName ? [fileName] : [];
       }
 
@@ -2789,9 +2827,12 @@ export async function serverRoutes(app: any, prefix = '') {
           ipAddress: ctx.ip,
         });
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'File delete failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'File delete failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2811,21 +2852,25 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/files/create-directory',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { path: dirPath } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { path: dirPath } = ctx.body as Record<string, unknown>;
+      const dirPathStr = String(dirPath ?? '');
       // Wings expects { root: "<parent-dir>", name: "<new-dir-name>" }
       // Learnt it hard way, dont change it :x
-      const lastSlash = dirPath.lastIndexOf('/');
-      const root = lastSlash > 0 ? dirPath.substring(0, lastSlash) : '/';
-      const name = dirPath.substring(lastSlash + 1);
+      const lastSlash = dirPathStr.lastIndexOf('/');
+      const root = lastSlash > 0 ? dirPathStr.substring(0, lastSlash) : '/';
+      const name = dirPathStr.substring(lastSlash + 1);
       const svc = await serviceFor(id);
       try {
         const res = await svc.createDirectory(id, root, name);
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Create directory failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Create directory failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2845,20 +2890,23 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/files/archive',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { root = '/', files } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.filesMustBeArray') };
       }
       const svc = await serviceFor(id);
       try {
-        const res = await svc.archiveFiles(id, root, files);
+        const res = await svc.archiveFiles(id, root as string, files);
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Archive failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Archive failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2878,9 +2926,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/servers/:id/files/rename',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { root = '/', files } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.filesMustBeArray') };
@@ -2890,9 +2938,12 @@ export async function serverRoutes(app: any, prefix = '') {
       try {
         const res = await svc.serverRequest(id, '/files/rename', 'put', { root, files });
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Rename failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Rename failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2912,9 +2963,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/files/move',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { root = '/', files, destination } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', files, destination } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.filesMustBeArray') };
@@ -2932,11 +2983,14 @@ export async function serverRoutes(app: any, prefix = '') {
 
       const svc = await serviceFor(id);
       try {
-        const res = await svc.moveFiles(id, root, mappings);
+        const res = await svc.moveFiles(id, root as string, mappings);
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Move failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Move failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -2956,35 +3010,38 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/files/chmod',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { root = '/', files } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.filesMustBeArray') };
       }
 
-      const normalizedFiles = files.map((f: any) => {
+      const normalizedFiles = files.map((f: Record<string, unknown>) => {
         if (
           !f ||
           typeof f !== 'object' ||
           typeof f.file !== 'string' ||
-          !/^[0-7]{3,4}$/.test(f.mode)
+          !/^[0-7]{3,4}$/.test(f.mode as string)
         ) {
           throw new Error('Invalid file entry; expected { file: string, mode: string }');
         }
-        const normalized: any = { file: f.file, mode: f.mode };
+        const normalized: { file: string; mode: string; recursive?: boolean } = { file: f.file as string, mode: f.mode as string };
         if (typeof f.recursive === 'boolean') normalized.recursive = f.recursive;
         return normalized;
       });
 
       const svc = await serviceFor(id);
       try {
-        const res = await svc.chmodFiles(id, root, normalizedFiles);
+        const res = await svc.chmodFiles(id, root as string, normalizedFiles);
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'chmod failed';
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'chmod failed';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -3004,8 +3061,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sftp/validate',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
         ctx.set.status = 401;
@@ -3041,20 +3098,21 @@ export async function serverRoutes(app: any, prefix = '') {
           'sftp.validate.success'
         );
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 401;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'ENOTFOUND' ? 404 : err.code === 'EACCES' ? 403 : 401;
         ctx.set.status = status;
         ctx.log?.warn?.(
           {
             serverId: id,
             nodeId: auth.node?.id,
             durationMs: Date.now() - start,
-            code: e?.code,
-            message: e?.message,
+            code: err.code,
+            message: err.message,
           },
           'sftp.validate.failed'
         );
-        return { error: e?.message || 'Failed to validate SFTP credentials' };
+        return { error: err.message || 'Failed to validate SFTP credentials' };
       }
     },
     {
@@ -3065,8 +3123,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/sftp/files',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
         ctx.set.status = 401;
@@ -3077,13 +3135,14 @@ export async function serverRoutes(app: any, prefix = '') {
         return await listSftpFiles(
           auth.node,
           { username: auth.username, password: auth.password },
-          ctx.query?.path ?? '/',
+          (ctx.query?.path as string) ?? '/',
           auth.endpoint
         );
-      } catch (e: any) {
-        const status = e?.code === 'ENOTFOUND' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'ENOTFOUND' ? 404 : err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'Failed to list SFTP directory' };
+        return { error: err.message || 'Failed to list SFTP directory' };
       }
     },
     {
@@ -3094,8 +3153,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/sftp/contents',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
         ctx.set.status = 401;
@@ -3111,10 +3170,11 @@ export async function serverRoutes(app: any, prefix = '') {
           auth.endpoint
         );
         return data.toString('utf-8');
-      } catch (e: any) {
-        const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'ENOENT' ? 404 : err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'Failed to read SFTP file' };
+        return { error: err.message || 'Failed to read SFTP file' };
       }
     },
     {
@@ -3125,7 +3185,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/sftp/download',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const filePath = String(ctx.query?.path || '');
       if (!filePath) {
@@ -3155,10 +3215,11 @@ export async function serverRoutes(app: any, prefix = '') {
             'Content-Length': String(data.length),
           },
         });
-      } catch (e: any) {
-        const status = e?.code === 'ENOENT' ? 404 : e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'ENOENT' ? 404 : err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'Failed to download SFTP file' };
+        return { error: err.message || 'Failed to download SFTP file' };
       }
     },
     {
@@ -3170,7 +3231,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sftp/upload',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
       if (!pathParam) {
@@ -3193,7 +3254,7 @@ export async function serverRoutes(app: any, prefix = '') {
         } else if (Buffer.isBuffer(ctx.body)) {
           binaryData = new Uint8Array(ctx.body);
         } else {
-          const rawBody = await ctx.request.arrayBuffer();
+          const rawBody = await (ctx.request as unknown as Request).arrayBuffer();
           binaryData = new Uint8Array(rawBody);
         }
         await writeSftpFile(
@@ -3204,10 +3265,11 @@ export async function serverRoutes(app: any, prefix = '') {
           auth.endpoint
         );
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'SFTP upload failed' };
+        return { error: err.message || 'SFTP upload failed' };
       }
     },
     {
@@ -3218,7 +3280,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sftp/write',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
@@ -3227,15 +3289,20 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       try {
-        const body = ctx.body as any;
+        const body = ctx.body as Record<string, unknown>;
         const filePath = String(body?.path || '');
         if (!filePath) {
           ctx.set.status = 400;
           return { error: ctx.t('validation.pathRequired') };
         }
 
-        let content = body?.content ?? '';
-        if (typeof content !== 'string') content = String(content);
+        const rawContent = body?.content;
+        let content: string;
+        if (typeof rawContent === 'string') {
+          content = rawContent;
+        } else {
+          content = String(rawContent ?? '');
+        }
 
         await writeSftpFile(
           auth.node,
@@ -3245,10 +3312,11 @@ export async function serverRoutes(app: any, prefix = '') {
           auth.endpoint
         );
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'SFTP write failed' };
+        return { error: err.message || 'SFTP write failed' };
       }
     },
     {
@@ -3259,9 +3327,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sftp/delete',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { path: root = '/', files, bulk } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { path: root = '/', files, bulk } = ctx.body as Record<string, unknown>;
 
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
@@ -3270,12 +3338,13 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       let targetFiles: string[] = [];
-      let baseDir: string = root;
+      const rootStr = root as string;
+      let baseDir: string = rootStr;
 
       if (bulk && Array.isArray(files)) {
-        targetFiles = files.filter((f: any) => typeof f === 'string' && f.trim().length > 0);
+        targetFiles = files.filter((f: unknown) => typeof f === 'string' && f.trim().length > 0);
       } else {
-        const filePath = String(root || '');
+        const filePath = String(rootStr || '');
         if (!filePath) {
           ctx.set.status = 400;
           return { error: ctx.t('validation.pathRequired_1') };
@@ -3300,10 +3369,11 @@ export async function serverRoutes(app: any, prefix = '') {
           auth.endpoint
         );
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'SFTP delete failed' };
+        return { error: err.message || 'SFTP delete failed' };
       }
     },
     {
@@ -3314,9 +3384,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sftp/create-directory',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { path: dirPath } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { path: dirPath } = ctx.body as Record<string, unknown>;
       if (!dirPath || typeof dirPath !== 'string') {
         ctx.set.status = 400;
         return { error: ctx.t('validation.pathRequired_1') };
@@ -3336,10 +3406,11 @@ export async function serverRoutes(app: any, prefix = '') {
           auth.endpoint
         );
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'SFTP create directory failed' };
+        return { error: err.message || 'SFTP create directory failed' };
       }
     },
     {
@@ -3350,9 +3421,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/servers/:id/sftp/rename',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { root = '/', files } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.filesMustBeArray') };
@@ -3365,7 +3436,8 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       try {
-        const base = root.replace(/\/+$/, '') || '/';
+        const rootStr = root as string;
+        const base = rootStr.replace(/\/+$/, '') || '/';
         for (const entry of files) {
           if (!entry || typeof entry.from !== 'string' || typeof entry.to !== 'string') {
             throw new Error('Invalid file mapping entry');
@@ -3381,10 +3453,11 @@ export async function serverRoutes(app: any, prefix = '') {
           );
         }
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'SFTP rename failed' };
+        return { error: err.message || 'SFTP rename failed' };
       }
     },
     {
@@ -3395,9 +3468,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sftp/move',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { root = '/', files, destination } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', files, destination } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.filesMustBeArray') };
@@ -3428,10 +3501,11 @@ export async function serverRoutes(app: any, prefix = '') {
           auth.endpoint
         );
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'SFTP move failed' };
+        return { error: err.message || 'SFTP move failed' };
       }
     },
     {
@@ -3442,9 +3516,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sftp/chmod',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { root = '/', files } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.filesMustBeArray') };
@@ -3457,7 +3531,8 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       try {
-        const base = root.replace(/\/+$/, '') || '/';
+        const rootStr = root as string;
+        const base = rootStr.replace(/\/+$/, '') || '/';
         for (const entry of files) {
           if (!entry || typeof entry.file !== 'string' || typeof entry.mode !== 'string') {
             throw new Error('Invalid chmod entry');
@@ -3474,10 +3549,11 @@ export async function serverRoutes(app: any, prefix = '') {
           );
         }
         return { success: true };
-      } catch (e: any) {
-        const status = e?.code === 'EACCES' ? 403 : 500;
+      } catch (e: unknown) {
+        const err = e as { code?: string; message?: string };
+        const status = err.code === 'EACCES' ? 403 : 500;
         ctx.set.status = status;
-        return { error: e?.message || 'SFTP chmod failed' };
+        return { error: err.message || 'SFTP chmod failed' };
       }
     },
     {
@@ -3491,13 +3567,13 @@ export async function serverRoutes(app: any, prefix = '') {
   // be happy that most shit is already supported and using wings-go is possible
   app.get(
     prefix + '/servers/:id/backups',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       try {
         const svc = await serviceFor(id);
         const res = await svc.listServerBackups(id);
         try {
-          (app as any).log?.info?.(
+          app.log?.info?.(
             { serverUuid: id, remoteCount: Array.isArray(res.data) ? res.data.length : 0 },
             'server: listServerBackups response'
           );
@@ -3512,16 +3588,16 @@ export async function serverRoutes(app: any, prefix = '') {
             order: { createdAt: 'DESC' },
           });
           try {
-            (app as any).log?.info?.(
+            app.log?.info?.(
               {
                 serverUuid: id,
                 localCount: records.length,
-                uuids: records.map((r: any) => r.uuid),
+                uuids: records.map((r: Record<string, unknown>) => r.uuid),
               },
               'server: falling back to local persisted backup records'
             );
           } catch {}
-          return records.map((r: any) => ({
+          return records.map((r: Record<string, unknown>) => ({
             uuid: r.uuid,
             name: r.name,
             display_name: r.displayName,
@@ -3534,15 +3610,17 @@ export async function serverRoutes(app: any, prefix = '') {
           }));
         } catch (e) {
           try {
-            (app as any).log?.warn?.(
+            app.log?.warn?.(
               { err: e, serverUuid: id },
               'server: failed to read local backup records'
             );
           } catch {}
           return [];
         }
-      } catch (e: any) {
-        if (e?.response?.status === 404) return [];
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        if (errResponse?.status === 404) return [];
         throw e;
       }
     },
@@ -3559,8 +3637,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/backups',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const user = ctx.user;
       const accountBackupsLimit =
         user?.limits && typeof user.limits.backups === 'number' ? user.limits.backups : 0;
@@ -3573,7 +3651,7 @@ export async function serverRoutes(app: any, prefix = '') {
         const ownedServers = ownerId
           ? await cfgRepo().find({ where: { userId: ownerId }, select: { uuid: true } })
           : [];
-        const serverUuids = ownedServers.map((s: any) => s.uuid);
+        const serverUuids = ownedServers.map((s: ServerConfig) => s.uuid);
         const existingBackups =
           serverUuids.length > 0
             ? await backupRepo.count({ where: { serverUuid: In(serverUuids) } })
@@ -3583,7 +3661,7 @@ export async function serverRoutes(app: any, prefix = '') {
           return { error: `Account backup limit reached (${accountBackupsLimit})` };
         }
       }
-      const body = ctx.body || {};
+      const body = (ctx.body as Record<string, unknown>) || {};
       const adapter = 'wings';
       const uuid = body.uuid || crypto.randomUUID();
       const ignore = typeof body.ignore === 'string' ? body.ignore : '';
@@ -3603,28 +3681,31 @@ export async function serverRoutes(app: any, prefix = '') {
           });
           await repo.save(record);
           try {
-            (app as any).log?.info?.(
+            app.log?.info?.(
               { serverUuid: id, backupUuid: uuid },
               'server: created backup and persisted local record'
             );
           } catch {}
         } catch (e) {
           try {
-            (app as any).log?.warn?.(
+            app.log?.warn?.(
               { err: e, serverUuid: id, backupUuid: uuid },
               'server: failed to persist created backup record'
             );
           } catch {}
         }
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        if (e?.response?.status === 404) {
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        if (errResponse?.status === 404) {
           console.log(e);
           ctx.set.status = 400;
           return { error: ctx.t('server.backupNotSupported') };
         }
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Failed to create backup';
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to create backup';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -3644,9 +3725,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/backups/:bid/restore',
-    async (ctx: any) => {
-      const { id, bid } = ctx.params as any;
-      const body = ctx.body || {};
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, bid } = ctx.params as Record<string, string>;
+      const body = (ctx.body as Record<string, unknown>) || {};
       const adapter = 'wings';
       const truncate_directory = body.truncate_directory === true;
       const download_url = body.download_url;
@@ -3658,13 +3739,16 @@ export async function serverRoutes(app: any, prefix = '') {
           download_url,
         });
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        if (e?.response?.status === 404) {
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        if (errResponse?.status === 404) {
           ctx.set.status = 400;
           return { error: ctx.t('server.backupNotSupported') };
         }
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Failed to restore backup';
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to restore backup';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -3684,8 +3768,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/servers/:id/backups/:bid',
-    async (ctx: any) => {
-      const { id, bid } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, bid } = ctx.params as Record<string, string>;
       const adapter = 'wings';
       try {
         const svc = await serviceFor(id);
@@ -3697,7 +3781,7 @@ export async function serverRoutes(app: any, prefix = '') {
           if (rec && rec.locked) {
             const force =
               (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) ||
-              (ctx.body && ctx.body.force === true);
+              (ctx.body && (ctx.body as Record<string, unknown>).force === true);
             if (!force) {
               ctx.set.status = 403;
               return { error: ctx.t('server.backupLocked') };
@@ -3707,7 +3791,7 @@ export async function serverRoutes(app: any, prefix = '') {
           // skip
         }
         try {
-          (app as any).log?.info?.(
+          app.log?.info?.(
             { serverUuid: id, backupUuid: bid },
             'server: attempting to delete backup on node'
           );
@@ -3719,27 +3803,30 @@ export async function serverRoutes(app: any, prefix = '') {
           );
           await repo.delete({ uuid: bid });
           try {
-            (app as any).log?.info?.(
+            app.log?.info?.(
               { serverUuid: id, backupUuid: bid },
               'server: deleted local persisted backup record'
             );
           } catch {}
         } catch (e) {
           try {
-            (app as any).log?.warn?.(
+            app.log?.warn?.(
               { err: e, serverUuid: id, backupUuid: bid },
               'server: failed to delete local persisted backup record'
             );
           } catch {}
         }
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        if (e?.response?.status === 404) {
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        if (errResponse?.status === 404) {
           ctx.set.status = 400;
           return { error: ctx.t('server.backupNotSupported') };
         }
-        const status = e?.response?.status || 500;
-        const msg = e?.response?.data?.error || e?.message || 'Failed to delete backup';
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to delete backup';
         ctx.set.status = status;
         return { error: msg };
       }
@@ -3759,9 +3846,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/backups/:bid/lock',
-    async (ctx: any) => {
-      const { id, bid } = ctx.params as any;
-      const { lock } = ctx.body || {};
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, bid } = ctx.params as Record<string, string>;
+      const { lock } = (ctx.body as Record<string, unknown>) || {};
       try {
         const repo = AppDataSource.getRepository(
           require('../models/serverBackup.entity').ServerBackup
@@ -3774,9 +3861,9 @@ export async function serverRoutes(app: any, prefix = '') {
         rec.locked = !!lock;
         await repo.save(rec);
         return { success: true, locked: rec.locked };
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 500;
-        return { error: e?.message || 'Failed to update lock' };
+        return { error: (e instanceof Error ? e.message : '') || 'Failed to update lock' };
       }
     },
     {
@@ -3794,9 +3881,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/backups/:bid/rename',
-    async (ctx: any) => {
-      const { id, bid } = ctx.params as any;
-      const { name } = ctx.body || {};
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, bid } = ctx.params as Record<string, string>;
+      const { name } = (ctx.body as Record<string, unknown>) || {};
       if (typeof name !== 'string' || !name.trim()) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.nameRequired') };
@@ -3813,9 +3900,9 @@ export async function serverRoutes(app: any, prefix = '') {
         rec.displayName = name.trim();
         await repo.save(rec);
         return { success: true, display_name: rec.displayName };
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 500;
-        return { error: e?.message || 'Failed to rename backup' };
+        return { error: (e instanceof Error ? e.message : '') || 'Failed to rename backup' };
       }
     },
     {
@@ -3834,11 +3921,11 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/commands',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { command } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { command } = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
-      const res = await svc.executeServerCommand(id, command);
+      const res = await svc.executeServerCommand(id, command as string);
       const user = ctx.user;
       await createActivityLog({
         userId: user.id,
@@ -3863,8 +3950,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/logs',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       try {
         const svc = await serviceFor(id);
         const res = await svc.getServerLogs(id);
@@ -3875,13 +3962,13 @@ export async function serverRoutes(app: any, prefix = '') {
         } else if (typeof raw === 'string') {
           lines = raw.split('\n').filter(Boolean);
         } else if (Array.isArray(raw)) {
-          lines = raw.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+          lines = raw.map((l: unknown) => (typeof l === 'string' ? l : JSON.stringify(l)));
         } else if (raw && typeof raw === 'object') {
           const inner = raw.logs ?? raw.data ?? raw.output;
           if (typeof inner === 'string') {
             lines = inner.split('\n').filter(Boolean);
           } else if (Array.isArray(inner)) {
-            lines = inner.map((l: any) => (typeof l === 'string' ? l : JSON.stringify(l)));
+            lines = inner.map((l: unknown) => (typeof l === 'string' ? l : JSON.stringify(l)));
           } else {
             lines = [JSON.stringify(raw)];
           }
@@ -3889,8 +3976,10 @@ export async function serverRoutes(app: any, prefix = '') {
           lines = raw ? [String(raw)] : [];
         }
         return lines;
-      } catch (e: any) {
-        if (e?.response?.status === 404) return [];
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        if (errResponse?.status === 404) return [];
         throw e;
       }
     },
@@ -3907,9 +3996,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/reinstall',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const payload = ctx.body;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const payload = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
       const res = await svc.reinstallServer(id, payload);
       const user = ctx.user;
@@ -3935,8 +4024,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/schedules',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       return cfg?.schedules ?? [];
     },
@@ -3953,9 +4042,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/schedules',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const body = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const body = ctx.body as Record<string, unknown>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -3974,7 +4063,7 @@ export async function serverRoutes(app: any, prefix = '') {
         created_at: new Date().toISOString(),
       };
       const schedules = [...(cfg.schedules ?? []), schedule];
-      await cfgRepo().update({ uuid: id }, { schedules } as any);
+      await cfgRepo().update({ uuid: id }, { schedules } as Record<string, unknown>);
       return schedule;
     },
     {
@@ -3991,15 +4080,15 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/servers/:id/schedules/:sid',
-    async (ctx: any) => {
-      const { id, sid } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, sid } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) {
         ctx.set.status = 404;
         return { error: ctx.t('server.notFound') };
       }
-      const schedules = (cfg.schedules ?? []).filter((s: any) => s.id !== sid);
-      await cfgRepo().update({ uuid: id }, { schedules } as any);
+      const schedules = (cfg.schedules ?? []).filter((s: { id: string }) => s.id !== sid);
+      await cfgRepo().update({ uuid: id }, { schedules } as Record<string, unknown>);
       return { success: true };
     },
     {
@@ -4016,9 +4105,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/sync',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const payload = ctx.body;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const payload = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
       const res = await svc.syncServer(id, payload);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
@@ -4036,9 +4125,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/transfer',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const payload = ctx.body;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const payload = ctx.body as Record<string, unknown>;
       const user = ctx.user;
       let svc = await serviceFor(id);
 
@@ -4050,8 +4139,8 @@ export async function serverRoutes(app: any, prefix = '') {
             ctx.set.status = 404;
             return { error: ctx.t('node.sourceNotFound') };
           }
-          svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
-        } catch (e: any) {
+          svc = new WingsApiService(node.backendWingsUrl || node.url, node.token);
+        } catch (e: unknown) {
           ctx.set.status = 500;
           return { error: ctx.t('node.resolveFailed') };
         }
@@ -4082,7 +4171,7 @@ export async function serverRoutes(app: any, prefix = '') {
 
           payload.url = targetUrl;
           payload.token = token;
-        } catch (e: any) {
+        } catch (e: unknown) {
           ctx.set.status = 500;
           return { error: ctx.t('node.resolveTargetFailed') };
         }
@@ -4096,12 +4185,16 @@ export async function serverRoutes(app: any, prefix = '') {
       try {
         const res = await svc.transferServer(id, payload);
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        const status = e?.response?.status || 500;
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data;
         const message =
-          e?.response?.data?.error || e?.response?.data || e?.message || 'Transfer failed';
+          (errData as Record<string, unknown> | undefined)?.error as string || errData ||
+          (err instanceof Error ? err.message : '') || 'Transfer failed';
         ctx.set.status = status;
-        return { error: message };
+        return { error: message as string };
       }
     },
     {
@@ -4117,8 +4210,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/version',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.getServerVersion(id);
       return res.data ?? {};
@@ -4136,8 +4229,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/console',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (cfg?.suspended || cfg?.dmca) {
         ctx.set.status = 403;
@@ -4147,8 +4240,10 @@ export async function serverRoutes(app: any, prefix = '') {
         const svc = await serviceFor(id);
         const res = await svc.serverRequest(id, '/console');
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: any) {
-        if (e?.response?.status === 404) return { error: ctx.t('common.notSupported') };
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        if (errResponse?.status === 404) return { error: ctx.t('common.notSupported') };
         throw e;
       }
     },
@@ -4166,27 +4261,28 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/allocations',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       const a = cfg?.allocations;
       if (!a) return [];
       const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
       const nodeFqdn = node?.fqdn;
-      const fqdns: Record<string, string> = (a as any).fqdns ?? {};
+      const allocRecord = a as Record<string, unknown>;
+      const fqdns: Record<string, string> = (allocRecord.fqdns as Record<string, string>) ?? {};
       const resolveFqdn = (ip: string, key: string) =>
         fqdns[key] || (isValidIpv6(ip) ? null : nodeFqdn || null);
-      const result: any[] = [];
+      const result: Record<string, unknown>[] = [];
       const ipv6Address =
-        typeof (a as any).ipv6Address === 'string' && isValidIpv6((a as any).ipv6Address)
-          ? formatIpv6(parseIpv6((a as any).ipv6Address))
+        typeof allocRecord.ipv6Address === 'string' && isValidIpv6(allocRecord.ipv6Address as string)
+          ? formatIpv6(parseIpv6(allocRecord.ipv6Address as string))
           : null;
       const ipv6Ports =
-        ipv6Address && Array.isArray((a as any).ipv6Ports)
+        ipv6Address && Array.isArray(allocRecord.ipv6Ports)
           ? [
               ...new Set(
-                (a as any).ipv6Ports
-                  .map((p: any) => Number(p))
+                (allocRecord.ipv6Ports as number[])
+                  .map((p: unknown) => Number(p))
                   .filter((p: number) => Number.isInteger(p) && p > 0)
               ),
             ].sort((x: number, y: number) => x - y)
@@ -4228,9 +4324,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/allocations',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const body = (ctx.body as any) || {};
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const body = (ctx.body as Record<string, unknown>) || {};
       const count = Number(body.count || 1);
       const requestIpv6 = body.requestIpv6 === true || String(body.requestIpv6) === 'true';
       if (count <= 0) {
@@ -4266,7 +4362,7 @@ export async function serverRoutes(app: any, prefix = '') {
           ? user.limits.portsPerServer
           : 3;
 
-      const alloc = (cfg.allocations as any) || {};
+      const alloc = (cfg.allocations) || {};
       const owners: Record<string, any> = alloc.owners || {};
       const existingIpv6Allocations: string[] = [];
       if (typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)) {
@@ -4321,7 +4417,7 @@ export async function serverRoutes(app: any, prefix = '') {
       const nodeConfigs = await cfgRepo().find({ where: { nodeId: node.id } });
       const takenPorts = new Set<number>();
       for (const c of nodeConfigs) {
-        const a = c.allocations as any;
+        const a = c.allocations;
         if (!a) continue;
         if (a.default?.port) {
           const p = Number(a.default.port);
@@ -4395,9 +4491,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/ip-request',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { type, reason } = (ctx.body as any) || {};
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { type, reason } = (ctx.body as Record<string, unknown>) || {};
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'admin:access');
 
@@ -4469,9 +4565,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/servers/:id/allocations',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const body = (ctx.body as any) || {};
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const body = (ctx.body as Record<string, unknown>) || {};
       const ip = body.ip;
       const port = Number(body.port || 0);
       if (!ip || !port) {
@@ -4498,7 +4594,7 @@ export async function serverRoutes(app: any, prefix = '') {
         }
       }
 
-      const alloc = (cfg.allocations as any) || {};
+      const alloc = (cfg.allocations) || {};
       if (alloc.default && alloc.default.ip === ip && Number(alloc.default.port) === port) {
         ctx.set.status = 400;
         return { error: ctx.t('server.allocationDefaultCannotRemove') };
@@ -4548,8 +4644,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/servers/:id/allocations/secondary',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -4569,7 +4665,7 @@ export async function serverRoutes(app: any, prefix = '') {
         }
       }
 
-      const alloc = (cfg.allocations as any) || {};
+      const alloc = (cfg.allocations) || {};
       const defaultKey = alloc.default ? `${alloc.default.ip}:${Number(alloc.default.port)}` : null;
       const owners: Record<string, any> = alloc.owners || {};
       const removed: Array<{ ip: string; port: number }> = [];
@@ -4616,14 +4712,16 @@ export async function serverRoutes(app: any, prefix = '') {
   for (const sub of ['network', 'location']) {
     app.get(
       prefix + `/servers/:id/${sub}`,
-      async (ctx: any) => {
-        const { id } = ctx.params as any;
+      async (ctx: AuthenticatedHandlerContext) => {
+        const { id } = ctx.params as Record<string, string>;
         try {
           const svc = await serviceFor(id);
           const res = await svc.serverRequest(id, `/${sub}`);
           return res.data ?? [];
-        } catch (e: any) {
-          if (e?.response?.status === 404) return [];
+        } catch (e: unknown) {
+          const err = e as Record<string, unknown>;
+          const errResponse = err?.response as Record<string, unknown> | undefined;
+          if (errResponse?.status === 404) return [];
           throw e;
         }
       },
@@ -4641,24 +4739,24 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/stats',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
 
       const mappingRepo = AppDataSource.getRepository(ServerMapping);
       const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: { node: true } });
       const unhealthyNodeIds = await getUnhealthyNodeIds();
       const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
 
-      const withNetworkRates = async (input: any) => {
-        const merged: any = input && typeof input === 'object' ? { ...input } : {};
+      const withNetworkRates = async (input: Record<string, unknown> | null) => {
+        const merged: Record<string, unknown> = input && typeof input === 'object' ? { ...input } : {};
 
-        const readNumber = (source: any, paths: string[]): number => {
+        const readNumber = (source: Record<string, unknown>, paths: string[]): number => {
           for (const path of paths) {
             const parts = path.split('.');
-            let cur = source;
+            let cur: unknown = source;
             for (const p of parts) {
               if (cur == null) break;
-              cur = cur[p];
+              cur = (cur as Record<string, unknown>)[p];
             }
             const num = Number(cur);
             if (Number.isFinite(num)) return num;
@@ -4791,11 +4889,11 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/stats/history',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { window: w = '1h', points: p = '60' } = ctx.query as any;
-      const points = Math.max(12, Math.min(1440, Number(p) || 60));
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { window: w = '1h', points: p = '60' } = ctx.query ?? {};
 
+      const points = Math.max(12, Math.min(1440, Number(p) || 60));
       try {
         const mappingRepo = AppDataSource.getRepository(ServerMapping);
         const mapping = await mappingRepo.findOne({
@@ -4832,7 +4930,7 @@ export async function serverRoutes(app: any, prefix = '') {
           }
         } else {
           const { fetchHistorical } = await import('../services/metricsService');
-          rows = await fetchHistorical(id, w, points);
+          rows = await fetchHistorical(id, w as string, points);
         }
 
         if (liveData) {
@@ -4847,7 +4945,7 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         return rows;
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('stats history error', e);
         ctx.set.status = 500;
         return { error: ctx.t('server.statsFailed') };
@@ -4867,8 +4965,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/stats/node',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       try {
         const mappingRepo = AppDataSource.getRepository(ServerMapping);
         const mapping = await mappingRepo.findOne({
@@ -4886,7 +4984,7 @@ export async function serverRoutes(app: any, prefix = '') {
           const rows = await fetchHistorical(`node:${node.id}`, '5m', 5);
           return rows.length > 0 ? rows[rows.length - 1].metrics : {};
         }
-        const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
+        const svc = new WingsApiService(node.backendWingsUrl || node.url, node.token);
         const [infoResult, statsResult] = await Promise.allSettled([
           svc.getSystemInfo(),
           svc.getSystemStats(),
@@ -4895,15 +4993,15 @@ export async function serverRoutes(app: any, prefix = '') {
         const statsPayload =
           statsResult.status === 'fulfilled' ? (statsResult.value.data ?? {}) : {};
 
-        const merged: any = { ...info, ...(statsPayload.stats ?? {}) };
+        const merged: Record<string, unknown> = { ...info, ...(statsPayload.stats ?? {}) };
 
-        const readNumber = (source: any, paths: string[]): number => {
+        const readNumber = (source: Record<string, unknown>, paths: string[]): number => {
           for (const path of paths) {
             const parts = path.split('.');
-            let cur = source;
+            let cur: unknown = source;
             for (const p of parts) {
               if (cur == null) break;
-              cur = cur[p];
+              cur = (cur as Record<string, unknown>)[p];
             }
             const num = Number(cur);
             if (Number.isFinite(num)) return num;
@@ -4940,10 +5038,10 @@ export async function serverRoutes(app: any, prefix = '') {
             const rows = await fetchHistorical(nodeMetricKey, '5m', 5);
             if (Array.isArray(rows) && rows.length >= 2) {
               const sorted = [...rows]
-                .filter((row: any) => Number.isFinite(new Date(row?.timestamp).getTime()))
+                .filter((row: Record<string, unknown>) => Number.isFinite(new Date(row?.timestamp as string).getTime()))
                 .sort(
-                  (a: any, b: any) =>
-                    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                  (a: Record<string, unknown>, b: Record<string, unknown>) =>
+                    new Date(a.timestamp as string).getTime() - new Date(b.timestamp as string).getTime()
                 );
 
               if (sorted.length >= 2) {
@@ -5009,7 +5107,7 @@ export async function serverRoutes(app: any, prefix = '') {
         };
 
         return merged;
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 502;
         return { error: ctx.t('node.statsRetrieveFailed') };
       }
@@ -5028,9 +5126,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/stats/node/history',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { window: w = '24h', points: p = '144' } = ctx.query as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { window: w = '24h', points: p = '144' } = ctx.query ?? {};
       const points = Math.max(12, Math.min(1440, Number(p) || 144));
 
       try {
@@ -5048,14 +5146,15 @@ export async function serverRoutes(app: any, prefix = '') {
         const unhealthyNodeIds = await getUnhealthyNodeIds();
         const nodeIsUnhealthy = unhealthyNodeIds.includes(mapping.node.id);
         const { fetchHistorical } = await import('../services/metricsService');
-        let rows = await fetchHistorical(nodeMetricKey, w, points);
+        let rows = await fetchHistorical(nodeMetricKey, w as string, points);
 
         if (!nodeIsUnhealthy) {
           try {
             const node = mapping.node;
-            const svc = new WingsApiService((node as any).backendWingsUrl || node.url, node.token);
+            const svc = new WingsApiService(node.backendWingsUrl || node.url, node.token);
             const latest = await svc.getSystemStats();
-            const liveMetrics = (latest as any)?.data?.stats ?? (latest as any)?.data ?? null;
+            const latestData = latest as { data?: Record<string, unknown> };
+            const liveMetrics = latestData?.data?.stats ?? latestData?.data ?? null;
             if (liveMetrics && typeof liveMetrics === 'object') {
               if (rows.length === 0) {
                 rows = [{ timestamp: new Date().toISOString(), metrics: liveMetrics }];
@@ -5070,7 +5169,7 @@ export async function serverRoutes(app: any, prefix = '') {
         }
 
         return rows;
-      } catch (e: any) {
+      } catch (e: unknown) {
         console.error('node stats history error', e);
         ctx.set.status = 500;
         return { error: ctx.t('server.nodeStatsFailed') };
@@ -5091,8 +5190,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/configuration',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/configuration');
       return res.data ?? {};
@@ -5110,8 +5209,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/script',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/script', 'post', ctx.body);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
@@ -5129,8 +5228,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/ws/permissions',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/ws/permissions', 'post', ctx.body);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
@@ -5148,8 +5247,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/ws/broadcast',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/ws/broadcast', 'post', ctx.body);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
@@ -5167,8 +5266,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/install/abort',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/install/abort', 'post');
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
@@ -5186,8 +5285,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/logs/install',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/logs/install');
       return res.data ?? [];
@@ -5205,8 +5304,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/configuration/egg',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/configuration/egg');
       return res.data ?? {};
@@ -5224,9 +5323,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/servers/:id/configuration/egg',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const payload = ctx.body;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const payload = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/configuration/egg', 'put', payload);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
@@ -5244,8 +5343,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/startup',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -5253,8 +5352,8 @@ export async function serverRoutes(app: any, prefix = '') {
       }
       const egg = cfg.eggId ? await eggRepo().findOneBy({ id: cfg.eggId }) : null;
       const eggProc = egg?.processConfig || {};
-      const cfgProc = (cfg as any).processConfig || {};
-      const proc: Record<string, any> = { ...eggProc, ...cfgProc };
+      const cfgProc = cfg.processConfig || {};
+      const proc: ServerProcessConfigLike = { ...eggProc, ...cfgProc };
 
       const selectedDockerImage = cfg.dockerImage || egg?.dockerImage || '';
       const dockerImageOptions: Array<{ label: string; value: string }> = [];
@@ -5310,9 +5409,9 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/servers/:id/startup',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
-      const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as Record<string, unknown>;
       if (!environment && !incomingProcCfg && dockerImage === undefined) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.environmentRequired') };
@@ -5332,8 +5431,8 @@ export async function serverRoutes(app: any, prefix = '') {
       const editableKeys = new Set<string>();
       const definedKeys = new Set<string>();
       if (egg?.envVars) {
-        for (const v of egg.envVars as any[]) {
-          const key = v.env_variable || v.key || v.name;
+        for (const v of (egg.envVars || []) as Record<string, unknown>[]) {
+          const key = String(v.env_variable ?? v.key ?? v.name ?? '');
           if (!key) continue;
           definedKeys.add(key);
           if (v.user_editable) editableKeys.add(key);
@@ -5368,28 +5467,28 @@ export async function serverRoutes(app: any, prefix = '') {
       }
 
       if (incomingProcCfg && typeof incomingProcCfg === 'object') {
-        const existing = (cfg as any).processConfig || {};
+        const existing = cfg.processConfig || {};
         const updated = { ...existing };
-        if (incomingProcCfg.startup) {
-          updated.startup = { ...(existing.startup || {}), ...incomingProcCfg.startup };
+        if ((incomingProcCfg as Record<string, unknown>)?.startup) {
+          updated.startup = { ...(existing.startup || {}), ...(incomingProcCfg as Record<string, unknown>).startup as Record<string, unknown> };
         }
-        if (incomingProcCfg.stop) {
-          updated.stop = { ...(existing.stop || {}), ...incomingProcCfg.stop };
+        if ((incomingProcCfg as Record<string, unknown>)?.stop) {
+          updated.stop = { ...(existing.stop || {}), ...(incomingProcCfg as Record<string, unknown>).stop as Record<string, unknown> };
         }
         updated.startup = {
           ...(updated.startup || {}),
           done: normalizeStartupDonePatterns(updated.startup?.done),
         };
-        (cfg as any).processConfig = updated;
+        cfg.processConfig = updated;
       }
 
       const requestedHostAddr =
         normalizeIpv6Host(nextEnvironment?.VM_HOSTADDR) ||
-        normalizeIpv6Host((cfg.allocations as any)?.ipv6Address) ||
+        normalizeIpv6Host((cfg.allocations)?.ipv6Address) ||
         '';
       const requestedVmPorts = nextEnvironment?.VM_PORTS ?? '';
       if (nextEnvironment && requestedHostAddr && isValidIpv6(requestedHostAddr)) {
-        const alloc = (cfg.allocations as any) || { mappings: {}, owners: {} };
+        const alloc = (cfg.allocations) || { mappings: {}, owners: {} };
         const ipv6Address = formatIpv6(parseIpv6(requestedHostAddr));
         const existingMappings: Record<string, number[]> = alloc.mappings || {};
         const parsedPorts = parseVmPorts(requestedVmPorts);
@@ -5426,10 +5525,10 @@ export async function serverRoutes(app: any, prefix = '') {
         if (parsedPorts.size > 0) {
           const ports = Array.from(parsedPorts).sort((a, b) => a - b);
           existingMappings[ipv6Address] = ports;
-          (alloc as any).ipv6Ports = ports;
+          (alloc as Record<string, unknown>).ipv6Ports = ports;
         } else if (existingMappings[ipv6Address]) {
           delete existingMappings[ipv6Address];
-          delete (alloc as any).ipv6Ports;
+          delete (alloc as Record<string, unknown>).ipv6Ports;
         }
 
         alloc.ipv6Address = ipv6Address;
@@ -5448,7 +5547,7 @@ export async function serverRoutes(app: any, prefix = '') {
       return {
         success: true,
         environment: cfg.environment,
-        processConfig: (cfg as any).processConfig,
+        processConfig: cfg.processConfig,
       };
     },
     {
@@ -5466,8 +5565,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/mounts',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const mountRepo = AppDataSource.getRepository(Mount);
       const smRepo = AppDataSource.getRepository(ServerMount);
       const links = await smRepo.findBy({ serverUuid: id });
@@ -5489,8 +5588,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/websocket',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const user = ctx.user;
 
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
@@ -5511,7 +5610,7 @@ export async function serverRoutes(app: any, prefix = '') {
         return { error: ctx.t('system.targetNodeFailed') };
       }
 
-      const normalizeUuid = (value: any) => {
+      const normalizeUuid = (value: unknown) => {
         if (!value) return crypto.randomUUID().replace(/-/g, '');
         const s = String(value).toLowerCase().replace(/-/g, '');
         if (/^[0-9a-f]{32}$/.test(s)) return s;
@@ -5519,7 +5618,8 @@ export async function serverRoutes(app: any, prefix = '') {
       };
 
       const now = Math.floor(Date.now() / 1000);
-      const safeUserUuid = normalizeUuid(user?.uuid || user?.id || crypto.randomUUID());
+      const userWithUuid = user as { uuid?: string; id: number };
+      const safeUserUuid = normalizeUuid(userWithUuid.uuid || user.id || crypto.randomUUID());
       const safeServerUuid = normalizeUuid(id);
       const jti = normalizeUuid(crypto.randomUUID());
 
@@ -5528,8 +5628,8 @@ export async function serverRoutes(app: any, prefix = '') {
         server_uuid: safeServerUuid.length,
         jti: jti.length,
         sub_source: {
-          uuid: String(user?.uuid || ''),
-          id: user?.id != null ? String(user.id) : undefined,
+          uuid: String(userWithUuid.uuid || ''),
+          id: user.id != null ? String(user.id) : undefined,
         },
       });
 
@@ -5553,14 +5653,14 @@ export async function serverRoutes(app: any, prefix = '') {
         try {
           const parts = token.split('.');
           if (parts.length === 3) {
-            const payloadJson = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as any;
+            const payloadJson = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8')) as Record<string, unknown>;
             ctx.log?.debug?.(
               {
                 payload: {
-                  sub: payloadJson.sub,
-                  user_uuid: payloadJson.user_uuid,
-                  server_uuid: payloadJson.server_uuid,
-                  jti: payloadJson.jti,
+                  sub: payloadJson.sub as string,
+                  user_uuid: payloadJson.user_uuid as string,
+                  server_uuid: payloadJson.server_uuid as string,
+                  jti: payloadJson.jti as string,
                 },
               },
               'wings jwt payload decoded from token'
@@ -5634,8 +5734,8 @@ export async function serverRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/servers/:id/sftp',
-    async (ctx: any) => {
-      const { id } = ctx.params as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
       const user = ctx.user;
 
       const cfg = await cfgRepo().findOneBy({ uuid: id });
