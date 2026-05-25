@@ -59,7 +59,10 @@ import {
 import { sanitizeError } from '../utils/sanitizeError';
 import type { AuthenticatedHandlerContext, ServerApp } from '../types';
 import type {
+  MetricsData,
+  MetricsRow,
   ServerAllocationLike,
+  ServerAllocationOwners,
   ServerProcessConfigLike,
   ServerSftpInfo,
 } from '../types/server';
@@ -4363,7 +4366,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           : 3;
 
       const alloc = (cfg.allocations) || {};
-      const owners: Record<string, any> = alloc.owners || {};
+      const owners: ServerAllocationOwners = (alloc.owners as ServerAllocationOwners) || {};
       const existingIpv6Allocations: string[] = [];
       if (typeof alloc.ipv6Address === 'string' && isValidIpv6(alloc.ipv6Address)) {
         existingIpv6Allocations.push(formatIpv6(parseIpv6(alloc.ipv6Address)));
@@ -4602,7 +4605,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       const key = `${ip}:${port}`;
       if (!isAdmin) {
-        const owners: Record<string, any> = alloc.owners || {};
+        const owners: ServerAllocationOwners = (alloc.owners as ServerAllocationOwners) || {};
         if (owners[key] !== user.id) {
           ctx.set.status = 403;
           return { error: ctx.t('server.allocationNotOwner') };
@@ -4667,7 +4670,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       const alloc = (cfg.allocations) || {};
       const defaultKey = alloc.default ? `${alloc.default.ip}:${Number(alloc.default.port)}` : null;
-      const owners: Record<string, any> = alloc.owners || {};
+      const owners: ServerAllocationOwners = (alloc.owners as ServerAllocationOwners) || {};
       const removed: Array<{ ip: string; port: number }> = [];
 
       alloc.mappings = alloc.mappings || {};
@@ -4903,8 +4906,8 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const unhealthyNodeIds = await getUnhealthyNodeIds();
         const nodeIsUnhealthy = mapping?.node && unhealthyNodeIds.includes(mapping.node.id);
 
-        let rows: Array<{ timestamp: string; metrics: Record<string, any> }> = [];
-        let liveData: Record<string, any> | null = null;
+        let rows: MetricsRow[] = [];
+        let liveData: MetricsData | null = null;
 
         if (!nodeIsUnhealthy) {
           try {

@@ -26,6 +26,15 @@ export type ServerProcessConfigLike = Record<string, unknown> & {
   };
 };
 
+export type ServerAllocationOwners = Record<string, string | number | undefined>;
+
+export type MetricsData = Record<string, unknown>;
+
+export type MetricsRow = {
+  timestamp: string;
+  metrics: MetricsData;
+};
+
 export type ServerApp = {
   get: (path: string, handler: (ctx: BaseHandlerContext) => unknown, opts?: unknown) => void;
   post: (path: string, handler: (ctx: BaseHandlerContext) => unknown, opts?: unknown) => void;
