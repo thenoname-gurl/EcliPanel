@@ -17,15 +17,60 @@ import { WingsApiService } from '../services/wingsApiService';
 import { createActivityLog } from './logHandler';
 import { CloudflareService } from '../services/cloudflareService';
 import { t } from 'elysia';
-import { sanitizeError } from '../utils/sanitizeError';
+import { errorMessage, sanitizeError } from '../utils/sanitizeError';
 import { consumeRateLimit, redisDelByPrefix, withRedisCache } from '../config/redis';
 import { resolvePanelBaseUrl } from '../utils/url';
+import type { AuthenticatedHandlerContext, BaseHandlerContext, OrganisationApp, DnsRecordBody, CloudflareRecord, OrgUpdateBody, SanitizedUser, SanitizedInvite } from '../types';
+
+function parseDnsRecordBody(body: unknown): DnsRecordBody | null {
+  if (!body || typeof body !== 'object') return null;
+  const b = body as Record<string, unknown>;
+  const name = String(b.name || '').trim();
+  const type = String(b.type || 'A').toUpperCase();
+  const ttl = Number(b.ttl || 3600);
+  const content = String(b.content || '').trim();
+  const proxied = !!b.proxied;
+  if (!content || !type) return null;
+  return { name, type, ttl, content, proxied };
+}
 
 function createDnsService() {
   return new CloudflareService();
 }
 
-export async function organisationRoutes(app: any, prefix = '') {
+async function acceptInviteLogic(
+  memberRepo: import('typeorm').Repository<OrganisationMember>,
+  inviteRepo: import('typeorm').Repository<OrganisationInvite>,
+  user: User,
+  inv: OrganisationInvite,
+  orgId: number,
+  ipAddress: string
+) {
+  const existingMembership = await memberRepo.findOne({ where: { userId: user.id, organisationId: orgId } });
+  if (!existingMembership) {
+    const membership = memberRepo.create({
+      userId: user.id,
+      organisationId: orgId,
+      user,
+      organisation: inv.organisation,
+      orgRole: 'member' as const,
+      createdAt: new Date(),
+    });
+    await memberRepo.save(membership);
+  }
+  inv.accepted = true;
+  await inviteRepo.save(inv);
+  await createActivityLog({
+    userId: user.id,
+    action: 'org:accept_invite',
+    targetId: String(orgId),
+    targetType: 'organisation',
+    ipAddress,
+  });
+  return { success: true };
+}
+
+export async function organisationRoutes(app: OrganisationApp, prefix = '') {
   const orgRepo = AppDataSource.getRepository(Organisation);
   const dnsZoneRepo = AppDataSource.getRepository(OrganisationDnsZone);
   const inviteRepo = AppDataSource.getRepository(OrganisationInvite);
@@ -34,7 +79,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   function sanitizeOrg(
     o: Organisation | undefined,
-    opts?: { orgRole?: string; users?: any[]; invites?: any[] }
+    opts?: { orgRole?: string; users?: SanitizedUser[]; invites?: SanitizedInvite[] }
   ) {
     if (!o) return o;
     return {
@@ -61,7 +106,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       relations: { user: true },
     });
     return (Array.isArray(memberships) ? memberships : [])
-      .map((m: any) => {
+      .map((m: OrganisationMember) => {
         const user = m?.user;
         if (!user || user.id == null) return null;
         return {
@@ -76,14 +121,14 @@ export async function organisationRoutes(app: any, prefix = '') {
       .filter(Boolean);
   }
 
-  function getRequesterIp(ctx: any): string {
+  function getRequesterIp(ctx: BaseHandlerContext): string {
     const forwarded = String(ctx?.headers?.['x-forwarded-for'] || '').trim();
     const firstForwarded = forwarded.split(',')[0]?.trim();
-    const direct = String(ctx?.ip || ctx?.request?.ip || '').trim();
+    const direct = String(ctx?.ip || '').trim();
     return (firstForwarded || direct || 'unknown').slice(0, 100);
   }
 
-  async function enforceOrgUpdateRateLimit(ctx: any, userId: number) {
+  async function enforceOrgUpdateRateLimit(ctx: BaseHandlerContext, userId: number) {
     try {
       const ip = getRequesterIp(ctx);
       const key = `rate:org-update:user:${userId}:ip:${ip}`;
@@ -102,7 +147,7 @@ export async function organisationRoutes(app: any, prefix = '') {
   }
 
   async function enforceDnsMutationRateLimit(
-    ctx: any,
+    ctx: BaseHandlerContext,
     userId: number,
     scope: string,
     limit: number,
@@ -127,14 +172,14 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const user = ctx.user as User;
       return withRedisCache(`organisations:list:${user.id}:v1`, 20, async () => {
         const memberships = await memberRepo.find({
           where: { userId: user.id },
           relations: { organisation: true },
         });
-        const orgs: Organisation[] = memberships.map((m: any) => m.organisation).filter(Boolean);
+        const orgs: Organisation[] = memberships.map((m: OrganisationMember) => m.organisation).filter(Boolean);
         const roleByOrgId = new Map<number, string>();
         for (const m of memberships) roleByOrgId.set(m.organisationId, m.orgRole || 'member');
         const owned = await orgRepo.find({ where: { ownerId: user.id } });
@@ -157,13 +202,17 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const user = ctx.user as User;
-      const { name, handle } = ctx.body as any;
-      if (!name || !handle) {
+      const body = ctx.body as Record<string, unknown>;
+      const rawName = body.name;
+      const rawHandle = body.handle;
+      if (!rawName || !rawHandle) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.nameAndHandleRequired') };
       }
+      const name = String(rawName);
+      const handle = String(rawHandle);
       if (!/^([a-z0-9]+\.)+[a-z]{2,}$/.test(handle)) {
         ctx.set.status = 400;
         return { error: ctx.t('organisation.invalidHandle') };
@@ -229,7 +278,7 @@ export async function organisationRoutes(app: any, prefix = '') {
     }
   );
 
-  async function userCanManageOrg(ctx: any, user: User, org: Organisation) {
+  async function userCanManageOrg(ctx: BaseHandlerContext, user: User, org: Organisation) {
     const membership = await getMembership(user.id, org.id);
     return (
       hasPermissionSync(ctx, 'org:write') ||
@@ -241,7 +290,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
       if (!org) {
         ctx.set.status = 404;
@@ -255,11 +304,11 @@ export async function organisationRoutes(app: any, prefix = '') {
       }
       return withRedisCache(`organisations:detail:${user.id}:${org.id}:v1`, 15, async () => {
         const users = await listMembersForOrg(org.id);
-        const invites = await inviteRepo.find({ where: { organisation: { id: org.id } } as any });
+        const invites = await inviteRepo.find({ where: { organisation: { id: org.id } } });
         return sanitizeOrg(org, {
           orgRole: membership?.orgRole || (org.ownerId === user.id ? 'owner' : undefined),
           users,
-          invites: (invites || []).map((i: any) => ({
+          invites: (invites || []).map((i: OrganisationInvite) => ({
             id: i.id,
             email: i.email,
             accepted: i.accepted,
@@ -281,7 +330,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id/dns/zones',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const f = await requireFeature(ctx, 'dns');
       if (f !== true) return f;
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
@@ -326,7 +375,7 @@ export async function organisationRoutes(app: any, prefix = '') {
               where: { organisationId: org.id },
               order: { createdAt: 'ASC' },
             });
-            return zones.map((z: any) => ({
+            return zones.map((z: OrganisationDnsZone) => ({
               id: z.id,
               name: String(z.name || '').replace(/\.$/, ''),
               kind: String(z.kind || 'cloudflare').toLowerCase(),
@@ -334,7 +383,7 @@ export async function organisationRoutes(app: any, prefix = '') {
             }));
           }
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 500;
         console.error('[organisationHandler:dns-zones]', e);
         return { error: sanitizeError(e, 'organisationHandler:dns-zones') };
@@ -354,7 +403,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/:id/dns/zones',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const f = await requireFeature(ctx, 'dns');
       if (f !== true) return f;
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
@@ -370,7 +419,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       const dnsRateLimit = await enforceDnsMutationRateLimit(ctx, user.id, 'zone-create', 6, 60);
       if (dnsRateLimit) return dnsRateLimit;
 
-      const body = ctx.body as any;
+      const body = ctx.body as Record<string, unknown>;
       const rawName = String(body.name || '')
         .trim()
         .replace(/\.$/, '');
@@ -401,9 +450,9 @@ export async function organisationRoutes(app: any, prefix = '') {
           await redisDelByPrefix(`organisations:dns-zones:${org.id}:`);
         } catch {}
         return { id: zone.id, name: zone.name, kind: zone.kind, status: zone.status };
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 500;
-        return { error: e?.message || 'Failed to create org DNS zone' };
+        return { error: errorMessage(e, 'Failed to create org DNS zone') };
       }
     },
     {
@@ -422,7 +471,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id/dns/zones/:zoneId',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const f = await requireFeature(ctx, 'dns');
       if (f !== true) return f;
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
@@ -450,8 +499,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       const svc = createDnsService();
       try {
         const mainZone = await svc.getZone(mainZoneName);
-        const records: any[] = [];
-        const allRecords = mainZone.recordsList || mainZone.rrsets || [];
+        const records: CloudflareRecord[] = [];
+        const allRecords: CloudflareRecord[] = mainZone.recordsList || mainZone.rrsets || [];
         const prefix = zone.name.replace(/\.$/, '');
 
         for (const r of allRecords) {
@@ -472,7 +521,7 @@ export async function organisationRoutes(app: any, prefix = '') {
           status: zone.status,
           recordsList: records,
         };
-      } catch (e: any) {
+      } catch (e: unknown) {
         return {
           id: zone.id,
           name: zone.name,
@@ -497,7 +546,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/:id/dns/zones/:zoneId/records',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const f = await requireFeature(ctx, 'dns');
       if (f !== true) return f;
       try {
@@ -527,18 +576,13 @@ export async function organisationRoutes(app: any, prefix = '') {
           return { error: ctx.t('organisation.zoneNotFound') };
         }
 
-        const body = ctx.body as any;
-        const name = String(body.name || '').trim();
-        const type = String(body.type || 'A').toUpperCase();
-        const ttl = Number(body.ttl || 3600);
-        const content = String(body.content || '').trim();
-        const proxied = !!body.proxied;
-        const allowedTypes = ['A', 'AAAA', 'CNAME', 'TXT'];
-
-        if (!content || !type) {
+        const parsed = parseDnsRecordBody(ctx.body);
+        if (!parsed) {
           ctx.set.status = 400;
           return { error: ctx.t('organisation.recordTypeAndContentRequired') };
         }
+        const { name, type, ttl, content, proxied } = parsed;
+        const allowedTypes = ['A', 'AAAA', 'CNAME', 'TXT'];
         if (!allowedTypes.includes(type)) {
           ctx.set.status = 400;
           return { error: `Only ${allowedTypes.join(', ')} records are allowed` };
@@ -565,9 +609,9 @@ export async function organisationRoutes(app: any, prefix = '') {
           proxied,
         });
         return created;
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 500;
-        return { error: e?.message || 'Internal error' };
+        return { error: errorMessage(e, 'Internal error') };
       }
     },
     {
@@ -587,7 +631,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/organisations/:id/dns/zones/:zoneId/records/:recordId',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const f = await requireFeature(ctx, 'dns');
       if (f !== true) return f;
       try {
@@ -618,18 +662,13 @@ export async function organisationRoutes(app: any, prefix = '') {
         }
 
         const recordId = String(ctx.params['recordId']);
-        const body = ctx.body as any;
-        const name = String(body.name || '').trim();
-        const type = String(body.type || 'A').toUpperCase();
-        const ttl = Number(body.ttl || 3600);
-        const content = String(body.content || '').trim();
-        const proxied = !!body.proxied;
-        const allowedTypes = ['A', 'AAAA', 'CNAME', 'TXT'];
-
-        if (!content || !type) {
+        const parsed = parseDnsRecordBody(ctx.body);
+        if (!parsed) {
           ctx.set.status = 400;
           return { error: ctx.t('organisation.recordTypeAndContentRequired') };
         }
+        const { name, type, ttl, content, proxied } = parsed;
+        const allowedTypes = ['A', 'AAAA', 'CNAME', 'TXT'];
         if (!allowedTypes.includes(type)) {
           ctx.set.status = 400;
           return { error: `Only ${allowedTypes.join(', ')} records are allowed` };
@@ -656,9 +695,9 @@ export async function organisationRoutes(app: any, prefix = '') {
           proxied,
         });
         return updated;
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 500;
-        return { error: e?.message || 'Internal error' };
+        return { error: errorMessage(e, 'Internal error') };
       }
     },
     {
@@ -678,7 +717,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/organisations/:id/dns/zones/:zoneId/records/:recordId',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const f = await requireFeature(ctx, 'dns');
       if (f !== true) return f;
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
@@ -708,9 +747,9 @@ export async function organisationRoutes(app: any, prefix = '') {
         const mainZone = await svc.getZone(mainZoneName);
         const result = await svc.deleteRecord(mainZone.id, recordId);
         return result;
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 502;
-        return { error: e?.message || 'Failed to delete DNS record' };
+        return { error: errorMessage(e, 'Failed to delete DNS record') };
       }
     },
     {
@@ -729,7 +768,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/organisations/:id/dns/zones/:zoneId',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const f = await requireFeature(ctx, 'dns');
       if (f !== true) return f;
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
@@ -757,7 +796,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
       try {
         const mainZone = await svc.getZone(mainZoneName);
-        const records = (mainZone.recordsList || mainZone.rrsets || []).filter((r: any) => {
+        const records = (mainZone.recordsList || mainZone.rrsets || []).filter((r: CloudflareRecord) => {
           const name = String(r.name || '').replace(/\.$/, '');
           const zoneName = zone.name.replace(/\.$/, '');
           return name === zoneName || name.endsWith(`.${zoneName}`);
@@ -795,7 +834,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/organisations/:id',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -809,7 +848,8 @@ export async function organisationRoutes(app: any, prefix = '') {
       const orgRateLimit = await enforceOrgUpdateRateLimit(ctx, user.id);
       if (orgRateLimit) return orgRateLimit;
 
-      const { name, portalTier } = ctx.body as any;
+      const body = ctx.body as Record<string, unknown>;
+      const { name, portalTier } = body as OrgUpdateBody;
       if (name) org.name = name;
       if (portalTier) org.portalTier = portalTier;
       await orgRepo.save(org);
@@ -837,7 +877,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id/users',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOne({ where: { id: Number(ctx.params['id']) } });
       if (!org) {
         ctx.set.status = 404;
@@ -872,7 +912,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/organisations/:id/users/:userId',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -924,7 +964,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/organisations/:id/users/:userId/role',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -947,11 +987,13 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('user.userNotFoundInOrg') };
       }
-      const { orgRole } = ctx.body as any;
-      if (!['member', 'admin', 'owner'].includes(orgRole)) {
+      const body = ctx.body as Record<string, unknown>;
+      const rawRole = String(body.orgRole || '');
+      if (!['member', 'admin', 'owner'].includes(rawRole)) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.invalidRole') };
       }
+      const orgRole = rawRole as 'member' | 'admin' | 'owner';
       if (orgRole === 'owner' && user.id !== org.ownerId && !hasPermissionSync(ctx, 'org:write')) {
         ctx.set.status = 403;
         return { error: ctx.t('organisation.onlyOwnerTransfer') };
@@ -992,7 +1034,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/:id/invite',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -1010,7 +1052,7 @@ export async function organisationRoutes(app: any, prefix = '') {
         return { error: ctx.t('common.forbidden') };
       }
 
-      const rawEmail = ctx.body?.email;
+      const rawEmail = (ctx.body as Record<string, unknown> | undefined)?.email;
       const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : '';
       if (!email) {
         ctx.set.status = 400;
@@ -1031,7 +1073,7 @@ export async function organisationRoutes(app: any, prefix = '') {
       }
 
       const existingInvite = await inviteRepo.findOne({
-        where: { organisation: org, email, accepted: false } as any,
+        where: { organisation: { id: org.id }, email, accepted: false } as import('typeorm').FindOptionsWhere<OrganisationInvite>,
       });
       if (existingInvite) {
         ctx.set.status = 409;
@@ -1103,7 +1145,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/:id/invite/:inviteId/resend',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -1164,7 +1206,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/organisations/:id/invite/:inviteId',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -1204,7 +1246,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/:id/add-user',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -1221,14 +1263,17 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
       }
-      const { userId, email, orgRole } = ctx.body as any;
-      if (!userId && !email) {
+      const body = ctx.body as Record<string, unknown>;
+      const rawUserId = body.userId;
+      const rawEmail = body.email;
+      const rawRole = body.orgRole;
+      if (!rawUserId && !rawEmail) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.emailOrUserIdRequired') };
       }
-      const target = userId
-        ? await userRepo.findOneBy({ id: Number(userId) })
-        : await userRepo.findOne({ where: { email } });
+      const target = rawUserId
+        ? await userRepo.findOneBy({ id: Number(rawUserId) })
+        : await userRepo.findOne({ where: { email: String(rawEmail) } });
       if (!target) {
         ctx.set.status = 404;
         return { error: ctx.t('user.notFound') };
@@ -1238,13 +1283,15 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 409;
         return { error: ctx.t('organisation.alreadyInOrg') };
       }
-      const newRole = ['member', 'admin', 'owner'].includes(orgRole) ? orgRole : 'member';
+      const newRole: 'member' | 'admin' | 'owner' = ['member', 'admin', 'owner'].includes(String(rawRole))
+        ? (String(rawRole) as 'member' | 'admin' | 'owner')
+        : 'member';
       const membership = memberRepo.create({
         userId: target.id,
         organisationId: org.id,
         user: target,
         organisation: org,
-        orgRole: newRole as any,
+        orgRole: newRole,
         createdAt: new Date(),
       });
       await memberRepo.save(membership);
@@ -1290,8 +1337,9 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/accept-invite',
-    async (ctx: any) => {
-      const { token } = ctx.body as any;
+    async (ctx: AuthenticatedHandlerContext) => {
+      const body = ctx.body as Record<string, unknown>;
+      const token = String(body.token || '');
       const inv = await inviteRepo.findOne({ where: { token }, relations: { organisation: true } });
       if (!inv || inv.accepted) {
         ctx.set.status = 400;
@@ -1302,28 +1350,7 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: ctx.t('auth.emailMismatch') };
       }
-      const existingMembership = await getMembership(user.id, inv.organisation.id);
-      if (!existingMembership) {
-        const membership = memberRepo.create({
-          userId: user.id,
-          organisationId: inv.organisation.id,
-          user,
-          organisation: inv.organisation,
-          orgRole: 'member',
-          createdAt: new Date(),
-        });
-        await memberRepo.save(membership);
-      }
-      inv.accepted = true;
-      await inviteRepo.save(inv);
-      await createActivityLog({
-        userId: user.id,
-        action: 'org:accept_invite',
-        targetId: String(inv.organisation.id),
-        targetType: 'organisation',
-        ipAddress: ctx.ip,
-      });
-      return { success: true };
+      return await acceptInviteLogic(memberRepo, inviteRepo, user, inv, inv.organisation.id, ctx.ip ?? '');
     },
     {
       beforeHandle: authenticate,
@@ -1339,7 +1366,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/invites',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const user = ctx.user as User;
       if (!user) {
         ctx.set.status = 401;
@@ -1373,7 +1400,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/invites/:inviteId/accept',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const user = ctx.user as User;
       if (!user) {
         ctx.set.status = 401;
@@ -1396,28 +1423,7 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('organisation.notFound') };
       }
-      const existingMembership = await getMembership(user.id, inv.organisation.id);
-      if (!existingMembership) {
-        const membership = memberRepo.create({
-          userId: user.id,
-          organisationId: inv.organisation.id,
-          user,
-          organisation: inv.organisation,
-          orgRole: 'member',
-          createdAt: new Date(),
-        });
-        await memberRepo.save(membership);
-      }
-      inv.accepted = true;
-      await inviteRepo.save(inv);
-      await createActivityLog({
-        userId: user.id,
-        action: 'org:accept_invite',
-        targetId: String(inv.organisation.id),
-        targetType: 'organisation',
-        ipAddress: ctx.ip,
-      });
-      return { success: true };
+      return await acceptInviteLogic(memberRepo, inviteRepo, user, inv, inv.organisation.id, ctx.ip ?? '');
     },
     {
       beforeHandle: authenticate,
@@ -1433,7 +1439,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/invites/:inviteId/reject',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const user = ctx.user as User;
       if (!user) {
         ctx.set.status = 401;
@@ -1474,7 +1480,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/:id/leave',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const org = await orgRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
         ctx.set.status = 404;
@@ -1499,8 +1505,8 @@ export async function organisationRoutes(app: any, prefix = '') {
         );
         const mappings = await mappingRepo.find({ relations: { node: true } });
         const uuids = mappings
-          .filter((m: any) => m.node?.organisation?.id === org.id)
-          .map((m: any) => m.uuid);
+          .filter((m: import('../models/serverMapping.entity').ServerMapping) => m.node?.organisation?.id === org.id)
+          .map((m: import('../models/serverMapping.entity').ServerMapping) => m.uuid);
         if (uuids.length > 0) {
           const subuserRepo = AppDataSource.getRepository(
             require('../models/serverSubuser.entity').ServerSubuser
@@ -1541,17 +1547,17 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id/servers',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const orgId = Number(ctx.params['id']);
       return withRedisCache(`organisations:servers:${orgId}:v1`, 10, async () => {
         const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
         const nodes = await repo.find({ where: { organisation: { id: orgId } } });
-        const results: any[] = [];
+        const results: Record<string, unknown>[] = [];
         for (const n of nodes) {
-          const base = (n as any).backendWingsUrl || n.url;
+          const base = n.backendWingsUrl || n.url;
           const svc = new WingsApiService(base, n.token);
           const res = await svc.getServers();
-          results.push(...(res.data || []).map((s: any) => ({ ...s, node: n.id })));
+          results.push(...(res.data || []).map((s: Record<string, unknown>) => ({ ...s, node: n.id })));
         }
         return results;
       });
@@ -1565,7 +1571,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/organisations/:id/nodes',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const orgId = Number(ctx.params['id']);
       return withRedisCache(`organisations:nodes:${orgId}:v1`, 30, async () => {
         const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
@@ -1582,7 +1588,7 @@ export async function organisationRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/organisations/:id/avatar',
-    async (ctx: any) => {
+    async (ctx: AuthenticatedHandlerContext) => {
       const orgRepoLocal = AppDataSource.getRepository(Organisation);
       const org = await orgRepoLocal.findOneBy({ id: Number(ctx.params['id']) });
       if (!org) {
@@ -1594,7 +1600,8 @@ export async function organisationRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
       }
-      const { file } = (ctx.body || {}) as any;
+      const body = (ctx.body || {}) as Record<string, unknown>;
+      const file = body.file;
       const uploadFile = Array.isArray(file) ? file[0] : file;
       if (!uploadFile) {
         ctx.set.status = 400;

@@ -15,25 +15,29 @@ function cleanErrorMessage(msg: string): string {
   return cleaned;
 }
 
-export function sanitizeError(e: any, context?: string, locale?: string): string {
+export function errorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === 'object' && e !== null && 'message' in e) return String((e as { message: unknown }).message);
+  return fallback;
+}
+
+export function sanitizeError(e: unknown, context?: string, locale?: string): string {
   console.error(`[${context ?? 'error'}]`, e instanceof Error ? e.stack : e);
 
-  if (e?.response?.data?.errors?.[0]?.detail) {
-    const detail =
-      typeof e.response.data.errors[0].detail === 'string'
-        ? e.response.data.errors[0].detail
-        : String(e.response.data.errors[0].detail);
-    return cleanErrorMessage(detail);
+  const err = e as Record<string, unknown> | undefined;
+  const detail = err?.response as Record<string, unknown> | undefined;
+  const detailData = detail?.data as Record<string, unknown> | undefined;
+  const detailErrors = detailData?.errors as Record<string, unknown>[] | undefined;
+  if (detailErrors?.[0]?.detail) {
+    const d = detailErrors[0].detail;
+    return cleanErrorMessage(typeof d === 'string' ? d : String(d));
   }
-  if (e?.response?.data?.error) {
-    const error =
-      typeof e.response.data.error === 'string'
-        ? e.response.data.error
-        : String(e.response.data.error);
-    return cleanErrorMessage(error);
+  const errorValue = detailData?.error;
+  if (errorValue) {
+    return cleanErrorMessage(typeof errorValue === 'string' ? errorValue : String(errorValue));
   }
 
-  const rawMessage = e?.message || String(e);
+  const rawMessage = err?.message ? String(err.message) : String(e);
   const cleaned = cleanErrorMessage(rawMessage);
   if (cleaned.length > 0) {
     return cleaned;
