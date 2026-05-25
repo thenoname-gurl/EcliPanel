@@ -5,6 +5,7 @@ import { AppDataSource } from '../config/typeorm';
 import { In, MoreThanOrEqual, Not } from 'typeorm';
 import { User } from '../models/user.entity';
 import { Node } from '../models/node.entity';
+import { Organisation } from '../models/organisation.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { refreshAllSftpProxies } from '../services/sftpProxyService';
@@ -13,14 +14,17 @@ import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { withRedisCache } from '../config/redis';
 import { WingsApiService } from '../services/wingsApiService';
 import { t } from 'elysia';
-import { sanitizeError } from '../utils/sanitizeError';
+import { errorMessage, sanitizeError } from '../utils/sanitizeError';
 import { randomHex } from '../utils/bunCrypto';
+import type { BaseHandlerContext, NodeApp, CreateNodeBody, UpdateNodeBody, RebootOperation } from '../types';
+import type { OrganisationMember } from '../models/organisationMember.entity';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
 
-function requireAdminCtx(ctx: any): true | { error: string } {
-  const user = ctx.user as User | undefined;
-  const apiKey = ctx.apiKey;
+function requireAdminCtx(ctx: BaseHandlerContext): true | { error: string } {
+  const ctxAny = ctx as unknown as Record<string, unknown>;
+  const user = ctxAny.user as User | undefined;
+  const apiKey = ctxAny.apiKey as { type: string } | undefined;
   if (apiKey?.type === 'admin') return true;
   if (!user) {
     ctx.set.status = 401;
@@ -33,7 +37,7 @@ function requireAdminCtx(ctx: any): true | { error: string } {
   return true;
 }
 
-export async function nodeRoutes(app: any, prefix = '') {
+export async function nodeRoutes(app: NodeApp, prefix = '') {
   const nodeRepo = () => AppDataSource.getRepository(Node);
   const orgMemberRepo = () =>
     AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
@@ -53,11 +57,11 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const nodes = await nodeRepo().find({ relations: { organisation: true } });
-      const safe = nodes.map(({ rootUser, rootPassword, token, ...rest }) => rest);
+      const safe = nodes.map(({ rootUser: _ru, rootPassword: _rp, token: _t, ...rest }: Node) => rest);
       return safe;
     },
     {
@@ -71,14 +75,14 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
   );
 
-  function sanitizeNodes(nodes: any[]) {
-    return nodes.map(({ rootUser, rootPassword, token, ...rest }) => rest);
+  function sanitizeNodes(nodes: Node[]) {
+    return nodes.map(({ rootUser: _ru, rootPassword: _rp, token: _t, ...rest }: Node) => rest);
   }
 
   app.get(
     prefix + '/nodes/available',
-    async (ctx: any) => {
-      const user = ctx.user as User;
+    async (ctx: BaseHandlerContext) => {
+      const user = (ctx as unknown as Record<string, unknown>).user as User;
       if (!user) {
         ctx.set.status = 401;
         return { error: ctx.t('auth.unauthorized') };
@@ -98,28 +102,30 @@ export async function nodeRoutes(app: any, prefix = '') {
         }
 
         const unhealthyNodeIds = await getUnhealthyNodeIds();
-        const baseOptions: any = { relations: { organisation: true } };
-        const deploymentFilter = { deploymentsDisabled: false } as any;
+        const baseOptions: Record<string, unknown> = { relations: { organisation: true } };
+        const deploymentFilter = { deploymentsDisabled: false };
 
         if (portalType === 'enterprise') {
           const memberships = await orgMemberRepo().find({ where: { userId: user.id } });
           const orgIds = memberships
-            .map((m: any) => Number(m.organisationId))
+            .map((m: OrganisationMember) => Number(m.organisationId))
             .filter((v: number) => Number.isFinite(v));
           if (orgIds.length === 0) return [];
-          baseOptions.where = { organisation: { id: In(orgIds) }, ...deploymentFilter } as any;
+          const whereOpts: Record<string, unknown> = { organisation: { id: In(orgIds) }, ...deploymentFilter };
           if (unhealthyNodeIds.length) {
-            baseOptions.where.id = Not(In(unhealthyNodeIds));
+            whereOpts.id = Not(In(unhealthyNodeIds));
           }
+          baseOptions.where = whereOpts;
           const nodes = await nodeRepo().find(baseOptions);
           return sanitizeNodes(nodes);
         }
 
         const types = portalType === 'paid' ? ['paid', 'free_and_paid'] : ['free', 'free_and_paid'];
-        baseOptions.where = { nodeType: In(types), ...deploymentFilter };
+        const whereOpts: Record<string, unknown> = { nodeType: In(types), ...deploymentFilter };
         if (unhealthyNodeIds.length) {
-          baseOptions.where.id = Not(In(unhealthyNodeIds));
+          whereOpts.id = Not(In(unhealthyNodeIds));
         }
+        baseOptions.where = whereOpts;
         const nodes = await nodeRepo().find(baseOptions);
         return sanitizeNodes(nodes);
       });
@@ -133,7 +139,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes/:id',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const node = await resolveNode(ctx.params.id);
@@ -141,7 +147,7 @@ export async function nodeRoutes(app: any, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('node.notFound') };
       }
-      const { rootUser, rootPassword, token, ...safe } = node as any;
+      const { rootUser: _ru, rootPassword: _rp, token: _t, ...safe } = node;
       return safe;
     },
     {
@@ -158,29 +164,11 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/nodes',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = await authorize('nodes:create')(ctx);
       if (adminErr !== undefined) return adminErr;
-      const {
-        name,
-        url,
-        token,
-        nodeId,
-        nodeType,
-        useSSL,
-        allowedOrigin,
-        sftpPort,
-        sftpProxyPort,
-        fqdn,
-        ipv6Subnet,
-        ipv6ExcludedPorts,
-        ipv6ReservedCount,
-        backendWingsUrl,
-        portRangeStart,
-        portRangeEnd,
-        deploymentsDisabled,
-        deploymentNotice,
-      } = ctx.body as any;
+      const body = ctx.body as CreateNodeBody;
+      const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice } = body;
       if (!name || !url || !token) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.nameUrlTokenRequired') };
@@ -194,8 +182,8 @@ export async function nodeRoutes(app: any, prefix = '') {
       }
 
       const node = await nodeService.registerNode(name, url, token, nodeId, backendWingsUrl);
-      if (nodeType && NODE_TYPES.includes(nodeType)) {
-        (node as any).nodeType = nodeType;
+      if (nodeType && NODE_TYPES.includes(nodeType as typeof NODE_TYPES[number])) {
+        node.nodeType = nodeType as typeof NODE_TYPES[number];
       }
       if (useSSL !== undefined) {
         node.useSSL = useSSL === true || useSSL === 'true';
@@ -203,13 +191,13 @@ export async function nodeRoutes(app: any, prefix = '') {
         node.useSSL = node.url.toLowerCase().startsWith('https://');
       }
       if (allowedOrigin) node.allowedOrigin = allowedOrigin;
-      if (fqdn !== undefined) node.fqdn = fqdn || (undefined as any);
+      if (fqdn !== undefined) node.fqdn = fqdn || undefined;
       if (ipv6Subnet !== undefined) {
         if (ipv6Subnet && !isValidIpv6Cidr(String(ipv6Subnet))) {
           ctx.set.status = 400;
           return { error: ctx.t('server.invalidIpv6Subnet') };
         }
-        node.ipv6Subnet = ipv6Subnet || (undefined as any);
+        node.ipv6Subnet = ipv6Subnet || undefined;
       }
       if (ipv6ExcludedPorts !== undefined) {
         node.ipv6ExcludedPorts =
@@ -235,9 +223,9 @@ export async function nodeRoutes(app: any, prefix = '') {
         node.ipv6ReservedCount = parsedReservedCount;
       }
       if (sftpPort !== undefined)
-        node.sftpPort = sftpPort !== null ? Number(sftpPort) : (undefined as any);
+        node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined;
       if (sftpProxyPort !== undefined)
-        node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : (undefined as any);
+        node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined;
       if (portRangeStart !== undefined) {
         const parsed = Number(portRangeStart);
         if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
@@ -265,7 +253,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       if (deploymentsDisabled !== undefined)
         node.deploymentsDisabled = deploymentsDisabled === true || deploymentsDisabled === 'true';
       if (deploymentNotice !== undefined)
-        node.deploymentNotice = deploymentNotice || (undefined as any);
+        node.deploymentNotice = deploymentNotice || undefined;
       await nodeRepo().save(node);
       refreshAllSftpProxies().catch(() => {});
       return { success: true, node };
@@ -284,36 +272,12 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/nodes/:id',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = await authorize('nodes:*')(ctx);
       if (adminErr !== undefined) return adminErr;
-      const { id } = ctx.params as any;
-      const {
-        nodeId,
-        url,
-        nodeType,
-        orgId,
-        name,
-        portRangeStart,
-        portRangeEnd,
-        defaultIp,
-        ipv6Subnet,
-        ipv6ExcludedPorts,
-        ipv6ReservedCount,
-        fqdn,
-        cost,
-        memory,
-        disk,
-        cpu,
-        serverLimit,
-        useSSL,
-        allowedOrigin,
-        sftpPort,
-        sftpProxyPort,
-        backendWingsUrl,
-        deploymentsDisabled,
-        deploymentNotice,
-      } = ctx.body as any;
+      const { id } = ctx.params as Record<string, string>;
+      const body = ctx.body as UpdateNodeBody;
+      const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice } = body;
 
       const node = await resolveNode(id);
       if (!node) {
@@ -329,20 +293,20 @@ export async function nodeRoutes(app: any, prefix = '') {
             return { error: ctx.t('validation.nodeIdUuidRequired') };
           }
         }
-        node.nodeId = nodeId || (undefined as any);
+        node.nodeId = nodeId || undefined;
       }
 
       if (url !== undefined) node.url = url;
       if (name !== undefined) node.name = name;
       if (nodeType !== undefined) {
-        if (!NODE_TYPES.includes(nodeType)) {
+        if (!(NODE_TYPES as readonly string[]).includes(nodeType)) {
           ctx.set.status = 400;
           return { error: `nodeType must be one of: ${NODE_TYPES.join(', ')}` };
         }
-        node.nodeType = nodeType;
+        node.nodeType = nodeType as Node['nodeType'];
       }
       if (orgId !== undefined) {
-        node.organisation = orgId ? ({ id: Number(orgId) } as any) : (undefined as any);
+        node.organisation = orgId ? ({ id: Number(orgId) } as Organisation) : undefined;
       }
       if (portRangeStart !== undefined) {
         if (portRangeStart !== null) {
@@ -353,7 +317,7 @@ export async function nodeRoutes(app: any, prefix = '') {
           }
           node.portRangeStart = parsed;
         } else {
-          node.portRangeStart = undefined as any;
+          node.portRangeStart = undefined;
         }
       }
       if (portRangeEnd !== undefined) {
@@ -365,7 +329,7 @@ export async function nodeRoutes(app: any, prefix = '') {
           }
           node.portRangeEnd = parsed;
         } else {
-          node.portRangeEnd = undefined as any;
+          node.portRangeEnd = undefined;
         }
       }
       if (
@@ -376,13 +340,13 @@ export async function nodeRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: ctx.t('server.portRangeOrder') };
       }
-      if (defaultIp !== undefined) node.defaultIp = defaultIp || (undefined as any);
+      if (defaultIp !== undefined) node.defaultIp = defaultIp || undefined;
       if (ipv6Subnet !== undefined) {
         if (ipv6Subnet && !isValidIpv6Cidr(String(ipv6Subnet))) {
           ctx.set.status = 400;
           return { error: ctx.t('server.invalidIpv6Subnet') };
         }
-        node.ipv6Subnet = ipv6Subnet || (undefined as any);
+        node.ipv6Subnet = ipv6Subnet || undefined;
       }
       if (ipv6ExcludedPorts !== undefined) {
         node.ipv6ExcludedPorts =
@@ -407,13 +371,13 @@ export async function nodeRoutes(app: any, prefix = '') {
         }
         node.ipv6ReservedCount = parsedReservedCount;
       }
-      if (fqdn !== undefined) node.fqdn = fqdn || (undefined as any);
-      if (cost !== undefined) node.cost = cost !== null ? Number(cost) : (undefined as any);
-      if (memory !== undefined) node.memory = memory !== null ? Number(memory) : (undefined as any);
-      if (disk !== undefined) node.disk = disk !== null ? Number(disk) : (undefined as any);
-      if (cpu !== undefined) node.cpu = cpu !== null ? Number(cpu) : (undefined as any);
+      if (fqdn !== undefined) node.fqdn = fqdn || undefined;
+      if (cost !== undefined) node.cost = cost !== null ? Number(cost) : undefined;
+      if (memory !== undefined) node.memory = memory !== null ? Number(memory) : undefined;
+      if (disk !== undefined) node.disk = disk !== null ? Number(disk) : undefined;
+      if (cpu !== undefined) node.cpu = cpu !== null ? Number(cpu) : undefined;
       if (serverLimit !== undefined)
-        node.serverLimit = serverLimit !== null ? Number(serverLimit) : (undefined as any);
+        node.serverLimit = serverLimit !== null ? Number(serverLimit) : undefined;
       if (useSSL !== undefined) {
         node.useSSL = useSSL === true || useSSL === 'true';
         if (node.useSSL && node.url.toLowerCase().startsWith('http://')) {
@@ -428,15 +392,15 @@ export async function nodeRoutes(app: any, prefix = '') {
       }
       if (allowedOrigin !== undefined) node.allowedOrigin = allowedOrigin || undefined;
       if (sftpPort !== undefined)
-        node.sftpPort = sftpPort !== null ? Number(sftpPort) : (undefined as any);
+        node.sftpPort = sftpPort !== null ? Number(sftpPort) : undefined;
       if (sftpProxyPort !== undefined)
-        node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : (undefined as any);
+        node.sftpProxyPort = sftpProxyPort !== null ? Number(sftpProxyPort) : undefined;
       if (backendWingsUrl !== undefined)
-        node.backendWingsUrl = backendWingsUrl || (undefined as any);
+        node.backendWingsUrl = backendWingsUrl || undefined;
       if (deploymentsDisabled !== undefined)
         node.deploymentsDisabled = deploymentsDisabled === true || deploymentsDisabled === 'true';
       if (deploymentNotice !== undefined)
-        node.deploymentNotice = deploymentNotice || (undefined as any);
+        node.deploymentNotice = deploymentNotice || undefined;
       await nodeRepo().save(node);
       nodeService.invalidateNode(node.id);
       refreshAllSftpProxies().catch(() => {});
@@ -461,7 +425,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.delete(
     prefix + '/nodes/:id',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = await authorize('nodes:*')(ctx);
       if (adminErr !== undefined) return adminErr;
       const node = await resolveNode(ctx.params.id);
@@ -488,12 +452,12 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes/heartbeats',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const nodes = await nodeRepo().find();
       const hbRepo = AppDataSource.getRepository(NodeHeartbeat);
-      const result: Record<number, any[]> = {};
+      const result: Record<number, Array<{ timestamp: Date; responseMs: number | null; status: string }>> = {};
       for (const node of nodes) {
         const rows = await hbRepo.find({
           where: { nodeId: node.id },
@@ -521,11 +485,11 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes/:id/heartbeats',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const nodeId = Number(ctx.params.id);
-      const { window: w = '24h' } = ctx.query as any;
+      const { window: w = '24h' } = ctx.query as Record<string, string>;
       const hours = w === '7d' ? 168 : 24;
       const since = new Date(Date.now() - hours * 3_600_000);
       const hbRepo = AppDataSource.getRepository(NodeHeartbeat);
@@ -566,7 +530,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes/generate-token',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = await authorize('nodes:read-creds')(ctx);
       if (adminErr !== undefined) return adminErr;
       const token = randomHex(32);
@@ -585,11 +549,11 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.put(
     prefix + '/nodes/:id/credentials',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
-      const { id } = ctx.params as any;
-      const { rootUser, rootPassword } = ctx.body as any;
+      const { id } = ctx.params as Record<string, string>;
+      const { rootUser, rootPassword } = ctx.body as Record<string, string>;
       const node = await nodeService.updateCredentials(Number(id), rootUser, rootPassword);
       return { success: true, node };
     },
@@ -606,17 +570,17 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes/:id/credentials',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
-      const { id } = ctx.params as any;
+      const { id } = ctx.params as Record<string, string>;
       try {
         const creds = await nodeService.getCredentials(Number(id));
         return { success: true, credentials: creds };
-      } catch (e: any) {
+      } catch (e: unknown) {
         ctx.set.status = 404;
         console.error('[nodeHandler:get-credentials]', e);
-        return { error: sanitizeError(e, 'nodeHandler:get-credentials') };
+        return { error: errorMessage(e, 'nodeHandler:get-credentials') };
       }
     },
     {
@@ -633,7 +597,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes/:id/token',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = await authorize('nodes:read-creds')(ctx);
       if (adminErr !== undefined) return adminErr;
       const node = await nodeRepo().findOneBy({ id: Number(ctx.params.id) });
@@ -641,7 +605,7 @@ export async function nodeRoutes(app: any, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('node.notFound') };
       }
-      return { token: (node as any).token };
+      return { token: node.token };
     },
     {
       beforeHandle: authenticate,
@@ -657,12 +621,12 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/servers/:id/map',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
-      const { id: uuid } = ctx.params as any;
-      const { nodeId } = ctx.body as any;
-      const mapping = await nodeService.mapServer(uuid, nodeId);
+      const { id: uuid } = ctx.params as Record<string, string>;
+      const { nodeId } = ctx.body as Record<string, string>;
+      const mapping = await nodeService.mapServer(uuid, Number(nodeId));
       return { success: true, mapping };
     },
     {
@@ -678,7 +642,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/nodes/:id/mass-allocation-change',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const nodeId = Number(ctx.params.id);
@@ -693,7 +657,7 @@ export async function nodeRoutes(app: any, prefix = '') {
         return { error: ctx.t('node.notFound') };
       }
 
-      const { oldIp, newIp } = ctx.body as any;
+      const { oldIp, newIp } = ctx.body as Record<string, string>;
       if (!oldIp || !newIp) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.oldIpAndNewIpRequired') };
@@ -774,12 +738,12 @@ export async function nodeRoutes(app: any, prefix = '') {
           cfg.allocations = alloc;
           try {
             await cfgRepo.save(cfg);
-            const base = (node as any).backendWingsUrl || node.url;
+            const base = node.backendWingsUrl || node.url;
             const svc = new WingsApiService(base, node.token);
             await svc.syncServer(cfg.uuid, { allocations: alloc }).catch(() => {});
             updatedServers.push({ uuid: cfg.uuid, name: cfg.name });
-          } catch (e: any) {
-            errors.push({ uuid: cfg.uuid, error: e?.message || 'Failed to save or sync' });
+          } catch (e: unknown) {
+            errors.push({ uuid: cfg.uuid, error: errorMessage(e, 'Failed to save or sync') });
           }
         }
       }
@@ -806,7 +770,7 @@ export async function nodeRoutes(app: any, prefix = '') {
     }
   );
 
-  const rebootOperations = new Map<string, any>();
+  const rebootOperations = new Map<string, RebootOperation>();
   const OPERATION_TTL = 5 * 60 * 1000;
 
   setInterval(() => {
@@ -818,7 +782,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.post(
     prefix + '/nodes/:id/reboot-all-servers',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const nodeId = Number(ctx.params.id);
@@ -833,22 +797,25 @@ export async function nodeRoutes(app: any, prefix = '') {
         return { error: ctx.t('node.notFound') };
       }
 
-      const base = (node as any).backendWingsUrl || node.url;
+      const base = node.backendWingsUrl || node.url;
       const svc = new WingsApiService(base, node.token);
 
-      let wingsServers: any[];
+      let wingsServers: Record<string, unknown>[];
       try {
-        const res = await svc.getServers();
-        wingsServers = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
-      } catch (e: any) {
+        const res = await svc.getServers() as Record<string, unknown>;
+        wingsServers = Array.isArray(res.data) ? res.data as Record<string, unknown>[] : Array.isArray(res) ? res as Record<string, unknown>[] : [];
+      } catch (e: unknown) {
         ctx.set.status = 502;
-        return { error: ctx.t('node.fetchServersFailed') + (e?.message || 'unknown') };
+        return { error: ctx.t('node.fetchServersFailed') + errorMessage(e, 'unknown') };
       }
 
-      const serverUuid = (s: any) => s.configuration?.uuid || s.uuid || s.id;
-      const serverName = (s: any) => s.configuration?.meta?.name || s.name || serverUuid(s);
+      const serverUuid = (s: Record<string, unknown>) => String((s.configuration as Record<string, unknown>)?.uuid || s.uuid || s.id);
+      const serverName = (s: Record<string, unknown>) => {
+        const meta = (s.configuration as Record<string, unknown>)?.meta as Record<string, unknown> | undefined;
+        return (meta?.name as string) || (s.name as string) || String(serverUuid(s));
+      };
 
-      const onlineServers = wingsServers.filter((s: any) => {
+      const onlineServers = wingsServers.filter((s: Record<string, unknown>) => {
         const state = String(s.state || s.status || '')
           .trim()
           .toLowerCase();
@@ -858,7 +825,7 @@ export async function nodeRoutes(app: any, prefix = '') {
       });
 
       const opId = crypto.randomUUID();
-      const op: any = {
+      const op: RebootOperation = {
         id: opId,
         nodeId,
         nodeName: node.name,
@@ -886,7 +853,7 @@ export async function nodeRoutes(app: any, prefix = '') {
           op.progress = 10;
 
           const stopResults = await Promise.allSettled(
-            onlineServers.map(async (s: any) => {
+            onlineServers.map(async (s: Record<string, unknown>) => {
               const uuid = serverUuid(s);
               try {
                 await svc.powerServer(uuid, 'stop');
@@ -900,7 +867,8 @@ export async function nodeRoutes(app: any, prefix = '') {
           const stopMap = new Map<string, { name?: string; stopOk: boolean }>();
           for (const r of stopResults) {
             if (r.status === 'fulfilled') {
-              stopMap.set(r.value.uuid, { name: r.value.name, stopOk: r.value.ok });
+              const val = r.value as { uuid: string; name?: string; ok: boolean };
+              stopMap.set(val.uuid, { name: val.name, stopOk: val.ok });
             }
           }
 
@@ -912,7 +880,7 @@ export async function nodeRoutes(app: any, prefix = '') {
           op.progress = 50;
 
           const killResults = await Promise.allSettled(
-            onlineServers.map(async (s: any) => {
+            onlineServers.map(async (s: Record<string, unknown>) => {
               const uuid = serverUuid(s);
               let needsKill = false;
               try {
@@ -939,7 +907,10 @@ export async function nodeRoutes(app: any, prefix = '') {
 
           const killedSet = new Set<string>();
           for (const r of killResults) {
-            if (r.status === 'fulfilled' && r.value.killed) killedSet.add(r.value.uuid);
+            if (r.status === 'fulfilled') {
+              const val = r.value as { uuid: string; killed: boolean };
+              if (val.killed) killedSet.add(val.uuid);
+            }
           }
           op.killedCount = killedSet.size;
 
@@ -948,7 +919,7 @@ export async function nodeRoutes(app: any, prefix = '') {
           await new Promise(resolve => setTimeout(resolve, 2_000));
 
           const startResults = await Promise.allSettled(
-            onlineServers.map(async (s: any) => {
+            onlineServers.map(async (s: Record<string, unknown>) => {
               const uuid = serverUuid(s);
               try {
                 await svc.powerServer(uuid, 'start');
@@ -961,7 +932,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
           for (const r of startResults) {
             if (r.status === 'fulfilled') {
-              const entry = r.value;
+              const entry = r.value as { uuid: string; ok: boolean };
               const stopInfo = stopMap.get(entry.uuid);
               op.servers.push({
                 uuid: entry.uuid,
@@ -976,9 +947,9 @@ export async function nodeRoutes(app: any, prefix = '') {
           op.status = 'completed';
           op.progress = 100;
           op.message = 'Reboot completed';
-        } catch (e: any) {
+        } catch (e: unknown) {
           op.status = 'failed';
-          op.message = e?.message || 'Unexpected error during reboot';
+          op.message = errorMessage(e, 'Unexpected error during reboot');
           op.progress = 100;
         }
       })();
@@ -1006,7 +977,7 @@ export async function nodeRoutes(app: any, prefix = '') {
 
   app.get(
     prefix + '/nodes/:id/reboot-status/:operationId',
-    async (ctx: any) => {
+    async (ctx: BaseHandlerContext) => {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const op = rebootOperations.get(ctx.params.operationId as string);
