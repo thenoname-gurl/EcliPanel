@@ -1236,6 +1236,8 @@ export default function SettingsPage() {
     firstName: user?.firstName || "",
     middleName: user?.middleName || "",
     lastName: user?.lastName || "",
+    title: user?.title || "",
+    gender: user?.gender || "",
     email: user?.email || "",
     address: user?.address || "",
     address2: user?.address2 || "",
@@ -1255,6 +1257,8 @@ export default function SettingsPage() {
         firstName: user.firstName || "",
         middleName: user.middleName || "",
         lastName: user.lastName || "",
+        title: user.title || "",
+        gender: user.gender || "",
         email: user.email || "",
         address: user.address || "",
         address2: user.address2 || "",
@@ -1708,6 +1712,8 @@ export default function SettingsPage() {
             firstName: form.firstName,
             middleName: form.middleName || undefined,
             lastName: form.lastName,
+            title: form.title || undefined,
+            gender: form.gender || undefined,
             email: form.email,
             address: form.address,
             address2: form.address2 || undefined,
@@ -1892,6 +1898,43 @@ export default function SettingsPage() {
                   {t("profile.basicInformation")}
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">{t("profile.title")}</label>
+                    <Select
+                      value={form.title}
+                      onValueChange={(value) => setForm({ ...form, title: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={t("profile.selectTitle")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Mr.">Mr.</SelectItem>
+                        <SelectItem value="Ms.">Ms.</SelectItem>
+                        <SelectItem value="Mrs.">Mrs.</SelectItem>
+                        <SelectItem value="Mx.">Mx.</SelectItem>
+                        <SelectItem value="Dr.">Dr.</SelectItem>
+                        <SelectItem value="Prof.">Prof.</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground">{t("profile.gender")}</label>
+                    <Select
+                      value={form.gender}
+                      onValueChange={(value) => setForm({ ...form, gender: value })}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={t("profile.selectGender")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Female">{t("profile.genderFemale")}</SelectItem>
+                        <SelectItem value="Male">{t("profile.genderMale")}</SelectItem>
+                        <SelectItem value="Non-binary">{t("profile.genderNonBinary")}</SelectItem>
+                        <SelectItem value="Prefer not to say">{t("profile.genderPreferNotToSay")}</SelectItem>
+                        <SelectItem value="Other">{t("profile.genderOther")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <FormInput
                     label={t("profile.displayName")}
                     value={form.displayName}
@@ -1919,7 +1962,7 @@ export default function SettingsPage() {
                   {t("profile.legalName")}
                 </h3>
                 <p className="text-xs text-muted-foreground mb-4">{t("profile.legalNameHint")}</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <FormInput
                     label={t("profile.firstName")}
                     value={form.firstName}

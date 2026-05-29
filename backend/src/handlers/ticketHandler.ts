@@ -1215,6 +1215,8 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
           });
         output.user = {
           id: ticketUser.id,
+          title: ticketUser.title,
+          gender: ticketUser.gender,
           firstName: ticketUser.firstName,
           lastName: ticketUser.lastName,
           displayName: ticketUser.displayName,
@@ -1226,7 +1228,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
           suspended: ticketUser.suspended,
           supportBanned: ticketUser.supportBanned,
         };
-        output.userName = ticketUser.displayName || `${ticketUser.firstName} ${ticketUser.lastName}`.trim() || ticketUser.email;
+        output.userName = ticketUser.displayName || `${ticketUser.title ? `${ticketUser.title} ` : ''}${ticketUser.firstName} ${ticketUser.lastName}`.trim() || ticketUser.email;
       }
     }
 

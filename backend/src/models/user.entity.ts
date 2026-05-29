@@ -50,6 +50,12 @@ export class User {
   @Column({ nullable: true })
   displayName?: string;
 
+  @Column('text', { nullable: true })
+  title?: string;
+
+  @Column('text', { nullable: true })
+  gender?: string;
+
   @Column('text')
   address: string;
 
@@ -99,6 +105,8 @@ export class User {
       this.phone = normalizeField('phone', this.phone);
       this.firstName = normalizeField('firstName', this.firstName);
       this.lastName = normalizeField('lastName', this.lastName);
+      this.title = normalizeField('title', this.title);
+      this.gender = normalizeField('gender', this.gender);
       this.billingCompany = normalizeField('billingCompany', this.billingCompany);
       this.billingCity = normalizeField('billingCity', this.billingCity);
       this.billingState = normalizeField('billingState', this.billingState);
@@ -152,6 +160,12 @@ export class User {
       }
       if (this.lastName && !isEnc(this.lastName)) {
         this.lastName = encrypt(this.lastName);
+      }
+      if (this.title && !isEnc(this.title)) {
+        this.title = encrypt(this.title);
+      }
+      if (this.gender && !isEnc(this.gender)) {
+        this.gender = encrypt(this.gender);
       }
       if (this.billingCompany && !isEnc(this.billingCompany)) {
         this.billingCompany = encrypt(this.billingCompany);

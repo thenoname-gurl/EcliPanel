@@ -2214,6 +2214,8 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
             firstName: user.firstName,
             middleName: user.middleName || null,
             lastName: user.lastName,
+            title: user.title || null,
+            gender: user.gender || null,
             displayName: user.displayName || null,
             address: user.address || null,
             address2: user.address2 || null,
