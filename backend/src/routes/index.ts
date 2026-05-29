@@ -29,6 +29,7 @@ import { rolloutRoutes } from '../handlers/rolloutHandler';
 import { feedbackRoutes } from '../handlers/feedbackHandler';
 import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
+import { visualEditorRoutes } from '../handlers/visualEditorHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 
@@ -115,4 +116,5 @@ export function registerRoutes(app: any) {
   feedbackRoutes(app, '/api');
   publicRoutes(app, '');
   applicationRoutes(app, '/api');
+  visualEditorRoutes(app, '/api');
 }

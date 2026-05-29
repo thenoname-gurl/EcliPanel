@@ -154,5 +154,7 @@ export const AppDataSource = new DataSource({
     require('../models/rollout.entity').Rollout,
     require('../models/rolloutUserOverride.entity').RolloutUserOverride,
     require('../models/feedback.entity').Feedback,
+    require('../models/visualEditorBlueprint.entity').VisualEditorBlueprint,
+    require('../models/visualEditorLibrary.entity').VisualEditorLibrary,
   ],
 });
