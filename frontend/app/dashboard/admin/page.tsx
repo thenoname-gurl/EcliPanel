@@ -309,6 +309,8 @@ interface AdminStats {
 
 interface AdminUser {
   id: number
+  title?: string | null
+  gender?: string | null
   firstName: string
   middleName?: string | null
   lastName: string
@@ -7151,7 +7153,7 @@ remote: ${panelUrl}`
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Eye className="h-4 w-4 text-muted-foreground" />
-              {privateMode ? redactName(viewUserDialog?.firstName, viewUserDialog?.lastName) : `${viewUserDialog?.firstName || ""} ${viewUserDialog?.lastName || ""}`}
+              {privateMode ? redactName(viewUserDialog?.firstName, viewUserDialog?.lastName) : `${viewUserDialog?.title ? `${viewUserDialog.title} ` : ''}${viewUserDialog?.firstName || ""} ${viewUserDialog?.lastName || ""}`.trim()}
               <span className="text-xs text-muted-foreground font-normal ml-1">#{redact(viewUserDialog?.id)}</span>
             </DialogTitle>
           </DialogHeader>
@@ -7164,6 +7166,8 @@ remote: ${panelUrl}`
               {/* Profile Info */}
               <div className="rounded-lg border border-border bg-secondary/20 p-4 grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Email: </span><span className="text-foreground">{redact(viewUserProfile.email)}</span></div>
+                {viewUserProfile.title && <div><span className="text-muted-foreground">Title: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.title) : viewUserProfile.title}</span></div>}
+                {viewUserProfile.gender && <div><span className="text-muted-foreground">Gender: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.gender) : viewUserProfile.gender}</span></div>}
                 <div><span className="text-muted-foreground">Role: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.role) : (viewUserProfile.role || "user")}</span></div>
                 <div><span className="text-muted-foreground">Tier: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.portalType) : viewUserProfile.portalType}</span></div>
                 <div><span className="text-muted-foreground">Status: </span>

@@ -60,6 +60,8 @@ interface FormData {
   billingZip: string;
   billingCountry: string;
   middleName: string;
+  title: string;
+  gender: string;
   phone: string;
   dateOfBirth: string;
   parentRegistrationToken?: string;
@@ -96,6 +98,8 @@ export default function RegisterPage() {
     billingZip: "",
     billingCountry: "",
     middleName: "",
+    title: "",
+    gender: "",
     phone: "",
     dateOfBirth: "",
     parentRegistrationToken: "",
@@ -609,6 +613,37 @@ export default function RegisterPage() {
                       <SectionDivider label={t("personalInfo")} icon={User} />
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <SelectField
+                          icon={User}
+                          name="title"
+                          label={t("titleField")}
+                          value={form.title}
+                          onChange={handleChange}
+                        >
+                          <option value="">{t("selectTitle")}</option>
+                          <option value="Mr.">Mr.</option>
+                          <option value="Ms.">Ms.</option>
+                          <option value="Mrs.">Mrs.</option>
+                          <option value="Mx.">Mx.</option>
+                          <option value="Dr.">Dr.</option>
+                          <option value="Prof.">Prof.</option>
+                        </SelectField>
+                        <SelectField
+                          icon={User}
+                          name="gender"
+                          label={t("gender")}
+                          value={form.gender}
+                          onChange={handleChange}
+                        >
+                          <option value="">{t("selectGender")}</option>
+                          <option value="Female">{t("genderFemale")}</option>
+                          <option value="Male">{t("genderMale")}</option>
+                          <option value="Non-binary">{t("genderNonBinary")}</option>
+                          <option value="Prefer not to say">{t("genderPreferNotToSay")}</option>
+                          <option value="Other">{t("genderOther")}</option>
+                        </SelectField>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <InputField
                           icon={User}
                           name="firstName"
@@ -875,9 +910,17 @@ export default function RegisterPage() {
                               {t("name")}
                             </span>
                             <p className="text-foreground">
-                              {form.firstName} {form.lastName}
+                              {[form.title, form.firstName, form.lastName].filter(Boolean).join(" ")}
                             </p>
                           </div>
+                          {form.gender && (
+                            <div>
+                              <span className="text-muted-foreground text-[16px]">
+                                {t("gender")}
+                              </span>
+                              <p className="text-foreground">{form.gender}</p>
+                            </div>
+                          )}
                           <div>
                             <span className="text-muted-foreground text-[16px]">
                               {t("email")}

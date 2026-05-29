@@ -25,6 +25,8 @@ export interface User {
   middleName?: string
   lastName?: string
   displayName?: string
+  title?: string
+  gender?: string
   address?: string
   address2?: string
   phone?: string

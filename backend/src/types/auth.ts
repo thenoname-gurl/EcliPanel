@@ -28,6 +28,8 @@ export interface RegisterRequestBody {
   firstName: string;
   lastName: string;
   middleName?: string;
+  title?: string;
+  gender?: string;
   email: string;
   password: string;
   dateOfBirth: string;

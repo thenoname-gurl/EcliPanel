@@ -851,9 +851,21 @@ export default function TicketDetailPage({
                 <div>
                   <p className="text-[10px] text-muted-foreground">{t("owner.name")}</p>
                   <p className="text-sm font-medium text-foreground">
-                    {ticket.user.displayName || `${ticket.user.firstName || ''} ${ticket.user.lastName || ''}`.trim() || t("common.unknownWrapped")}
+                    {ticket.user.displayName || `${ticket.user.title ? `${ticket.user.title} ` : ''}${ticket.user.firstName || ''} ${ticket.user.lastName || ''}`.trim() || t("common.unknownWrapped")}
                   </p>
                 </div>
+                {ticket.user.title && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">{t("owner.title")}</p>
+                    <p className="text-sm font-medium text-foreground">{ticket.user.title}</p>
+                  </div>
+                )}
+                {ticket.user.gender && (
+                  <div>
+                    <p className="text-[10px] text-muted-foreground">{t("owner.gender")}</p>
+                    <p className="text-sm font-medium text-foreground">{ticket.user.gender}</p>
+                  </div>
+                )}
                 <div>
                   <p className="text-[10px] text-muted-foreground">{t("owner.email")}</p>
                   <p className="text-sm font-medium text-foreground">{ticket.user.email}</p>

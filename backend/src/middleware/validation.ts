@@ -10,6 +10,8 @@ export const FIELD_MAX_LENGTHS: Record<string, number> = {
   firstName: 64,
   lastName: 64,
   middleName: 64,
+  title: 32,
+  gender: 32,
   displayName: 64,
   email: 254,
   address: 256,
