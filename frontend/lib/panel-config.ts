@@ -30,6 +30,7 @@ import {
   Globe,
   User,
   FileText,
+  Braces,
   type LucideIcon,
 } from "lucide-react"
 
@@ -489,7 +490,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor'
 
 export interface NavItem {
   label: string
@@ -582,7 +583,12 @@ export const NAVIGATION: NavSection[] = [
         icon: Network,
         requiredTier: "enterprise",
       },
-      
+      {
+        label: "Visual Editor",
+        href: "/dashboard/infrastructure/visual-editor",
+        icon: Braces,
+        feature: "visualeditor",
+      },
     ],
   },
   {
