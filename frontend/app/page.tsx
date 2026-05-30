@@ -10,6 +10,7 @@ import { FAQ } from "./landing/_components/_custom/FAQ";
 import { End } from "./landing/_components/_custom/End";
 import { Footer } from "./landing/_components/_custom/Footer";
 import { Network } from "./landing/_components/_custom/Orbit";
+import { DdosProtection } from "./landing/_components/_custom/DdosProtection";
 
 export default function LandingPage() {
   return (
@@ -28,8 +29,10 @@ export default function LandingPage() {
       <Hero />
       <Stats />
       <Features />
+      <DdosProtection />
       <Pricing />
       <Network />
+      <DdosProtection />
       <FAQ />
       <End />
       <Footer />

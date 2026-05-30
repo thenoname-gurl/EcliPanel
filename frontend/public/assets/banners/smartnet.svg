@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 140" role="img" aria-label="SMARTNET">
+  <title>SMARTNET</title>
+  <style>
+    text {
+      font: 800 110px/1 "Inter", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+      letter-spacing: 2px;
+    }
+  </style>
+  <text x="0" y="105" fill="#010c80">SMARTNET</text>
+</svg>

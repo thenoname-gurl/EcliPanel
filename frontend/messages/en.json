@@ -383,6 +383,11 @@
         "tunnelsInactive": "Inactive tunnels"
       }
     },
+    "ddos": {
+      "title": "Enterprise-grade DDoS protection.",
+      "subtitle": "Every node is protected by multi-layered DDoS mitigation from industry leaders.",
+      "description": "All our nodes are protected by advanced DDoS mitigation systems from Pletx and OVHcloud. Different mitigation approaches are available for enterprise clients requiring custom protection profiles."
+    },
     "faq": {
       "eyebrow": "FAQ",
       "title": "Common questions.",
