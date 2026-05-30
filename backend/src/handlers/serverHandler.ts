@@ -839,6 +839,70 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     }
   );
 
+  app.post(
+    prefix + '/servers/:id/files/write',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const svc = await serviceFor(id);
+      try {
+        const body = ctx.body as Record<string, unknown>;
+        const { path: filePath, content } = body;
+        const fPath = String(filePath ?? '');
+
+        if (!fPath) {
+          ctx.set.status = 400;
+          return { error: ctx.t('validation.pathRequired') };
+        }
+
+        let binaryData: Uint8Array;
+        if (typeof content === 'string') {
+          binaryData = new TextEncoder().encode(content);
+        } else if (content instanceof ArrayBuffer) {
+          binaryData = new Uint8Array(content);
+        } else if (ArrayBuffer.isView(content)) {
+          binaryData = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+        } else {
+          binaryData = new TextEncoder().encode(String(content ?? ''));
+        }
+
+        const res = await svc.writeFile(id, fPath, binaryData);
+
+        const user = (ctx.store?.user as User) ?? ctx.user;
+        if (user?.id) {
+          await createActivityLog({
+            userId: user.id,
+            action: 'server:file:write',
+            targetId: id,
+            targetType: 'server',
+            metadata: { filePath },
+            ipAddress: ctx.ip,
+          });
+        }
+
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'File write failed';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Write file content', tags: ['Servers'] },
+    }
+  );
+
   function normalizeServer(raw: Record<string, unknown> | null | undefined, overrideStatus?: string, persistedCfg?: ServerConfig): Record<string, unknown> | null | undefined {
     if (!raw) return raw;
     const r = raw as Record<string, unknown>;
@@ -1170,85 +1234,6 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         502: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Get server details by id', tags: ['Servers'] },
-    }
-  );
-
-  app.delete(
-    prefix + '/servers/:id',
-    async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
-      const user = ctx.user;
-      const isAdmin = hasPermissionSync(ctx, 'admin:access');
-      const force =
-        (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) ||
-        (ctx.body && (ctx.body as Record<string, unknown>).force === true);
-      const cfgRepo = AppDataSource.getRepository(ServerConfig);
-      const cfg = await cfgRepo.findOneBy({ uuid: id });
-      if (cfg?.dmca && !isAdmin) {
-        ctx.set.status = 403;
-        return { error: ctx.t('server.dmcaProtected') };
-      }
-
-      if (force && !isAdmin) {
-        ctx.set.status = 403;
-        return { error: ctx.t('server.forceDeleteAdminsOnly') };
-      }
-
-      try {
-        const svc = await serviceFor(id);
-        const res = await svc.serverRequest(id, '', 'delete');
-        await createActivityLog({
-          userId: user.id,
-          action: 'server:delete',
-          targetId: id,
-          targetType: 'server',
-          metadata: { serverUuid: id, force: !!force },
-          ipAddress: ctx.ip,
-        });
-        await removeServerConfig(id);
-        return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: unknown) {
-        const err = e as Record<string, unknown>;
-        const errResponse = err?.response as Record<string, unknown> | undefined;
-        const status = (errResponse?.status as number) || 502;
-        const errMsg = String(err instanceof Error ? err.message : '');
-        const mappingMissing = errMsg.includes('No node mapping');
-        if (isAdmin && (mappingMissing || status === 404 || force)) {
-          try {
-            await removeServerConfig(id).catch(() => {});
-            await nodeSvc.unmapServer(id).catch(() => {});
-          } catch {}
-          await createActivityLog({
-            userId: user.id,
-            action: 'server:delete:force',
-            targetId: id,
-            targetType: 'server',
-            metadata: {
-              serverUuid: id,
-              wingsError: err instanceof Error ? err.message : String(err),
-              mappingMissing,
-              status,
-            },
-            ipAddress: ctx.ip,
-          });
-          return { success: true, note: 'Removed local server config and mapping (force)' };
-        }
-
-        ctx.set.status = status === 404 ? 502 : status;
-        const errData = errResponse?.data as Record<string, unknown> | undefined;
-        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to delete server';
-        return { error: msg };
-      }
-    },
-    {
-      beforeHandle: [authenticate, authorize('servers:delete')],
-      response: {
-        200: t.Any(),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        502: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Delete a server', tags: ['Servers'] },
     }
   );
 
@@ -2670,7 +2655,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const errData = errResponse?.data as Record<string, unknown> | undefined;
         const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'File upload failed';
         ctx.set.status = status;
-        return { error: msg };
+        return { error: msg, detail: err instanceof Error ? err.message : String(e) };
       }
     },
     {
@@ -2687,109 +2672,139 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     }
   );
 
-  app.post(
-    prefix + '/servers/:id/files/write',
+  app.get(
+    prefix + '/servers/:id/files/upload-token',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params;
-      const svc = await serviceFor(id);
-
-      try {
-        const body = ctx.body as Record<string, unknown>;
-        const user = (ctx.store?.user as User) ?? ctx.user;
-
-        // ── Multipart file upload ──
-        if (body && (body.file || body.files)) {
-          const uploadFile =
-            (Array.isArray(body.file) ? body.file[0] : body.file) ||
-            (Array.isArray(body.files) ? body.files[0] : body.files);
-
-          if (!uploadFile || typeof uploadFile.arrayBuffer !== 'function') {
-            ctx.set.status = 400;
-            return { error: ctx.t('validation.missingFile') };
-          }
-
-          const destination = String(body?.path || body?.destination || '/').replace(/\/+$/, '');
-          const fileName = uploadFile.name || 'upload';
-          const filePath = destination.endsWith('/')
-            ? `${destination}${fileName}`
-            : `${destination}/${fileName}`;
-
-          // CRITICAL: Get raw binary as Uint8Array - NOT Buffer
-          const arrayBuffer = await uploadFile.arrayBuffer();
-          const binaryData = new Uint8Array(arrayBuffer);
-
-          // Pass raw bytes to writeFile
-          const res = await svc.writeFile(id, filePath, binaryData);
-
-          if (user?.id) {
-            await createActivityLog({
-              userId: user.id,
-              action: 'server:file:write',
-              targetId: id,
-              targetType: 'server',
-              metadata: { filePath },
-              ipAddress: ctx.ip,
-            });
-          }
-
-          return res.data && typeof res.data === 'object' ? res.data : { success: true };
-        }
-
-        // ── JSON body — text content write ──
-        const { path: filePath, content } = body;
-        const fPath = String(filePath ?? '');
-
-        if (!fPath) {
-          ctx.set.status = 400;
-          return { error: ctx.t('validation.pathRequired') };
-        }
-
-        // Convert content to raw bytes
-        let binaryData: Uint8Array;
-        if (typeof content === 'string') {
-          binaryData = new TextEncoder().encode(content);
-        } else if (content instanceof ArrayBuffer) {
-          binaryData = new Uint8Array(content);
-        } else if (ArrayBuffer.isView(content)) {
-          binaryData = new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
-        } else {
-          binaryData = new TextEncoder().encode(String(content ?? ''));
-        }
-
-        const res = await svc.writeFile(id, fPath, binaryData);
-
-        if (user?.id) {
-          await createActivityLog({
-            userId: user.id,
-            action: 'server:file:write',
-            targetId: id,
-            targetType: 'server',
-            metadata: { filePath },
-            ipAddress: ctx.ip,
-          });
-        }
-
-        return res.data && typeof res.data === 'object' ? res.data : { success: true };
-      } catch (e: unknown) {
-        const err = e as Record<string, unknown>;
-        const errResponse = err?.response as Record<string, unknown> | undefined;
-        const status = (errResponse?.status as number) || 500;
-        const errData = errResponse?.data as Record<string, unknown> | undefined;
-        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'File write failed';
-        ctx.set.status = status;
-        return { error: msg };
+      const { id } = ctx.params as Record<string, string>;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
+      if (!node) {
+        ctx.set.status = 500;
+        return { error: ctx.t('system.targetNodeFailed') };
       }
+      const svc = await serviceFor(id);
+      const baseUrl = svc.getBaseWingsUrl();
+      const uploadUrl = node.fqdn
+        ? (() => {
+            try {
+              const u = new URL(baseUrl);
+              u.hostname = node.fqdn;
+              return u.toString().replace(/\/$/, '');
+            } catch {
+              return baseUrl;
+            }
+          })()
+        : baseUrl;
+      const user = (ctx.store?.user as User) ?? ctx.user;
+      const now = Math.floor(Date.now() / 1000);
+      const normalizeUuid = (value: unknown) => {
+        if (!value) return crypto.randomUUID().replace(/-/g, '');
+        const s = String(value).toLowerCase().replace(/-/g, '');
+        if (/^[0-9a-f]{32}$/.test(s)) return s;
+        return crypto.randomUUID().replace(/-/g, '');
+      };
+      const token = signWingsJwt(
+        {
+          iss: process.env.APP_URL || 'eclipanel',
+          sub: normalizeUuid(user?.id),
+          aud: [''],
+          iat: now,
+          nbf: now,
+          exp: now + 3600,
+          jti: normalizeUuid(crypto.randomUUID()),
+          scope: 'file-upload',
+          server_uuid: normalizeUuid(id),
+          user_uuid: normalizeUuid(user?.id),
+          unique_id: normalizeUuid(crypto.randomUUID()),
+          ignored_files: [],
+        },
+        node.token
+      );
+      return {
+        token,
+        url: `${uploadUrl}/upload/file`,
+      };
     },
     {
       beforeHandle: [authenticate, authorize('files:write')],
       response: {
-        200: t.Any(),
+        200: t.Object({ token: t.String(), url: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get direct file upload token for Wings', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/files/download-token',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const filePath = ctx.query.path as string;
+      if (!filePath) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.pathQueryParamRequired') };
+      }
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
+      if (!node) {
+        ctx.set.status = 500;
+        return { error: ctx.t('system.targetNodeFailed') };
+      }
+      const svc = await serviceFor(id);
+      const baseUrl = svc.getBaseWingsUrl();
+      const downloadUrl = node.fqdn
+        ? (() => {
+            try {
+              const u = new URL(baseUrl);
+              u.hostname = node.fqdn;
+              return u.toString().replace(/\/$/, '');
+            } catch {
+              return baseUrl;
+            }
+          })()
+        : baseUrl;
+      const user = (ctx.store?.user as User) ?? ctx.user;
+      const now = Math.floor(Date.now() / 1000);
+      const normalizeUuid = (value: unknown) => {
+        if (!value) return crypto.randomUUID().replace(/-/g, '');
+        const s = String(value).toLowerCase().replace(/-/g, '');
+        if (/^[0-9a-f]{32}$/.test(s)) return s;
+        return crypto.randomUUID().replace(/-/g, '');
+      };
+      const token = signWingsJwt(
+        {
+          iss: process.env.APP_URL || 'eclipanel',
+          sub: normalizeUuid(user?.id),
+          aud: [''],
+          iat: now,
+          nbf: now,
+          exp: now + 3600,
+          jti: normalizeUuid(crypto.randomUUID()),
+          scope: 'file-download',
+          server_uuid: normalizeUuid(id),
+          file_path: filePath,
+          unique_id: normalizeUuid(crypto.randomUUID()),
+        },
+        node.token
+      );
+      return {
+        token,
+        url: `${downloadUrl}/download/file`,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      query: t.Object({ path: t.String() }),
+      response: {
+        200: t.Object({ token: t.String(), url: t.String() }),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         500: t.Object({ error: t.String() }),
       },
-      detail: { summary: 'Write file', tags: ['Servers'] },
+      detail: { summary: 'Get direct file download token for Wings', tags: ['Servers'] },
     }
   );
 
@@ -3059,6 +3074,102 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Change file permissions', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/files/revisions',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const path = String(ctx.query?.file || '');
+      if (!path) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.pathQueryParamRequired') };
+      }
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.getFileRevisions(id, path);
+        return res.data || res;
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        ctx.set.status = status;
+        return { error: (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to get revisions' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List file revisions (history)', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/files/revisions/:revisionId',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, revisionId } = ctx.params as Record<string, string>;
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.getRevisionContent(id, Number(revisionId));
+        ctx.set.headers = { 'Content-Type': 'text/plain; charset=utf-8' };
+        return res;
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        ctx.set.status = status;
+        return { error: (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to get revision content' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get file revision content', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/files/largest-directories',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const directory = String(ctx.query?.directory || '/');
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.getLargestDirectories(id, directory);
+        return res.data || res;
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        ctx.set.status = status;
+        return { error: (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to get largest directories' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get largest directories by size', tags: ['Servers'] },
     }
   );
 
@@ -4212,6 +4323,38 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     }
   );
 
+  app.delete(
+    prefix + '/servers/:id/transfer',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.cancelTransfer(id);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data;
+        const message =
+          (errData as Record<string, unknown> | undefined)?.error as string || errData ||
+          (err instanceof Error ? err.message : '') || 'Cancel transfer failed';
+        ctx.set.status = status;
+        return { error: message as string };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('transfer:execute')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Cancel active server transfer', tags: ['Servers'] },
+    }
+  );
+
   app.get(
     prefix + '/servers/:id/version',
     async (ctx: AuthenticatedHandlerContext) => {
@@ -4713,14 +4856,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     }
   );
 
-  for (const sub of ['network', 'location']) {
-    app.get(
-      prefix + `/servers/:id/${sub}`,
+  app.get(
+      prefix + '/servers/:id/network',
       async (ctx: AuthenticatedHandlerContext) => {
         const { id } = ctx.params as Record<string, string>;
         try {
           const svc = await serviceFor(id);
-          const res = await svc.serverRequest(id, `/${sub}`);
+          const res = await svc.serverRequest(id, '/network');
           return res.data ?? [];
         } catch (e: unknown) {
           const err = e as Record<string, unknown>;
@@ -4736,10 +4878,35 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           401: t.Object({ error: t.String() }),
           403: t.Object({ error: t.String() }),
         },
-        detail: { summary: `Get server ${sub}`, tags: ['Servers'] },
+        detail: { summary: 'Get server network', tags: ['Servers'] },
       }
     );
-  }
+
+    app.get(
+      prefix + '/servers/:id/location',
+      async (ctx: AuthenticatedHandlerContext) => {
+        const { id } = ctx.params as Record<string, string>;
+        try {
+          const svc = await serviceFor(id);
+          const res = await svc.serverRequest(id, '/location');
+          return res.data ?? [];
+        } catch (e: unknown) {
+          const err = e as Record<string, unknown>;
+          const errResponse = err?.response as Record<string, unknown> | undefined;
+          if (errResponse?.status === 404) return [];
+          throw e;
+        }
+      },
+      {
+        beforeHandle: [authenticate, authorize('servers:read')],
+        response: {
+          200: t.Array(t.Any()),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+        detail: { summary: 'Get server location', tags: ['Servers'] },
+      }
+    );
 
   app.get(
     prefix + '/servers/:id/stats',

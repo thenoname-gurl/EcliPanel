@@ -395,6 +395,28 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/transfer', 'post', payload);
   }
 
+  async cancelTransfer(serverId: string) {
+    return this.serverRequest(serverId, '/transfer', 'delete');
+  }
+
+  async getFileRevisions(serverId: string, path: string) {
+    return this.request(`/servers/${serverId}/files/revisions`, { params: { file: path } });
+  }
+
+  async getRevisionContent(serverId: string, revisionId: number) {
+    return this.request(`/servers/${serverId}/files/revisions/${revisionId}`, {
+      responseType: 'text',
+    });
+  }
+
+  async getLargestDirectories(serverId: string, directory: string = '/') {
+    return this.request(`/servers/${serverId}/files/largest-directories`, { params: { directory } });
+  }
+
+  getBaseWingsUrl(): string {
+    return this.baseUrl.replace(/\/api$/, '');
+  }
+
   async getServerVersion(serverId: string) {
     return this.serverRequest(serverId, '/version');
   }

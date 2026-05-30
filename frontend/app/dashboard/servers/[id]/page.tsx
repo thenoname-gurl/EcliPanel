@@ -709,6 +709,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [transferNodes, setTransferNodes] = useState<any[]>([])
   const [transferNodeId, setTransferNodeId] = useState<number | null>(null)
   const [transferError, setTransferError] = useState<string | null>(null)
+  const [cancellingTransfer, setCancellingTransfer] = useState(false)
 
   useEffect(() => {
     if (!powerToast) return
@@ -943,6 +944,21 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       setTransferLoading(false)
     }
   }, [transferNodeId, id, loadServer, t])
+
+  const cancelTransfer = useCallback(async () => {
+    setCancellingTransfer(true)
+    try {
+      await apiFetch(API_ENDPOINTS.serverTransfer.replace(":id", id), {
+        method: "DELETE",
+      })
+      setTransferDialogOpen(false)
+      alert("Transfer cancelled")
+    } catch (e: any) {
+      alert(e.message || "Failed to cancel transfer")
+    } finally {
+      setCancellingTransfer(false)
+    }
+  }, [id])
 
   const canTransfer = !!(
     user &&
@@ -1497,16 +1513,25 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
+              variant="destructive"
+              onClick={cancelTransfer}
+              disabled={cancellingTransfer}
+              className="w-full sm:w-auto"
+            >
+              {cancellingTransfer && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Cancel Transfer
+            </Button>
+            <Button
               variant="outline"
               onClick={() => setTransferDialogOpen(false)}
-              disabled={transferLoading}
+              disabled={transferLoading || cancellingTransfer}
               className="w-full sm:w-auto"
             >
               {t("actions.cancel")}
             </Button>
             <Button
               onClick={doTransfer}
-              disabled={transferLoading || !transferNodeId}
+              disabled={transferLoading || cancellingTransfer || !transferNodeId}
               className="w-full sm:w-auto"
             >
               {transferLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
