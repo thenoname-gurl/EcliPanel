@@ -32,7 +32,6 @@ export default function LandingPage() {
       <DdosProtection />
       <Pricing />
       <Network />
-      <DdosProtection />
       <FAQ />
       <End />
       <Footer />
