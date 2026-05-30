@@ -3971,7 +3971,8 @@
       "sftpAutoConnected": "Auto-connected via SFTP",
       "fileSaved": "File saved",
       "archiveCreated": "Archive created",
-      "commandCopied": "Command copied to clipboard"
+      "commandCopied": "Command copied to clipboard",
+      "revisionRestored": "Revision restored"
     },
     "kvmNotes": {
       "title": "KVM access notes",
@@ -4032,7 +4033,8 @@
       "moveFailed": "Move failed: {reason}",
       "bulkChmodFailed": "Bulk chmod failed: {reason}",
       "bulkDeleteFailed": "Bulk delete failed: {reason}",
-      "sftpDetailsUnavailable": "SFTP connection details are not available."
+      "sftpDetailsUnavailable": "SFTP connection details are not available.",
+      "revisionRestoreFailed": "Failed to restore revision"
     }
   },
   "serverDetailPage": {

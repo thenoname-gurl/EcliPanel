@@ -6,6 +6,7 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { formatBytes } from "./serverTabHelpers"
 import {
   Send,
   Loader2,
@@ -20,7 +21,8 @@ import {
   WifiOff,
   X,
   History,
-  ChevronRight
+  ChevronRight,
+  HardDrive
 } from "lucide-react"
 
 interface ConsoleTabProps {
@@ -432,6 +434,8 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [terminalReady, setTerminalReady] = useState(false)
+  const [resources, setResources] = useState<{ cpu_absolute?: number; memory_bytes?: number; memory_limit_bytes?: number; disk_bytes?: number; disk_limit_bytes?: number } | null>(null)
+  const [isInstalling, setIsInstalling] = useState(false)
 
   const addToOutput = useCallback((text: string) => {
     consoleOutputRef.current.push(text)
@@ -829,6 +833,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   break
                   
                  case "install output":
+                  setIsInstalling(true)
                   for (const line of msg.args || []) {
                     const processed = processConsoleOutput(String(line))
                     const translated = translateInstallText(processed, t)
@@ -839,7 +844,19 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                     }
                   }
                   break
-                  
+
+                 case "stats": {
+                  const stats = msg.args?.[0] || {}
+                  setResources({
+                    cpu_absolute: stats.cpu_absolute,
+                    memory_bytes: stats.memory_bytes,
+                    memory_limit_bytes: stats.memory_limit_bytes,
+                    disk_bytes: stats.disk_bytes,
+                    disk_limit_bytes: stats.disk_limit_bytes,
+                  })
+                  break
+                }
+                 
                  case "status": {
                   const raw = String(msg.args?.[0] || "")
                   const processed = processConsoleOutput(raw)
@@ -848,6 +865,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
                   setConnectionState(raw)
                   const s = raw.toLowerCase()
                   if (s === "running" || s === "connected") {
+                    setIsInstalling(false)
                     setConnected(true)
                     serverOfflineRef.current = false
                     if (!connectedHintShownRef.current) {
@@ -1083,6 +1101,51 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
           </div>
         )}
       </div>
+
+      {isInstalling && resources && (
+        <div className="flex items-center gap-4 px-4 py-2 border-t border-border bg-secondary/5 text-xs">
+          {resources.cpu_absolute != null && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">CPU</span>
+              <div className="w-24 h-1.5 bg-secondary/80 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(resources.cpu_absolute, 100)}%` }}
+                />
+              </div>
+              <span className="font-mono text-muted-foreground tabular-nums">{Math.round(resources.cpu_absolute)}%</span>
+            </div>
+          )}
+          {resources.memory_bytes != null && resources.memory_limit_bytes != null && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">RAM</span>
+              <div className="w-24 h-1.5 bg-secondary/80 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((resources.memory_bytes / resources.memory_limit_bytes) * 100, 100)}%` }}
+                />
+              </div>
+              <span className="font-mono text-muted-foreground tabular-nums">
+                {formatBytes(resources.memory_bytes)} / {formatBytes(resources.memory_limit_bytes)}
+              </span>
+            </div>
+          )}
+          {resources.disk_bytes != null && resources.disk_limit_bytes != null && (
+            <div className="flex items-center gap-1.5">
+              <HardDrive className="h-3 w-3 text-muted-foreground" />
+              <div className="w-24 h-1.5 bg-secondary/80 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min((resources.disk_bytes / resources.disk_limit_bytes) * 100, 100)}%` }}
+                />
+              </div>
+              <span className="font-mono text-muted-foreground tabular-nums">
+                {formatBytes(resources.disk_bytes)} / {formatBytes(resources.disk_limit_bytes)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="relative sm:hidden">
         {showHistory && (

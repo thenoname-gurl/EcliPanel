@@ -16,10 +16,10 @@ import {
   Loader2, Shield, Archive, ArrowLeft, Image as ImageIcon,
   Check, Upload, ZoomIn, ZoomOut, Move,
   File, RotateCcw, Eye, FileCode,
-  FileJson, FileImage, Maximize2, Minimize2,
+  FileJson, FileImage, FileVideo, Maximize2, Minimize2,
   Terminal, Wifi, WifiOff, Lock, Unlock,
   CheckCircle2, AlertCircle, Info, ChevronDown,
-  Server, HardDrive, Globe
+  Server, HardDrive, Globe, Play, Pause
 } from "lucide-react"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -67,14 +67,17 @@ const getModifiedDate = (f: FileItem): string | undefined =>
 
 const isImageFile = (n: string) =>
   /\.(png|jpe?g|gif|webp|svg|bmp|ico|tiff?)$/i.test(n)
+const isVideoFile = (n: string) =>
+  /\.(mp4|avi|mkv|mov|wmv|flv|webm|m4v|mpg|mpeg|3gp)$/i.test(n)
 const isTextFile = (n: string) =>
   /\.(txt|md|json|yaml|yml|xml|ini|conf|config|properties|toml|sh|bash|bat|cmd|js|mjs|cjs|ts|mts|cts|jsx|tsx|css|scss|sass|less|html|htm|py|pyw|rb|php|java|kt|kts|swift|go|rs|c|cpp|cc|cxx|h|hpp|cs|fs|vb|lua|sql|graphql|gql|vue|svelte|astro|mdx|env|gitignore|dockerignore|dockerfile|makefile|cmake|gradle|pom|lock|log)$/i.test(n)
 const isBinaryFile = (n: string) =>
-  /\.(zip|jar|tar|gz|tgz|rar|7z|exe|dll|bin|iso|img|dmg|so|dylib|a|lib|o|class|pyc|pyo|wasm|pdf|doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp|mp3|mp4|avi|mkv|mov|wmv|flv|wav|ogg|flac|aac|m4a|woff|woff2|ttf|otf|eot)$/i.test(n)
+  /\.(zip|jar|tar|gz|tgz|rar|7z|exe|dll|bin|iso|img|dmg|so|dylib|a|lib|o|class|pyc|pyo|wasm|pdf|doc|docx|xls|xlsx|ppt|pptx|odt|ods|odp|mp3|wav|ogg|flac|aac|m4a|woff|woff2|ttf|otf|eot)$/i.test(n)
 
 const getFileIcon = (filename: string, isDir: boolean) => {
   if (isDir) return <Folder className="h-4 w-4 text-amber-400/80 flex-shrink-0" />
   if (isImageFile(filename)) return <FileImage className="h-4 w-4 text-pink-400 flex-shrink-0" />
+  if (isVideoFile(filename)) return <FileVideo className="h-4 w-4 text-sky-400 flex-shrink-0" />
   if (/\.(json)$/i.test(filename)) return <FileJson className="h-4 w-4 text-yellow-400 flex-shrink-0" />
   if (/\.(js|ts|jsx|tsx|py|rb|php|java|go|rs|c|cpp)$/i.test(filename))
     return <FileCode className="h-4 w-4 text-blue-400 flex-shrink-0" />
@@ -302,6 +305,88 @@ function ImagePreviewModal({ url, filename, onClose, onDownload, t }: {
             className="max-w-[95vw] max-h-[88vh] object-contain rounded-lg shadow-2xl select-none"
           />
         </div>
+      </div>
+    </div>
+  )
+}
+
+function VideoPreviewModal({ url, filename, onClose, onDownload, t }: {
+  url: string; filename: string
+  onClose: () => void; onDownload: () => void; t: any
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  const togglePlay = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) { videoRef.current.play(); setIsPlaying(true) }
+      else { videoRef.current.pause(); setIsPlaying(false) }
+    }
+  }
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen()
+      setIsFullscreen(true)
+    } else {
+      document.exitFullscreen()
+      setIsFullscreen(false)
+    }
+  }
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose()
+      if (e.key === " ") { e.preventDefault(); togglePlay() }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [onClose])
+
+  return (
+    <div
+      ref={containerRef}
+      className="fixed inset-0 z-50 flex flex-col bg-black/95 backdrop-blur-xl"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
+        <div className="flex items-center gap-3 min-w-0">
+          <button onClick={onClose}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+          <div className="min-w-0">
+            <p className="text-white font-medium truncate text-sm">{filename}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button onClick={togglePlay}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+          <button onClick={toggleFullscreen}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:flex">
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
+          <button onClick={onDownload}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            <Download className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center overflow-hidden p-4">
+        <video
+          ref={videoRef}
+          src={url}
+          controls
+          className="max-w-full max-h-full rounded-lg shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+          onPlay={() => setIsPlaying(true)}
+          onPause={() => setIsPlaying(false)}
+        />
       </div>
     </div>
   )
@@ -577,18 +662,21 @@ function SftpConnectionPanel({
 
 function FileRow({
   file, path, isSelected, onToggle, onOpen, onEdit, onRename,
-  onDownload, onChmod, onDelete, t
+  onDownload, onChmod, onDelete, t, dirSizes
 }: {
   file: FileItem; path: string; isSelected: boolean
   onToggle: () => void; onOpen: () => void; onEdit: () => void
   onRename: () => void; onDownload: () => void
   onChmod: () => void; onDelete: () => void; t: any
+  dirSizes?: Record<string, number>
 }) {
   const fname = getFileName(file)
   const isDir = isDirectory(file)
   const fsize = getFileSize(file)
+  const dirSize = isDir ? (dirSizes?.[fname] ?? null) : null
   const fmod = getModifiedDate(file)
   const isImage = isImageFile(fname)
+  const isVideo = isVideoFile(fname)
   const isText = isTextFile(fname)
 
   return (
@@ -625,12 +713,12 @@ function FileRow({
 
       {/* Mobile: size */}
       <span className="sm:hidden text-xs text-muted-foreground flex-shrink-0">
-        {!isDir ? formatBytes(fsize) : ""}
+        {isDir && dirSize !== null ? formatBytes(dirSize) : !isDir ? formatBytes(fsize) : ""}
       </span>
 
       {/* Size */}
       <span className="hidden sm:block text-xs text-muted-foreground tabular-nums">
-        {!isDir ? formatBytes(fsize) : <span className="text-muted-foreground/30">—</span>}
+        {isDir && dirSize !== null ? formatBytes(dirSize) : !isDir ? formatBytes(fsize) : <span className="text-muted-foreground/30">—</span>}
       </span>
 
       {/* Modified */}
@@ -704,6 +792,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
   const [uploading, setUploading] = useState(false)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
   const [imagePreviewName, setImagePreviewName] = useState("")
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
+  const [videoPreviewName, setVideoPreviewName] = useState("")
   const [chmodRecursive, setChmodRecursive] = useState(false)
   const [isDragActive, setIsDragActive] = useState(false)
   const [viewMode, setViewMode] = useState<"qemu" | "sftp">("qemu")
@@ -722,6 +812,90 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
     open: boolean; title: string; description: string
     confirmLabel?: string; destructive?: boolean; onConfirm: () => void
   }>({ open: false, title: "", description: "", onConfirm: () => {} })
+
+  const [largestDirs, setLargestDirs] = useState<{ name: string; size: number }[] | null>(null)
+  const [largestDirsLoading, setLargestDirsLoading] = useState(false)
+  const [largestDirsError, setLargestDirsError] = useState<string | null>(null)
+  const [dirSizes, setDirSizes] = useState<Record<string, number>>({})
+
+  const loadLargestDirs = useCallback(async () => {
+    setLargestDirsLoading(true)
+    setLargestDirsError(null)
+    try {
+      const data = await apiFetch(
+        API_ENDPOINTS.serverFileLargestDirectories.replace(":id", serverId) +
+        `?directory=${encodeURIComponent(path)}`
+      )
+      setLargestDirs(Array.isArray(data) ? data : [])
+    } catch (err: any) {
+      setLargestDirsError(err?.message || "Failed to load largest directories")
+    } finally {
+      setLargestDirsLoading(false)
+    }
+  }, [serverId, path])
+
+  const [revisions, setRevisions] = useState<any[] | null>(null)
+  const [revisionsLoading, setRevisionsLoading] = useState(false)
+  const [revisionContent, setRevisionContent] = useState<string | null>(null)
+  const [revisionContentLoading, setRevisionContentLoading] = useState(false)
+  const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null)
+  const [restoringRevision, setRestoringRevision] = useState(false)
+
+  const loadRevisions = useCallback(async (filePath: string) => {
+    setRevisionsLoading(true)
+    setRevisions(null)
+    setRevisionContent(null)
+    try {
+      const data = await apiFetch(
+        API_ENDPOINTS.serverFileRevisions.replace(":id", serverId) +
+        `?file=${encodeURIComponent(filePath)}`
+      )
+      setRevisions(Array.isArray(data) ? data : [])
+    } catch {
+      setRevisions([])
+    } finally {
+      setRevisionsLoading(false)
+    }
+  }, [serverId])
+
+  const loadRevisionContent = useCallback(async (revisionId: string) => {
+    setRevisionContentLoading(true)
+    setActiveRevisionId(revisionId)
+    try {
+      const data = await apiFetch(
+        API_ENDPOINTS.serverFileRevisionContent
+          .replace(":id", serverId)
+          .replace(":revisionId", revisionId)
+      )
+      setRevisionContent(typeof data === "string" ? data : JSON.stringify(data, null, 2))
+    } catch {
+      setRevisionContent("Failed to load revision content")
+    } finally {
+      setRevisionContentLoading(false)
+    }
+  }, [serverId])
+
+  const restoreRevision = useCallback(async (revisionId: string) => {
+    if (!editingFile) return
+    setRestoringRevision(true)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.serverFileRevisionRestore
+          .replace(":id", serverId)
+          .replace(":revisionId", revisionId),
+        { method: "POST", body: JSON.stringify({ path: editingFile }) }
+      )
+      toast("success", t("states.revisionRestored"))
+      setRevisions(null)
+      setRevisionContent(null)
+      setActiveRevisionId(null)
+      setFileContent(revisionContent || "")
+    } catch (err: any) {
+      toast("error", err?.message || t("errors.revisionRestoreFailed"))
+    } finally {
+      setRestoringRevision(false)
+    }
+  }, [serverId, editingFile, revisionContent, toast, t])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropRef = useRef<HTMLDivElement>(null)
@@ -775,6 +949,21 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         headers: isSftpMode ? sftpHeaders : undefined,
       })
       setFiles(Array.isArray(data) ? data : [])
+      if (!isSftpMode) {
+        try {
+          const sizeData = await apiFetch(
+            API_ENDPOINTS.serverFileLargestDirectories.replace(":id", serverId) +
+            `?directory=${encodeURIComponent(p)}`
+          )
+          if (Array.isArray(sizeData)) {
+            const map: Record<string, number> = {}
+            for (const d of sizeData) {
+              if (d.name) map[d.name] = d.size ?? 0
+            }
+            setDirSizes(map)
+          }
+        } catch {}
+      }
     } catch {
       setFiles([])
     } finally {
@@ -828,8 +1017,95 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
   useEffect(() => { if (!isSftpMode && sftpAutoTried) setSftpAutoTried(false) }, [isSftpMode]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { tryAutoSftpPassword() }, [tryAutoSftpPassword])
   useEffect(() => () => { if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl) }, [imagePreviewUrl])
+  useEffect(() => () => { if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl) }, [videoPreviewUrl])
 
-  // ── Upload ──────────────────────────────────────────────────────────────────
+  const CHUNK_SIZE = 10 * 1024 * 1024
+
+  // Upload via XHR as fallback when fetch sends Expect: 100-continue (which Wings rejects with 417)
+  const xhrUpload = (url: string, form: FormData): Promise<{ continuation_token?: string }> =>
+    new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open("POST", url)
+      // XHR does not send Expect: 100-continue automatically
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try { resolve(JSON.parse(xhr.responseText)) }
+          catch { resolve({}) }
+        } else {
+          reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText}`))
+        }
+      }
+      xhr.onerror = () => reject(new Error("Network error"))
+      xhr.send(form)
+    })
+
+  const uploadChunkToWings = async (
+    wingsUrl: string,
+    token: string,
+    chunk: Blob,
+    filePath: string,
+    continuationToken?: string
+  ): Promise<string | null> => {
+    const form = new FormData()
+    form.append("files", chunk, filePath.split("/").pop() || "file")
+    const params = new URLSearchParams()
+    if (continuationToken) {
+      params.set("continuation_token", continuationToken)
+      params.set("wants_continue", "0")
+    } else {
+      params.set("token", token)
+      params.set("directory", filePath.substring(0, filePath.lastIndexOf("/")) || "/")
+      params.set("wants_continue", "0")
+    }
+    const endpoint = `${wingsUrl}?${params.toString()}`
+    let res = await fetch(endpoint, { method: "POST", body: form })
+    if (res.status === 417) {
+      // Retry with XHR to avoid Expect: 100-continue
+      const data = await xhrUpload(endpoint, form)
+      return data?.continuation_token || null
+    }
+    if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text()}`)
+    const data = await res.json()
+    return data?.continuation_token || null
+  }
+
+  const uploadFileDirect = async (f: File, filePath: string) => {
+    const uploadInfo = await apiFetch(API_ENDPOINTS.serverFileUploadToken.replace(":id", serverId))
+    if (!uploadInfo?.token || !uploadInfo?.url) throw new Error("Failed to get upload token")
+    const totalChunks = Math.ceil(f.size / CHUNK_SIZE)
+    let contToken: string | undefined
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE
+      const end = Math.min(start + CHUNK_SIZE, f.size)
+      const chunk = f.slice(start, end)
+      const wantsContinue = i < totalChunks - 1
+      const form = new FormData()
+      form.append("files", chunk, f.name)
+      const params = new URLSearchParams()
+      if (contToken) {
+        params.set("continuation_token", contToken)
+        if (wantsContinue) params.set("wants_continue", "0")
+      } else {
+        params.set("token", uploadInfo.token)
+        params.set("directory", filePath.substring(0, filePath.lastIndexOf("/")) || "/")
+        if (wantsContinue) params.set("wants_continue", "0")
+      }
+      const endpoint = `${uploadInfo.url}?${params.toString()}`
+      let res = await fetch(endpoint, { method: "POST", body: form })
+      if (res.status === 417) {
+        // Retry with XHR to avoid Expect: 100-continue
+        const data = await xhrUpload(endpoint, form)
+        contToken = (data?.continuation_token) || undefined
+        continue
+      }
+      if (!res.ok) throw new Error(`Upload failed at chunk ${i + 1}: ${res.status} ${await res.text()}`)
+      if (wantsContinue) {
+        const data = await res.json()
+        contToken = data?.continuation_token || undefined
+      }
+    }
+  }
+
   const handleFileUpload = useCallback(async (fileList: FileList) => {
     if (!fileList.length) return
     if (isSftpMode && !sftpAuthorized) { toast("error", t("errors.sftpAuthRequired")); return }
@@ -837,26 +1113,24 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
     try {
       for (let i = 0; i < fileList.length; i++) {
         const f = fileList[i]
-        const buf = await f.arrayBuffer()
         const filePath = path.endsWith("/") ? `${path}${f.name}` : `${path}/${f.name}`
-        const url = (isSftpMode
-          ? API_ENDPOINTS.serverSftpFileUpload.replace(":id", serverId)
-          : API_ENDPOINTS.serverFileUpload.replace(":id", serverId)) +
-          `?path=${encodeURIComponent(filePath)}`
-        const token = localStorage.getItem("token")
-        const headers: Record<string, string> = {
-          "Content-Type": "application/octet-stream",
-          ...(isSftpMode ? sftpHeaders : {}),
+        if (!isSftpMode) {
+          await uploadFileDirect(f, filePath)
+        } else {
+          const buf = await f.arrayBuffer()
+          const url = API_ENDPOINTS.serverSftpFileUpload.replace(":id", serverId) +
+            `?path=${encodeURIComponent(filePath)}`
+          const headers: Record<string, string> = {
+            "Content-Type": "application/octet-stream",
+            ...sftpHeaders,
+          }
+          const res = await fetch(url, {
+            method: "POST", credentials: "include",
+            headers,
+            body: new Uint8Array(buf),
+          })
+          if (!res.ok) throw new Error(await res.text() || `Upload failed: ${res.status}`)
         }
-        if (token) {
-          headers.Authorization = `Bearer ${token}`
-        }
-        const res = await fetch(url, {
-          method: "POST", credentials: "include",
-          headers,
-          body: new Uint8Array(buf),
-        })
-        if (!res.ok) throw new Error(await res.text() || `Upload failed: ${res.status}`)
       }
       toast("success", `Uploaded ${fileList.length} file${fileList.length > 1 ? "s" : ""}`)
       await loadFiles(path)
@@ -946,7 +1220,30 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       return
     }
 
+    if (isVideoFile(name)) {
+      try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        const headers: Record<string, string> = {}
+        if (token) {
+          headers.Authorization = `Bearer ${token}`
+        }
+        const res = await fetch(
+          API_ENDPOINTS.serverFileDownload.replace(":id", serverId) + `?path=${encodeURIComponent(filePath)}`,
+          { credentials: "include", headers }
+        )
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const blob = await res.blob()
+        if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
+        setVideoPreviewUrl(URL.createObjectURL(blob))
+        setVideoPreviewName(name)
+      } catch (e: any) {
+        toast("error", t("errors.imagePreviewFailed", { reason: e?.message }))
+      }
+      return
+    }
+
     if (imagePreviewUrl) { URL.revokeObjectURL(imagePreviewUrl); setImagePreviewUrl(null) }
+    if (videoPreviewUrl) { URL.revokeObjectURL(videoPreviewUrl); setVideoPreviewUrl(null) }
 
     if (isBinaryFile(name)) { toast("warning", t("errors.binaryNotEditable")); return }
 
@@ -1093,30 +1390,37 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
   // ── Download ─────────────────────────────────────────────────────────────────
   const downloadFile = async (fileName: string) => {
     try {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-      const headers: Record<string, string> = {
-        ...(isSftpMode ? sftpHeaders : {}),
+      const filePath = path + fileName
+
+      if (isSftpMode) {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+        const headers: Record<string, string> = { ...sftpHeaders }
+        if (token) headers.Authorization = `Bearer ${token}`
+        const res = await fetch(
+          API_ENDPOINTS.serverSftpFileDownload.replace(":id", serverId) +
+            `?path=${encodeURIComponent(filePath)}`,
+          { credentials: "include", headers }
+        )
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const blob = await res.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url; a.download = fileName
+        document.body.appendChild(a); a.click(); a.remove()
+        URL.revokeObjectURL(url)
+        return
       }
-      if (token) {
-        headers.Authorization = `Bearer ${token}`
-      }
-      const ep = isSftpMode
-        ? API_ENDPOINTS.serverSftpFileDownload.replace(":id", serverId)
-        : API_ENDPOINTS.serverFileDownload.replace(":id", serverId)
-      const res = await fetch(
-        ep + `?path=${encodeURIComponent(path + fileName)}`,
-        {
-          credentials: "include",
-          headers,
-        }
+
+      // Direct Wings download via download-token (avoids panel proxy for large files)
+      const info = await apiFetch(
+        API_ENDPOINTS.serverFileDownloadToken.replace(":id", serverId) +
+          `?path=${encodeURIComponent(filePath)}`
       )
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const blob = await res.blob()
-      const url = URL.createObjectURL(blob)
+      if (!info?.token || !info?.url) throw new Error("Failed to get download token")
       const a = document.createElement("a")
-      a.href = url; a.download = fileName
+      a.href = `${info.url}?token=${encodeURIComponent(info.token)}`
+      a.download = fileName
       document.body.appendChild(a); a.click(); a.remove()
-      URL.revokeObjectURL(url)
     } catch (e: any) {
       toast("error", t("errors.downloadFailed", { reason: e?.message }))
     }
@@ -1255,6 +1559,15 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             </span>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            <Button
+              size="sm" variant="outline"
+              onClick={() => loadRevisions(editingFile)}
+              disabled={revisionsLoading}
+              className="h-7 text-xs gap-1.5"
+            >
+              {revisionsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+              History
+            </Button>
             <Button size="sm" variant="outline" onClick={() => setEditingFile(null)} className="h-7 text-xs">
               {t("actions.cancel")}
             </Button>
@@ -1264,13 +1577,66 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             </Button>
           </div>
         </div>
-        <div className="flex-1 min-h-0">
-          <MonacoFileEditor
-            value={fileContent}
-            onChange={v => setFileContent(v ?? "")}
-            language={MONACO_LANGUAGE_MAP[ext] || "plaintext"}
-            editorSettings={editorSettings}
-          />
+        <div className="flex-1 flex min-h-0 overflow-hidden">
+          <div className="flex-1 min-h-0 min-w-0">
+            <MonacoFileEditor
+              value={revisionContent ?? fileContent}
+              onChange={v => {
+                if (!revisionContent) setFileContent(v ?? "")
+              }}
+              language={MONACO_LANGUAGE_MAP[ext] || "plaintext"}
+              editorSettings={editorSettings}
+            />
+          </div>
+          {revisions && (
+            <div className="w-64 flex-shrink-0 border-l border-border bg-secondary/10 overflow-y-auto">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Revisions</span>
+                <button
+                  onClick={() => { setRevisions(null); setRevisionContent(null); setActiveRevisionId(null) }}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+              {revisions.length === 0 ? (
+                <div className="px-3 py-4 text-xs text-muted-foreground text-center">No revisions found</div>
+              ) : (
+                revisions.map((rev: any) => (
+                  <button
+                    key={rev.id || rev.revision}
+                    onClick={() => loadRevisionContent(rev.id || rev.revision)}
+                    className={cn(
+                      "w-full text-left px-3 py-2 text-xs border-b border-border/30 hover:bg-secondary/20 transition-colors",
+                      activeRevisionId === (rev.id || rev.revision) && "bg-primary/10 text-primary"
+                    )}
+                  >
+                    <div className="font-mono truncate">{rev.id || rev.revision}</div>
+                    <div className="text-muted-foreground mt-0.5">{rev.timestamp ? new Date(rev.timestamp).toLocaleString() : ""}</div>
+                    {rev.size != null && <div className="text-muted-foreground">{formatBytes(rev.size)}</div>}
+                  </button>
+                ))
+              )}
+              {revisionContentLoading && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {activeRevisionId && revisionContent !== null && !revisionContentLoading && (
+                <div className="px-3 py-3 border-t border-border">
+                  <Button
+                    size="sm"
+                    onClick={() => restoreRevision(activeRevisionId)}
+                    disabled={restoringRevision}
+                    className="w-full h-7 text-xs gap-1.5"
+                  >
+                    {restoringRevision ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                    Restore this version
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <ToastContainer toasts={toasts} onDismiss={dismiss} />
       </div>
@@ -1297,6 +1663,14 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
           url={imagePreviewUrl} filename={imagePreviewName} t={t}
           onClose={() => { URL.revokeObjectURL(imagePreviewUrl); setImagePreviewUrl(null); setImagePreviewName("") }}
           onDownload={() => downloadFile(imagePreviewName)}
+        />
+      )}
+
+      {videoPreviewUrl && (
+        <VideoPreviewModal
+          url={videoPreviewUrl} filename={videoPreviewName} t={t}
+          onClose={() => { URL.revokeObjectURL(videoPreviewUrl); setVideoPreviewUrl(null); setVideoPreviewName("") }}
+          onDownload={() => downloadFile(videoPreviewName)}
         />
       )}
 
@@ -1416,6 +1790,13 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             icon={FolderPlus}
             label={t("actions.newFolder")}
           />
+          {!isSftpMode && (
+            <ToolbarBtn
+              onClick={() => loadLargestDirs()}
+              icon={HardDrive}
+              label="Dirs"
+            />
+          )}
           <div className="h-4 w-px bg-border/60 mx-0.5" />
           <ToolbarBtn
             onClick={() => loadFiles(path)}
@@ -1501,6 +1882,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
               onChmod={() => chmodFile(path + getFileName(file))}
               onDelete={() => deleteFile(path + getFileName(file))}
               t={t}
+              dirSizes={dirSizes}
             />
           ))
         )}
@@ -1520,6 +1902,43 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         t={t}
         isSftpMode={isSftpMode}
       />
+
+      {largestDirs !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[70vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
+              <h3 className="text-sm font-semibold">Largest Directories</h3>
+              <button
+                onClick={() => setLargestDirs(null)}
+                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {largestDirsError ? (
+              <div className="p-5 text-xs text-red-400">{largestDirsError}</div>
+            ) : largestDirs.length === 0 ? (
+              <div className="p-5 text-xs text-muted-foreground text-center">No directories found</div>
+            ) : (
+              <div className="overflow-y-auto flex-1">
+                {largestDirs.map((d, i) => (
+                  <div
+                    key={d.name}
+                    className="flex items-center justify-between px-5 py-2.5 text-xs border-b border-border/30 last:border-0 hover:bg-secondary/10 transition-colors"
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-muted-foreground w-5 text-right flex-shrink-0">#{i + 1}</span>
+                      <Folder className="h-3.5 w-3.5 text-amber-400/80 flex-shrink-0" />
+                      <span className="font-mono truncate">{d.name}</span>
+                    </div>
+                    <span className="font-mono text-muted-foreground flex-shrink-0 ml-4">{formatBytes(d.size)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

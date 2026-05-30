@@ -361,6 +361,8 @@ type RemoteBackupBody = {
   percent?: number | string;
   status?: string;
   adapter?: string;
+  successful?: boolean;
+  files?: number | string;
 };
 
 type SftpAuthBody = {
@@ -984,13 +986,16 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
   // GET /api/remote/backups/:uuid — S3 multipart upload URLs (wings adapter = noop)
   // POST /api/remote/backups/:uuid — Wings reports backup completion
   // DELETE /api/remote/backups/:uuid — Wings reports backup deletion
+  // GET /api/remote/backups/:uuid/s3/parts — S3 multipart part URLs
+  // GET /api/remote/backups/:uuid/restic — Restic backup configuration
   // POST /api/remote/backups/:uuid/restore — Wings reports restore completion
   // ═══════════════════════════════════════════════════════════════════════════
   app.get(
     prefix + '/remote/backups/:uuid',
     async ctx => {
+      const size = Number((ctx.query?.size as string) || 0);
       ctx.set.status = 200;
-      return { parts: [], part_size: 0 };
+      return { parts: [], part_size: size > 0 ? Math.ceil(size / 100) : 0 };
     },
     {
       beforeHandle: authenticateWings,
@@ -1019,6 +1024,8 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           require('../models/serverBackup.entity').ServerBackup
         );
         const rec = await repo.findOneBy({ uuid: id });
+        const successful = body?.successful !== false;
+        const status = body?.status || (successful ? 'completed' : 'failed');
         const payload = {
           name: body?.name ?? body?.uuid ?? undefined,
           bytes: Number(body?.bytes || body?.size || 0) || 0,
@@ -1028,7 +1035,8 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           streaming: !!body?.streaming,
           parts: body?.parts ?? undefined,
           progress: Number(body?.progress ?? body?.percent ?? 0) || 0,
-          status: body?.status ?? undefined,
+          status,
+          raw: { successful, files: Number(body?.files || 0) },
         };
         if (rec) {
           Object.assign(rec, payload);
@@ -1085,22 +1093,73 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
     }
   );
 
+  app.get(
+    prefix + '/remote/backups/:uuid/s3/parts',
+    async ctx => {
+      const fromPart = Number((ctx.query?.from_part as string) || 0);
+      ctx.set.status = 200;
+      return { parts: [], part_size: 0 };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: {
+        summary: 'Get S3 multipart part upload URLs (Wings callback)',
+        tags: ['Remote'],
+      },
+      response: {
+        200: t.Object({ parts: t.Array(t.String()), part_size: t.Number() }),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/remote/backups/:uuid/restic',
+    async ctx => {
+      ctx.set.status = 200;
+      return {
+        repository: '',
+        password_file: null,
+        retry_lock_seconds: 0,
+        environment: {},
+      };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: {
+        summary: 'Get Restic backup configuration (Wings callback)',
+        tags: ['Remote'],
+      },
+      response: {
+        200: t.Object({
+          repository: t.String(),
+          password_file: t.Nullable(t.String()),
+          retry_lock_seconds: t.Number(),
+          environment: t.Record(t.String(), t.String()),
+        }),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+      },
+    }
+  );
+
   app.post(
     prefix + '/remote/backups/:uuid/restore',
     async ctx => {
       const id = ctx.params?.uuid as string;
-      const body = (ctx.body || {}) as RemoteBackupBody;
+      const body = (ctx.body || {}) as RemoteBackupBody & { server_uuid?: string; successful?: boolean };
       try {
         const repo = AppDataSource.getRepository(
           require('../models/serverBackup.entity').ServerBackup
         );
         const rec = await repo.findOneBy({ uuid: id });
         if (rec) {
-          rec.status = body?.status ?? 'restored';
-          rec.progress = Number(body?.progress ?? 100) || 100;
+          const successful = body?.successful !== false;
+          rec.status = successful ? 'restored' : 'failed';
+          rec.progress = 100;
+          rec.raw = { ...(rec.raw || {}), server_uuid: body?.server_uuid, successful };
           await repo.save(rec);
           app.log?.info?.(
-            { backupUuid: id },
+            { backupUuid: id, serverUuid: body?.server_uuid, successful },
             'remote: backup restore callback updated record'
           );
         }

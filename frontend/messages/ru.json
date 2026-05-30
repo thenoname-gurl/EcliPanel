@@ -4031,7 +4031,8 @@
       "sftpAutoConnected": "Автоматически подключено по SFTP",
       "fileSaved": "Файл сохранён",
       "archiveCreated": "Архив создан",
-      "commandCopied": "Команда скопирована в буфер обмена"
+      "commandCopied": "Команда скопирована в буфер обмена",
+      "revisionRestored": "Ревизия восстановлена"
     },
     "kvmNotes": {
       "title": "Примечания KVM-доступа",
@@ -4092,7 +4093,8 @@
       "sftpAutoAuthFailed": "Авто-вход SFTP через ROOT_PASSWORD не удался: {reason}. Введите пароль вручную.",
       "sftpDetailsUnavailable": "Данные SFTP-подключения недоступны.",
       "bulkChmodFailed": "Ошибка массового chmod: {reason}",
-      "bulkDeleteFailed": "Ошибка массового удаления: {reason}"
+      "bulkDeleteFailed": "Ошибка массового удаления: {reason}",
+      "revisionRestoreFailed": "Не удалось восстановить ревизию"
     }
   },
   "serverDetailPage": {
