@@ -6,6 +6,7 @@ import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 import { getCountryAgeRules, getGeoBlockRulesWithDefaults } from '../utils/eu';
 import { User } from '../models/user.entity';
+import { Feedback } from '../models/feedback.entity';
 import { ApiRequestLog } from '../models/apiRequestLog.entity';
 import { SocData } from '../models/socData.entity';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
@@ -281,6 +282,41 @@ export async function publicRoutes(app: any, prefix = '') {
         summary: 'Public usage metrics',
         description:
           'Returns the last 24 hours of node traffic, API call volume, and total user count.',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/public/feedback',
+    async () => {
+      return withRedisCache('public:feedback:v1', 60, async () => {
+        const repo = AppDataSource.getRepository(Feedback);
+        const result = await repo
+          .createQueryBuilder('feedback')
+          .select('AVG(feedback.rating)', 'averageRating')
+          .addSelect('COUNT(feedback.id)', 'reviewCount')
+          .getRawOne();
+
+        const averageRating = Number(result?.averageRating ?? 0);
+        const reviewCount = Number(result?.reviewCount ?? 0);
+
+        return {
+          averageRating: Number(averageRating.toFixed(2)),
+          reviewCount,
+        };
+      });
+    },
+    {
+      response: {
+        200: t.Object({
+          averageRating: t.Number(),
+          reviewCount: t.Number(),
+        }),
+      },
+      detail: {
+        tags: ['Public'],
+        summary: 'Public feedback summary',
+        description: 'Returns the average rating and feedback count from submitted panel feedback.',
       },
     }
   );
