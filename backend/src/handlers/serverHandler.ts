@@ -4168,6 +4168,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
               nbf: now,
               exp: now + 600,
               jti: crypto.randomUUID(),
+              scope: 'transfer',
             },
             targetNode.token
           );
@@ -5647,6 +5648,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         user_uuid: safeUserUuid,
         server_uuid: safeServerUuid,
         permissions: ['*'],
+        scope: 'websocket',
         use_console_read_permission: false,
       };
 

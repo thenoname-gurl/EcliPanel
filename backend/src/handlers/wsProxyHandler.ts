@@ -328,6 +328,7 @@ class WingsProxySession {
       user_uuid: userUuid,
       server_uuid: serverUuid,
       permissions: ['*'],
+      scope: 'websocket',
       unique_id: jti,
     };
 
@@ -406,6 +407,7 @@ class WingsProxySession {
       user_uuid: userUuid,
       server_uuid: serverUuid,
       permissions: ['*'],
+      scope: 'websocket',
       unique_id: jti,
     };
 
