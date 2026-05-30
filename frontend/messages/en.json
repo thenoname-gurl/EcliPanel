@@ -251,6 +251,22 @@
       "totalUsers": "Total users",
       "totalLabel": "Total"
     },
+    "feedback": {
+      "eyebrow": "Feedback",
+      "heading": "Average rating from people who run real servers.",
+      "description": "Trusted by hosting teams and game server operators, EcliPanel earns top marks for fast deployment and reliable control.",
+      "averageLabel": "Average rating",
+      "reviewCount": "{count}+ reviews",
+      "quoteLabel": "What users say",
+      "quote": "Stable hosting, fast deployment, and an interface that just works.",
+      "quoteSource": "Trusted by server operators worldwide.",
+      "panelCardTitle": "Host confidently",
+      "panelCardHeadline": "Built for game servers and distributed workloads.",
+      "panelCardDescription": "Keep your team in control with metrics, autoscaling, and secure access from one panel.",
+      "panelStat1": "99.97% uptime-ready architecture",
+      "panelStat2": "Real-time feedback from production users",
+      "loadingReviews": "Loading reviews..."
+    },
     "features": {
       "eyebrow": "Features",
       "title": "Everything included.",

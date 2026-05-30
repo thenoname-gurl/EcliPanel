@@ -5,6 +5,7 @@ import { Hero } from "./landing/_components/_custom/Hero";
 import { Menu } from "./landing/_components/_custom/Menu";
 import { Stats } from "./landing/_components/_custom/Stats";
 import { Features } from "./landing/_components/_custom/Features";
+import { Feedback } from "./landing/_components/_custom/Feedback";
 import { Pricing } from "./landing/_components/_custom/Pricing";
 import { FAQ } from "./landing/_components/_custom/FAQ";
 import { End } from "./landing/_components/_custom/End";
@@ -31,6 +32,7 @@ export default function LandingPage() {
       <Features />
       <DdosProtection />
       <Pricing />
+      <Feedback />
       <Network />
       <FAQ />
       <End />
