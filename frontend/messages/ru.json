@@ -4095,6 +4095,27 @@
       "bulkChmodFailed": "Ошибка массового chmod: {reason}",
       "bulkDeleteFailed": "Ошибка массового удаления: {reason}",
       "revisionRestoreFailed": "Не удалось восстановить ревизию"
+    },
+    "shareModal": {
+      "title": "Поделиться файлом",
+      "file": "Файл",
+      "linkExpiration": "Срок действия ссылки",
+      "duration1h": "1 час",
+      "duration1d": "1 день",
+      "duration1w": "1 неделя",
+      "duration1m": "1 месяц",
+      "duration1y": "1 год",
+      "durationPermanent": "Постоянная",
+      "cancel": "Отмена",
+      "createShareLink": "Создать ссылку",
+      "shareLinkDescription": "Ссылка (любой, у кого есть эта ссылка, сможет просмотреть/скачать)",
+      "copied": "Скопировано!",
+      "copy": "Копировать",
+      "close": "Закрыть",
+      "shareAnother": "Поделиться ещё",
+      "toastCreated": "Ссылка создана!",
+      "toastFailed": "Не удалось создать ссылку",
+      "toastCopyFailed": "Не удалось скопировать ссылку"
     }
   },
   "serverDetailPage": {
@@ -5441,6 +5462,49 @@
       "failedFetchInvoice": "Не удалось получить счёт",
       "unableDownloadInvoice": "Невозможно скачать счёт"
     }
+  },
+  "serverSharesTab": {
+    "title": "Общие файлы",
+    "description": "Управление публичными ссылками на файлы сервера",
+    "refresh": "Обновить",
+    "loading": "Загрузка общих файлов...",
+    "retry": "Повторить",
+    "emptyTitle": "Нет общих файлов",
+    "emptyDescription": "Поделитесь файлом из вкладки «Файлы», чтобы создать ссылку",
+    "neverExpires": "Бессрочная",
+    "expires": "Истекает {duration}",
+    "downloads": "{count, plural, one {# скачивание} few {# скачивания} other {# скачиваний}}",
+    "statusActive": "Активна",
+    "statusExpired": "Истекла",
+    "statusDisabled": "Отключена",
+    "copyLink": "Копировать ссылку",
+    "openSharePage": "Открыть страницу",
+    "deleteShareLink": "Удалить ссылку",
+    "deleteDialogTitle": "Удалить ссылку",
+    "deleteDialogDescription": "Это навсегда отключит ссылку. Любой, у кого есть эта ссылка, больше не сможет получить доступ к файлу.",
+    "cancel": "Отмена",
+    "deleteLink": "Удалить",
+    "errorLoad": "Не удалось загрузить ссылки",
+    "errorDelete": "Не удалось удалить ссылку"
+  },
+  "shareFileClient": {
+    "loading": "Загрузка файла...",
+    "sharedFile": "Общий файл",
+    "expired": "Истекла",
+    "expires": "Истекает {date}",
+    "downloads": "{count, plural, one {# скачивание} few {# скачивания} other {# скачиваний}}",
+    "download": "Скачать",
+    "linkExpired": "Срок действия ссылки истёк",
+    "noPreview": "Предпросмотр для этого типа файлов недоступен",
+    "clickDownload": "Нажмите «Скачать», чтобы получить файл",
+    "linkExpiredTitle": "Срок истёк",
+    "fileDeletedTitle": "Файл удалён",
+    "notFoundTitle": "Не найдено",
+    "errorNotFound": "Ссылка не найдена",
+    "errorNotValid": "Эта ссылка больше недействительна",
+    "errorTimeout": "Время запроса истекло. Сервер может быть недоступен.",
+    "errorLoadInfo": "Не удалось загрузить информацию",
+    "errorLoadLink": "Не удалось загрузить ссылку"
   },
   "familyPage": {
     "page": {

@@ -81,12 +81,14 @@ import {
   Monitor,
   Shield,
   ExternalLink,
+  Link2,
 } from "lucide-react"
 
 const ConsoleTabLazy = lazy(() => import("./ConsoleTab").then((m) => ({ default: m.ConsoleTab })))
 const StatsTabLazy = lazy(() => import("./StatsTab").then((m) => ({ default: m.StatsTab })))
 const FilesTabLazy = lazy(() => import("./FilesTab").then((m) => ({ default: m.FilesTab })))
 const FirewallTabLazy = lazy(() => import("./FirewallTab").then((m) => ({ default: m.FirewallTab })))
+const SharesTabLazy = lazy(() => import("./SharesTab").then((m) => ({ default: m.SharesTab })))
 
 // ─── Shared UI Primitives ────────────────────────────────────────────────────
 
@@ -1022,6 +1024,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       { id: "console", label: t("tabs.console"), icon: Terminal },
       { id: "stats", label: t("tabs.statistics"), icon: BarChart3, shortLabel: t("tabs.statsShort") },
       { id: "files", label: t("tabs.files"), icon: Folder },
+      { id: "shares", label: t("tabs.shares"), icon: Link2 },
       { id: "startup", label: t("tabs.startup"), icon: Variable },
       { id: "databases", label: t("tabs.databases"), icon: Database, shortLabel: t("tabs.dbShort") },
       { id: "schedules", label: t("tabs.schedules"), icon: Clock },
@@ -1042,6 +1045,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     () => ({
       console: "console",
       files: "files",
+      shares: "file-sharing",
       backups: "backups",
       startup: "startup",
       settings: "settings",
@@ -1358,6 +1362,11 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                   isKvm={isKvm}
                   editorSettings={editorSettings}
                 />
+              </Suspense>
+            )}
+            {activeTab === "shares" && (
+              <Suspense fallback={<LoadingState message="Loading shares..." />}>
+                <SharesTabLazy serverId={id} />
               </Suspense>
             )}
             {activeTab === "startup" && <StartupTab serverId={id} />}
@@ -3290,6 +3299,7 @@ function SubusersTab({
     { key: "stats", label: t("tabs.statistics") },
     { key: "network", label: t("tabs.network") },
     { key: "mounts", label: t("tabs.mounts") },
+    { key: "file-sharing", label: "File Sharing" },
   ]
   const [selectedPerms, setSelectedPerms] = useState<string[]>(["console"])
 
