@@ -30,6 +30,7 @@ import { feedbackRoutes } from '../handlers/feedbackHandler';
 import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
 import { visualEditorRoutes } from '../handlers/visualEditorHandler';
+import { sharedFileRoutes, publicSharedFileRoutes } from '../handlers/sharedFileHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 
@@ -98,6 +99,7 @@ export function registerRoutes(app: any) {
   socRoutes(app, '/api');
   aiRoutes(app, '/api');
   serverRoutes(app, '/api');
+  sharedFileRoutes(app, '/api');
   nodeRoutes(app, '/api');
   apiKeyRoutes(app, '/api');
   ticketRoutes(app, '/api');
@@ -115,6 +117,7 @@ export function registerRoutes(app: any) {
   rolloutRoutes(app, '/api');
   feedbackRoutes(app, '/api');
   publicRoutes(app, '');
+  publicSharedFileRoutes(app, '');
   applicationRoutes(app, '/api');
   visualEditorRoutes(app, '/api');
 }

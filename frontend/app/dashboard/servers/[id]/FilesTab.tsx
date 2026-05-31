@@ -19,7 +19,8 @@ import {
   FileJson, FileImage, FileVideo, Maximize2, Minimize2,
   Terminal, Wifi, WifiOff, Lock, Unlock,
   CheckCircle2, AlertCircle, Info, ChevronDown,
-  Server, HardDrive, Globe, Play, Pause
+  Server, HardDrive, Globe, Play, Pause,
+  Link2, Clock
 } from "lucide-react"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -662,11 +663,11 @@ function SftpConnectionPanel({
 
 function FileRow({
   file, path, isSelected, onToggle, onOpen, onEdit, onRename,
-  onDownload, onChmod, onDelete, t, dirSizes
+  onDownload, onShare, onChmod, onDelete, t, dirSizes
 }: {
   file: FileItem; path: string; isSelected: boolean
   onToggle: () => void; onOpen: () => void; onEdit: () => void
-  onRename: () => void; onDownload: () => void
+  onRename: () => void; onDownload: () => void; onShare: () => void
   onChmod: () => void; onDelete: () => void; t: any
   dirSizes?: Record<string, number>
 }) {
@@ -747,6 +748,8 @@ function FileRow({
           <ActionBtn onClick={onDownload} icon={Download} label="Download"
             className="hover:text-foreground hover:bg-secondary/60" />
         )}
+        <ActionBtn onClick={onShare} icon={Link2} label="Share"
+          className="hover:text-violet-400 hover:bg-violet-500/10" />
         <ActionBtn onClick={onChmod} icon={Shield} label="Chmod"
           className="hover:text-foreground hover:bg-secondary/60" />
         <ActionBtn onClick={onDelete} icon={Trash2} label="Delete"
@@ -770,6 +773,166 @@ function ActionBtn({ onClick, icon: Icon, label, className }: {
     >
       <Icon className="h-3.5 w-3.5" />
     </button>
+  )
+}
+
+// ─── Share File Link Modal ─────────────────────────────────────────────────────
+
+function ShareFileLinkModal({
+  serverId, filePath, fileName, onClose, toast
+}: {
+  serverId: string; filePath: string; fileName: string
+  onClose: () => void; toast: (type: "success" | "error" | "info" | "warning", msg: string) => void
+}) {
+  const t = useTranslations("serverFilesTab")
+  const [expiresIn, setExpiresIn] = useState("1d")
+  const [creating, setCreating] = useState(false)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  const DURATIONS = [
+    { value: "1h", label: t("shareModal.duration1h") },
+    { value: "1d", label: t("shareModal.duration1d") },
+    { value: "1w", label: t("shareModal.duration1w") },
+    { value: "1m", label: t("shareModal.duration1m") },
+    { value: "1y", label: t("shareModal.duration1y") },
+    { value: "permanent", label: t("shareModal.durationPermanent") },
+  ]
+
+  const createShareLink = async () => {
+    setCreating(true)
+    try {
+      const data = await apiFetch(
+        API_ENDPOINTS.serverFileShares.replace(":id", serverId),
+        {
+          method: "POST",
+          body: JSON.stringify({ filePath, expiresIn }),
+        }
+      )
+      if (data?.url) {
+        setShareUrl(data.url)
+        toast("success", t("shareModal.toastCreated"))
+      } else {
+        toast("error", t("shareModal.toastFailed"))
+      }
+    } catch (err: any) {
+      toast("error", err?.message || t("shareModal.toastFailed"))
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  const copyLink = async () => {
+    if (shareUrl) {
+      try {
+        await navigator.clipboard.writeText(shareUrl)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch {
+        toast("error", t("shareModal.toastCopyFailed"))
+      }
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-popover p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <Link2 className="h-4 w-4 text-violet-400" />
+            <h3 className="font-semibold text-foreground">{t("shareModal.title")}</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="rounded-lg bg-secondary/20 border border-border/60 px-3.5 py-2.5">
+            <p className="text-xs text-muted-foreground mb-0.5">{t("shareModal.file")}</p>
+            <p className="text-sm font-mono text-foreground truncate">{fileName}</p>
+          </div>
+
+          {!shareUrl ? (
+            <>
+              <div>
+                <label className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-2">
+                  <Clock className="h-3 w-3" />
+                  {t("shareModal.linkExpiration")}
+                </label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {DURATIONS.map(d => (
+                    <button
+                      key={d.value}
+                      onClick={() => setExpiresIn(d.value)}
+                      className={cn(
+                        "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all",
+                        expiresIn === d.value
+                          ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
+                          : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
+                      )}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-1">
+                <Button size="sm" variant="outline" onClick={onClose} className="h-8 text-xs">
+                  {t("shareModal.cancel")}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={createShareLink}
+                  disabled={creating}
+                  className="h-8 text-xs gap-1.5"
+                >
+                  {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
+                  {t("shareModal.createShareLink")}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+                  {t("shareModal.shareLinkDescription")}
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={shareUrl}
+                    className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <Button size="sm" onClick={copyLink} className="h-8 text-xs gap-1 flex-shrink-0">
+                    {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                    {copied ? t("shareModal.copied") : t("shareModal.copy")}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-1">
+                <Button size="sm" variant="outline" onClick={onClose} className="h-8 text-xs">
+                  {t("shareModal.close")}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setShareUrl(null); setCopied(false) }}
+                  className="h-8 text-xs gap-1"
+                >
+                  <Link2 className="h-3 w-3" />
+                  {t("shareModal.shareAnother")}
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -802,6 +965,9 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
   const [sftpChecking, setSftpChecking] = useState(false)
   const [sftpError, setSftpError] = useState<string | null>(null)
   const [sftpAutoTried, setSftpAutoTried] = useState(false)
+
+  // Share link modal
+  const [shareFile, setShareFile] = useState<{ filePath: string; fileName: string } | null>(null)
 
   // Track whether the password was set programmatically (auto-connect)
   // to avoid the password-change effect from resetting authorization
@@ -1658,6 +1824,16 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         onCancel={closeConfirm}
       />
 
+      {shareFile && (
+        <ShareFileLinkModal
+          serverId={serverId}
+          filePath={shareFile.filePath}
+          fileName={shareFile.fileName}
+          onClose={() => setShareFile(null)}
+          toast={toast}
+        />
+      )}
+
       {imagePreviewUrl && (
         <ImagePreviewModal
           url={imagePreviewUrl} filename={imagePreviewName} t={t}
@@ -1879,6 +2055,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
               onEdit={() => openFile(path + getFileName(file))}
               onRename={() => renameFile(getFileName(file))}
               onDownload={() => downloadFile(getFileName(file))}
+              onShare={() => setShareFile({ filePath: path + getFileName(file), fileName: getFileName(file) })}
               onChmod={() => chmodFile(path + getFileName(file))}
               onDelete={() => deleteFile(path + getFileName(file))}
               t={t}

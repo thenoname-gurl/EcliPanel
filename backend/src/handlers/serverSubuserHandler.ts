@@ -26,6 +26,7 @@ const VALID_PERMISSIONS = [
   'stats',
   'network',
   'mounts',
+  'file-sharing',
 ];
 
 // shared types moved to backend/src/types/request.ts

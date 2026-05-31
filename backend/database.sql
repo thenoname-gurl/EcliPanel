@@ -181,3 +181,19 @@ CREATE TABLE `api_key` (
   `createdAt` datetime NOT NULL,
   `expiresAt` datetime
 );
+
+CREATE TABLE `shared_file_link` (
+  `id` char(36) NOT NULL PRIMARY KEY,
+  `serverUuid` varchar(255) NOT NULL,
+  `filePath` text NOT NULL,
+  `isFolder` tinyint(1) NOT NULL DEFAULT 0,
+  `createdBy` int DEFAULT NULL,
+  `expiresIn` varchar(20) NOT NULL DEFAULT '1d',
+  `expiresAt` datetime DEFAULT NULL,
+  `token` varchar(64) NOT NULL UNIQUE,
+  `downloads` int NOT NULL DEFAULT 0,
+  `active` tinyint(1) NOT NULL DEFAULT 1,
+  `createdAt` datetime NOT NULL,
+  INDEX `idx_shared_file_link_server` (`serverUuid`, `active`),
+  INDEX `idx_shared_file_link_token` (`token`)
+);

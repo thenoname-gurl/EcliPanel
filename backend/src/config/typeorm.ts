@@ -156,5 +156,6 @@ export const AppDataSource = new DataSource({
     require('../models/feedback.entity').Feedback,
     require('../models/visualEditorBlueprint.entity').VisualEditorBlueprint,
     require('../models/visualEditorLibrary.entity').VisualEditorLibrary,
+    require('../models/sharedFileLink.entity').SharedFileLink,
   ],
 });
