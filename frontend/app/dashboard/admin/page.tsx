@@ -2818,10 +2818,20 @@ export default function AdminPanel() {
 
   async function reinstallServerFromDialog() {
     if (!editServerDialog) return
-    if (!(await confirmAsync(`Reinstall "${editServerDialog.name || editServerDialog.uuid}"? All server files will be wiped and the server will be re-provisioned from its egg.`))) return
+    const wipe = await confirmAsync(
+      `Wipe all files before reinstalling "${editServerDialog.name || editServerDialog.uuid}"? Choose OK to wipe, or Cancel to keep files.`,
+      "Reinstall options"
+    )
+    const confirmMessage = wipe
+      ? `Confirm reinstall with file wipe for "${editServerDialog.name || editServerDialog.uuid}"? This will delete all server files.`
+      : `Confirm reinstall without wiping files for "${editServerDialog.name || editServerDialog.uuid}"? Files will be preserved.`
+    if (!(await confirmAsync(confirmMessage))) return
     setEsReinstalling(true)
     try {
-      await apiFetch(`/api/servers/${editServerDialog.uuid}/reinstall`, { method: "POST" })
+      await apiFetch(`/api/servers/${editServerDialog.uuid}/reinstall`, {
+        method: "POST",
+        body: JSON.stringify({ truncate_directory: wipe }),
+      })
       alert("Reinstall initiated. The server will restart shortly.")
     } catch (e: any) {
       alert("Reinstall failed: " + e.message)

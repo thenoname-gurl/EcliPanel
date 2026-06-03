@@ -22,7 +22,7 @@ function startProxy(node: Node): void {
   if (!node.sftpProxyPort) return;
 
   const targetHost = urlToHost(node.url);
-  const targetPort = node.sftpPort ?? 2022;
+  const targetPort = node.sftpPort || 2022;
   const listenPort = node.sftpProxyPort;
 
   const existing = proxies.get(node.id);
@@ -33,7 +33,7 @@ function startProxy(node: Node): void {
   const server = net.createServer(client => {
     let cleaned = false;
 
-    const remote = net.createConnection({ host: targetHost, port: targetPort });
+    const remote = net.createConnection({ host: targetHost, port: targetPort, timeout: 10000 });
 
     const cleanup = () => {
       if (cleaned) return;
@@ -54,10 +54,22 @@ function startProxy(node: Node): void {
     client.once('close', cleanup);
 
     remote.on('error', err => {
+      if (!cleaned && !remote.destroyed) {
+        client.end(`\x00SFTP proxy error: ${err.message}\n`);
+      }
       console.error(`sftp-proxy [node ${node.id}]: remote error: ${err.message}`);
       cleanup();
     });
     remote.once('close', cleanup);
+
+    remote.on('timeout', () => {
+      remote.destroy(new Error('Connection timeout'));
+    });
+
+    client.setTimeout(30000);
+    client.on('timeout', () => {
+      cleanup();
+    });
   });
 
   server.on('error', (err: NodeJS.ErrnoException) => {
@@ -70,7 +82,7 @@ function startProxy(node: Node): void {
 
   server.listen(listenPort, '0.0.0.0', () => {
     console.log(
-      `sftp-proxy [node ${node.id} "${node.name}"]: listening on :${listenPort} → ${targetHost}:${targetPort}`
+      `sftp-proxy [node ${node.id} "${node.name}"]: listening on :${listenPort} \u2192 ${targetHost}:${targetPort}`
     );
   });
 

@@ -93,7 +93,7 @@ function sftpUrlForNode(node: Node): SftpEndpoint {
 
   const host = node.sftpProxyPort ? backendHost || '127.0.0.1' : nodeHost;
 
-  const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
+  const port = node.sftpProxyPort || node.sftpPort || 2022;
 
   return { host, port };
 }

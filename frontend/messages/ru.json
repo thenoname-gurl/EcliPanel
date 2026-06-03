@@ -3856,6 +3856,9 @@
       "serverOffline": "Сервер, похоже, офлайн: {reason}",
       "connectionFailed": "Ошибка подключения: {reason}",
       "manuallyReconnecting": "Ручное переподключение...",
+      "tryingDirectConnection": "Попытка прямого подключения...",
+      "directConnected": "Прямое подключение установлено",
+      "fallingBackToProxy": "Прямое подключение не удалось, переключение на прокси...",
       "tags": {
         "install": "Установка",
         "status": "Статус",
@@ -3872,7 +3875,8 @@
         "connecting": "Подключение",
         "connecting_dots": "Подключение...",
         "connected": "Подключено",
-        "disconnected": "Отключено"
+        "disconnected": "Отключено",
+        "installing": "Установка"
       },
       "daemonMessages": {
         "crashedState": "Обнаружен аварийный останов процесса сервера!",
@@ -3987,6 +3991,7 @@
       "newFile": "Новый файл",
       "newFolder": "Новая папка",
       "archive": "Архив",
+      "extract": "Извлечь",
       "move": "Переместить",
       "chmod": "Chmod",
       "delete": "Удалить",
@@ -4031,6 +4036,7 @@
       "sftpAutoConnected": "Автоматически подключено по SFTP",
       "fileSaved": "Файл сохранён",
       "archiveCreated": "Архив создан",
+      "archiveExtracted": "Архив извлечён",
       "commandCopied": "Команда скопирована в буфер обмена",
       "revisionRestored": "Ревизия восстановлена"
     },
@@ -4087,6 +4093,7 @@
       "invalidModeShort": "Недопустимый режим",
       "permissionUpdateFailed": "Ошибка обновления прав: {reason}",
       "archiveFailed": "Ошибка архивации: {reason}",
+      "extractFailed": "Ошибка извлечения: {reason}",
       "moveFailed": "Ошибка перемещения: {reason}",
       "sftpAuthRequired": "Введите пароль SFTP, чтобы продолжить.",
       "sftpAuthFailed": "Ошибка авторизации SFTP. Проверьте пароль и попробуйте снова.",
@@ -4523,6 +4530,15 @@
     },
     "settings": {
       "confirmReinstall": "Переустановить этот сервер? Все файлы будут удалены.",
+      "reinstallDialog": {
+        "title": "Переустановка сервера",
+        "description": "Выберите, нужно ли удалить файлы перед переустановкой.",
+        "wipeTitle": "Удалить все файлы",
+        "wipeDescription": "Очищает каталог сервера перед переустановкой из яйца.",
+        "keepTitle": "Сохранить файлы",
+        "keepDescription": "Сохраняет файлы и заново запускает install-скрипт.",
+        "wingsNote": "Wings поддерживает необязательное удаление файлов при переустановке. Выберите вариант в зависимости от нужного результата."
+      },
       "reinstallInitiated": "Переустановка запущена.",
       "failedWithReason": "Ошибка: {reason}",
       "sshDetailsUnavailable": "Данные SSH-подключения недоступны.",

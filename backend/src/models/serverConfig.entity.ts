@@ -98,6 +98,9 @@ export class ServerConfig {
   @Column({ default: true })
   autoSyncOnEggChange: boolean;
 
+  @Column({ default: false })
+  installing: boolean;
+
   @Column('json', { nullable: true })
   allocations?: Record<string, any>;
 

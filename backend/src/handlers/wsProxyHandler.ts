@@ -15,38 +15,30 @@ interface ProxyCtx {
   headers?: any;
 }
 
-// I finally state this is HELL
+function unwrapArgs(args: IArguments | any[]) {
+  const arr = Array.from(args);
+  const len = arr.length;
 
-export function wsProxyRoutes(app: any, prefix: string) {
-  function unwrapArgs(args: IArguments | any[]) {
-    const arr = Array.from(args);
-    let ctx: any = undefined;
-    let ws: any = undefined;
-    let message: any = undefined;
-
-    if (arr.length === 1) {
-      ws = arr[0];
-      ctx = ws?.data || {};
-    } else if (arr.length === 2) {
-      if (arr[0]?.params) {
-        ctx = arr[0];
-        ws = arr[1];
-      } else if (typeof arr[0]?.send === 'function') {
-        ws = arr[0];
-        message = arr[1];
-        ctx = ws?.data || {};
-      } else {
-        ctx = arr[0];
-        ws = arr[1];
-      }
-    } else if (arr.length >= 3) {
-      ctx = arr[0];
-      ws = arr[1];
-      message = arr[2];
-    }
-    return { ctx, ws, message };
+  if (len === 1) {
+    const ws = arr[0];
+    return { ctx: ws?.data || {}, ws, message: undefined };
   }
 
+  if (len === 2) {
+    const [a, b] = arr;
+    if (a?.params) return { ctx: a, ws: b, message: undefined };
+    if (typeof a?.send === 'function') return { ctx: a?.data || {}, ws: a, message: b };
+    return { ctx: a, ws: b, message: undefined };
+  }
+
+  if (len >= 3) {
+    return { ctx: arr[0], ws: arr[1], message: arr[2] };
+  }
+
+  return { ctx: undefined, ws: undefined, message: undefined };
+}
+
+export function wsProxyRoutes(app: any, prefix: string) {
   app.ws(prefix + '/ws/soc', {
     open(...args: any[]) {
       const { ctx, ws } = unwrapArgs(arguments);
@@ -54,19 +46,15 @@ export function wsProxyRoutes(app: any, prefix: string) {
       handleSocConnection(app, ws, ctx);
     },
     message(...args: any[]) {
-      const { ws, message } = unwrapArgs(arguments);
+      // SOC is one-way (server -> client)
     },
     close(...args: any[]) {
       const { ws } = unwrapArgs(arguments);
-      try {
-        ws.close?.();
-      } catch {}
+      try { ws?.close?.(); } catch {}
     },
     error(...args: any[]) {
       const { ws } = unwrapArgs(arguments);
-      try {
-        ws.close?.();
-      } catch {}
+      try { ws?.close?.(); } catch {}
     },
   });
 
@@ -89,10 +77,18 @@ export function wsProxyRoutes(app: any, prefix: string) {
     error(...args: any[]) {
       const { ws } = unwrapArgs(arguments);
       const session = ws?.data?._ecliProxySession as WingsProxySession | undefined;
-      if (session) session.onClientError(args[2]);
+      if (session) session.onClientError();
     },
   });
 }
+
+const QUEUE_MAX = 512;
+const RECONNECT_BASE_DELAY = 2000;
+const RECONNECT_MAX_DELAY = 60000;
+const PING_INTERVAL = 15000;
+const PONG_TIMEOUT = 45000;
+const ACCESS_CHECK_INTERVAL = 10000;
+const HANDSHAKE_TIMEOUT = 20000;
 
 class WingsProxySession {
   private clientWs: any;
@@ -124,7 +120,7 @@ class WingsProxySession {
     ws.data._ecliProxySession = this;
 
     this.init().catch(err => {
-      this.log('error', 'ws-proxy init failed', err);
+      this.log('error', 'init failed', err);
       this.destroy();
     });
   }
@@ -180,12 +176,9 @@ class WingsProxySession {
         String(cfg.dmca ? cfg.dmcaReason : cfg.suspendedReason || 'No reason provided').trim() ||
         'No reason provided';
       const message = cfg.dmca
-        ? `This server has been placed under a DMCA takedown by ${actor} for reason: ${reason}. Please contact support.`
-        : `This server was suspended by ${actor} for reason: ${reason}. Please contact support.`;
-      this.sendToClient({
-        event: 'error',
-        args: [message],
-      });
+        ? `DMCA takedown by ${actor}: ${reason}. Contact support.`
+        : `Suspended by ${actor}: ${reason}. Contact support.`;
+      this.sendToClient({ event: 'error', args: [message] });
       this.destroy();
       return;
     }
@@ -240,8 +233,7 @@ class WingsProxySession {
       }
 
       return user;
-    } catch (err) {
-      this.log('debug', 'token validation failed', err);
+    } catch {
       return null;
     }
   }
@@ -268,12 +260,8 @@ class WingsProxySession {
       const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({
         uuid: this.serverId,
       });
-      if (cfg && cfg.userId === this.user.id) {
-        return true;
-      }
-    } catch (err) {
-      this.log('error', 'failed to verify owner console access', err);
-    }
+      if (cfg && cfg.userId === this.user.id) return true;
+    } catch {}
 
     try {
       const subuserRepo = AppDataSource.getRepository(ServerSubuser);
@@ -284,9 +272,7 @@ class WingsProxySession {
       const sub = await subuserRepo.findOne({ where: whereAny });
       if (!sub || !Array.isArray(sub.permissions)) return false;
       if (sub.permissions.includes('*') || sub.permissions.includes('console')) return true;
-    } catch (err) {
-      this.log('error', 'failed to verify subuser console access', err);
-    }
+    } catch {}
 
     return false;
   }
@@ -302,13 +288,7 @@ class WingsProxySession {
   }
 
   private async sendDeauthToWings(): Promise<void> {
-    if (
-      !this.wingsWs ||
-      this.wingsWs.readyState !== WebSocket.OPEN ||
-      !this.node ||
-      !this.user ||
-      !this.serverId
-    ) {
+    if (!this.wingsWs || this.wingsWs.readyState !== WebSocket.OPEN || !this.node || !this.user || !this.serverId) {
       return;
     }
 
@@ -335,9 +315,7 @@ class WingsProxySession {
     try {
       const invalidJwt = signWingsJwt(payload, String(this.node.token));
       this.wingsWs.send(JSON.stringify({ event: 'auth', args: [invalidJwt] }));
-    } catch (err) {
-      this.log('error', 'failed to send wings deauth', err);
-    }
+    } catch {}
   }
 
   private async connectToWings() {
@@ -354,27 +332,23 @@ class WingsProxySession {
 
     try {
       if (this.node.token) {
-        const jwt = this.generateWingsJwt();
-        headers['Authorization'] = `Bearer ${jwt}`;
+        headers['Authorization'] = `Bearer ${this.generateWingsJwt()}`;
       }
-    } catch (err) {
-      this.log('error', 'failed to generate wings jwt', err);
+    } catch {
       if (this.node.token) {
         headers['Authorization'] = `Bearer ${this.node.token}`;
       }
     }
 
     this.sendToClient({ event: 'status', args: ['Connecting...'] });
-    this.log('debug', 'connecting to wings', { url: wsUrl });
 
     try {
       this.wingsWs = new WebSocket(wsUrl, {
         headers,
         perMessageDeflate: false,
-        handshakeTimeout: 20000,
+        handshakeTimeout: HANDSHAKE_TIMEOUT,
       } as any);
-    } catch (err) {
-      this.log('error', 'failed to create wings websocket', err);
+    } catch {
       this.scheduleReconnect();
       return;
     }
@@ -391,7 +365,6 @@ class WingsProxySession {
 
   private generateWingsJwt(): string {
     const now = Math.floor(Date.now() / 1000);
-
     const userUuid = this.normalizeUuid(this.user?.id);
     const serverUuid = this.normalizeUuid(this.serverId);
     const jti = this.normalizeUuid(crypto.randomUUID());
@@ -419,15 +392,10 @@ class WingsProxySession {
 
     this.wingsWs.on('open', () => {
       this.reconnectAttempts = 0;
-      this.log('info', 'wings ws connected');
       this.sendToClient({ event: 'status', args: ['Connected'] });
       this.startPing();
       this.startAccessChecks();
-      try {
-        this.refreshWingsAuth();
-      } catch (e) {
-        this.log('error', 'failed to send initial wings auth', e);
-      }
+      this.refreshWingsAuth();
       this.drainQueue();
     });
 
@@ -436,7 +404,6 @@ class WingsProxySession {
     });
 
     this.wingsWs.on('close', (code: number, reason: Buffer) => {
-      this.log('warn', 'wings ws closed', { code, reason: reason?.toString() });
       this.stopPing();
       this.isAuthenticated = false;
 
@@ -446,8 +413,7 @@ class WingsProxySession {
       }
     });
 
-    this.wingsWs.on('error', (err: Error) => {
-      this.log('error', 'wings ws error', err);
+    this.wingsWs.on('error', () => {
       this.stopPing();
       if (!this.closedByClient && !this.destroyed) {
         this.scheduleReconnect();
@@ -469,52 +435,35 @@ class WingsProxySession {
       } else if (data instanceof ArrayBuffer) {
         text = Buffer.from(data).toString('utf8');
       } else if (Array.isArray(data)) {
-        text = Buffer.concat(data.map(d => (Buffer.isBuffer(d) ? d : Buffer.from(d)))).toString(
-          'utf8'
-        );
+        text = Buffer.concat(data.map(d => (Buffer.isBuffer(d) ? d : Buffer.from(d)))).toString('utf8');
       } else {
         text = String(data);
       }
-    } catch (e) {
-      this.log('error', 'failed to parse wings message', e);
+    } catch {
       return;
     }
 
     try {
       const msg = JSON.parse(text);
-
       if (msg.event === 'auth success') {
         this.isAuthenticated = true;
-        this.log('info', 'wings auth success');
         this.sendToWings({ event: 'send logs', args: [null] });
         this.sendToWings({ event: 'send stats', args: [null] });
-      } else if (msg.event === 'token expiring') {
-        this.log('info', 'wings token expiring, refreshing...');
-        this.refreshWingsAuth();
-      } else if (msg.event === 'token expired') {
-        this.log('warn', 'wings token expired');
+      } else if (msg.event === 'token expiring' || msg.event === 'token expired') {
         this.isAuthenticated = false;
         this.refreshWingsAuth();
-      } else if (msg.event === 'jwt error') {
-        this.log('error', 'wings jwt error', msg.args);
-        this.isAuthenticated = false;
       }
-    } catch {
-      // skip
-    }
+    } catch {}
 
     this.sendRawToClient(text);
   }
 
   private refreshWingsAuth() {
     if (!this.wingsWs || this.wingsWs.readyState !== WebSocket.OPEN) return;
-
     try {
       const jwt = this.generateWingsJwt();
       this.sendToWings({ event: 'auth', args: [jwt] });
-    } catch (err) {
-      this.log('error', 'failed to refresh wings auth', err);
-    }
+    } catch {}
   }
 
   private drainQueue() {
@@ -529,8 +478,7 @@ class WingsProxySession {
         try {
           this.wingsWs.send(msg);
           sent++;
-        } catch (err) {
-          this.log('error', 'failed to drain queue message', err);
+        } catch {
           this.queue.unshift(msg);
           break;
         }
@@ -546,19 +494,15 @@ class WingsProxySession {
     if (this.destroyed || this.reconnectTimer) return;
 
     this.reconnectAttempts++;
-    const BASE_DELAY = 2000;
-    const MAX_DELAY = 60000;
-    const delay = Math.min(BASE_DELAY * Math.pow(2, this.reconnectAttempts - 1), MAX_DELAY);
-
-    this.log('info', 'scheduling reconnect', { attempt: this.reconnectAttempts, delay });
+    const delay = Math.min(
+      RECONNECT_BASE_DELAY * Math.pow(2, this.reconnectAttempts - 1),
+      RECONNECT_MAX_DELAY
+    );
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       if (!this.destroyed && this.clientWs) {
-        this.connectToWings().catch(err => {
-          this.log('error', 'reconnect failed', err);
-          this.scheduleReconnect();
-        });
+        this.connectToWings().catch(() => this.scheduleReconnect());
       }
     }, delay);
   }
@@ -577,20 +521,15 @@ class WingsProxySession {
     this.pingInterval = setInterval(() => {
       if (!this.wingsWs || this.wingsWs.readyState !== WebSocket.OPEN) return;
 
-      if (Date.now() - this.lastPong > 45000) {
-        this.log('warn', 'wings pong timeout, reconnecting');
-        try {
-          this.wingsWs.terminate();
-        } catch {}
+      if (Date.now() - this.lastPong > PONG_TIMEOUT) {
+        try { this.wingsWs.terminate(); } catch {}
         this.wingsWs = null;
         this.scheduleReconnect();
         return;
       }
 
-      try {
-        this.wingsWs.ping();
-      } catch {}
-    }, 15000);
+      try { this.wingsWs.ping(); } catch {}
+    }, PING_INTERVAL);
   }
 
   private stopPing() {
@@ -603,10 +542,8 @@ class WingsProxySession {
   private startAccessChecks() {
     this.stopAccessChecks();
     this.accessCheckTimer = setInterval(() => {
-      this.verifyConsoleAccess().catch(err => {
-        this.log('error', 'access check failed', err);
-      });
-    }, 10000);
+      this.verifyConsoleAccess().catch(() => {});
+    }, ACCESS_CHECK_INTERVAL);
   }
 
   private stopAccessChecks() {
@@ -618,7 +555,6 @@ class WingsProxySession {
 
   public async onClientMessage(msg: any) {
     if (this.destroyed) return;
-
     if (!(await this.verifyConsoleAccess())) return;
 
     let text: string;
@@ -638,14 +574,10 @@ class WingsProxySession {
 
     try {
       const parsed = JSON.parse(text);
-
       if (parsed.event === 'auth') {
-        const jwt = this.generateWingsJwt();
-        text = JSON.stringify({ event: 'auth', args: [jwt] });
+        text = JSON.stringify({ event: 'auth', args: [this.generateWingsJwt()] });
       }
-    } catch {
-      // skip
-    }
+    } catch {}
 
     this.sendToWings(text);
   }
@@ -654,15 +586,18 @@ class WingsProxySession {
     const text = typeof msg === 'string' ? msg : JSON.stringify(msg);
 
     if (!this.wingsWs || this.wingsWs.readyState !== WebSocket.OPEN) {
-      this.queue.push(text);
+      if (this.queue.length < QUEUE_MAX) {
+        this.queue.push(text);
+      }
       return;
     }
 
     try {
       this.wingsWs.send(text);
-    } catch (err) {
-      this.log('error', 'failed to send to wings', err);
-      this.queue.push(text);
+    } catch {
+      if (this.queue.length < QUEUE_MAX) {
+        this.queue.push(text);
+      }
     }
   }
 
@@ -672,12 +607,9 @@ class WingsProxySession {
 
   private sendRawToClient(text: string) {
     if (this.destroyed || !this.clientWs) return;
-
     try {
       this.clientWs.send(text);
-    } catch (err) {
-      this.log('error', 'failed to send to client', err);
-    }
+    } catch {}
   }
 
   public onClientClose() {
@@ -685,8 +617,7 @@ class WingsProxySession {
     this.destroy();
   }
 
-  public onClientError(err: any) {
-    this.log('error', 'client ws error', err);
+  public onClientError() {
     this.destroy();
   }
 
@@ -700,10 +631,7 @@ class WingsProxySession {
 
     if (this.wingsWs) {
       try {
-        if (
-          this.wingsWs.readyState === WebSocket.OPEN ||
-          this.wingsWs.readyState === WebSocket.CONNECTING
-        ) {
+        if (this.wingsWs.readyState === WebSocket.OPEN || this.wingsWs.readyState === WebSocket.CONNECTING) {
           this.wingsWs.close(1000, 'Client disconnected');
         }
       } catch {}
@@ -711,27 +639,19 @@ class WingsProxySession {
     }
 
     if (this.clientWs) {
-      try {
-        this.clientWs.close?.();
-      } catch {}
+      try { this.clientWs.close?.(); } catch {}
       this.clientWs = null;
     }
 
     this.queue = [];
   }
 
-  public close() {
-    this.onClientClose();
-  }
-
-  public error(err: any) {
-    this.onClientError(err);
-  }
+  public close() { this.onClientClose(); }
+  public error() { this.onClientError(); }
 
   private log(level: 'debug' | 'error' | 'warn' | 'info', message: string, meta?: any) {
     const prefix = `[WSProxy:${this.serverId?.slice(0, 8) || 'unknown'}]`;
     const fullMessage = `${prefix} ${message}`;
-
     if (this.app?.log?.[level]) {
       this.app.log[level](fullMessage, meta);
     } else {

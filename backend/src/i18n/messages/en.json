@@ -357,6 +357,7 @@
     "permissionsArrayRequired": "permissions array required",
     "recipientEmailRequired": "Recipient email address is required",
     "filesMustBeArray": "files must be a non-empty array",
+    "fileMustBeString": "file must be a string",
     "toAddressRequired": "Missing to address",
     "messageBodyRequired": "Message body or HTML content is required",
     "ipTypeRequired": "ip and type are required",
