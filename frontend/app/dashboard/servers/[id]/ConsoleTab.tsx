@@ -27,6 +27,8 @@ import {
 
 interface ConsoleTabProps {
   serverId: string
+  installing?: boolean
+  onReinstall?: () => Promise<void>
 }
 
 interface StatusBadgeProps {
@@ -202,12 +204,13 @@ interface ToolbarProps {
   onCopy: () => void
   copied: boolean
   reconnecting: boolean
+  installing: boolean
   t: any
 }
 
 function ConsoleToolbar({
   connected, connectionState, isFullscreen, onFullscreenToggle,
-  onClear, onReconnect, onCopy, copied, reconnecting, t
+  onClear, onReconnect, onCopy, copied, reconnecting, installing, t
 }: ToolbarProps) {
   return (
     <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -215,6 +218,12 @@ function ConsoleToolbar({
         <Terminal className="h-4 w-4 text-muted-foreground" />
         <span className="text-sm font-medium text-foreground hidden sm:inline">{t("toolbar.console")}</span>
         <StatusBadge connected={connected} connectionState={connectionState} t={t} />
+        {installing && (
+          <Badge variant="outline" className="text-[10px] gap-1.5 px-2 py-0.5 font-medium border-yellow-500/50 text-yellow-400 bg-black/60">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            {t("status.installing")}
+          </Badge>
+        )}
       </div>
       
       <div className="flex items-center gap-2">
@@ -407,7 +416,7 @@ function translateInstallText(text: string, translate: any): string {
   return text
 }
 
-export function ConsoleTab({ serverId }: ConsoleTabProps) {
+export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabProps) {
   const t = useTranslations("serverConsoleTab")
   const termRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<any>(null)
@@ -436,6 +445,53 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
   const [terminalReady, setTerminalReady] = useState(false)
   const [resources, setResources] = useState<{ cpu_absolute?: number; memory_bytes?: number; memory_limit_bytes?: number; disk_bytes?: number; disk_limit_bytes?: number } | null>(null)
   const [isInstalling, setIsInstalling] = useState(false)
+  const installingRef = useRef(installingProp || false)
+  useEffect(() => { installingRef.current = installingProp || isInstalling }, [installingProp, isInstalling])
+  useEffect(() => { if (installingProp) setIsInstalling(true) }, [installingProp])
+
+  // Freeze tab after inactivity
+  const [frozen, setFrozen] = useState(false)
+  const lastActivityRef = useRef(Date.now())
+  const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const FREEZE_TIMEOUT = 10 * 60 * 1000 // 10 minutes
+
+  const resetFreezeTimer = useCallback(() => {
+    lastActivityRef.current = Date.now()
+    if (frozen) return
+    if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
+    freezeTimerRef.current = setTimeout(() => {
+      setFrozen(true)
+      if (wsRef.current) {
+        wsRef.current.onclose = null
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }, FREEZE_TIMEOUT)
+  }, [frozen])
+
+  useEffect(() => {
+    if (isInstalling || installingProp) {
+      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
+      return
+    }
+    resetFreezeTimer()
+    return () => { if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current) }
+  }, [isInstalling, installingProp, resetFreezeTimer])
+
+  const unfreeze = useCallback(() => {
+    setFrozen(false)
+    lastActivityRef.current = Date.now()
+    if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
+    freezeTimerRef.current = setTimeout(() => {
+      setFrozen(true)
+      if (wsRef.current) {
+        wsRef.current.onclose = null
+        wsRef.current.close()
+        wsRef.current = null
+      }
+    }, FREEZE_TIMEOUT)
+    window.location.reload()
+  }, [])
 
   const addToOutput = useCallback((text: string) => {
     consoleOutputRef.current.push(text)
@@ -443,6 +499,44 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
       consoleOutputRef.current = consoleOutputRef.current.slice(-500)
     }
   }, [])
+
+  // Track which install lines we've already displayed (to avoid duplicates)
+  const displayedInstallLinesRef = useRef<Set<string>>(new Set())
+
+  const fetchInstallLogs = useCallback(async () => {
+    if (!xtermRef.current) return
+    try {
+      const text = await apiFetch(API_ENDPOINTS.serverInstallLogs.replace(":id", serverId))
+      if (!text) return
+      const lines = text.split('\n').filter(Boolean)
+      for (const line of lines) {
+        const trimmed = line.trim()
+        if (!trimmed || displayedInstallLinesRef.current.has(trimmed)) continue
+        displayedInstallLinesRef.current.add(trimmed)
+        const translated = translateInstallText(trimmed, t)
+        const output = `[${t("terminal.tags.install")}] ${translated}`
+        xtermRef.current.writeln(`\x1b[33m${output}\x1b[0m`)
+        addToOutput(stripAnsiText(output))
+      }
+    } catch {}
+  }, [serverId, addToOutput, t])
+
+  // Fetch install logs once on mount (catches completed installs)
+  // Do NOT poll during install — Wings only creates/truncates install.log
+  // at the END of installation, so polling returns stale data from a previous install.
+  // Live output comes via WS "install output" events instead.
+  useEffect(() => {
+    fetchInstallLogs()
+  }, [fetchInstallLogs])
+
+  // When install finishes (isInstalling -> false), fetch the final log once
+  const prevInstallingRef = useRef(isInstalling)
+  useEffect(() => {
+    if (prevInstallingRef.current && !isInstalling) {
+      fetchInstallLogs()
+    }
+    prevInstallingRef.current = isInstalling
+  }, [isInstalling, fetchInstallLogs])
 
   const sendCommand = useCallback((cmd: string) => {
     if (!cmd.trim()) return
@@ -526,6 +620,10 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
 
     // Exponential backoff: 2s, 4s, 8s, 15s, 30s, 30s, 30s...
     const getReconnectDelay = (attempt: number): number => {
+      if (installingRef.current) {
+        // Installing — reconnect quickly to catch output
+        return Math.min(1000 + attempt * 500, 5000)
+      }
       if (serverOfflineRef.current) {
         // Server is offline — use much longer intervals
         return Math.min(30000 + attempt * 5000, 60000)
@@ -729,22 +827,281 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         }, delay)
       }
 
+      function setupWsHandlers(ws: WebSocket) {
+        ws.onopen = () => {
+          isConnectingRef.current = false
+          setReconnecting(false)
+          if (cancelledRef.current) return
+
+          retryCountRef.current = 0
+          serverOfflineRef.current = false
+          if (reconnectTimerRef.current) {
+            clearTimeout(reconnectTimerRef.current)
+            reconnectTimerRef.current = null
+          }
+        }
+
+        ws.onmessage = (ev) => {
+          if (cancelledRef.current) return
+          try {
+            const msg = JSON.parse(ev.data)
+            switch (msg.event) {
+              case "auth success":
+                setConnected(true)
+                setConnectionState("connected")
+                serverOfflineRef.current = false
+                if (!connectedHintShownRef.current) {
+                  term.writeln(`\x1b[32m${t("terminal.connected")}.\x1b[0m ${t("terminal.typeCommands")}\r\n`)
+                  connectedHintShownRef.current = true
+                }
+                ws.send(JSON.stringify({ event: "send logs", args: [] }))
+                ws.send(JSON.stringify({ event: "send stats", args: [] }))
+                break
+
+               case "console output":
+                for (const line of msg.args || []) {
+                  const raw = typeof line === "string" ? line : JSON.stringify(line)
+                  const processed = processConsoleOutput(raw)
+                  const plain = stripAnsiText(processed)
+                  const daemonMatch = plain.match(/^\[Daemon\]:\s*/)
+                  let output = processed
+                  if (daemonMatch) {
+                    const msgText = plain.slice(daemonMatch[0].length)
+                    const translated = translateDaemonText(msgText, t)
+                    output = processed.replace(msgText, translated)
+                  }
+                  if (output.trim() || output.includes('\n')) {
+                    term.write(output)
+                    if (!output.endsWith('\n') && !output.endsWith('\r')) {
+                      term.write('\r\n')
+                    }
+                    addToOutput(stripAnsiText(output))
+                  }
+                }
+                break
+
+               case "install output":
+                setIsInstalling(true)
+                for (const line of msg.args || []) {
+                  const processed = processConsoleOutput(String(line))
+                  const translated = translateInstallText(processed, t)
+                  const text = `[${t("terminal.tags.install")}] ${translated}`
+                  if (text.trim()) {
+                    term.writeln(`\x1b[33m${text}\x1b[0m`)
+                    addToOutput(stripAnsiText(text))
+                  }
+                }
+                break
+
+               case "stats": {
+                const stats = msg.args?.[0] || {}
+                setResources({
+                  cpu_absolute: stats.cpu_absolute,
+                  memory_bytes: stats.memory_bytes,
+                  memory_limit_bytes: stats.memory_limit_bytes,
+                  disk_bytes: stats.disk_bytes,
+                  disk_limit_bytes: stats.disk_limit_bytes,
+                })
+                break
+              }
+
+               case "status": {
+                const raw = String(msg.args?.[0] || "")
+                const processed = processConsoleOutput(raw)
+                const translated = translateStatusText(processed, t)
+                term.writeln(`\x1b[36m[${t("terminal.tags.status")}]\x1b[0m ${translated}`)
+                setConnectionState(raw)
+                const s = raw.toLowerCase()
+                if (s === "running" || s === "connected") {
+                  setIsInstalling(false)
+                  setConnected(true)
+                  serverOfflineRef.current = false
+                  if (!connectedHintShownRef.current) {
+                    connectedHintShownRef.current = true
+                  }
+                } else if (s === "installing") {
+                  setConnected(true)
+                  serverOfflineRef.current = false
+                } else if (s === "connecting" || s === "starting") {
+                  setConnected(false)
+                } else if (s === "offline" || s === "stopped") {
+                  if (installingRef.current) {
+                    // Server is being installed — don't show as offline
+                    setConnectionState("installing")
+                    setConnected(true)
+                    serverOfflineRef.current = false
+                  } else {
+                    setConnected(false)
+                    serverOfflineRef.current = true
+                    connectedHintShownRef.current = false
+                  }
+                } else if (s.includes("disconnect") || s.includes("failed") || s.includes("expired")) {
+                  setConnected(false)
+                  connectedHintShownRef.current = false
+                }
+                break
+              }
+
+               case "daemon message": {
+                const dmMsg = processConsoleOutput(msg.args?.join(" ") || "")
+                const translated = translateDaemonText(dmMsg, t)
+                if (translated.trim()) {
+                  term.writeln(`\x1b[33m[${t("terminal.tags.daemon")}]\x1b[0m ${translated}`)
+                }
+                break
+              }
+
+              case "daemon error": {
+                const errMsg = processConsoleOutput(msg.args?.join(" ") || "")
+                if (errMsg.trim()) {
+                  term.writeln(`\x1b[31m[${t("terminal.tags.error")}]\x1b[0m ${errMsg}`)
+                }
+                break
+              }
+
+              case "jwt error":
+                term.writeln(`\x1b[31m[${t("terminal.tags.authError")}]\x1b[0m ${processConsoleOutput(msg.args?.join(" ") || "")}`)
+                setConnected(false)
+                break
+
+              case "token expiring":
+                apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
+                  .then((c) => {
+                    if (c?.data?.token && ws?.readyState === WebSocket.OPEN) {
+                      ws.send(JSON.stringify({ event: "auth", args: [c.data.token] }))
+                    }
+                  })
+                  .catch(() => {})
+                break
+
+              case "token expired":
+                term.writeln(`\x1b[31m${t("terminal.sessionExpired")}\x1b[0m`)
+                setConnected(false)
+                break
+
+              default:
+                break
+            }
+          } catch {
+            const processed = processConsoleOutput(String(ev.data))
+            if (processed.trim()) {
+              term.writeln(processed)
+            }
+          }
+        }
+
+        ws.onerror = () => {
+          if (!cancelledRef.current) {
+            term.writeln(`\x1b[31m${t("terminal.websocketErrorOccurred")}\x1b[0m`)
+          }
+        }
+
+        ws.onclose = (ev) => {
+          isConnectingRef.current = false
+          setReconnecting(false)
+          if (cancelledRef.current) return
+          setConnected(false)
+
+          if (ev.code === 1008) {
+            term.writeln(`\x1b[31m${t("terminal.authFailed", { code: ev.code })}`)
+            setConnectionState("disconnected")
+            return
+          }
+
+          term.writeln(`\x1b[90m${t("terminal.disconnected", { code: ev.code, reason: ev.reason ? `: ${ev.reason}` : "" })}\x1b[0m`)
+
+          if (ev.code === 1006 && !installingRef.current) {
+            serverOfflineRef.current = true
+            scheduleReconnect()
+          } else if (ev.code === 1006) {
+            // Installing — Wings may recycle the connection, reconnect without marking offline
+            scheduleReconnect()
+          }
+        }
+      }
+
+      async function connectDirect(url: string, jwt: string, timeoutMs = 10000): Promise<WebSocket | null> {
+        return new Promise((resolve) => {
+          try {
+            const sock = new WebSocket(url)
+            let settled = false
+
+            const done = (result: WebSocket | null) => {
+              if (settled) return
+              settled = true
+              clearTimeout(timer)
+              resolve(result)
+            }
+
+            const timer = setTimeout(() => {
+              sock.close()
+              done(null)
+            }, timeoutMs)
+
+            sock.onopen = () => {
+              sock.send(JSON.stringify({ event: 'auth', args: [jwt] }))
+            }
+
+            sock.onmessage = (ev) => {
+              try {
+                const msg = JSON.parse(ev.data)
+                if (msg.event === 'auth success') {
+                  done(sock)
+                } else if (msg.event === 'jwt error') {
+                  sock.close()
+                  done(null)
+                }
+              } catch {
+                // Ignore parse errors during auth
+              }
+            }
+
+            sock.onerror = () => done(null)
+            sock.onclose = () => done(null)
+          } catch {
+            resolve(null)
+          }
+        })
+      }
+
+      async function connectToUrl(url: string, timeoutMs = 10000): Promise<WebSocket | null> {
+        return new Promise((resolve) => {
+          try {
+            const sock = new WebSocket(url)
+            const timer = setTimeout(() => {
+              sock.close()
+              resolve(null)
+            }, timeoutMs)
+            sock.onopen = () => {
+              clearTimeout(timer)
+              resolve(sock)
+            }
+            sock.onerror = () => { clearTimeout(timer); resolve(null) }
+            sock.onclose = () => { clearTimeout(timer); resolve(null) }
+          } catch {
+            resolve(null)
+          }
+        })
+      }
+
       async function connect() {
         if (cancelledRef.current) return
         if (isConnectingRef.current) return
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return
-        
+
         isConnectingRef.current = true
         setReconnecting(true)
         setConnectionState("connecting")
-        
+
         try {
           const creds = await apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
-          const socketUrl = creds?.data?.socket
-          const token = creds?.data?.token
+          const proxyUrl = creds?.data?.socket
+          const directWsUrl = creds?.data?.direct_socket
+          const directEnabled = creds?.data?.direct
+          const wingsJwt = creds?.data?.token
 
-          if (!socketUrl || !token) {
-            term.writeln(`\x1b[31m${t("terminal.failedWsCredentials")}\x1b[0m`)
+          if (!proxyUrl) {
+            term.writeln(`\x1b[31m${t("terminal.failedWsCredentials")}`)
             isConnectingRef.current = false
             setReconnecting(false)
             serverOfflineRef.current = true
@@ -757,230 +1114,66 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
             return
           }
 
-          try {
-            ws = new WebSocket(socketUrl)
-          } catch (err: any) {
-            term.writeln(`\x1b[31m${t("terminal.websocketError", { reason: err.message || err })}\x1b[0m`)
+          // Try direct connection to Wings (no backend proxy)
+          if (directEnabled && directWsUrl && wingsJwt) {
+            term.writeln(`\x1b[90m${t("terminal.tryingDirectConnection")}\x1b[0m`)
+            const directWs = await connectDirect(directWsUrl, wingsJwt, 8000)
+            if (directWs && !cancelledRef.current) {
+              term.writeln(`\x1b[32m${t("terminal.directConnected")}\x1b[0m`)
+              ws = directWs
+              wsRef.current = directWs
+              setupWsHandlers(directWs)
+              // Post-auth setup — connectDirect already consumed auth success
+              isConnectingRef.current = false
+              retryCountRef.current = 0
+              serverOfflineRef.current = false
+              if (reconnectTimerRef.current) {
+                clearTimeout(reconnectTimerRef.current)
+                reconnectTimerRef.current = null
+              }
+              setConnected(true)
+              setConnectionState("connected")
+              setReconnecting(false)
+              if (!connectedHintShownRef.current) {
+                term.writeln(`\x1b[32m${t("terminal.connected")}.\x1b[0m ${t("terminal.typeCommands")}\r\n`)
+                connectedHintShownRef.current = true
+              }
+              directWs.send(JSON.stringify({ event: "send logs", args: [] }))
+              directWs.send(JSON.stringify({ event: "send stats", args: [] }))
+              return
+            }
+            if (!cancelledRef.current) {
+              term.writeln(`\x1b[33m${t("terminal.fallingBackToProxy")}\x1b[0m`)
+            }
+          }
+
+          // Fallback: connect through backend proxy
+          const proxyWs = await connectToUrl(proxyUrl, 10000)
+          if (!proxyWs || cancelledRef.current) {
             isConnectingRef.current = false
             setReconnecting(false)
+            if (!installingRef.current) serverOfflineRef.current = true
             scheduleReconnect()
             return
           }
-          wsRef.current = ws
 
-          // Connection timeout — if we don't get onopen within 10s, give up
-          const connectTimeout = setTimeout(() => {
-            if (ws && ws.readyState === WebSocket.CONNECTING) {
-              term.writeln(`\x1b[31m${t("terminal.connectionTimedOut")}\x1b[0m`)
-              ws.close()
-            }
-          }, 10000)
-
-          ws.onopen = () => {
-            clearTimeout(connectTimeout)
-            isConnectingRef.current = false
-            setReconnecting(false)
-            if (cancelledRef.current) return
-            
-            // Reset retry state on successful connection
-            retryCountRef.current = 0
-            serverOfflineRef.current = false
-            if (reconnectTimerRef.current) {
-              clearTimeout(reconnectTimerRef.current)
-              reconnectTimerRef.current = null
-            }
-            
-            ws!.send(JSON.stringify({ event: "auth", args: [token] }))
-          }
-
-          ws.onmessage = (ev) => {
-            if (cancelledRef.current) return
-            try {
-              const msg = JSON.parse(ev.data)
-              switch (msg.event) {
-                case "auth success":
-                  setConnected(true)
-                  setConnectionState("connected")
-                  serverOfflineRef.current = false
-                  if (!connectedHintShownRef.current) {
-                    term.writeln(`\x1b[32m${t("terminal.connected")}.\x1b[0m ${t("terminal.typeCommands")}\r\n`)
-                    connectedHintShownRef.current = true
-                  }
-                  ws!.send(JSON.stringify({ event: "send logs", args: [] }))
-                  ws!.send(JSON.stringify({ event: "send stats", args: [] }))
-                  break
-                  
-                 case "console output":
-                  for (const line of msg.args || []) {
-                    const raw = typeof line === "string" ? line : JSON.stringify(line)
-                    const processed = processConsoleOutput(raw)
-                    const plain = stripAnsiText(processed)
-                    const daemonMatch = plain.match(/^\[Daemon\]:\s*/)
-                    let output = processed
-                    if (daemonMatch) {
-                      const msgText = plain.slice(daemonMatch[0].length)
-                      const translated = translateDaemonText(msgText, t)
-                      output = processed.replace(msgText, translated)
-                    }
-                    if (output.trim() || output.includes('\n')) {
-                      term.write(output)
-                      if (!output.endsWith('\n') && !output.endsWith('\r')) {
-                        term.write('\r\n')
-                      }
-                      addToOutput(stripAnsiText(output))
-                    }
-                  }
-                  break
-                  
-                 case "install output":
-                  setIsInstalling(true)
-                  for (const line of msg.args || []) {
-                    const processed = processConsoleOutput(String(line))
-                    const translated = translateInstallText(processed, t)
-                    const text = `[${t("terminal.tags.install")}] ${translated}`
-                    if (text.trim()) {
-                      term.writeln(`\x1b[33m${text}\x1b[0m`)
-                      addToOutput(stripAnsiText(text))
-                    }
-                  }
-                  break
-
-                 case "stats": {
-                  const stats = msg.args?.[0] || {}
-                  setResources({
-                    cpu_absolute: stats.cpu_absolute,
-                    memory_bytes: stats.memory_bytes,
-                    memory_limit_bytes: stats.memory_limit_bytes,
-                    disk_bytes: stats.disk_bytes,
-                    disk_limit_bytes: stats.disk_limit_bytes,
-                  })
-                  break
-                }
-                 
-                 case "status": {
-                  const raw = String(msg.args?.[0] || "")
-                  const processed = processConsoleOutput(raw)
-                  const translated = translateStatusText(processed, t)
-                  term.writeln(`\x1b[36m[${t("terminal.tags.status")}]\x1b[0m ${translated}`)
-                  setConnectionState(raw)
-                  const s = raw.toLowerCase()
-                  if (s === "running" || s === "connected") {
-                    setIsInstalling(false)
-                    setConnected(true)
-                    serverOfflineRef.current = false
-                    if (!connectedHintShownRef.current) {
-                      connectedHintShownRef.current = true
-                    }
-                  } else if (s === "connecting" || s === "starting") {
-                    setConnected(false)
-                  } else if (s === "offline" || s === "stopped") {
-                    setConnected(false)
-                    serverOfflineRef.current = true
-                    connectedHintShownRef.current = false
-                  } else if (s.includes("disconnect") || s.includes("failed") || s.includes("expired")) {
-                    setConnected(false)
-                    connectedHintShownRef.current = false
-                  }
-                  break
-                }
-                  
-                 case "daemon message": {
-                  const dmMsg = processConsoleOutput(msg.args?.join(" ") || "")
-                  const translated = translateDaemonText(dmMsg, t)
-                  if (translated.trim()) {
-                    term.writeln(`\x1b[33m[${t("terminal.tags.daemon")}]\x1b[0m ${translated}`)
-                  }
-                  break
-                }
-                  
-                case "daemon error": {
-                  const errMsg = processConsoleOutput(msg.args?.join(" ") || "")
-                  if (errMsg.trim()) {
-                    term.writeln(`\x1b[31m[${t("terminal.tags.error")}]\x1b[0m ${errMsg}`)
-                  }
-                  break
-                }
-                  
-                case "jwt error":
-                  term.writeln(`\x1b[31m[${t("terminal.tags.authError")}]\x1b[0m ${processConsoleOutput(msg.args?.join(" ") || "")}`)
-                  setConnected(false)
-                  break
-                  
-                case "token expiring":
-                  apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
-                    .then((c) => {
-                      if (c?.data?.token && ws?.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ event: "auth", args: [c.data.token] }))
-                      }
-                    })
-                    .catch(() => {})
-                  break
-                  
-                case "token expired":
-                  term.writeln(`\x1b[31m${t("terminal.sessionExpired")}\x1b[0m`)
-                  setConnected(false)
-                  break
-                  
-                default:
-                  break
-              }
-            } catch {
-              const processed = processConsoleOutput(String(ev.data))
-              if (processed.trim()) {
-                term.writeln(processed)
-              }
-            }
-          }
-
-          ws.onerror = () => {
-            clearTimeout(connectTimeout)
-            if (!cancelledRef.current) {
-              term.writeln(`\x1b[31m${t("terminal.websocketErrorOccurred")}\x1b[0m`)
-            }
-          }
-
-          ws.onclose = (ev) => {
-            clearTimeout(connectTimeout)
-            isConnectingRef.current = false
-            setReconnecting(false)
-            
-            if (cancelledRef.current) return
-            
-            setConnected(false)
-            
-            // Determine if this was an immediate disconnect (server offline)
-            // Code 1006 = abnormal closure (connection lost / server unreachable)
-            // Code 1000 = normal closure
-            // Code 1008 = policy violation (auth failure)
-            const isAbnormal = ev.code === 1006
-            const isAuthFailure = ev.code === 1008
-            
-            if (isAuthFailure) {
-              term.writeln(`\x1b[31m${t("terminal.authFailed", { code: ev.code })}\x1b[0m`)
-              setConnectionState("disconnected")
-              return
-            }
-            
-            term.writeln(`\x1b[90m${t("terminal.disconnected", { code: ev.code, reason: ev.reason ? `: ${ev.reason}` : "" })}\x1b[0m`)
-            
-            if (isAbnormal) {
-              // Mark as potentially offline if we disconnect very quickly
-              serverOfflineRef.current = true
-              scheduleReconnect()
-            }
-            // For normal closures (1000), don't auto-reconnect — user or server initiated
-          }
+          ws = proxyWs
+          wsRef.current = proxyWs
+          setupWsHandlers(proxyWs)
+          isConnectingRef.current = false
+          setReconnecting(false)
         } catch (err: any) {
           const msg = err?.message || String(err)
-          
-          // Check if it's a network/server error indicating the server is offline
-          if (msg.includes("fetch") || msg.includes("network") || msg.includes("404") || msg.includes("502") || msg.includes("503")) {
+
+          if (installingRef.current) {
+            term.writeln(`\x1b[33m${t("terminal.reconnectingIn", { delaySec: 2, attempt: retryCountRef.current + 1, maxRetries: MAX_RETRIES })}\x1b[0m`)
+          } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("404") || msg.includes("502") || msg.includes("503")) {
             serverOfflineRef.current = true
             term.writeln(`\x1b[90m${t("terminal.serverOffline", { reason: msg })}\x1b[0m`)
           } else {
             term.writeln(`\x1b[31m${t("terminal.connectionFailed", { reason: msg })}\x1b[0m`)
           }
-          
+
           isConnectingRef.current = false
           setReconnecting(false)
           scheduleReconnect()
@@ -1077,6 +1270,7 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
         onCopy={copyOutput}
         copied={copied}
         reconnecting={reconnecting}
+        installing={installingProp || isInstalling}
         t={t}
       />
 
@@ -1090,6 +1284,9 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
               : "h-[300px] sm:h-[400px] md:h-[550px]"
           )}
           onClick={() => xtermRef.current?.focus()}
+          onMouseMove={resetFreezeTimer}
+          onKeyDown={resetFreezeTimer}
+          onWheel={resetFreezeTimer}
         />
         
         {!terminalReady && (
@@ -1097,6 +1294,21 @@ export function ConsoleTab({ serverId }: ConsoleTabProps) {
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm">{t("states.loadingConsole")}</span>
+            </div>
+          </div>
+        )}
+
+        {frozen && (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]/90 cursor-pointer z-10"
+            onClick={unfreeze}
+          >
+            <div className="flex flex-col items-center gap-4 text-center px-6">
+              <Terminal className="h-10 w-10 text-muted-foreground/50" />
+              <div>
+                <p className="text-base font-medium text-foreground mb-1">{t("states.frozenTitle")}</p>
+                <p className="text-sm text-muted-foreground">{t("states.frozenDescription")}</p>
+              </div>
             </div>
           </div>
         )}

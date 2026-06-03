@@ -158,6 +158,7 @@ export const API_ENDPOINTS = {
   serverFileDelete: "/api/servers/:id/files/delete",
   serverFileCreateDir: "/api/servers/:id/files/create-directory",
   serverFileArchive: "/api/servers/:id/files/archive",
+  serverFileDecompress: "/api/servers/:id/files/decompress",
   serverFileMove: "/api/servers/:id/files/move",
   serverFileRename: "/api/servers/:id/files/rename",
   serverSftpFiles: "/api/servers/:id/sftp/files",
@@ -184,7 +185,7 @@ export const API_ENDPOINTS = {
   serverCommands: "/api/servers/:id/commands",
   serverLogs: "/api/servers/:id/logs",
   serverWebsocket: "/api/servers/:id/websocket",
-  serverStartup: "/api/servers/:id/startup",
+  serverSftp: "/api/servers/:id/sftp",
   serverReinstall: "/api/servers/:id/reinstall",
   serverStats: "/api/servers/:id/stats",
   serverStatsHistory: "/api/servers/:id/stats/history",
@@ -228,6 +229,7 @@ export const API_ENDPOINTS = {
   organisationInviteReject: "/api/organisations/invites/:inviteId/reject",
   serverKvm: "/api/servers/:id/kvm",
   serverVersion: "/api/servers/:id/version",
+  serverStartup: "/api/servers/:id/startup",
   serverInstallLogs: "/api/servers/:id/logs/install",
 
   // Tunnel

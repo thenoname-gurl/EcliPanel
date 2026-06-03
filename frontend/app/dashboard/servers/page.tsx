@@ -100,6 +100,10 @@ function statusColor(status: string) {
       return "bg-amber-500 animate-pulse"
     case "stopping":
       return "bg-orange-500 animate-pulse"
+    case "installing":
+      return "bg-yellow-500 animate-pulse"
+    case "hibernated":
+      return "bg-purple-500"
     case "offline":
     case "stopped":
       return "bg-zinc-500"
@@ -119,6 +123,10 @@ function statusLabel(status: string, t?: (key: string) => string) {
       return t ? t("status.starting") : "Starting"
     case "stopping":
       return t ? t("status.stopping") : "Stopping"
+    case "installing":
+      return t ? t("status.installing") : "Installing"
+    case "hibernated":
+      return t ? t("status.hibernated") : "Hibernated"
     case "offline":
     case "stopped":
       return t ? t("status.offline") : "Offline"

@@ -1162,11 +1162,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       ? 'text-green-400 bg-green-400'
       : server.status === 'hibernated'
         ? 'text-purple-400 bg-purple-400'
-        : server.status === 'dmca'
-          ? 'text-destructive bg-destructive'
-          : server.status === 'stopped' || server.status === 'offline'
-            ? 'text-red-400 bg-red-400'
-            : 'text-yellow-400 bg-yellow-400'
+        : server.status === 'installing'
+          ? 'text-yellow-400 bg-yellow-400 animate-pulse'
+          : server.status === 'dmca'
+            ? 'text-destructive bg-destructive'
+            : server.status === 'stopped' || server.status === 'offline'
+              ? 'text-red-400 bg-red-400'
+              : 'text-yellow-400 bg-yellow-400'
 
   if (!hasServerAccess) {
     return (
@@ -1346,7 +1348,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0 w-full">
             {activeTab === "console" && (
               <Suspense fallback={<LoadingState message={t("states.loadingConsole")} />}>
-                <ConsoleTabLazy serverId={id} />
+                <ConsoleTabLazy serverId={id} installing={server?.installing} />
               </Suspense>
             )}
             {activeTab === "stats" && (
@@ -3586,6 +3588,8 @@ function SettingsTab({
   const t = useTranslations("serverDetailPage")
   const { user } = useAuth()
   const [reinstalling, setReinstalling] = useState(false)
+  const [reinstallDialogOpen, setReinstallDialogOpen] = useState(false)
+  const [wipeOnReinstall, setWipeOnReinstall] = useState(true)
   const [launchNotice, setLaunchNotice] = useState<string | null>(null)
   const [savingResources, setSavingResources] = useState(false)
   const [memoryLimit, setMemoryLimit] = useState<number>(Number(server?.build?.memory_limit ?? 0))
@@ -3687,12 +3691,11 @@ function SettingsTab({
   }, [server, serverId])
 
   const handleReinstall = async () => {
-    if (!confirm(t("settings.confirmReinstall"))) return
     setReinstalling(true)
     try {
       await apiFetch(API_ENDPOINTS.serverReinstall.replace(":id", serverId), {
         method: "POST",
-        body: JSON.stringify({}),
+        body: JSON.stringify({ truncate_directory: wipeOnReinstall }),
       })
       alert(t("settings.reinstallInitiated"))
       reload()
@@ -4117,7 +4120,7 @@ function SettingsTab({
             variant="outline"
             size="sm"
             className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 w-full sm:w-auto h-10 sm:h-9"
-            onClick={handleReinstall}
+            onClick={() => setReinstallDialogOpen(true)}
             disabled={reinstalling}
           >
             {reinstalling && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
@@ -4135,6 +4138,81 @@ function SettingsTab({
           </Button>
         </div>
       </div>
+      <Dialog open={reinstallDialogOpen} onOpenChange={(open) => setReinstallDialogOpen(open)}>
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">{t("settings.reinstallDialog.title")}</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {t("settings.reinstallDialog.description")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setWipeOnReinstall(true)}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  wipeOnReinstall
+                    ? "border-yellow-500/40 bg-yellow-500/10"
+                    : "border-border bg-secondary/20 hover:bg-secondary/30"
+                )}
+              >
+                <p className="text-sm font-medium text-foreground">
+                  {t("settings.reinstallDialog.wipeTitle")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("settings.reinstallDialog.wipeDescription")}
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWipeOnReinstall(false)}
+                className={cn(
+                  "rounded-lg border p-3 text-left transition-colors",
+                  !wipeOnReinstall
+                    ? "border-primary/40 bg-primary/10"
+                    : "border-border bg-secondary/20 hover:bg-secondary/30"
+                )}
+              >
+                <p className="text-sm font-medium text-foreground">
+                  {t("settings.reinstallDialog.keepTitle")}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t("settings.reinstallDialog.keepDescription")}
+                </p>
+              </button>
+            </div>
+            <div className="rounded-lg border border-border bg-secondary/20 p-3">
+              <p className="text-xs text-muted-foreground">
+                {t("settings.reinstallDialog.wingsNote")}
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setReinstallDialogOpen(false)}
+              disabled={reinstalling}
+              className="w-full sm:w-auto"
+            >
+              {t("actions.cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setReinstallDialogOpen(false)
+                handleReinstall()
+              }}
+              disabled={reinstalling}
+              className="w-full sm:w-auto"
+            >
+              {reinstalling && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {t("settings.reinstall")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

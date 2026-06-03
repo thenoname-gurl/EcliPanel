@@ -4888,6 +4888,7 @@ export async function adminRoutes(app: any, prefix = '') {
           disk: Number(disk),
           cpu: Number(cpu),
           eggId: eggId ? Number(eggId) : undefined,
+          installing: hasInstallScript,
         });
         const logRepo = AppDataSource.getRepository(UserLog);
         await logRepo.save(

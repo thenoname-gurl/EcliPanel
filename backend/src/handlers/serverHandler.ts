@@ -915,12 +915,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     );
     const isDmca = Boolean(r.is_dmca ?? r.dmca ?? cfg.dmca ?? persistedCfg?.dmca ?? false);
     const baseStatus = (overrideStatus ?? r.state ?? r.status ?? 'unknown') as string;
-    const status = isDmca ? 'dmca' : isSuspended ? 'suspended' : baseStatus;
+    const status = isDmca ? 'dmca' : isSuspended ? 'suspended' : (persistedCfg?.installing ? 'installing' : baseStatus);
     return {
       uuid: cfg.uuid || r.uuid,
       name: meta.name || r.name || cfg.uuid || r.uuid,
       description: meta.description as string | undefined,
       status,
+      installing: persistedCfg?.installing ?? false,
       hibernated: status === 'hibernated',
       is_suspended: isSuspended || isDmca,
       is_dmca: isDmca,
@@ -1700,7 +1701,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             )
           : '');
 
-      const hasInstallScript = Boolean(
+      const hasInstallScript = !!(
         egg.installScript &&
         (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint)
       );
@@ -1728,6 +1729,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         cpu,
         eggId: egg.id,
         kvmPassthroughEnabled,
+        installing: hasInstallScript,
         ...(autoAllocation ? { allocations: autoAllocation } : {}),
       });
 
@@ -1906,6 +1908,68 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         502: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Update server settings', tags: ['Servers'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/:id',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+
+      const user = ctx.user;
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const isAdmin = hasPermissionSync(ctx, 'servers:list');
+      if (!isAdmin) {
+        const owned = cfg.userId === user?.id;
+        const subuser = await AppDataSource.getRepository(ServerSubuser).findOneBy({
+          serverUuid: id,
+          userId: user?.id,
+          accepted: true,
+        });
+        if (!owned && !subuser) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.insufficientPermissions') };
+        }
+      }
+
+      try {
+        const svc = await serviceFor(id);
+        await svc.serverRequest(id, '', 'delete');
+        await removeServerConfig(id);
+
+        await createActivityLog({
+          userId: user.id,
+          action: 'server:delete',
+          targetId: id,
+          targetType: 'server',
+          ipAddress: ctx.ip,
+        });
+
+        return { success: true };
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        console.error('[serverHandler:delete-server]', e);
+        return { error: sanitizeError(e, 'serverHandler:delete-server') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:write')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+          502: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete a server', tags: ['Servers'] },
     }
   );
 
@@ -2939,6 +3003,42 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Archive files', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/files/decompress',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const { root = '/', file } = ctx.body as Record<string, unknown>;
+      if (!file || typeof file !== 'string') {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.fileMustBeString') };
+      }
+      const svc = await serviceFor(id);
+      try {
+        const res = await svc.decompressFile(id, root as string, file as string);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Decompression failed';
+        ctx.set.status = status;
+        return { error: msg };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Decompress archive file', tags: ['Servers'] },
     }
   );
 
@@ -4112,8 +4212,35 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     prefix + '/servers/:id/reinstall',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params as Record<string, string>;
-      const payload = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
+      const body = (ctx.body as Record<string, unknown>) || {};
+      const truncateDirectory =
+        typeof body.truncate_directory === 'boolean' ? body.truncate_directory : true;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      let installationScript: Record<string, any> | null = null;
+      if (cfg?.eggId) {
+        const egg = await eggRepo().findOneBy({ id: cfg.eggId });
+        const eggScript = egg?.installScript;
+        if (eggScript?.script) {
+          installationScript = {
+            container_image:
+              eggScript.container ??
+              egg?.dockerImage ??
+              cfg.dockerImage ??
+              'ghcr.io/pterodactyl/installers:debian',
+            entrypoint: eggScript.entrypoint ?? 'bash',
+            script: eggScript.script,
+            environment: cfg.environment || {},
+          };
+        }
+      }
+
+      const payload: Record<string, unknown> = {
+        truncate_directory: truncateDirectory,
+        ...(installationScript ? { installation_script: installationScript } : {}),
+      };
+
+      await cfgRepo().update({ uuid: id }, { installing: true });
       const res = await svc.reinstallServer(id, payload);
       const user = ctx.user;
       await createActivityLog({
@@ -5455,25 +5582,6 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/logs/install',
-    async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
-      const svc = await serviceFor(id);
-      const res = await svc.serverRequest(id, '/logs/install');
-      return res.data ?? [];
-    },
-    {
-      beforeHandle: [authenticate, authorize('logs:read')],
-      response: {
-        200: t.Array(t.Any()),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Fetch install logs', tags: ['Servers', 'Logs'] },
-    }
-  );
-
-  app.get(
     prefix + '/servers/:id/configuration/egg',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params as Record<string, string>;
@@ -5884,23 +5992,69 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         backendBase.replace(/^https?/, socketScheme) +
         `/api/servers/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;
 
+      const nodeUrl = String((node as any).backendWingsUrl || node.url).replace(/\/+$/, '');
+      const nodeProtocol = node.useSSL === false ? 'ws:' : 'wss:';
+
+      let directSocket: string;
+      const fqdn = (node as any).fqdn;
+      if (fqdn) {
+        try {
+          const u = new URL(nodeUrl);
+          u.protocol = nodeProtocol;
+          u.hostname = fqdn;
+          directSocket = u.toString().replace(/\/+$/, '') + `/api/servers/${id}/ws`;
+        } catch {
+          directSocket = nodeProtocol + '//' + fqdn + `/api/servers/${id}/ws`;
+        }
+      } else {
+        directSocket = nodeUrl.replace(/^https?:/, nodeProtocol) + `/api/servers/${id}/ws`;
+      }
+
       return {
         data: {
           token,
           socket: wsUrl,
+          direct_socket: directSocket,
+          direct: true,
         },
       };
     },
     {
       beforeHandle: [authenticate, authorize('servers:console')],
       response: {
-        200: t.Object({ data: t.Object({ token: t.String(), socket: t.String() }) }),
+        200: t.Object({ data: t.Object({ token: t.String(), socket: t.String(), direct_socket: t.String(), direct: t.Boolean() }) }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Websocket auth token', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/logs/install',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = ctx.params as Record<string, string>;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) { ctx.set.status = 404; return { error: ctx.t('server.notFound') }; }
+      if (cfg.suspended || cfg.dmca) { ctx.set.status = 403; return { error: buildSuspendedServerMessage(cfg) }; }
+
+      const node = await nodeRepo().findOneBy({ id: cfg.nodeId });
+      if (!node) { ctx.set.status = 500; return { error: ctx.t('node.notFound') }; }
+
+      const svc = new WingsApiService(node.backendWingsUrl || node.url, node.token);
+      try {
+        const res = await svc.getInstallLogs(id);
+        return res.data;
+      } catch {
+        ctx.set.status = 404;
+        return { error: 'Install log not found or install not running' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      detail: { summary: 'Get install logs', tags: ['Servers'] },
     }
   );
 
@@ -5948,7 +6102,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         : null;
 
       const host = node.sftpProxyPort && backendHost ? backendHost : nodeHost;
-      const port = node.sftpProxyPort ?? node.sftpPort ?? 2022;
+      const port = node.sftpProxyPort || node.sftpPort || 2022;
 
       const sftpHex = id.replace(/-/g, '').substring(0, 8);
       const username = `${user.email}.${sftpHex}`;

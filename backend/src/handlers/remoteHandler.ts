@@ -641,6 +641,8 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       const { successful } = (ctx.body || {}) as Record<string, unknown>;
       const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
       if (cfg) {
+        cfg.installing = false;
+        await repo().save(cfg);
         await AppDataSource.getRepository(UserLog).save(
           AppDataSource.getRepository(UserLog).create({
             userId: cfg.userId,
@@ -775,9 +777,24 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
         const usernameStr = typeof username === 'string' ? username : '';
         const passwordStr = typeof password === 'string' ? password : '';
 
-        if (!username || !password) {
+        if (!usernameStr) {
           ctx.set.status = 403;
-          return { errors: [{ code: 'Forbidden', detail: 'Invalid credentials' }] };
+          return { errors: [{ code: 'Forbidden', detail: 'Missing username' }] };
+        }
+
+        if (!passwordStr && authType !== 'public_key') {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Missing password' }] };
+        }
+
+        if (authType !== 'password' && authType !== 'public_key') {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: `Unsupported auth type: ${authType}` }] };
+        }
+
+        if (!passwordStr && authType === 'password') {
+          ctx.set.status = 403;
+          return { errors: [{ code: 'Forbidden', detail: 'Missing password' }] };
         }
 
         // Username format: <user-identifier>.<first-8-hex-of-server-uuid>
@@ -828,6 +845,11 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           const sshKeyRepo = AppDataSource.getRepository(SshKey);
           const userKeys = await sshKeyRepo.find({ where: { userId: user.id } });
 
+          if (!passwordStr) {
+            ctx.set.status = 403;
+            return { errors: [{ code: 'Forbidden', detail: 'Missing public key' }] };
+          }
+
           const submittedKey = passwordStr.trim();
           const parsedSubmitted = parseSshPublicKey(submittedKey);
 
@@ -857,9 +879,6 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
             ctx.set.status = 403;
             return { errors: [{ code: 'Forbidden', detail: 'Public key not recognised' }] };
           }
-        } else {
-          ctx.set.status = 403;
-          return { errors: [{ code: 'Forbidden', detail: 'Unsupported authentication type' }] };
         }
 
         const configs = await repo().find({ where: { nodeId: node.id } });
@@ -1331,6 +1350,7 @@ export async function saveServerConfig(params: {
   lastActivityAt?: Date;
   hibernated?: boolean;
   ignoreAntiAbuse?: boolean;
+  installing?: boolean;
 }): Promise<ServerConfig> {
   if (!Number.isFinite(params.memory) || params.memory < 0) throw new Error('Invalid memory value');
   if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
@@ -1361,6 +1381,7 @@ export async function saveServerConfig(params: {
       allocations: params.allocations ?? null,
       processConfig: normalizeProcessConfig(params.processConfig ?? null),
       lastActivityAt: params.lastActivityAt ?? null,
+      installing: params.installing ?? false,
     });
     return r.save(cfg);
   }

@@ -357,6 +357,7 @@
     "permissionsArrayRequired": "Требуется массив разрешений",
     "recipientEmailRequired": "Требуется email получателя",
     "filesMustBeArray": "files должен быть непустым массивом",
+    "fileMustBeString": "file должен быть строкой",
     "toAddressRequired": "Отсутствует адрес получателя",
     "messageBodyRequired": "Требуется тело сообщения или HTML-содержимое",
     "ipTypeRequired": "Требуются ip и тип",

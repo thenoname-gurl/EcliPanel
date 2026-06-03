@@ -172,6 +172,10 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/files/compress', 'post', { root, files });
   }
 
+  async decompressFile(serverId: string, root: string, file: string) {
+    return this.serverRequest(serverId, '/files/decompress', 'post', { root, file });
+  }
+
   async chmodFiles(
     serverId: string,
     root: string,
@@ -241,6 +245,13 @@ export class WingsApiService {
 
   async getServerLogs(serverId: string) {
     return this.serverRequest(serverId, '/logs');
+  }
+
+  async getInstallLogs(serverId: string, lines?: number) {
+    return this.request(`/servers/${serverId}/logs/install`, {
+      params: lines ? { lines } : undefined,
+      responseType: 'text',
+    });
   }
 
   async reinstallServer(serverId: string, payload: any) {

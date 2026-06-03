@@ -3539,6 +3539,8 @@
       "starting": "Starting",
       "stopping": "Stopping",
       "offline": "Offline",
+      "installing": "Installing",
+      "hibernated": "Hibernated",
       "dmca": "DMCA",
       "unknown": "Unknown"
     },
@@ -3747,7 +3749,8 @@
     "status": {
       "connected": "Connected",
       "stopping": "Stopping",
-      "disconnected": "Disconnected"
+      "disconnected": "Disconnected",
+      "installing": "Installing"
     },
     "history": {
       "empty": "No command history",
@@ -3756,13 +3759,16 @@
     "toolbar": {
       "console": "Console",
       "copyOutput": "Copy console output",
-      "clearConsole": "Clear console"
+      "clearConsole": "Clear console",
+      "reinstall": "Reinstall"
     },
     "input": {
       "placeholder": "Enter command..."
     },
     "states": {
-      "loadingConsole": "Loading console..."
+      "loadingConsole": "Loading console...",
+      "frozenTitle": "Console Frozen",
+      "frozenDescription": "Click to resume"
     },
     "footer": {
       "typeCommandsAbove": "Type commands directly in the console above"
@@ -3796,6 +3802,11 @@
       "serverOffline": "Server appears offline: {reason}",
       "connectionFailed": "Connection failed: {reason}",
       "manuallyReconnecting": "Manually reconnecting...",
+      "tryingDirectConnection": "Trying direct connection...",
+      "directConnected": "Direct connection established",
+      "fallingBackToProxy": "Direct connection failed, falling back to proxy...",
+      "reinstallStarted": "Reinstall started. Waiting for install output...",
+      "confirmReinstall": "Reinstall this server? All files will be wiped.",
       "tags": {
         "install": "Install",
         "status": "Status",
@@ -3812,7 +3823,8 @@
         "connecting": "Connecting",
         "connecting_dots": "Connecting...",
         "connected": "Connected",
-        "disconnected": "Disconnected"
+        "disconnected": "Disconnected",
+        "installing": "Installing"
       },
       "daemonMessages": {
         "crashedState": "Detected server process in a crashed state!",
@@ -3927,6 +3939,7 @@
       "newFile": "New File",
       "newFolder": "New Folder",
       "archive": "Archive",
+      "extract": "Extract",
       "move": "Move",
       "chmod": "Chmod",
       "delete": "Delete",
@@ -3971,6 +3984,7 @@
       "sftpAutoConnected": "Auto-connected via SFTP",
       "fileSaved": "File saved",
       "archiveCreated": "Archive created",
+      "archiveExtracted": "Archive extracted",
       "commandCopied": "Command copied to clipboard",
       "revisionRestored": "Revision restored"
     },
@@ -4030,6 +4044,7 @@
       "invalidModeShort": "Invalid mode",
       "permissionUpdateFailed": "Permission update failed: {reason}",
       "archiveFailed": "Archive failed: {reason}",
+      "extractFailed": "Extraction failed: {reason}",
       "moveFailed": "Move failed: {reason}",
       "bulkChmodFailed": "Bulk chmod failed: {reason}",
       "bulkDeleteFailed": "Bulk delete failed: {reason}",
@@ -4464,6 +4479,15 @@
     },
     "settings": {
       "confirmReinstall": "Reinstall this server? All files will be wiped.",
+      "reinstallDialog": {
+        "title": "Reinstall server",
+        "description": "Choose whether to wipe the server files before reinstalling.",
+        "wipeTitle": "Wipe all files",
+        "wipeDescription": "Clears the server directory before reinstalling from the egg.",
+        "keepTitle": "Keep files",
+        "keepDescription": "Preserves files and only re-runs the install script.",
+        "wingsNote": "Wings supports optional file truncation during reinstall. Choose based on whether you want a clean slate."
+      },
       "reinstallInitiated": "Reinstall initiated.",
       "failedWithReason": "Failed: {reason}",
       "sshDetailsUnavailable": "SSH connection details are not available.",

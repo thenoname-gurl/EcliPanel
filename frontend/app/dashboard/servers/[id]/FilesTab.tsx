@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { MonacoFileEditor } from "./MonacoFileEditor"
-import { formatBytes, displayPath, MONACO_LANGUAGE_MAP } from "./serverTabHelpers"
+import { formatBytes, displayPath, MONACO_LANGUAGE_MAP, isArchiveFile } from "./serverTabHelpers"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import {
@@ -20,7 +20,7 @@ import {
   Terminal, Wifi, WifiOff, Lock, Unlock,
   CheckCircle2, AlertCircle, Info, ChevronDown,
   Server, HardDrive, Globe, Play, Pause,
-  Link2, Clock
+  Link2, Clock, FileArchive
 } from "lucide-react"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -663,12 +663,12 @@ function SftpConnectionPanel({
 
 function FileRow({
   file, path, isSelected, onToggle, onOpen, onEdit, onRename,
-  onDownload, onShare, onChmod, onDelete, t, dirSizes
+  onDownload, onShare, onChmod, onDelete, onExtract, t, dirSizes
 }: {
   file: FileItem; path: string; isSelected: boolean
   onToggle: () => void; onOpen: () => void; onEdit: () => void
   onRename: () => void; onDownload: () => void; onShare: () => void
-  onChmod: () => void; onDelete: () => void; t: any
+  onChmod: () => void; onDelete: () => void; onExtract?: () => void; t: any
   dirSizes?: Record<string, number>
 }) {
   const fname = getFileName(file)
@@ -747,6 +747,10 @@ function FileRow({
         {!isDir && (
           <ActionBtn onClick={onDownload} icon={Download} label="Download"
             className="hover:text-foreground hover:bg-secondary/60" />
+        )}
+        {!isDir && isArchiveFile(fname) && onExtract && (
+          <ActionBtn onClick={onExtract} icon={FileArchive} label="Extract"
+            className="hover:text-amber-400 hover:bg-amber-500/10" />
         )}
         <ActionBtn onClick={onShare} icon={Link2} label="Share"
           className="hover:text-violet-400 hover:bg-violet-500/10" />
@@ -1629,6 +1633,19 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
     } finally { setBulkBusy(false) }
   }
 
+  const extractFile = async (fileName: string) => {
+    setBulkBusy(true)
+    try {
+      await apiFetch(API_ENDPOINTS.serverFileDecompress.replace(":id", serverId), {
+        method: "POST", body: JSON.stringify({ root: path, file: fileName }),
+      })
+      toast("success", t("states.archiveExtracted"))
+      await loadFiles(path)
+    } catch (e: any) {
+      toast("error", t("errors.extractFailed", { reason: e.message }))
+    } finally { setBulkBusy(false) }
+  }
+
   const moveSelected = async () => {
     if (!selectedNames.length) return
     const dest = window.prompt(t("prompts.moveToFolder"), "")
@@ -2058,6 +2075,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
               onShare={() => setShareFile({ filePath: path + getFileName(file), fileName: getFileName(file) })}
               onChmod={() => chmodFile(path + getFileName(file))}
               onDelete={() => deleteFile(path + getFileName(file))}
+              onExtract={() => extractFile(getFileName(file))}
               t={t}
               dirSizes={dirSizes}
             />
