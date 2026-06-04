@@ -78,7 +78,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
       const repo = AppDataSource.getRepository(IDVerification);
 
       const uploadDir = path.join(process.cwd(), 'uploads', 'id-docs');
-      if (Bun.file(uploadDir).size === 0) fs.mkdirSync(uploadDir, { recursive: true });
+      if (Bun.file(uploadDir).size === 0) await fs.promises.mkdir(uploadDir, { recursive: true });
 
       let idDocumentUrl: string | undefined;
       let selfieUrl: string | undefined;
@@ -436,7 +436,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
           const filepath = getSafeRelativeFilePath(uploadDir, url);
           if (!filepath) continue;
           try {
-            fs.unlinkSync(filepath);
+            await fs.promises.unlink(filepath);
           } catch {}
         }
       }

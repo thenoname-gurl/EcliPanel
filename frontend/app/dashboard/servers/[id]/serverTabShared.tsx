@@ -1,6 +1,6 @@
 "use client"
 
-import { ReactNode } from "react"
+import { ReactNode, memo } from "react"
 import { useTranslations } from "next-intl"
 import { Loader2, AlertCircle, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -13,7 +13,7 @@ interface InfoRowProps {
   className?: string
 }
 
-export function InfoRow({ label, value, mono, copyable, className }: InfoRowProps) {
+export const InfoRow = memo(function InfoRow({ label, value, mono, copyable, className }: InfoRowProps) {
   const handleCopy = () => {
     if (copyable && typeof value === "string") {
       navigator.clipboard.writeText(value)
@@ -38,7 +38,7 @@ export function InfoRow({ label, value, mono, copyable, className }: InfoRowProp
       </p>
     </div>
   )
-}
+})
 
 interface LoadingStateProps {
   message?: string
@@ -46,7 +46,7 @@ interface LoadingStateProps {
   className?: string
 }
 
-export function LoadingState({ message = "Loading...", size = "md", className }: LoadingStateProps) {
+export const LoadingState = memo(function LoadingState({ message = "Loading...", size = "md", className }: LoadingStateProps) {
   const t = useTranslations("serverTabShared")
   const sizeClasses = {
     sm: "h-4 w-4",
@@ -70,7 +70,7 @@ export function LoadingState({ message = "Loading...", size = "md", className }:
       <p className="text-sm text-muted-foreground">{message === "Loading..." ? t("loading") : message}</p>
     </div>
   )
-}
+})
 
 interface EmptyStateProps {
   icon?: any
@@ -80,7 +80,7 @@ interface EmptyStateProps {
   className?: string
 }
 
-export function EmptyState({ icon: Icon = Info, title, message, action, className }: EmptyStateProps) {
+export const EmptyState = memo(function EmptyState({ icon: Icon = Info, title, message, action, className }: EmptyStateProps) {
   return (
     <div className={cn(
       "flex flex-col items-center justify-center py-12 px-4 text-center",
@@ -98,7 +98,7 @@ export function EmptyState({ icon: Icon = Info, title, message, action, classNam
       )}
     </div>
   )
-}
+})
 
 interface ErrorStateProps {
   title?: string
@@ -107,7 +107,7 @@ interface ErrorStateProps {
   className?: string
 }
 
-export function ErrorState({ title = "Something went wrong", message, onRetry, className }: ErrorStateProps) {
+export const ErrorState = memo(function ErrorState({ title = "Something went wrong", message, onRetry, className }: ErrorStateProps) {
   const t = useTranslations("serverTabShared")
   return (
     <div className={cn(
@@ -129,7 +129,7 @@ export function ErrorState({ title = "Something went wrong", message, onRetry, c
       )}
     </div>
   )
-}
+})
 
 interface StatCardProps {
   label: string
@@ -140,7 +140,7 @@ interface StatCardProps {
   className?: string
 }
 
-export function StatCard({ label, value, icon: Icon, trend, trendValue, className }: StatCardProps) {
+export const StatCard = memo(function StatCard({ label, value, icon: Icon, trend, trendValue, className }: StatCardProps) {
   return (
     <div className={cn(
       "border border-border bg-card p-3 sm:p-4 min-w-0",
@@ -167,7 +167,7 @@ export function StatCard({ label, value, icon: Icon, trend, trendValue, classNam
       </p>
     </div>
   )
-}
+})
 
 interface MiniStatProps {
   label: string
@@ -177,7 +177,7 @@ interface MiniStatProps {
   className?: string
 }
 
-export function MiniStat({ label, value, sub, color, className }: MiniStatProps) {
+export const MiniStat = memo(function MiniStat({ label, value, sub, color, className }: MiniStatProps) {
   return (
     <div className={cn(
       "border border-border bg-card p-2.5 sm:p-3 min-w-0",
@@ -202,7 +202,7 @@ export function MiniStat({ label, value, sub, color, className }: MiniStatProps)
       </p>
     </div>
   )
-}
+})
 
 interface ProgressStatProps {
   label: string
@@ -214,7 +214,7 @@ interface ProgressStatProps {
   className?: string
 }
 
-export function ProgressStat({ 
+export const ProgressStat = memo(function ProgressStat({ 
   label, 
   value, 
   max, 
@@ -250,7 +250,7 @@ export function ProgressStat({
       </p>
     </div>
   )
-}
+})
 
 interface ChartCardProps {
   title: string
@@ -260,7 +260,7 @@ interface ChartCardProps {
   className?: string
 }
 
-export function ChartCard({ title, icon: Icon, children, action, className }: ChartCardProps) {
+export const ChartCard = memo(function ChartCard({ title, icon: Icon, children, action, className }: ChartCardProps) {
   return (
     <div className={cn(
       "border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden",
@@ -278,7 +278,7 @@ export function ChartCard({ title, icon: Icon, children, action, className }: Ch
       </div>
     </div>
   )
-}
+})
 
 interface SectionHeaderProps {
   title: string
@@ -287,7 +287,7 @@ interface SectionHeaderProps {
   className?: string
 }
 
-export function SectionHeader({ title, icon: Icon, action, className }: SectionHeaderProps) {
+export const SectionHeader = memo(function SectionHeader({ title, icon: Icon, action, className }: SectionHeaderProps) {
   return (
     <div className={cn(
       "flex items-center justify-between",
@@ -300,7 +300,7 @@ export function SectionHeader({ title, icon: Icon, action, className }: SectionH
       {action}
     </div>
   )
-}
+})
 
 interface ToggleOption<T> {
   value: T
@@ -349,7 +349,7 @@ interface CardGridProps {
   className?: string
 }
 
-export function CardGrid({ children, columns = 2, className }: CardGridProps) {
+export const CardGrid = memo(function CardGrid({ children, columns = 2, className }: CardGridProps) {
   const gridClasses = {
     2: "grid-cols-2",
     3: "grid-cols-2 sm:grid-cols-3",
@@ -366,18 +366,18 @@ export function CardGrid({ children, columns = 2, className }: CardGridProps) {
       {children}
     </div>
   )
-}
+})
 
-export function Skeleton({ className }: { className?: string }) {
+export const Skeleton = memo(function Skeleton({ className }: { className?: string }) {
   return (
     <div className={cn(
       "animate-pulse bg-secondary/50",
       className
     )} />
   )
-}
+})
 
-export function StatCardSkeleton() {
+export const StatCardSkeleton = memo(function StatCardSkeleton() {
   return (
     <div className="border border-border bg-card p-3 sm:p-4">
       <div className="flex items-center gap-2 mb-2">
@@ -387,9 +387,9 @@ export function StatCardSkeleton() {
       <Skeleton className="h-6 w-20" />
     </div>
   )
-}
+})
 
-export function ChartCardSkeleton() {
+export const ChartCardSkeleton = memo(function ChartCardSkeleton() {
   return (
     <div className="border border-border bg-card p-3 sm:p-4">
       <div className="flex items-center gap-2 mb-3">
@@ -399,4 +399,4 @@ export function ChartCardSkeleton() {
       <Skeleton className="h-[200px] w-full" />
     </div>
   )
-}
+})

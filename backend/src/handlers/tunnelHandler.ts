@@ -1527,14 +1527,17 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         await repo.save(device).catch(() => {});
       }
 
+      const _versionCache = new Map<string, string>();
       const readVersion = (subdir: string, fallback: string): string => {
+        const cached = _versionCache.get(subdir);
+        if (cached) return cached;
         try {
-          const content = fs.readFileSync(
-            path.resolve(process.cwd(), '..', 'tunnel', subdir, 'Cargo.toml'),
-            'utf8'
-          );
+          const tomlPath = path.resolve(process.cwd(), '..', 'tunnel', subdir, 'Cargo.toml');
+          const content = require('fs').readFileSync(tomlPath, 'utf8');
           const match = content.match(/^version\s*=\s*"([^"]+)"/m);
-          return match ? match[1] : fallback;
+          const version = match ? match[1] : fallback;
+          _versionCache.set(subdir, version);
+          return version;
         } catch {
           return fallback;
         }

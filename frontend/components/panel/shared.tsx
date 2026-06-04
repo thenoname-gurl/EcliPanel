@@ -1,9 +1,6 @@
 "use client"
 
-/**
- * Reusable stat card component for dashboards.
- * Wire with backend by passing dynamic values to the props.
- */
+import { memo } from "react"
 import { type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
@@ -18,7 +15,7 @@ interface StatCardProps {
   className?: string
 }
 
-export function StatCard({ title, value, subtitle, icon: Icon, trend, color = "primary", className }: StatCardProps) {
+export const StatCard = memo(function StatCard({ title, value, subtitle, icon: Icon, trend, color = "primary", className }: StatCardProps) {
   return (
     <div
       className={cn(
@@ -55,7 +52,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = "p
       <div className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
     </div>
   )
-}
+})
 
 /**
  * Status indicator dot with label

@@ -1652,7 +1652,7 @@ export async function organisationRoutes(app: OrganisationApp, prefix = '') {
       const filename = `avatar_org_${org.id}` + ext;
 
       const uploadDir = path.join(process.cwd(), 'uploads');
-      fs.mkdirSync(uploadDir, { recursive: true });
+      await fs.promises.mkdir(uploadDir, { recursive: true });
       const filepath = path.join(uploadDir, filename);
       await Bun.write(filepath, out);
 
