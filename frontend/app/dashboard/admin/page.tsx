@@ -1589,10 +1589,11 @@ export default function AdminPanel() {
   const [bulkDismissing, setBulkDismissing] = useState<boolean>(false)
 
   // ── Panel settings ──
-  const [panelSettings, setPanelSettings] = useState<{
+   const [panelSettings, setPanelSettings] = useState<{
     registrationEnabled: boolean
     registrationNotice: string
     geoBlockCountries: string
+    kycRequiredCountries: string
     countryAgeRules: string
     billingCurrency: string
     billingTaxRules: string
@@ -1604,6 +1605,7 @@ export default function AdminPanel() {
     registrationEnabled: true,
     registrationNotice: "",
     geoBlockCountries: "",
+    kycRequiredCountries: "",
     countryAgeRules: "",
     billingCurrency: "USD",
     billingTaxRules: "",
@@ -1742,6 +1744,7 @@ export default function AdminPanel() {
               registrationEnabled: data.registrationEnabled ?? true,
               registrationNotice: data.registrationNotice ?? "",
               geoBlockCountries: data.geoBlockCountries ?? "",
+              kycRequiredCountries: data.kycRequiredCountries ?? "",
               countryAgeRules: data.countryAgeRules ?? "",
               billingCurrency: (data.billingCurrency ?? "USD").toUpperCase(),
               billingTaxRules: data.billingTaxRules ?? "",

@@ -104,6 +104,7 @@ export async function getGeoBlockRulesWithDefaults(): Promise<Record<string, num
 
 import { AppDataSource } from '../config/typeorm';
 import { PanelSetting } from '../models/panelSetting.entity';
+import { IDVerification } from '../models/idVerification.entity';
 
 export function isEUCountry(country?: string | null): boolean {
   if (!country) return false;
@@ -280,4 +281,54 @@ export async function canUsePaidServices(country?: string | null): Promise<boole
 
 export async function isSubuserOnly(country?: string | null): Promise<boolean> {
   return (await getGeoBlockLevel(country)) === 4;
+}
+
+let kycRequiredCache: { rules: Set<string>; fetchedAt: number } | null = null;
+const KYC_CACHE_MS = 60_000;
+
+export async function getKycRequiredCountries(): Promise<Set<string>> {
+  if (kycRequiredCache && (Date.now() - kycRequiredCache.fetchedAt) < KYC_CACHE_MS) {
+    return kycRequiredCache.rules;
+  }
+  try {
+    const setting = await AppDataSource.getRepository(PanelSetting).findOneBy({ key: 'kycRequiredCountries' });
+    const value = (setting?.value ?? '').trim();
+    const rules = new Set<string>(
+      value
+        ? value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean)
+        : []
+    );
+    kycRequiredCache = { rules, fetchedAt: Date.now() };
+    return rules;
+  } catch {
+    return kycRequiredCache?.rules ?? new Set();
+  }
+}
+
+export async function requiresKyc(country?: string | null): Promise<boolean> {
+  if (!country) return false;
+  const rules = await getKycRequiredCountries();
+  const c = country.trim().toLowerCase();
+  if (!c) return false;
+  if (rules.has(c)) return true;
+  const code2 = c.slice(0, 2);
+  if (rules.has(code2)) return true;
+  if (code2.length === 2 && EU_COUNTRIES.has(code2) && process.env.EU_ID_DISABLED === 'true') return true;
+  return false;
+}
+
+export async function isKycVerified(userId: number): Promise<boolean> {
+  try {
+    const record = await AppDataSource.getRepository(IDVerification).findOneBy({
+      userId,
+      status: 'verified' as any,
+    });
+    return !!record;
+  } catch {
+    return false;
+  }
+}
+
+export function clearKycCache(): void {
+  kycRequiredCache = null;
 }

@@ -176,8 +176,8 @@ export default function IdentityPage() {
             const badgeBg = allRequired ? 'bg-success/10' : 'bg-warning/10';
             const badgeText = allRequired ? 'text-success' : 'text-warning';
             return (
-              <div data-guide-id="identity-student" className={`flex items-center gap-4 rounded-xl border ${borderColor} ${bgColor} p-5`}>
-                <div className={`flex h-12 w-12 items-center justify-center rounded-full ${iconBg}`}>
+              <div data-guide-id="identity-student" className={`flex items-center gap-4 border ${borderColor} ${bgColor} p-5`}>
+                <div className={`flex h-12 w-12 items-center justify-center ${iconBg}`}>
                   {allRequired ? <CheckCircle className={`h-6 w-6 ${iconText}`} /> : <Fingerprint className={`h-6 w-6 ${iconText}`} />}
                 </div>
                 <div className="flex-1">
@@ -197,7 +197,7 @@ export default function IdentityPage() {
 
           {/* Verification Steps */}
           {(status?.status === 'failed' || !status) && (
-            <div className="rounded-xl border border-border bg-card p-6">
+            <div className="border border-border bg-card p-6">
               <SectionHeader title={t("start.title")} description={t("start.description")} />
               <div className="mt-4 grid grid-cols-1 gap-4">
                 <div className="flex flex-col gap-2">
@@ -208,7 +208,7 @@ export default function IdentityPage() {
                     accept="image/jpeg,image/png,image/webp,application/pdf"
                     disabled={euIdDisabled}
                     onChange={(e) => setIdDocFile(e.target.files?.[0] ?? null)}
-                    className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
+                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
                   />
                   {idDocFile && <p className="text-xs text-success">{t("start.selected")}: {idDocFile.name}</p>}
                 </div>
@@ -220,7 +220,7 @@ export default function IdentityPage() {
                     accept="image/jpeg,image/png,image/webp"
                     disabled={euIdDisabled}
                     onChange={(e) => setSelfieFile(e.target.files?.[0] ?? null)}
-                    className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
+                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
                   />
                   {selfieFile && <p className="text-xs text-success">{t("start.selected")}: {selfieFile.name}</p>}
                 </div>
@@ -244,7 +244,7 @@ export default function IdentityPage() {
                       setSubmitting(false);
                     }
                   }}
-                  className="mt-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="mt-2 bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {submitting ? t('actions.uploading') : t('actions.submitForVerification')}
                 </button>
@@ -258,7 +258,7 @@ export default function IdentityPage() {
             </div>
           )}
           {!selfieVerified && status?.status !== 'verified' && (
-            <div className="rounded-xl border border-border bg-card p-6">
+            <div className="border border-border bg-card p-6">
               <SectionHeader title={t('start.selfieOptionalTitle')} description={t('start.selfieOptionalDescription')} />
               <div className="mt-4 grid grid-cols-1 gap-4">
                 <div className="flex flex-col gap-2">
@@ -269,7 +269,7 @@ export default function IdentityPage() {
                     accept="image/jpeg,image/png,image/webp"
                     disabled={selfieOnlyLoading}
                     onChange={(e) => setSelfieOnlyFile(e.target.files?.[0] ?? null)}
-                    className="rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
+                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
                   />
                   {selfieOnlyFile && <p className="text-xs text-success">{t('start.selected')}: {selfieOnlyFile.name}</p>}
                   {!user?.dateOfBirth && (
@@ -300,7 +300,7 @@ export default function IdentityPage() {
                       setSelfieOnlyLoading(false);
                     }
                   }}
-                  className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   {selfieOnlyLoading ? t('actions.uploading') : t('actions.verifySelfieAge')}
                 </button>
@@ -310,13 +310,13 @@ export default function IdentityPage() {
               </div>
             </div>
           )}
-          <div className="rounded-xl border border-border bg-card p-6">
+          <div className="border border-border bg-card p-6">
             <SectionHeader title={t("stepsSection.title")} description={t("stepsSection.description")} />
             <div className="mt-6 flex flex-col gap-4">
           {computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, selfieVerified, !!user?.studentVerified, portalType, euIdDisabled, t).map((step, idx) => (
                 <div
                   key={step.id}
-                  className={`flex items-center gap-4 rounded-lg border p-4 transition-all ${
+                  className={`flex items-center gap-4 border p-4 transition-all ${
                     step.status === "completed"
                       ? "border-success/30 bg-success/5"
                       : step.status === "pending"
@@ -332,7 +332,7 @@ export default function IdentityPage() {
                 >
                   {/* Step Number */}
                   <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center ${
                       step.status === "completed"
                         ? "bg-success/20 text-success"
                         : step.status === "pending"
@@ -384,7 +384,7 @@ export default function IdentityPage() {
                           alert(e.message || t('errors.failedHackClubFlow'));
                         }
                       }}
-                      className="rounded-lg border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
+                      className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
                     >
                       {t("actions.connectHackClub")}
                     </button>
@@ -401,7 +401,7 @@ export default function IdentityPage() {
                           alert(e.message || t('errors.failedGithubFlow'));
                         }
                       }}
-                      className="rounded-lg border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
+                      className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
                     >
                       {t("actions.connectGithub")}
                     </button>
@@ -432,17 +432,17 @@ export default function IdentityPage() {
           </div>
 
           {/* Verified Info */}
-          <div className="rounded-xl border border-border bg-card p-6">
+          <div className="border border-border bg-card p-6">
             <SectionHeader title={t("verified.title")} description={t("verified.description")} />
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <div className="flex items-center gap-3 border border-border bg-secondary/30 p-4">
                 <User className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">{t("verified.fullName")}</p>
                   <p className="text-sm font-medium text-foreground">{user?.firstName} {user?.lastName}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <div className="flex items-center gap-3 border border-border bg-secondary/30 p-4">
                 <FileText className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">{t("verified.email")}</p>
@@ -454,14 +454,14 @@ export default function IdentityPage() {
                   <AlertTriangle className="ml-auto h-4 w-4 text-warning" />
                 )}
               </div>
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <div className="flex items-center gap-3 border border-border bg-secondary/30 p-4">
                 <Shield className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">{t("verified.accountId")}</p>
                   <p className="font-mono text-sm text-foreground">{user?.id}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-secondary/30 p-4">
+              <div className="flex items-center gap-3 border border-border bg-secondary/30 p-4">
                 {status?.status === 'verified' ? (
                   <CheckCircle className="h-5 w-5 text-success" />
                 ) : status?.status === 'pending' ? (

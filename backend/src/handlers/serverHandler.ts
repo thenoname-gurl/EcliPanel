@@ -38,7 +38,7 @@ import { ServerMapping } from '../models/serverMapping.entity';
 import { createActivityLog } from './logHandler';
 import { ServerSubuser } from '../models/serverSubuser.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
-import { getGeoBlockLevel } from '../utils/eu';
+import { getGeoBlockLevel, requiresKyc, isKycVerified } from '../utils/eu';
 import {
   notifyServerOwnerDmca,
   notifyServerOwnerSuspended,
@@ -1283,6 +1283,11 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       if (!isAdmin && geoLevel >= 4) {
         ctx.set.status = 403;
         return { error: ctx.t('user.serverCreationDisabled') };
+      }
+
+      if (!isAdmin && await requiresKyc(user.billingCountry) && !(await isKycVerified(user.id))) {
+        ctx.set.status = 403;
+        return { error: 'KYC verification required for your country. Please verify your identity first.' };
       }
 
       const effectivePortalType = user.portalType;

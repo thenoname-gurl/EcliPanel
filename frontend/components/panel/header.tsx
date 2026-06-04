@@ -176,7 +176,7 @@ function NotificationDropdown({
         className="
           z-[100000]
           w-80
-          rounded-xl border border-border bg-card
+          border border-border bg-card
           shadow-[0_0_30px_rgba(0,0,0,0.3)]
           max-h-96
           flex flex-col
@@ -195,7 +195,7 @@ function NotificationDropdown({
             </button>
             <button
               onClick={onClose}
-              className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="flex h-6 w-6 items-center justify-center text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -205,7 +205,7 @@ function NotificationDropdown({
         <div className="flex-1 overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-5 w-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+              <div className="h-5 w-5 border-2 border-primary/30 border-t-primary animate-spin" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -223,7 +223,7 @@ function NotificationDropdown({
                   (n.isRead ? "" : "bg-secondary/20")
                 }
               >
-                <div className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                <div className="mt-1.5 h-1.5 w-1.5 shrink-0 bg-primary" />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground truncate">
                     {formatNotificationAction(n.action || n.event || "", tHeader) || labels.accountEvent}
@@ -525,11 +525,11 @@ export function PanelHeader({
         <div className="flex items-center gap-1.5 sm:gap-3">
           <button
             onClick={() => setSearchOpen(true)}
-            className="flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-lg border border-border bg-secondary/50 px-2 sm:px-3 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+            className="flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 border border-border bg-secondary/50 px-2 sm:px-3 text-sm text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
           >
             <Search className="h-3.5 w-3.5" />
             <span className="hidden md:inline text-xs">{tHeader("search")}</span>
-            <kbd className="ml-1 hidden md:inline rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
+            <kbd className="ml-1 hidden md:inline border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
               <Command className="inline h-2.5 w-2.5" />K
             </kbd>
           </button>
@@ -552,11 +552,11 @@ export function PanelHeader({
           <button
             ref={buttonRef}
             onClick={openNotifications}
-            className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary animate-pulse" />
+              <span className="absolute right-1.5 top-1.5 h-2 w-2 bg-primary animate-pulse" />
             )}
           </button>
 
@@ -588,7 +588,7 @@ export function PanelHeader({
             if (e.target === e.currentTarget) setSearchOpen(false)
           }}
         >
-          <div className="w-full max-w-xl rounded-xl border border-border bg-card shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden">
+          <div className="w-full max-w-xl border border-border bg-card shadow-[0_0_40px_rgba(0,0,0,0.5)] overflow-hidden">
             <div className="flex items-center gap-3 border-b border-border px-4 py-3">
               <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
               <input
@@ -608,7 +608,7 @@ export function PanelHeader({
               />
               <button
                 onClick={() => setSearchOpen(false)}
-                className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                className="border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground hover:text-foreground transition-colors"
               >
                 ESC
               </button>
@@ -635,7 +635,7 @@ export function PanelHeader({
                       idx === 0 && searchQuery ? "bg-secondary/30" : ""
                     }`}
                   >
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary/50 shrink-0">
+                    <div className="flex h-8 w-8 items-center justify-center bg-secondary/50 shrink-0">
                       <Search className="h-3 w-3 text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -647,7 +647,7 @@ export function PanelHeader({
                       </p>
                     </div>
                     {idx === 0 && searchQuery && (
-                      <kbd className="hidden sm:inline rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+                      <kbd className="hidden sm:inline border border-border bg-muted px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
                         Enter
                       </kbd>
                     )}

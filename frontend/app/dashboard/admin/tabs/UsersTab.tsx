@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { useTranslations } from "next-intl"
+import { apiFetch } from "@/lib/api-client"
 import {
   Ban,
   Check,
@@ -16,6 +17,7 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  ShieldCheck,
   Trash2,
   UserCog,
   UserMinus,
@@ -56,6 +58,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
   const canDeleteUser = !!user && hasPermission(user, 'users:delete')
   const canRequireStudentReverify = !!user && hasPermission(user, 'users:write')
   const canDeassignStudent = !!user && hasPermission(user, 'admin:student:deassign')
+  const canRequestKyc = !!user && hasPermission(user, 'admin:kyc:manage')
 
   return (
     <div className="flex flex-col gap-4">
@@ -273,6 +276,15 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                           <button onClick={() => requireStudentReverify(user)} title={t("actions.requireReverify")} className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
                             <RotateCcw className="h-3.5 w-3.5" />
                           </button>
+                        )}
+                        {canRequestKyc && (
+                           <button onClick={async (e) => {
+                              e.preventDefault()
+                              if (!confirm("Request KYC from this user?")) return
+                              try { await apiFetch(`/api/admin/users/${user.id}/request-kyc`, { method: "POST" }); alert("KYC requested") } catch (e: any) { alert("Failed: " + (e?.message || e)) }
+                           }} title="Request KYC" className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                             <ShieldCheck className="h-3.5 w-3.5" />
+                           </button>
                         )}
                         {canDeleteUser && (
                           <button onClick={() => deleteUser(user)} title={t("actions.deleteAccount")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
