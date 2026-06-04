@@ -190,7 +190,7 @@ export async function sharedFileRoutes(app: any, prefix = '') {
   }
 
   app.post(
-    prefix + '/servers/:id/files/shares',
+    prefix + '/servers/v1/:id/files/shares',
     async (ctx: RequestContext) => {
       const { id } = (ctx.params || {}) as Record<string, string>;
       const user = ctx.user as User;
@@ -252,7 +252,7 @@ export async function sharedFileRoutes(app: any, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/shares',
+    prefix + '/servers/v1/:id/files/shares',
     async (ctx: RequestContext) => {
       const { id } = (ctx.params || {}) as Record<string, string>;
       const user = ctx.user as User;
@@ -289,7 +289,7 @@ export async function sharedFileRoutes(app: any, prefix = '') {
   );
 
   app.delete(
-    prefix + '/servers/:id/files/shares/:shareId',
+    prefix + '/servers/v1/:id/files/shares/:shareId',
     async (ctx: RequestContext) => {
       const { id, shareId } = (ctx.params || {}) as Record<string, string>;
       const user = ctx.user as User;

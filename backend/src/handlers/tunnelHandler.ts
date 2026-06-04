@@ -669,7 +669,7 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
           kind,
           iat: Math.floor(Date.now() / 1000),
         },
-        { expiresIn: kind === 'server' ? '365d' : '24h' }
+        { expiresIn: kind === 'server' ? '365d' : '90d' }
       );
 
       await repo.save(device);
@@ -866,7 +866,7 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         return errorResponse('not_approved', 400);
       }
 
-      const tokenExpiry = device.kind === 'server' ? '365d' : '24h';
+      const tokenExpiry = device.kind === 'server' ? '365d' : '90d';
       device.token = app.jwt.sign(
         {
           agent: device.deviceCode,
@@ -880,7 +880,7 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
       return createJsonResponse({
         access_token: device.token,
         token_type: 'bearer',
-        expires_in: device.kind === 'server' ? 365 * 86400 : 86400,
+        expires_in: device.kind === 'server' ? 365 * 86400 : 90 * 86400,
       });
     },
     {
@@ -953,7 +953,7 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         expiresAt,
         token: app.jwt.sign(
           { agent: deviceCode, kind, iat: Math.floor(Date.now() / 1000) },
-          { expiresIn: kind === 'server' ? '365d' : '24h' }
+          { expiresIn: kind === 'server' ? '365d' : '90d' }
         ),
       });
       if (kind === 'server' && fqdn) {
@@ -1554,6 +1554,36 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         await assignPendingAllocations(device).catch(err => {
           console.error('[tunnel] Failed to assign pending allocations:', err);
         });
+      }
+
+      if (device.kind === 'client') {
+        const allocRepo = AppDataSource.getRepository(TunnelAllocation);
+        const clientAllocs = await allocRepo.find({
+          where: { clientDevice: { id: device.id }, status: 'active' as any },
+          relations: { clientDevice: true, serverDevice: true },
+        });
+        if (clientAllocs.length > 0) {
+          ws.send(JSON.stringify({
+            type: 'allocations.restored',
+            allocations: clientAllocs.map(a => ({
+              id: a.id,
+              port: a.port,
+              protocol: a.protocol,
+              localHost: a.localHost,
+              localPort: a.localPort,
+              host: a.host,
+            })),
+          }));
+          for (const alloc of clientAllocs) {
+            if (alloc.serverDevice) {
+              sendAgentMessage(alloc.serverDevice.deviceCode, {
+                type: 'client.reconnected',
+                allocationId: alloc.id,
+                clientDeviceCode: device.deviceCode,
+              });
+            }
+          }
+        }
       }
 
       ws.send(

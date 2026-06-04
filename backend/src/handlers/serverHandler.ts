@@ -1,6 +1,7 @@
 import { WingsApiService } from '../services/wingsApiService';
+import { ProxmoxApiService } from '../services/proxmoxApiService';
 import { extractStats } from '../services/metricsCollector';
-import { nodeService } from '../services/nodeService';
+import { nodeService, type ProviderService } from '../services/nodeService';
 import {
   listSftpFiles,
   readSftpFile,
@@ -507,6 +508,28 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     return nodeSvc.getServiceForServer(serverId);
   }
 
+  function requireProvider(expected: 'wings' | 'proxmox') {
+    return async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      if (!id) return;
+      try {
+        const svc = await serviceFor(id);
+        const isProxmox = svc instanceof ProxmoxApiService;
+        if (expected === 'wings' && isProxmox) {
+          ctx.set.status = 400;
+          return { error: 'This endpoint is only available for Wings nodes' };
+        }
+        if (expected === 'proxmox' && !isProxmox) {
+          ctx.set.status = 400;
+          return { error: 'This endpoint is only available for Proxmox nodes' };
+        }
+      } catch {
+        ctx.set.status = 404;
+        return { error: 'Server not found' };
+      }
+    };
+  }
+
   async function pickNode(
     ctx: AuthenticatedHandlerContext,
     user: User,
@@ -650,9 +673,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           nodes.map(async n => {
             if (unhealthyNodeIds.includes(n.id)) return null;
             try {
-              const base = n.backendWingsUrl || n.url;
-              const svc = new WingsApiService(base, n.token);
-              const res = await svc.getServers();
+              const svc = await nodeService.getServiceForNode(n.id);
+              if (svc instanceof ProxmoxApiService) {
+                const res = await svc.getServers();
+                return { node: n, servers: res.data || [] };
+              }
+              const wsvc = svc as WingsApiService;
+              const res = await wsvc.getServers();
               return { node: n, servers: res.data || [] };
             } catch {
               return null;
@@ -754,8 +781,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
           nodePromises.push(
             (async () => {
-              const base = node.backendWingsUrl || node.url;
-              const svc = new WingsApiService(base, node.token);
+              let svc: ProviderService;
+              try {
+                svc = await nodeService.getServiceForNode(node.id);
+              } catch {
+                for (const c of cfgList) {
+                  all.push({ uuid: c.uuid, name: c.name || c.uuid, status: c.hibernated ? 'hibernated' : 'unknown', hibernated: !!c.hibernated, is_suspended: c.suspended, resources: null, build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu }, container: { image: c.dockerImage }, nodeId: c.nodeId, userId: c.userId });
+                }
+                return;
+              }
               const promises = cfgList.map(async c => {
                 try {
                   const res = await svc.getServer(c.uuid);
@@ -829,7 +863,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return unique;
     },
     {
-      beforeHandle: [authenticate, authorize('servers:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
       response: {
         200: t.Array(t.Any()),
         401: t.Object({ error: t.String() }),
@@ -840,9 +874,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/write',
+    prefix + '/servers/v1/:id/files/write',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       try {
         const body = ctx.body as Record<string, unknown>;
@@ -891,7 +925,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -920,6 +954,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       uuid: cfg.uuid || r.uuid,
       name: meta.name || r.name || cfg.uuid || r.uuid,
       description: meta.description as string | undefined,
+      provider: 'wings',
       status,
       installing: persistedCfg?.installing ?? false,
       hibernated: status === 'hibernated',
@@ -974,7 +1009,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.get(
     prefix + '/servers/:id',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
 
       const user = ctx.user;
@@ -1705,15 +1740,12 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         egg.installScript &&
         (egg.installScript.script || egg.installScript.container || egg.installScript.entrypoint)
       );
-      const wingsPayload = {
-        uuid: serverUuid,
-        start_on_completion: hasInstallScript,
-        skip_scripts: false,
-      };
 
-      const hasEulaFeature =
-        Array.isArray(egg.features) &&
-        egg.features.some((feature: string) => feature.toLowerCase() === 'eula');
+      const isProxmoxNode = nodeService.isProxmoxNode(node);
+
+      const bodyVmType = (ctx.body as Record<string, unknown>).vmType as string || 'lxc';
+      const bodyTemplate = (ctx.body as Record<string, unknown>).template as string || '';
+      const bodyIsoFile = (ctx.body as Record<string, unknown>).isoFile as string || '';
 
       await nodeSvc.mapServer(serverUuid, node.id);
       await saveServerConfig({
@@ -1730,8 +1762,55 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         eggId: egg.id,
         kvmPassthroughEnabled,
         installing: hasInstallScript,
+        vmType: isProxmoxNode ? (bodyVmType as 'lxc' | 'qemu') : undefined,
+        template: isProxmoxNode ? bodyTemplate : undefined,
+        isoFile: isProxmoxNode ? bodyIsoFile : undefined,
         ...(autoAllocation ? { allocations: autoAllocation } : {}),
       });
+
+      if (isProxmoxNode) {
+        const svc = await nodeService.getProxmoxService(node.id);
+        try {
+          const result = await svc.createServer({
+            uuid: serverUuid,
+            name,
+            memory,
+            disk,
+            cpu,
+            vmType: (bodyVmType as 'lxc' | 'qemu') || 'lxc',
+            template: bodyTemplate,
+            isoFile: bodyIsoFile,
+            cores: eggId ? undefined : 1,
+            startOnCompletion: hasInstallScript,
+          });
+
+          await createActivityLog({
+            userId: ownerId,
+            action: 'server:create',
+            targetId: serverUuid,
+            targetType: 'server',
+            metadata: { serverName: name, eggId: egg.id, nodeId: node.id, memory, disk, cpu, provider: 'proxmox', vmType: bodyVmType },
+            ipAddress: ctx.ip,
+          });
+
+          return { uuid: serverUuid, nodeId: node.id, vmid: result.vmid, provider: 'proxmox', gambling: gamblingResult };
+        } catch (e: unknown) {
+          await Promise.allSettled([removeServerConfig(serverUuid), nodeSvc.unmapServer(serverUuid)]);
+          ctx.set.status = 502;
+          console.error('[serverHandler:create-server] Proxmox error:', e);
+          return { error: sanitizeError(e, 'serverHandler:create-server:proxmox') };
+        }
+      }
+
+      const wingsPayload = {
+        uuid: serverUuid,
+        start_on_completion: hasInstallScript,
+        skip_scripts: false,
+      };
+
+      const hasEulaFeature =
+        Array.isArray(egg.features) &&
+        egg.features.some((feature: string) => feature.toLowerCase() === 'eula');
 
       const base = node.backendWingsUrl || node.url;
       const svc = new WingsApiService(base, node.token);
@@ -1773,7 +1852,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('servers:create')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:create')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -1790,7 +1869,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.put(
     prefix + '/servers/:id',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { memory, disk, cpu, swap, ioWeight, environment, name, kvmPassthroughEnabled } =
         ctx.body as Record<string, unknown>;
 
@@ -1900,7 +1979,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Object({ success: t.Boolean() }),
         401: t.Object({ error: t.String() }),
@@ -1914,7 +1993,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.delete(
     prefix + '/servers/:id',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
 
       const user = ctx.user;
@@ -1939,7 +2018,11 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       try {
         const svc = await serviceFor(id);
-        await svc.serverRequest(id, '', 'delete');
+        if (svc instanceof ProxmoxApiService) {
+          await svc.deleteServer(id);
+        } else {
+          await svc.serverRequest(id, '', 'delete');
+        }
         await removeServerConfig(id);
 
         await createActivityLog({
@@ -1974,9 +2057,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/ipv6',
+    prefix + '/servers/v1/:id/ipv6',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { action, ipv6Address } = (ctx.body as Record<string, unknown>) || {};
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'admin:access');
@@ -2157,7 +2240,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return { success: true, removed: ipv6Keys };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       body: t.Object({ action: t.String(), ipv6Address: t.Optional(t.String()) }),
       response: {
         200: t.Any(),
@@ -2172,9 +2255,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/suspend',
+    prefix + '/servers/v1/:id/suspend',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       try {
         const body = (ctx.body || {}) as Record<string, unknown>;
         const providedReason = typeof body.reason === 'string' ? body.reason.trim() : '';
@@ -2278,7 +2361,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       body: t.Optional(
         t.Object({
           reason: t.Optional(t.String()),
@@ -2303,9 +2386,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/unsuspend',
+    prefix + '/servers/v1/:id/unsuspend',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       try {
         const cfgRepo = AppDataSource.getRepository(
           require('../models/serverConfig.entity').ServerConfig
@@ -2357,7 +2440,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Object({ success: t.Boolean() }),
         401: t.Object({ error: t.String() }),
@@ -2371,7 +2454,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.post(
     prefix + '/servers/:id/power',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { action } = ctx.body as Record<string, unknown>;
       const user = ctx.user;
       const gamblingConfig = await getGamblingConfig();
@@ -2411,7 +2494,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       try {
         const svc = await serviceFor(id);
-        const res = await svc.powerServer(id, action as string);
+        const res = await svc.powerServer(id, action as 'start' | 'stop' | 'restart' | 'shutdown' | 'kill');
         if (gamblingPowerEnabled) {
           await recordPowerGambleOutcome(Number(user.id), true);
         }
@@ -2451,48 +2534,26 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/kvm',
+    prefix + '/servers/v1/:id/kvm',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
-      const { enable } = ctx.body as Record<string, unknown>;
-
-      const user = ctx.user;
-      if (!user || !hasPermissionSync(ctx, 'servers:kvm')) {
-        ctx.set.status = 403;
-        return { error: ctx.t('admin.insufficientPermissions') };
-      }
-
-      const cfgRepo = AppDataSource.getRepository(ServerConfig);
-      const cfg = await cfgRepo.findOneBy({ uuid: id });
-      if (!cfg) {
-        ctx.set.status = 404;
-        return { error: ctx.t('server.notFound') };
-      }
-
-      cfg.kvmPassthroughEnabled = Boolean(enable);
-      await cfgRepo.save(cfg);
-
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       try {
         const svc = await serviceFor(id);
-        await svc.syncServer(id, {});
+        const body = ctx.body as Record<string, unknown>;
+        const res = await svc.serverRequest(id, '/kvm', 'post', body);
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
       } catch (e: unknown) {
-        const errMsg = e instanceof Error ? e.message : '';
-        ctx.set.status = 502;
-        return { error: `KVM toggle failed: ${errMsg || 'unable to sync to node'}` };
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'KVM action failed';
+        ctx.set.status = status;
+        return { error: msg };
       }
-
-      await createActivityLog({
-        userId: user.id,
-        action: `server:kvm:${enable ? 'enable' : 'disable'}`,
-        targetId: id,
-        targetType: 'server',
-        metadata: { kvmEnabled: enable },
-        ipAddress: ctx.ip,
-      });
-      return { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:kvm')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:kvm')],
       response: {
         200: t.Object({ success: t.Boolean() }),
         401: t.Object({ error: t.String() }),
@@ -2504,9 +2565,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files',
+    prefix + '/servers/v1/:id/files',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const path = ctx.query.path as string;
       const dir = path || '/';
       try {
@@ -2547,7 +2608,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       response: {
         200: t.Array(t.Any()),
         401: t.Object({ error: t.String() }),
@@ -2559,9 +2620,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/contents',
+    prefix + '/servers/v1/:id/files/contents',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const path = ctx.query.path as string;
       if (!path) {
         ctx.set.status = 400;
@@ -2588,7 +2649,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -2601,7 +2662,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/download',
+    prefix + '/servers/v1/:id/files/download',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const path = ctx.query.path as string;
@@ -2653,7 +2714,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       query: t.Object({ path: t.String() }),
       response: {
         200: t.Any(),
@@ -2667,7 +2728,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/upload',
+    prefix + '/servers/v1/:id/files/upload',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
@@ -2723,7 +2784,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -2737,9 +2798,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/upload-token',
+    prefix + '/servers/v1/:id/files/upload-token',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       const node = cfg?.nodeId ? await nodeRepo().findOneBy({ id: cfg.nodeId }) : null;
       if (!node) {
@@ -2790,7 +2851,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       };
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Object({ token: t.String(), url: t.String() }),
         401: t.Object({ error: t.String() }),
@@ -2802,9 +2863,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/download-token',
+    prefix + '/servers/v1/:id/files/download-token',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const filePath = ctx.query.path as string;
       if (!filePath) {
         ctx.set.status = 400;
@@ -2859,7 +2920,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       };
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       query: t.Object({ path: t.String() }),
       response: {
         200: t.Object({ token: t.String(), url: t.String() }),
@@ -2873,9 +2934,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/delete',
+    prefix + '/servers/v1/:id/files/delete',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { path: filePath, files, bulk } = ctx.body as Record<string, unknown>;
       let root = '/';
       let targetFiles: string[] = [];
@@ -2920,7 +2981,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -2933,9 +2994,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/create-directory',
+    prefix + '/servers/v1/:id/files/create-directory',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { path: dirPath } = ctx.body as Record<string, unknown>;
       const dirPathStr = String(dirPath ?? '');
       // Wings expects { root: "<parent-dir>", name: "<new-dir-name>" }
@@ -2958,7 +3019,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -2971,9 +3032,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/archive',
+    prefix + '/servers/v1/:id/files/archive',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
@@ -2994,7 +3055,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3007,9 +3068,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/decompress',
+    prefix + '/servers/v1/:id/files/decompress',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', file } = ctx.body as Record<string, unknown>;
       if (!file || typeof file !== 'string') {
         ctx.set.status = 400;
@@ -3030,7 +3091,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3043,9 +3104,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.put(
-    prefix + '/servers/:id/files/rename',
+    prefix + '/servers/v1/:id/files/rename',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
@@ -3067,7 +3128,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3080,9 +3141,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/move',
+    prefix + '/servers/v1/:id/files/move',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', files, destination } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
@@ -3114,7 +3175,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3127,9 +3188,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/files/chmod',
+    prefix + '/servers/v1/:id/files/chmod',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
@@ -3165,7 +3226,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3178,9 +3239,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/revisions',
+    prefix + '/servers/v1/:id/files/revisions',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const path = String(ctx.query?.file || '');
       if (!path) {
         ctx.set.status = 400;
@@ -3200,7 +3261,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3213,7 +3274,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/revisions/:revisionId',
+    prefix + '/servers/v1/:id/files/revisions/:revisionId',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id, revisionId } = ctx.params as Record<string, string>;
       const svc = await serviceFor(id);
@@ -3231,7 +3292,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -3244,9 +3305,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/files/largest-directories',
+    prefix + '/servers/v1/:id/files/largest-directories',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const directory = String(ctx.query?.directory || '/');
       const svc = await serviceFor(id);
       try {
@@ -3262,7 +3323,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -3274,9 +3335,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/sftp/validate',
+    prefix + '/servers/v1/:id/sftp/validate',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
         ctx.set.status = 401;
@@ -3330,15 +3391,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       detail: { summary: 'Validate KVM SFTP credentials', tags: ['Servers'] },
     }
   );
 
   app.get(
-    prefix + '/servers/:id/sftp/files',
+    prefix + '/servers/v1/:id/sftp/files',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
         ctx.set.status = 401;
@@ -3360,15 +3421,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       detail: { summary: 'List KVM SFTP directory contents', tags: ['Servers'] },
     }
   );
 
   app.get(
-    prefix + '/servers/:id/sftp/contents',
+    prefix + '/servers/v1/:id/sftp/contents',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const auth = await resolveSftpAccess(id, ctx);
       if ('error' in auth) {
         ctx.set.status = 401;
@@ -3392,13 +3453,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       detail: { summary: 'Read KVM SFTP file contents', tags: ['Servers'] },
     }
   );
 
   app.get(
-    prefix + '/servers/:id/sftp/download',
+    prefix + '/servers/v1/:id/sftp/download',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const filePath = String(ctx.query?.path || '');
@@ -3437,14 +3498,14 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       query: t.Object({ path: t.String() }),
       detail: { summary: 'Download KVM SFTP file', tags: ['Servers'] },
     }
   );
 
   app.post(
-    prefix + '/servers/:id/sftp/upload',
+    prefix + '/servers/v1/:id/sftp/upload',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const pathParam = String(ctx.query?.path || ctx.request?.headers?.get('x-path') || '').trim();
@@ -3487,13 +3548,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       detail: { summary: 'Upload a file to KVM SFTP path', tags: ['Servers'] },
     }
   );
 
   app.post(
-    prefix + '/servers/:id/sftp/write',
+    prefix + '/servers/v1/:id/sftp/write',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = ctx.params;
       const auth = await resolveSftpAccess(id, ctx);
@@ -3534,15 +3595,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       detail: { summary: 'Write a KVM SFTP file', tags: ['Servers'] },
     }
   );
 
   app.post(
-    prefix + '/servers/:id/sftp/delete',
+    prefix + '/servers/v1/:id/sftp/delete',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { path: root = '/', files, bulk } = ctx.body as Record<string, unknown>;
 
       const auth = await resolveSftpAccess(id, ctx);
@@ -3591,15 +3652,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       detail: { summary: 'Delete file(s) over KVM SFTP', tags: ['Servers'] },
     }
   );
 
   app.post(
-    prefix + '/servers/:id/sftp/create-directory',
+    prefix + '/servers/v1/:id/sftp/create-directory',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { path: dirPath } = ctx.body as Record<string, unknown>;
       if (!dirPath || typeof dirPath !== 'string') {
         ctx.set.status = 400;
@@ -3628,15 +3689,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       detail: { summary: 'Create directory over KVM SFTP', tags: ['Servers'] },
     }
   );
 
   app.put(
-    prefix + '/servers/:id/sftp/rename',
+    prefix + '/servers/v1/:id/sftp/rename',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
@@ -3675,15 +3736,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       detail: { summary: 'Rename files over KVM SFTP', tags: ['Servers'] },
     }
   );
 
   app.post(
-    prefix + '/servers/:id/sftp/move',
+    prefix + '/servers/v1/:id/sftp/move',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', files, destination } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
@@ -3723,15 +3784,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       detail: { summary: 'Move files over KVM SFTP', tags: ['Servers'] },
     }
   );
 
   app.post(
-    prefix + '/servers/:id/sftp/chmod',
+    prefix + '/servers/v1/:id/sftp/chmod',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { root = '/', files } = ctx.body as Record<string, unknown>;
       if (!Array.isArray(files) || files.length === 0) {
         ctx.set.status = 400;
@@ -3771,7 +3832,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('files:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       detail: { summary: 'Change permissions over KVM SFTP', tags: ['Servers'] },
     }
   );
@@ -3780,9 +3841,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   // would be nightmare to add
   // be happy that most shit is already supported and using wings-go is possible
   app.get(
-    prefix + '/servers/:id/backups',
+    prefix + '/servers/v1/:id/backups',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       try {
         const svc = await serviceFor(id);
         const res = await svc.listServerBackups(id);
@@ -3839,7 +3900,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('backups:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('backups:read')],
       response: {
         200: t.Array(t.Any()),
         401: t.Object({ error: t.String() }),
@@ -3850,9 +3911,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/backups',
+    prefix + '/servers/v1/:id/backups',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const user = ctx.user;
       const accountBackupsLimit =
         user?.limits && typeof user.limits.backups === 'number' ? user.limits.backups : 0;
@@ -3925,7 +3986,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('backups:create')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('backups:create')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3938,7 +3999,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/backups/:bid/restore',
+    prefix + '/servers/v1/:id/backups/:bid/restore',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id, bid } = ctx.params as Record<string, string>;
       const body = (ctx.body as Record<string, unknown>) || {};
@@ -3968,7 +4029,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('backups:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('backups:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3981,7 +4042,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.delete(
-    prefix + '/servers/:id/backups/:bid',
+    prefix + '/servers/v1/:id/backups/:bid',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id, bid } = ctx.params as Record<string, string>;
       const adapter = 'wings';
@@ -4046,7 +4107,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('backups:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('backups:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -4059,7 +4120,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/backups/:bid/lock',
+    prefix + '/servers/v1/:id/backups/:bid/lock',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id, bid } = ctx.params as Record<string, string>;
       const { lock } = (ctx.body as Record<string, unknown>) || {};
@@ -4081,7 +4142,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('backups:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('backups:write')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4094,7 +4155,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/backups/:bid/rename',
+    prefix + '/servers/v1/:id/backups/:bid/rename',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id, bid } = ctx.params as Record<string, string>;
       const { name } = (ctx.body as Record<string, unknown>) || {};
@@ -4120,7 +4181,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('backups:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('backups:write')],
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -4134,9 +4195,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/commands',
+    prefix + '/servers/v1/:id/commands',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { command } = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
       const res = await svc.executeServerCommand(id, command as string);
@@ -4152,7 +4213,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('commands:execute')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('commands:execute')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4163,9 +4224,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/logs',
+    prefix + '/servers/v1/:id/logs',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       try {
         const svc = await serviceFor(id);
         const res = await svc.getServerLogs(id);
@@ -4198,7 +4259,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('logs:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('logs:read')],
       response: {
         200: t.Array(t.String()),
         401: t.Object({ error: t.String() }),
@@ -4209,9 +4270,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/reinstall',
+    prefix + '/servers/v1/:id/reinstall',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const body = (ctx.body as Record<string, unknown>) || {};
       const truncateDirectory =
@@ -4253,7 +4314,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('reinstall:execute')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('reinstall:execute')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4264,14 +4325,14 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/schedules',
+    prefix + '/servers/v1/:id/schedules',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       return cfg?.schedules ?? [];
     },
     {
-      beforeHandle: [authenticate, authorize('schedules:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('schedules:read')],
       response: {
         200: t.Array(t.Any()),
         401: t.Object({ error: t.String() }),
@@ -4282,9 +4343,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/schedules',
+    prefix + '/servers/v1/:id/schedules',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const body = ctx.body as Record<string, unknown>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) {
@@ -4308,7 +4369,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return schedule;
     },
     {
-      beforeHandle: [authenticate, authorize('schedules:create')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('schedules:create')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4320,7 +4381,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.delete(
-    prefix + '/servers/:id/schedules/:sid',
+    prefix + '/servers/v1/:id/schedules/:sid',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id, sid } = ctx.params as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -4333,7 +4394,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('schedules:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('schedules:write')],
       response: {
         200: t.Object({ success: t.Boolean() }),
         401: t.Object({ error: t.String() }),
@@ -4345,16 +4406,16 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/sync',
+    prefix + '/servers/v1/:id/sync',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const payload = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
       const res = await svc.syncServer(id, payload);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('sync:execute')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('sync:execute')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4365,9 +4426,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/transfer',
+    prefix + '/servers/v1/:id/transfer',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const payload = ctx.body as Record<string, unknown>;
       const user = ctx.user;
       let svc = await serviceFor(id);
@@ -4440,7 +4501,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('transfer:execute')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('transfer:execute')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4451,9 +4512,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.delete(
-    prefix + '/servers/:id/transfer',
+    prefix + '/servers/v1/:id/transfer',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       try {
         const res = await svc.cancelTransfer(id);
@@ -4471,7 +4532,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('transfer:execute')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('transfer:execute')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4483,15 +4544,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/version',
+    prefix + '/servers/v1/:id/version',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.getServerVersion(id);
       return res.data ?? {};
     },
     {
-      beforeHandle: [authenticate, authorize('version:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('version:read')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4502,9 +4563,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/console',
+    prefix + '/servers/v1/:id/console',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (cfg?.suspended || cfg?.dmca) {
         ctx.set.status = 403;
@@ -4522,7 +4583,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('servers:console')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:console')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -4534,9 +4595,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/allocations',
+    prefix + '/servers/v1/:id/allocations',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       const a = cfg?.allocations;
       if (!a) return [];
@@ -4586,7 +4647,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return result;
     },
     {
-      beforeHandle: [authenticate, authorize('servers:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
       response: {
         200: t.Array(t.Any()),
         401: t.Object({ error: t.String() }),
@@ -4597,9 +4658,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/allocations',
+    prefix + '/servers/v1/:id/allocations',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const body = (ctx.body as Record<string, unknown>) || {};
       const count = Number(body.count || 1);
       const requestIpv6 = body.requestIpv6 === true || String(body.requestIpv6) === 'true';
@@ -4746,7 +4807,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return newPorts.map(x => ({ ip: x.ip, port: x.port, is_default: false }));
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Array(t.Object({ ip: t.String(), port: t.Number(), is_default: t.Boolean() })),
         400: t.Object({ error: t.String() }),
@@ -4764,9 +4825,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/ip-request',
+    prefix + '/servers/v1/:id/ip-request',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { type, reason } = (ctx.body as Record<string, unknown>) || {};
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'admin:access');
@@ -4825,7 +4886,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return { success: true, submissionId: saved.id };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Object({ success: t.Boolean(), submissionId: t.Number() }),
         400: t.Object({ error: t.String() }),
@@ -4838,9 +4899,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.delete(
-    prefix + '/servers/:id/allocations',
+    prefix + '/servers/v1/:id/allocations',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const body = (ctx.body as Record<string, unknown>) || {};
       const ip = body.ip;
       const port = Number(body.port || 0);
@@ -4904,7 +4965,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Object({ success: t.Boolean() }),
         400: t.Object({ error: t.String() }),
@@ -4917,9 +4978,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.delete(
-    prefix + '/servers/:id/allocations/secondary',
+    prefix + '/servers/v1/:id/allocations/secondary',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -4965,7 +5026,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return { success: true, removedCount: removed.length, removed };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Object({
           success: t.Boolean(),
@@ -4984,9 +5045,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-      prefix + '/servers/:id/network',
+      prefix + '/servers/v1/:id/network',
       async (ctx: AuthenticatedHandlerContext) => {
-        const { id } = ctx.params as Record<string, string>;
+        const { id } = (ctx.params ?? {}) as Record<string, string>;
         try {
           const svc = await serviceFor(id);
           const res = await svc.serverRequest(id, '/network');
@@ -4999,7 +5060,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         }
       },
       {
-        beforeHandle: [authenticate, authorize('servers:read')],
+        beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
         response: {
           200: t.Array(t.Any()),
           401: t.Object({ error: t.String() }),
@@ -5012,7 +5073,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     app.get(
       prefix + '/servers/:id/location',
       async (ctx: AuthenticatedHandlerContext) => {
-        const { id } = ctx.params as Record<string, string>;
+        const { id } = (ctx.params ?? {}) as Record<string, string>;
         try {
           const svc = await serviceFor(id);
           const res = await svc.serverRequest(id, '/location');
@@ -5038,7 +5099,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.get(
     prefix + '/servers/:id/stats',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
 
       const mappingRepo = AppDataSource.getRepository(ServerMapping);
       const mapping = await mappingRepo.findOne({ where: { uuid: id }, relations: { node: true } });
@@ -5188,7 +5249,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.get(
     prefix + '/servers/:id/stats/history',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { window: w = '1h', points: p = '60' } = ctx.query ?? {};
 
       const points = Math.max(12, Math.min(1440, Number(p) || 60));
@@ -5264,7 +5325,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.get(
     prefix + '/servers/:id/stats/node',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       try {
         const mappingRepo = AppDataSource.getRepository(ServerMapping);
         const mapping = await mappingRepo.findOne({
@@ -5425,7 +5486,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.get(
     prefix + '/servers/:id/stats/node/history',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { window: w = '24h', points: p = '144' } = ctx.query ?? {};
       const points = Math.max(12, Math.min(1440, Number(p) || 144));
 
@@ -5487,15 +5548,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/configuration',
+    prefix + '/servers/v1/:id/configuration',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/configuration');
       return res.data ?? {};
     },
     {
-      beforeHandle: [authenticate, authorize('configuration:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('configuration:read')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5506,15 +5567,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/script',
+    prefix + '/servers/v1/:id/script',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/script', 'post', ctx.body);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5525,15 +5586,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/ws/permissions',
+    prefix + '/servers/v1/:id/ws/permissions',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/ws/permissions', 'post', ctx.body);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5544,15 +5605,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/ws/broadcast',
+    prefix + '/servers/v1/:id/ws/broadcast',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/ws/broadcast', 'post', ctx.body);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5563,15 +5624,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.post(
-    prefix + '/servers/:id/install/abort',
+    prefix + '/servers/v1/:id/install/abort',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/install/abort', 'post');
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5582,15 +5643,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/configuration/egg',
+    prefix + '/servers/v1/:id/configuration/egg',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/configuration/egg');
       return res.data ?? {};
     },
     {
-      beforeHandle: [authenticate, authorize('configuration:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('configuration:read')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5601,16 +5662,16 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.put(
-    prefix + '/servers/:id/configuration/egg',
+    prefix + '/servers/v1/:id/configuration/egg',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const payload = ctx.body as Record<string, unknown>;
       const svc = await serviceFor(id);
       const res = await svc.serverRequest(id, '/configuration/egg', 'put', payload);
       return res.data && typeof res.data === 'object' ? res.data : { success: true };
     },
     {
-      beforeHandle: [authenticate, authorize('configuration:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('configuration:write')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5621,9 +5682,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/startup',
+    prefix + '/servers/v1/:id/startup',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) {
         ctx.set.status = 404;
@@ -5675,7 +5736,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),
@@ -5687,9 +5748,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.put(
-    prefix + '/servers/:id/startup',
+    prefix + '/servers/v1/:id/startup',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as Record<string, unknown>;
       if (!environment && !incomingProcCfg && dockerImage === undefined) {
         ctx.set.status = 400;
@@ -5830,7 +5891,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:write')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
         200: t.Object({ success: t.Boolean(), environment: t.Any(), processConfig: t.Any() }),
         400: t.Object({ error: t.String() }),
@@ -5843,9 +5904,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/mounts',
+    prefix + '/servers/v1/:id/mounts',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const mountRepo = AppDataSource.getRepository(Mount);
       const smRepo = AppDataSource.getRepository(ServerMount);
       const links = await smRepo.findBy({ serverUuid: id });
@@ -5855,7 +5916,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       return mounts;
     },
     {
-      beforeHandle: [authenticate, authorize('servers:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
       response: {
         200: t.Array(t.Any()),
         401: t.Object({ error: t.String() }),
@@ -5866,9 +5927,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/websocket',
+    prefix + '/servers/v1/:id/websocket',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const user = ctx.user;
 
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
@@ -5990,7 +6051,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         getCookieToken();
       const wsUrl =
         backendBase.replace(/^https?/, socketScheme) +
-        `/api/servers/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;
+        `/api/servers/v1/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;
 
       const nodeUrl = String((node as any).backendWingsUrl || node.url).replace(/\/+$/, '');
       const nodeProtocol = node.useSSL === false ? 'ws:' : 'wss:';
@@ -6020,7 +6081,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:console')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:console')],
       response: {
         200: t.Object({ data: t.Object({ token: t.String(), socket: t.String(), direct_socket: t.String(), direct: t.Boolean() }) }),
         401: t.Object({ error: t.String() }),
@@ -6033,9 +6094,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   );
 
   app.get(
-    prefix + '/servers/:id/logs/install',
+    prefix + '/servers/v1/:id/logs/install',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const cfg = await cfgRepo().findOneBy({ uuid: id });
       if (!cfg) { ctx.set.status = 404; return { error: ctx.t('server.notFound') }; }
       if (cfg.suspended || cfg.dmca) { ctx.set.status = 403; return { error: buildSuspendedServerMessage(cfg) }; }
@@ -6053,15 +6114,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('servers:console')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:console')],
       detail: { summary: 'Get install logs', tags: ['Servers'] },
     }
   );
 
   app.get(
-    prefix + '/servers/:id/sftp',
+    prefix + '/servers/v1/:id/sftp',
     async (ctx: AuthenticatedHandlerContext) => {
-      const { id } = ctx.params as Record<string, string>;
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
       const user = ctx.user;
 
       const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -6118,7 +6179,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       };
     },
     {
-      beforeHandle: [authenticate, authorize('servers:read')],
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
       response: {
         200: t.Object({
           host: t.String(),
@@ -6132,6 +6193,112 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Get SFTP connection info', tags: ['Servers'] },
+    }
+  );
+
+  // ─── v2 Proxmox-specific routes ──────────────────────────────────────────────
+
+  app.get(
+    prefix + '/servers/v2/:id',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.getServer(id);
+        return res.data;
+      } catch (e: unknown) {
+        ctx.set.status = 500;
+        return { error: 'Failed to get server info' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('proxmox')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get Proxmox server info', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v2/:id/power',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { action } = ctx.body as Record<string, unknown>;
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.powerServer(id, action as 'start' | 'stop' | 'restart' | 'shutdown' | 'kill');
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: 'Power action failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('proxmox')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Perform power action on Proxmox server', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/v2/:id/stats',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      try {
+        const svc = await serviceFor(id);
+        const stats = await svc.getStats(id);
+        return stats;
+      } catch {
+        return {
+          memory: { used: 0, total: 0 },
+          cpu: { used: 0, total: 0 },
+          disk: { used: 0, total: 0 },
+          network: { rx: 0, tx: 0 },
+        };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('proxmox')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get Proxmox server stats', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/v2/:id/configuration',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      try {
+        const svc = await serviceFor(id);
+        const res = await svc.getServer(id);
+        return res.data;
+      } catch {
+        ctx.set.status = 500;
+        return { error: 'Failed to get configuration' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('proxmox')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get Proxmox server configuration', tags: ['Servers'] },
     }
   );
 }

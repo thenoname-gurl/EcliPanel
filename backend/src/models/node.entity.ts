@@ -3,6 +3,7 @@ import { ServerMapping } from './serverMapping.entity';
 import { Organisation } from './organisation.entity';
 
 export type NodeType = 'free' | 'paid' | 'free_and_paid' | 'enterprise';
+export type NodeProvider = 'wings' | 'proxmox';
 
 @Entity()
 export class Node {
@@ -24,6 +25,9 @@ export class Node {
   @Column()
   token: string;
 
+  @Column({ default: 'wings', type: 'varchar', length: 16 })
+  provider: NodeProvider;
+
   @Column({ default: 'free', type: 'varchar' })
   nodeType: NodeType;
 
@@ -35,6 +39,27 @@ export class Node {
 
   @Column({ nullable: true, type: 'text' })
   rootPassword?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  proxmoxHost?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  proxmoxTokenId?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  proxmoxSecret?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  proxmoxRealm?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  proxmoxNode?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  proxmoxStorage?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  proxmoxBridge?: string;
 
   @OneToMany(() => ServerMapping, m => m.node)
   mappings: ServerMapping[];

@@ -321,8 +321,12 @@ struct OutgoingMessage {
     remote_addr: Option<String>,
     #[serde(rename = "remotePort", skip_serializing_if = "Option::is_none")]
     remote_port: Option<u16>,
+    #[serde(rename = "directPort", skip_serializing_if = "Option::is_none")]
+    direct_port: Option<u16>,
     #[serde(skip_serializing_if = "Option::is_none")]
     data: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    protocol: Option<String>,
 }
 
 impl OutgoingMessage {
@@ -333,6 +337,8 @@ impl OutgoingMessage {
             connection_id: Some(connection_id.to_owned()),
             remote_addr: Some(peer.ip().to_string()),
             remote_port: Some(peer.port()),
+            direct_port: None,
+            protocol: None,
             data: None,
         }
     }
@@ -344,6 +350,8 @@ impl OutgoingMessage {
             connection_id: Some(connection_id.to_owned()),
             remote_addr: None,
             remote_port: None,
+            direct_port: None,
+            protocol: None,
             data: Some(data),
         }
     }
@@ -355,6 +363,8 @@ impl OutgoingMessage {
             connection_id: Some(connection_id.to_owned()),
             remote_addr: None,
             remote_port: None,
+            direct_port: None,
+            protocol: None,
             data: None,
         }
     }
@@ -1218,7 +1228,6 @@ async fn bind_udp_listener(
     udp_direct_tokens: UdpDirectTokens,
 ) {
     let port = bind.port;
-    let direct_port = port.saturating_add(1);
     let allocation_id = bind.allocation_id;
 
     let udp_sock = match UdpSocket::bind(format!("0.0.0.0:{}", port)).await {
@@ -1230,14 +1239,15 @@ async fn bind_udp_listener(
     };
     info!(port, "UDP socket ready");
 
-    let direct_listener = match TcpListener::bind(format!("0.0.0.0:{}", direct_port)).await {
+    let direct_listener = match TcpListener::bind("0.0.0.0:0").await {
         Ok(l) => l,
         Err(err) => {
-            error!(%err, port = direct_port, "failed to bind ECLI-DIRECT listener");
+            error!(%err, "failed to bind ECLI-DIRECT listener");
             return;
         }
     };
-    info!(port = direct_port, "ECLI-DIRECT listener ready");
+    let direct_port = direct_listener.local_addr().map(|a| a.port()).unwrap_or(0);
+    info!(port = direct_port, "ECLI-DIRECT listener ready (random port)");
 
     let (shutdown_tx, mut shutdown_rx) = oneshot::channel::<()>();
     listeners.lock().await.insert(allocation_id, shutdown_tx);
@@ -1271,6 +1281,8 @@ async fn bind_udp_listener(
                                 connection_id: Some(connection_id.clone()),
                                 remote_addr: Some(peer.ip().to_string()),
                                 remote_port: Some(peer.port()),
+                                direct_port: Some(direct_port),
+                                protocol: Some("udp".into()),
                                 data: None,
                             };
                             if let Ok(ws_msg) = msg.into_ws_message() {

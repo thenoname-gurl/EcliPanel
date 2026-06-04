@@ -1,4 +1,5 @@
 import { nodeService } from '../services/nodeService';
+import { ProxmoxApiService } from '../services/proxmoxApiService';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { AppDataSource } from '../config/typeorm';
@@ -20,6 +21,7 @@ import type { BaseHandlerContext, NodeApp, CreateNodeBody, UpdateNodeBody, Reboo
 import type { OrganisationMember } from '../models/organisationMember.entity';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
+const NODE_PROVIDERS = ['wings', 'proxmox'] as const;
 
 function requireAdminCtx(ctx: BaseHandlerContext): true | { error: string } {
   const ctxAny = ctx as unknown as Record<string, unknown>;
@@ -168,7 +170,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       const adminErr = await authorize('nodes:create')(ctx);
       if (adminErr !== undefined) return adminErr;
       const body = ctx.body as CreateNodeBody;
-      const { name, url, token, nodeId, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice } = body;
+      const { name, url, token, nodeId, provider, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge } = body;
       if (!name || !url || !token) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.nameUrlTokenRequired') };
@@ -181,7 +183,28 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         }
       }
 
-      const node = await nodeService.registerNode(name, url, token, nodeId, backendWingsUrl);
+      const resolvedProvider = provider && NODE_PROVIDERS.includes(provider as typeof NODE_PROVIDERS[number])
+        ? (provider as typeof NODE_PROVIDERS[number])
+        : 'wings';
+
+      if (resolvedProvider === 'proxmox') {
+        if (!proxmoxHost || !proxmoxTokenId || !proxmoxSecret) {
+          ctx.set.status = 400;
+          return { error: 'Proxmox host, token ID, and secret are required for Proxmox nodes' };
+        }
+      }
+
+      const node = await nodeService.registerNode(name, url, token, nodeId, backendWingsUrl, resolvedProvider);
+      if (resolvedProvider === 'proxmox') {
+        node.provider = 'proxmox';
+        node.proxmoxHost = proxmoxHost;
+        node.proxmoxTokenId = proxmoxTokenId;
+        node.proxmoxSecret = proxmoxSecret;
+        if (proxmoxRealm) node.proxmoxRealm = proxmoxRealm;
+        if (proxmoxNode) node.proxmoxNode = proxmoxNode;
+        if (proxmoxStorage) node.proxmoxStorage = proxmoxStorage;
+        if (proxmoxBridge) node.proxmoxBridge = proxmoxBridge;
+      }
       if (nodeType && NODE_TYPES.includes(nodeType as typeof NODE_TYPES[number])) {
         node.nodeType = nodeType as typeof NODE_TYPES[number];
       }
@@ -277,7 +300,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== undefined) return adminErr;
       const { id } = ctx.params as Record<string, string>;
       const body = ctx.body as UpdateNodeBody;
-      const { nodeId, url, nodeType, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice } = body;
+      const { nodeId, url, nodeType, provider, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge } = body;
 
       const node = await resolveNode(id);
       if (!node) {
@@ -378,6 +401,20 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (cpu !== undefined) node.cpu = cpu !== null ? Number(cpu) : undefined;
       if (serverLimit !== undefined)
         node.serverLimit = serverLimit !== null ? Number(serverLimit) : undefined;
+      if (provider !== undefined) {
+        if (!(NODE_PROVIDERS as readonly string[]).includes(provider)) {
+          ctx.set.status = 400;
+          return { error: `provider must be one of: ${NODE_PROVIDERS.join(', ')}` };
+        }
+        node.provider = provider as typeof node.provider;
+      }
+      if (proxmoxHost !== undefined) node.proxmoxHost = proxmoxHost || undefined;
+      if (proxmoxTokenId !== undefined) node.proxmoxTokenId = proxmoxTokenId || undefined;
+      if (proxmoxSecret !== undefined) node.proxmoxSecret = proxmoxSecret || undefined;
+      if (proxmoxRealm !== undefined) node.proxmoxRealm = proxmoxRealm || undefined;
+      if (proxmoxNode !== undefined) node.proxmoxNode = proxmoxNode || undefined;
+      if (proxmoxStorage !== undefined) node.proxmoxStorage = proxmoxStorage || undefined;
+      if (proxmoxBridge !== undefined) node.proxmoxBridge = proxmoxBridge || undefined;
       if (useSSL !== undefined) {
         node.useSSL = useSSL === true || useSSL === 'true';
         if (node.useSSL && node.url.toLowerCase().startsWith('http://')) {
@@ -972,6 +1009,127 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         502: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Reboot all running servers on a node (async)', tags: ['Nodes'] },
+    }
+  );
+
+  app.get(
+    prefix + '/nodes/:id/proxmox/storages',
+    async (ctx: BaseHandlerContext) => {
+      const adminErr = requireAdminCtx(ctx);
+      if (adminErr !== true) return adminErr;
+      const node = await resolveNode(ctx.params.id);
+      if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      try {
+        const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
+        const storages = await svc.getStorages();
+        return storages;
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e, 'proxmox:storages') };
+      }
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 400: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'List Proxmox storages', tags: ['Proxmox'] },
+    }
+  );
+
+  app.get(
+    prefix + '/nodes/:id/proxmox/storage/:storage/content',
+    async (ctx: BaseHandlerContext) => {
+      const adminErr = requireAdminCtx(ctx);
+      if (adminErr !== true) return adminErr;
+      const node = await resolveNode(ctx.params.id);
+      if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      try {
+        const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
+        const storage = ctx.params.storage as string || node.proxmoxStorage || 'local';
+        const content = await svc.getStorageContent(storage);
+        return content;
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e, 'proxmox:storage-content') };
+      }
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 400: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'List Proxmox storage content (ISOs/templates)', tags: ['Proxmox'] },
+    }
+  );
+
+  app.get(
+    prefix + '/nodes/:id/proxmox/templates',
+    async (ctx: BaseHandlerContext) => {
+      const adminErr = requireAdminCtx(ctx);
+      if (adminErr !== true) return adminErr;
+      const node = await resolveNode(ctx.params.id);
+      if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      try {
+        const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
+        const templates = await svc.getTemplates();
+        return templates;
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e, 'proxmox:templates') };
+      }
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 400: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'List Proxmox templates (LXC + ISO)', tags: ['Proxmox'] },
+    }
+  );
+
+  app.get(
+    prefix + '/nodes/:id/proxmox/isos',
+    async (ctx: BaseHandlerContext) => {
+      const adminErr = requireAdminCtx(ctx);
+      if (adminErr !== true) return adminErr;
+      const node = await resolveNode(ctx.params.id);
+      if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      try {
+        const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
+        const isos = await svc.getIsos();
+        return isos;
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e, 'proxmox:isos') };
+      }
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 400: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'List Proxmox ISO files available on storage', tags: ['Proxmox'] },
+    }
+  );
+
+  app.get(
+    prefix + '/nodes/:id/proxmox/lxc-templates',
+    async (ctx: BaseHandlerContext) => {
+      const adminErr = requireAdminCtx(ctx);
+      if (adminErr !== true) return adminErr;
+      const node = await resolveNode(ctx.params.id);
+      if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      try {
+        const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
+        const templates = await svc.getLxcTemplates();
+        return templates;
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e, 'proxmox:lxc-templates') };
+      }
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 400: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'List Proxmox LXC templates', tags: ['Proxmox'] },
     }
   );
 

@@ -89,6 +89,39 @@ export class ServerConfig {
   @Column({ default: false })
   kvmPassthroughEnabled: boolean;
 
+  @Column({ nullable: true, type: 'varchar', length: 16, default: 'lxc' })
+  vmType?: 'lxc' | 'qemu';
+
+  @Column({ nullable: true, type: 'int' })
+  vmid?: number;
+
+  @Column({ nullable: true, type: 'text' })
+  template?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  isoFile?: string;
+
+  @Column({ nullable: true, type: 'int' })
+  cores?: number;
+
+  @Column({ nullable: true, type: 'int' })
+  sockets?: number;
+
+  @Column({ nullable: true, type: 'text' })
+  ostemplate?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  rootfs?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  netif?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  nameserver?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  searchdomain?: string;
+
   @Column({ nullable: true })
   eggId?: number;
 

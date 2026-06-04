@@ -1,8 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
-import { nodeService } from './nodeService';
-import { WingsApiService } from './wingsApiService';
+import { nodeService, type ProviderService } from './nodeService';
 
 const RUNNING_STATES = new Set(['running', 'online', 'up', 'healthy', 'available', 'active']);
 
@@ -12,7 +11,7 @@ function normalizeStatus(value: any): string {
     .toLowerCase();
 }
 
-async function getServerStatusMap(svc: WingsApiService): Promise<Map<string, string>> {
+async function getServerStatusMap(svc: ProviderService): Promise<Map<string, string>> {
   const res = await svc.getServers();
   const data = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
   const map = new Map<string, string>();

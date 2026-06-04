@@ -159,9 +159,17 @@ CREATE TABLE `node` (
   `name` varchar(255) NOT NULL UNIQUE,
   `url` varchar(255) NOT NULL,
   `token` varchar(255) NOT NULL,
+  `provider` varchar(16) NOT NULL DEFAULT 'wings',
   `organisationId` int,
   `rootUser` varchar(255),
   `rootPassword` varchar(255),
+  `proxmoxHost` text,
+  `proxmoxTokenId` varchar(255),
+  `proxmoxSecret` text,
+  `proxmoxRealm` varchar(64) DEFAULT 'pam',
+  `proxmoxNode` varchar(255),
+  `proxmoxStorage` varchar(255) DEFAULT 'local',
+  `proxmoxBridge` varchar(64) DEFAULT 'vmbr0',
   `deploymentsDisabled` tinyint(1) NOT NULL DEFAULT 0,
   `deploymentNotice` text
 );
