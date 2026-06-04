@@ -1477,17 +1477,17 @@ export default function SettingsPage() {
     serverAlerts: {
       label: t("notifications.items.serverAlerts.label"),
       desc: t("notifications.items.serverAlerts.desc"),
-      enabled: true,
+      enabled: false,
     },
     serverLifecycle: {
       label: t("notifications.items.serverLifecycle.label"),
       desc: t("notifications.items.serverLifecycle.desc"),
-      enabled: true,
+      enabled: false,
     },
     serverErrors: {
       label: t("notifications.items.serverErrors.label"),
       desc: t("notifications.items.serverErrors.desc"),
-      enabled: true,
+      enabled: false,
     },
     serverActivity: {
       label: t("notifications.items.serverActivity.label"),
@@ -1507,7 +1507,7 @@ export default function SettingsPage() {
     productUpdates: {
       label: t("notifications.items.productUpdates.label"),
       desc: t("notifications.items.productUpdates.desc"),
-      enabled: false,
+      enabled: true,
     },
     tickets: {
       label: t("notifications.items.tickets.label"),
@@ -1517,7 +1517,7 @@ export default function SettingsPage() {
     aiUsage: {
       label: t("notifications.items.aiUsage.label"),
       desc: t("notifications.items.aiUsage.desc"),
-      enabled: false,
+      enabled: true,
     },
   }
 
