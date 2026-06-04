@@ -459,15 +459,17 @@ export async function userRoutes(app: any, prefix = '') {
         try {
           const settings =
             user.settings && typeof user.settings === 'object' ? { ...user.settings } : {};
-          if (!settings.emailPreferences) {
-            settings.emailPreferences = {
+          if (!settings.notifications) {
+            settings.notifications = {
+              serverAlerts: false,
+              serverLifecycle: false,
+              serverErrors: false,
+              serverActivity: false,
               billing: true,
               security: true,
               productUpdates: true,
               tickets: true,
               aiUsage: true,
-              marketing: false,
-              news: false,
             };
             await userRepo.save({ id: user.id, settings });
           }
@@ -3068,7 +3070,6 @@ export async function userRoutes(app: any, prefix = '') {
             'locale',
             'editor',
             'notifications',
-            'emailPreferences',
             'serverFavorites',
             'guideShown',
           ]);
