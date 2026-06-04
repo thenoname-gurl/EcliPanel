@@ -20,10 +20,10 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <div className="h-9 w-9 bg-primary/10 flex items-center justify-center shrink-0">
               <ShieldCheck className="h-4 w-4 text-primary" />
             </div>
             <div>
@@ -39,7 +39,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
                 <span className="sm:hidden">{verifications.filter((v: any) => v.status === "pending").length}</span>
               </span>
             )}
-            <button onClick={() => forceRefreshTab("verifications")} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title={t("actions.refresh")}>
+            <button onClick={() => forceRefreshTab("verifications")} className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title={t("actions.refresh")}>
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
@@ -63,7 +63,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
             <button
               key={f}
               onClick={() => setVerificationFilter(f === "all" ? "" : f)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
             >
               <Icon className="h-3 w-3" />
               {c.label}
@@ -73,7 +73,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
         })}
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden md:block">
+      <div className="border border-border bg-card hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -123,8 +123,8 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          {v.idDocumentUrl && <button onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, t("documents.idDocument"))} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><FileText className="h-3 w-3 text-primary" />{t("documents.idDoc")}</button>}
-                          {v.selfieUrl && <button onClick={() => v.selfieUrl && openPreview(v.selfieUrl, t("documents.selfie"))} className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><Camera className="h-3 w-3 text-primary" />{t("documents.selfie")}</button>}
+                          {v.idDocumentUrl && <button onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, t("documents.idDocument"))} className="inline-flex items-center gap-1.5 border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><FileText className="h-3 w-3 text-primary" />{t("documents.idDoc")}</button>}
+                          {v.selfieUrl && <button onClick={() => v.selfieUrl && openPreview(v.selfieUrl, t("documents.selfie"))} className="inline-flex items-center gap-1.5 border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><Camera className="h-3 w-3 text-primary" />{t("documents.selfie")}</button>}
                           {!v.idDocumentUrl && !v.selfieUrl && <span className="text-xs text-muted-foreground">{t("documents.none")}</span>}
                         </div>
                       </td>
@@ -132,12 +132,12 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
                         <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                           {v.status === "pending" && (
                             <>
-                              <button onClick={() => reviewVerification(v.id, "verified")} title={t("actions.approve")} className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"><CheckCircle className="h-3.5 w-3.5" /></button>
-                              <button onClick={() => reviewVerification(v.id, "failed")} title={t("actions.reject")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"><XCircle className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => reviewVerification(v.id, "verified")} title={t("actions.approve")} className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"><CheckCircle className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => reviewVerification(v.id, "failed")} title={t("actions.reject")} className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"><XCircle className="h-3.5 w-3.5" /></button>
                             </>
                           )}
-                          {v.status === "verified" && <button onClick={() => reviewVerification(v.id, "failed")} title={t("actions.revokeVerification")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"><XCircle className="h-3.5 w-3.5" /></button>}
-                          <button onClick={() => deleteVerification(v.id)} title={t("actions.deleteRecord")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                          {v.status === "verified" && <button onClick={() => reviewVerification(v.id, "failed")} title={t("actions.revokeVerification")} className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"><XCircle className="h-3.5 w-3.5" /></button>}
+                          <button onClick={() => deleteVerification(v.id)} title={t("actions.deleteRecord")} className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </td>
                     </tr>
@@ -154,7 +154,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
           const filtered = verificationFilter ? verifications.filter((v: any) => v.status === verificationFilter) : verifications
           if (filtered.length === 0) {
             return (
-              <div className="rounded-xl border border-border bg-card px-4 py-12">
+              <div className="border border-border bg-card px-4 py-12">
                 <div className="flex flex-col items-center gap-2">
                   <ShieldCheck className="h-8 w-8 text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground">{verifications.length === 0 ? t("states.noneFound") : t("states.noMatch")}</p>
@@ -172,7 +172,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
             const sc = statusConfig[v.status] || statusConfig.pending
 
             return (
-              <div key={v.id ?? i} className={`rounded-xl border bg-card overflow-hidden ${v.status === "pending" ? "border-warning/20" : "border-border"}`}>
+              <div key={v.id ?? i} className={`border bg-card overflow-hidden ${v.status === "pending" ? "border-warning/20" : "border-border"}`}>
                 {v.status === "pending" && <div className="h-0.5 bg-gradient-to-r from-warning/60 via-warning to-warning/60" />}
                 <div className="flex items-start gap-3 p-4 pb-3">
                   {v.user?.avatarUrl ? <img src={v.user.avatarUrl} alt={`${v.user.firstName || t("common.user")} ${t("common.avatar")}`} className="h-10 w-10 rounded-full object-cover shrink-0" /> : <div className="relative h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">{v.user?.firstName?.[0]?.toUpperCase() || "?"}<span className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${sc.dot}`} /></div>}
@@ -190,9 +190,9 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
                 <div className="px-4 pb-3">
                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-2">{t("table.documents")}</p>
                   <div className="flex items-center gap-2">
-                    {v.idDocumentUrl && <button onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, t("documents.idDocument"))} className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"><FileText className="h-4 w-4 text-primary" /><div className="text-left"><p className="text-xs font-medium">{t("documents.idDocument")}</p><p className="text-[10px] text-muted-foreground">{t("documents.tapToPreview")}</p></div></button>}
-                    {v.selfieUrl && <button onClick={() => v.selfieUrl && openPreview(v.selfieUrl, t("documents.selfie"))} className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"><Camera className="h-4 w-4 text-primary" /><div className="text-left"><p className="text-xs font-medium">{t("documents.selfie")}</p><p className="text-[10px] text-muted-foreground">{t("documents.tapToPreview")}</p></div></button>}
-                    {!v.idDocumentUrl && !v.selfieUrl && <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-border py-3"><p className="text-xs text-muted-foreground">{t("documents.noneUploaded")}</p></div>}
+                    {v.idDocumentUrl && <button onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, t("documents.idDocument"))} className="flex-1 flex items-center justify-center gap-2 border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"><FileText className="h-4 w-4 text-primary" /><div className="text-left"><p className="text-xs font-medium">{t("documents.idDocument")}</p><p className="text-[10px] text-muted-foreground">{t("documents.tapToPreview")}</p></div></button>}
+                    {v.selfieUrl && <button onClick={() => v.selfieUrl && openPreview(v.selfieUrl, t("documents.selfie"))} className="flex-1 flex items-center justify-center gap-2 border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"><Camera className="h-4 w-4 text-primary" /><div className="text-left"><p className="text-xs font-medium">{t("documents.selfie")}</p><p className="text-[10px] text-muted-foreground">{t("documents.tapToPreview")}</p></div></button>}
+                    {!v.idDocumentUrl && !v.selfieUrl && <div className="flex-1 flex items-center justify-center border border-dashed border-border py-3"><p className="text-xs text-muted-foreground">{t("documents.noneUploaded")}</p></div>}
                   </div>
                 </div>
 

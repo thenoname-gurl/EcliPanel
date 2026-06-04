@@ -173,7 +173,7 @@ export default function SOCDashboard() {
     return (
       <div
         key={server.uuid || server.id}
-        className="rounded-lg border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/20"
+        className="border border-border bg-secondary/30 p-4 transition-colors hover:border-primary/20"
       >
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -241,7 +241,7 @@ export default function SOCDashboard() {
           {/* Main Grid */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Server Health */}
-            <div className="col-span-1 rounded-xl border border-border bg-card p-5 lg:col-span-2">
+            <div className="col-span-1 border border-border bg-card p-5 lg:col-span-2">
               <SectionHeader title={t("serverHealth.title")} description={t("serverHealth.description")} />
               <div className="mt-4 flex flex-col gap-4">
                 {onlineList.length === 0 && !loading && (
@@ -271,7 +271,7 @@ export default function SOCDashboard() {
             {/* Quick Stats & Activity */}
             <div className="flex flex-col gap-6">
               {/* Resource Summary */}
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="border border-border bg-card p-5">
                 <SectionHeader title={t("resourceSummary.title")} />
                 <div className="mt-4 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
@@ -317,11 +317,11 @@ export default function SOCDashboard() {
               </div>
 
               {/* Recent Activity */}
-              <div className="rounded-xl border border-border bg-card p-5">
+              <div className="border border-border bg-card p-5">
                 <SectionHeader title={t("recentActivity.title")} />
                 <div className="mt-4 flex flex-col gap-3">
                   {recentActivity.length === 0 ? (
-                    <div className="rounded-lg border border-border/50 bg-secondary/10 p-4 text-center">
+                    <div className="border border-border/50 bg-secondary/10 p-4 text-center">
                       <p className="text-xs text-muted-foreground">{t("recentActivity.empty")}</p>
                     </div>
                   ) : (
@@ -330,7 +330,7 @@ export default function SOCDashboard() {
                       return (
                         <div
                           key={item.id || item.timestamp}
-                          className="flex items-start gap-3 rounded-lg border border-border/50 bg-secondary/10 p-3 text-sm"
+                          className="flex items-start gap-3 border border-border/50 bg-secondary/10 p-3 text-sm"
                         >
                           <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                           <div className="flex-1">
@@ -359,11 +359,11 @@ export default function SOCDashboard() {
           </div>
 
           {/* Security Alerts */}
-          <div className="rounded-xl border border-border bg-card p-5">
+          <div className="border border-border bg-card p-5">
             <SectionHeader title={t("securityAlerts.title")} description={t("securityAlerts.description")} />
             <div className="mt-4 flex flex-col gap-3">
               {socAlerts.length === 0 ? (
-                <div className="flex items-center gap-4 rounded-lg border border-success/30 bg-success/5 p-4">
+                <div className="flex items-center gap-4 border border-success/30 bg-success/5 p-4">
                   <Shield className="h-5 w-5 shrink-0 text-success" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-foreground">{t("securityAlerts.noneTitle")}</p>
@@ -372,7 +372,7 @@ export default function SOCDashboard() {
                 </div>
               ) : (
                 socAlerts.map((alert) => (
-                  <div key={alert.id} className="flex items-center gap-4 rounded-lg border border-warning/30 bg-warning/5 p-4">
+                  <div key={alert.id} className="flex items-center gap-4 border border-warning/30 bg-warning/5 p-4">
                     <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
                     <div className="flex-1">
                       <p className="text-sm font-medium text-foreground">

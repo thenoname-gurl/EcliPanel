@@ -360,7 +360,7 @@ function WelcomeScreen({
 }) {
     return (
         <div className="fixed inset-0 z-[200001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300">
+            <div className="w-full max-w-md bg-card border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300">
                 <div className="relative h-32 bg-gradient-to-br from-primary/20 via-primary/10 to-transparent overflow-hidden">
                     <div
                         className="absolute inset-0 bg-[url('/assets/icons/logo.png')] bg-center bg-no-repeat opacity-10"
@@ -371,7 +371,7 @@ function WelcomeScreen({
 
                 <div className="px-6 pb-6 -mt-8 relative">
                     <div className="flex justify-center mb-4">
-                        <div className="w-16 h-16 rounded-2xl bg-card border-2 border-border shadow-lg flex items-center justify-center">
+                        <div className="w-16 h-16 bg-card border-2 border-border shadow-lg flex items-center justify-center">
                             <img
                                 src="/assets/icons/logo.png"
                                 alt="Eclipse Systems"
@@ -390,7 +390,7 @@ function WelcomeScreen({
                     </div>
 
                     <div className="space-y-3 mb-6">
-                        <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                        <div className="flex items-start gap-3 p-3 bg-primary/5 border border-primary/10">
                             <Zap className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-sm font-medium text-foreground">
@@ -402,7 +402,7 @@ function WelcomeScreen({
                             </div>
                         </div>
 
-                        <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                        <div className="flex items-start gap-3 p-3 bg-muted/50 border border-border">
                             <Info className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-sm font-medium text-foreground">
@@ -420,14 +420,14 @@ function WelcomeScreen({
                     <div className="flex flex-col gap-2">
                         <button
                             onClick={onStart}
-                            className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                            className="w-full h-11 bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                         >
                             <Rocket className="w-4 h-4" />
                             {localizeGuide(locale, "Start the Guide")}
                         </button>
                         <button
                             onClick={onSkip}
-                            className="w-full h-9 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                            className="w-full h-9 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                         >
                             {localizeGuide(locale, "Skip for now")}
                         </button>
@@ -447,7 +447,7 @@ function WelcomeScreen({
 function CompletionScreen({ onClose, locale }: { onClose: () => void; locale: string }) {
     return (
         <div className="fixed inset-0 z-[200001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300">
+            <div className="w-full max-w-md bg-card border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 fade-in duration-300">
                 <div className="relative h-36 bg-gradient-to-br from-green-500/20 via-emerald-500/10 to-transparent overflow-hidden">
                     <div className="absolute inset-0 flex items-center justify-center">
                         <PartyPopper className="w-16 h-16 text-green-500/30" />
@@ -457,7 +457,7 @@ function CompletionScreen({ onClose, locale }: { onClose: () => void; locale: st
 
                 <div className="px-6 pb-6 -mt-8 relative">
                     <div className="flex justify-center mb-4">
-                        <div className="w-16 h-16 rounded-full bg-green-500/10 border-2 border-green-500/30 shadow-lg flex items-center justify-center">
+                        <div className="w-16 h-16 bg-green-500/10 border-2 border-green-500/30 shadow-lg flex items-center justify-center">
                             <Check className="w-8 h-8 text-green-500" />
                         </div>
                     </div>
@@ -471,9 +471,9 @@ function CompletionScreen({ onClose, locale }: { onClose: () => void; locale: st
                         </p>
                     </div>
 
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/10 mb-6">
+                    <div className="p-4 bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/10 mb-6">
                         <div className="flex items-center gap-2 mb-3">
-                            <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                            <div className="w-8 h-8 bg-green-500/10 flex items-center justify-center">
                                 <Zap className="w-4 h-4 text-green-500" />
                             </div>
                             <span className="font-semibold text-sm text-foreground">
@@ -506,7 +506,7 @@ function CompletionScreen({ onClose, locale }: { onClose: () => void; locale: st
                         </ul>
                     </div>
 
-                    <div className="flex items-start gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10 mb-6">
+                    <div className="flex items-start gap-3 p-3 bg-primary/5 border border-primary/10 mb-6">
                         <Info className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                         <div>
                             <p className="text-sm font-medium text-foreground">
@@ -520,7 +520,7 @@ function CompletionScreen({ onClose, locale }: { onClose: () => void; locale: st
 
                     <button
                         onClick={onClose}
-                        className="w-full h-11 rounded-xl bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        className="w-full h-11 bg-primary text-primary-foreground font-semibold text-sm hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                     >
                         <Sparkles className="w-4 h-4" />
                         {localizeGuide(locale, "Start Exploring")}
@@ -1064,9 +1064,9 @@ export default function Guide() {
         const minimizedJsx = (
             <button
                 onClick={() => setMinimized(false)}
-                className="fixed bottom-4 right-4 z-[200000] flex items-center gap-2.5 rounded-full bg-card border border-border shadow-lg pl-2 pr-3.5 py-1.5 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all group"
+                className="fixed bottom-4 right-4 z-[200000] flex items-center gap-2.5 bg-card border border-border shadow-lg pl-2 pr-3.5 py-1.5 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all group"
             >
-                <span className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="w-7 h-7 bg-primary/10 flex items-center justify-center">
                     <StepIcon className="w-3.5 h-3.5 text-primary" />
                 </span>
                 <div className="flex flex-col items-start">
@@ -1077,7 +1077,7 @@ export default function Guide() {
                         {locale === "ru" ? `Шаг ${step + 1} из ${steps.length}` : `Step ${step + 1} of ${steps.length}`}
                     </span>
                 </div>
-                <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
+                <div className="w-5 h-5 bg-primary/10 flex items-center justify-center">
                     <ExternalLink className="w-2.5 h-2.5 text-primary" />
                 </div>
             </button>
@@ -1091,7 +1091,7 @@ export default function Guide() {
             {targetRect && (
                 <div className="fixed inset-0 z-[199999] pointer-events-none">
                     <div
-                        className="absolute border-2 border-primary rounded-lg transition-all duration-300 ease-out"
+                        className="absolute border-2 border-primary transition-all duration-300 ease-out"
                         style={{
                             left: targetRect.left - 6,
                             top: targetRect.top - 6,
@@ -1099,7 +1099,7 @@ export default function Guide() {
                             height: targetRect.height + 12,
                         }}
                     >
-                        <div className="absolute inset-0 border-2 border-primary/40 rounded-lg animate-ping" />
+                        <div className="absolute inset-0 rounded-full border-2 border-primary/40 animate-ping" />
                     </div>
 
                     <svg
@@ -1144,7 +1144,7 @@ export default function Guide() {
             )}
 
             <div className="fixed bottom-4 right-4 z-[200000] w-[calc(100vw-2rem)] max-w-[380px]">
-                <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300">
+                <div className="bg-card border border-border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300">
                     <div className="h-1 w-full bg-muted">
                         <div
                             className="h-full bg-primary rounded-r-full transition-all duration-500 ease-out"
@@ -1157,7 +1157,7 @@ export default function Guide() {
                             <img
                                 src="/assets/icons/logo.png"
                                 alt="logo"
-                                className="w-6 h-6 rounded-md shrink-0"
+                                className="w-6 h-6 shrink-0"
                             />
                             <span className="text-xs font-semibold text-foreground truncate">
                                 {localizeGuide(locale, "Eclipse Guide")}
@@ -1168,14 +1168,14 @@ export default function Guide() {
                         </div>
                         <div className="flex items-center gap-0.5 shrink-0">
                             <button
-                                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                                className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                                 onClick={() => setMinimized(true)}
                                 title={localizeGuide(locale, "Minimize (Esc)")}
                             >
                                 <Minus className="w-3.5 h-3.5" />
                             </button>
                             <button
-                                className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
                                 onClick={handleCloseGuide}
                                 title={localizeGuide(locale, "Close guide")}
                             >
@@ -1186,7 +1186,7 @@ export default function Guide() {
 
                     <div className="p-3">
                         <div className="flex gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                            <div className="w-9 h-9 bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                                 <StepIcon className="w-4 h-4 text-primary" />
                             </div>
 
@@ -1201,7 +1201,7 @@ export default function Guide() {
                         </div>
 
                         {currentStep.helper && (
-                            <div className="mt-2.5 flex gap-2 items-start rounded-lg bg-primary/5 border border-primary/10 px-2.5 py-2">
+                            <div className="mt-2.5 flex gap-2 items-start bg-primary/5 border border-primary/10 px-2.5 py-2">
                                 <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-px" />
                                 <span className="text-[11px] text-foreground/80 leading-snug">
                                     {localizeGuide(locale, currentStep.helper)}
@@ -1211,7 +1211,7 @@ export default function Guide() {
 
                         {navigating && (
                             <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <Loader2 className="w-3 h-3 rounded-full animate-spin" />
                                 <span>{localizeGuide(locale, "Navigating...")}</span>
                             </div>
                         )}
@@ -1221,14 +1221,14 @@ export default function Guide() {
                             currentStep.target &&
                             !offRoute && (
                                 <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <Loader2 className="w-3 h-3 rounded-full animate-spin" />
                                     <span>{localizeGuide(locale, "Looking for element...")}</span>
                                 </div>
                             )}
 
                         {!navigating && offRoute && (
                             <button
-                                className="mt-2 w-full h-7 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center justify-center gap-1.5"
+                                className="mt-2 w-full h-7 text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center justify-center gap-1.5"
                                 onClick={() => {
                                     if (currentStep.route) {
                                         navigatedForStepRef.current = null;
@@ -1256,7 +1256,7 @@ export default function Guide() {
 
                         <div className="mt-3 flex items-center gap-1.5">
                             <button
-                                className="h-8 w-8 rounded-lg flex items-center justify-center border border-border bg-background hover:bg-secondary/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
+                                className="h-8 w-8 flex items-center justify-center border border-border bg-background hover:bg-secondary/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors shrink-0"
                                 onClick={prev}
                                 disabled={isFirst}
                                 title={locale === "ru" ? "Назад (←)" : "Previous (←)"}
@@ -1270,7 +1270,7 @@ export default function Guide() {
                                         key={i}
                                         onClick={() => setStep(i)}
                                         title={localizeGuide(locale, s.title)}
-                                        className={`h-1.5 rounded-full transition-all duration-300 ${i === step
+                                        className={`h-1.5 transition-all duration-300 ${i === step
                                                 ? "flex-[3] bg-primary"
                                                 : i < step
                                                     ? "flex-1 bg-primary/30 hover:bg-primary/50"
@@ -1282,7 +1282,7 @@ export default function Guide() {
 
                             {isLast ? (
                                 <button
-                                    className="h-8 rounded-lg px-3 text-xs font-semibold bg-green-600 text-white hover:bg-green-700 active:scale-[0.97] transition-all flex items-center gap-1.5 shrink-0"
+                                    className="h-8 px-3 text-xs font-semibold bg-green-600 text-white hover:bg-green-700 active:scale-[0.97] transition-all flex items-center gap-1.5 shrink-0"
                                     onClick={() => setPhase("complete")}
                                 >
                                     <Check className="w-3.5 h-3.5" />
@@ -1290,7 +1290,7 @@ export default function Guide() {
                                 </button>
                             ) : (
                                 <button
-                                    className="h-8 rounded-lg px-3 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-all flex items-center gap-1 shrink-0"
+                                    className="h-8 px-3 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 active:scale-[0.97] transition-all flex items-center gap-1 shrink-0"
                                     onClick={next}
                                     title={locale === "ru" ? "Далее (→)" : "Next (→)"}
                                 >

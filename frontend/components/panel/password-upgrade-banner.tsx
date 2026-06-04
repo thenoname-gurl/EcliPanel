@@ -36,7 +36,7 @@ export function PasswordUpgradeBanner() {
           <button
             type="button"
             onClick={() => router.push("/dashboard/settings?tab=security")}
-            className="rounded-md bg-warning px-3 py-1.5 text-xs font-medium text-white hover:bg-warning/90 transition-colors"
+            className="bg-warning px-3 py-1.5 text-xs font-medium text-white hover:bg-warning/90 transition-colors"
           >
             {t("passwordUpgrade.action")}
           </button>

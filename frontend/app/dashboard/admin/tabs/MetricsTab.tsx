@@ -88,7 +88,7 @@ function formatDelta(value: number) {
 function MetricsTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="rounded-lg border border-border bg-popover px-3 py-2 shadow-lg">
+    <div className="border border-border bg-popover px-3 py-2 shadow-lg">
       <p className="text-xs text-muted-foreground mb-1.5">{formatDayLabel(String(label))}</p>
       {payload.map((entry: any) => (
         <p key={entry.dataKey} className="text-xs flex items-center justify-between gap-3">
@@ -152,7 +152,7 @@ export default function MetricsTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
+      <div className="border border-border bg-card p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-primary" />
@@ -160,12 +160,12 @@ export default function MetricsTab() {
             <span className="text-xs text-muted-foreground">{t("header.lastDays", { days: windowDays })}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-secondary/40 p-1">
+            <div className="flex items-center gap-1 border border-border bg-secondary/40 p-1">
               {WINDOW_OPTIONS.map((d) => (
                 <button
                   key={d}
                   onClick={() => setWindowDays(d)}
-                  className={`rounded-md px-2.5 py-1 text-xs transition-colors ${windowDays === d ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                  className={`px-2.5 py-1 text-xs transition-colors ${windowDays === d ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
                 >
                   {d}d
                 </button>
@@ -178,7 +178,7 @@ export default function MetricsTab() {
               onClick={() => load(windowDays, false)}
               disabled={loading || refreshing}
             >
-              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${refreshing ? "rounded-full animate-spin" : ""}`} />
               {t("actions.refresh")}
             </Button>
             <Button
@@ -197,7 +197,7 @@ export default function MetricsTab() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border bg-card p-3">
+        <div className="border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">{t("cards.users.title")}</span>
             <Users className="h-3.5 w-3.5 text-muted-foreground" />
@@ -206,7 +206,7 @@ export default function MetricsTab() {
           <p className="text-xs text-muted-foreground mt-1">{summary ? t("cards.users.new", { count: summary.registrationsCurrent }) : ""}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-3">
+        <div className="border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">{t("cards.registrationGrowth.title")}</span>
             <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" />
@@ -217,7 +217,7 @@ export default function MetricsTab() {
           <p className="text-xs text-muted-foreground mt-1">{t("cards.registrationGrowth.vsPrevious", { days: windowDays })}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-3">
+        <div className="border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">{t("cards.organisations.title")}</span>
             <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
@@ -226,7 +226,7 @@ export default function MetricsTab() {
           <p className="text-xs text-muted-foreground mt-1">{summary ? t("cards.organisations.new", { count: summary.organisationsCurrent }) : ""}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-3">
+        <div className="border border-border bg-card p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">{t("cards.supportOrders.title")}</span>
             <MessageSquare className="h-3.5 w-3.5 text-muted-foreground" />
@@ -237,7 +237,7 @@ export default function MetricsTab() {
           <p className="text-xs text-muted-foreground mt-1">{t("cards.supportOrders.subtitle")}</p>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-3 sm:col-span-2 lg:col-span-1">
+        <div className="border border-border bg-card p-3 sm:col-span-2 lg:col-span-1">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted-foreground">{t("cards.servers.title")}</span>
             <Server className="h-3.5 w-3.5 text-muted-foreground" />
@@ -249,7 +249,7 @@ export default function MetricsTab() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <Users className="h-4 w-4 text-muted-foreground" />
           <p className="text-sm font-semibold text-foreground">{t("charts.userRegistrations")}</p>
@@ -277,7 +277,7 @@ export default function MetricsTab() {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <Receipt className="h-4 w-4 text-muted-foreground" />
           <p className="text-sm font-semibold text-foreground">{t("charts.platformActivity")}</p>
@@ -302,7 +302,7 @@ export default function MetricsTab() {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="border border-border bg-card p-4">
         <div className="flex items-center gap-2 mb-3">
           <Server className="h-4 w-4 text-muted-foreground" />
           <p className="text-sm font-semibold text-foreground">{t("charts.serverStatusLive")}</p>

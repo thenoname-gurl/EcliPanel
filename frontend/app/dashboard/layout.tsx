@@ -49,7 +49,7 @@ export default function DashboardLayout({
           <div className="absolute left-3 top-3 z-50 md:hidden">
             <button
               onClick={() => setMobileSidebarOpen(true)}
-              className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               aria-label="Open navigation"
             >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

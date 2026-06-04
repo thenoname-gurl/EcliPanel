@@ -59,16 +59,16 @@ function ContactSalesModal({ item, onClose }: { item: NavItem; onClose: () => vo
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+      <div className="relative w-full max-w-md border border-border bg-card p-5 sm:p-6 shadow-2xl animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 sm:right-4 sm:top-4 rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
+          className="absolute right-3 top-3 sm:right-4 sm:top-4 p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
           aria-label={t("close")}
         >
           <X className="h-4 w-4" />
         </button>
 
-        <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-primary/10 mb-4">
+        <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center bg-primary/10 mb-4">
           <Lock className="h-6 w-6 sm:h-7 sm:w-7 text-primary" />
         </div>
 
@@ -82,14 +82,14 @@ function ContactSalesModal({ item, onClose }: { item: NavItem; onClose: () => vo
         <div className="flex flex-col gap-2.5">
           <a
             href="mailto:sales@ecli.app"
-            className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 bg-primary px-4 py-3 text-sm font-medium text-primary-foreground transition-all hover:bg-primary/90 active:scale-[0.98]"
           >
             <Mail className="h-4 w-4" />
             {t("contactSales")}
           </a>
           <button
             onClick={onClose}
-            className="rounded-xl border border-border px-4 py-3 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-[0.98]"
+            className="border border-border px-4 py-3 text-sm font-medium text-muted-foreground transition-all hover:bg-secondary hover:text-foreground active:scale-[0.98]"
           >
             {t("maybeLater")}
           </button>
@@ -429,7 +429,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
     const Icon = item.icon
 
     const baseClasses = cn(
-      "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+      "group flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-all duration-200",
       "active:scale-[0.98]"
     )
 
@@ -555,7 +555,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             <Link
               href="/dashboard/settings"
               onClick={isMobile ? handleMobileNavigate : undefined}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-sm font-semibold text-primary overflow-hidden ring-2 ring-primary/10 hover:ring-primary/20 transition-all active:scale-95"
+              className="flex h-10 w-10 shrink-0 items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10 text-sm font-semibold text-primary overflow-hidden ring-2 ring-primary/10 hover:ring-primary/20 transition-all active:scale-95"
             >
               {user?.avatarUrl ? (
                 <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -577,7 +577,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                   <Link
                     href="/dashboard/settings"
                     onClick={isMobile ? handleMobileNavigate : undefined}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
+                    className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
                     aria-label={tSidebar("accountSettings")}
                   >
                     <Settings className="h-4 w-4" />
@@ -593,7 +593,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     className={cn(
-                      "rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-95",
+                      "p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-95",
                       isLoggingOut && "opacity-50 cursor-not-allowed"
                     )}
                     aria-label={tSidebar("logout")}
@@ -612,7 +612,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             <TooltipTrigger asChild>
               <Link
                 href="/dashboard/settings"
-                className="flex h-10 w-10 mx-auto items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-sm font-semibold text-primary cursor-pointer overflow-hidden ring-2 ring-primary/10 hover:ring-primary/20 transition-all active:scale-95"
+                className="flex h-10 w-10 mx-auto items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10 text-sm font-semibold text-primary cursor-pointer overflow-hidden ring-2 ring-primary/10 hover:ring-primary/20 transition-all active:scale-95"
               >
                 {user?.avatarUrl ? (
                   <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
@@ -659,9 +659,9 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-4">
           <Link 
             href="/dashboard"
-            className="flex items-center gap-3 rounded-lg transition-opacity hover:opacity-80 active:scale-[0.98]"
+            className="flex items-center gap-3 transition-opacity hover:opacity-80 active:scale-[0.98]"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/10 to-primary/5">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5">
               <Image
                 src={BRAND.logo}
                 alt={BRAND.name}
@@ -746,7 +746,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                   onClick={handleMobileNavigate}
                   className="flex items-center gap-3"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary/10 to-primary/5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5">
                     <Image
                       src={BRAND.logo}
                       alt={BRAND.name}
@@ -762,7 +762,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                 </Link>
                 <button 
                   onClick={onClose} 
-                  className="rounded-lg p-2 -mr-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
+                  className="p-2 -mr-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
                   aria-label={tSidebar("closeMenu")}
                 >
                   <X className="h-5 w-5" />

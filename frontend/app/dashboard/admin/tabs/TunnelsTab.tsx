@@ -209,19 +209,19 @@ export default function TunnelsTab() {
           onClick={fetchData}
           disabled={loading || actionLoading !== null}
         >
-          <RefreshCw className={loading ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+          <RefreshCw className={loading ? "h-4 w-4 rounded-full animate-spin" : "h-4 w-4"} />
           {t("tunnelsTab.actions.refresh")}
         </Button>
       </div>
 
       {error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
       {/* Deploy Server Agent */}
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="flex items-center gap-2">
             <Server className="h-4 w-4 text-muted-foreground" />
@@ -235,14 +235,14 @@ export default function TunnelsTab() {
               disabled={deploying}
               className="inline-flex items-center gap-2"
             >
-              {deploying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Terminal className="h-3.5 w-3.5" />}
+              {deploying ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <Terminal className="h-3.5 w-3.5" />}
               Generate Setup
             </Button>
           )}
         </div>
 
         {showConfirm && !deployResult ? (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
+          <div className="border border-amber-500/30 bg-amber-500/10 p-4">
             <p className="text-sm font-medium text-foreground mb-2">
               Generate Server Agent Setup
             </p>
@@ -260,13 +260,13 @@ export default function TunnelsTab() {
                 value={serverFqdn}
                 onChange={(e) => setServerFqdn(e.target.value)}
                 placeholder="n2.ecli.app"
-                className="w-full rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 transition-colors"
+                className="w-full border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 transition-colors"
               />
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" variant="default" onClick={deployServerAgent} disabled={deploying}>
                 {deploying ? (
-                  <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Creating...</>
+                  <><Loader2 className="mr-1.5 h-3.5 w-3.5 rounded-full animate-spin" /> Creating...</>
                 ) : (
                   "Yes, Generate Setup"
                 )}
@@ -280,7 +280,7 @@ export default function TunnelsTab() {
 
         {deployResult ? (
           <div className="space-y-3">
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
+            <div className="border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
                 <p className="text-sm font-medium text-foreground">
@@ -294,7 +294,7 @@ export default function TunnelsTab() {
               <p className="text-xs font-medium text-foreground mb-1">
                 Test-run server agent <span className="text-muted-foreground font-normal">(paste this in terminal)</span>
               </p>
-              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
+              <div className="flex items-center gap-2 border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
                 curl -fsSL {deployUrl} | bash -s -- server-run --token {deployResult.deviceToken} --backend {backendUrl}{deployResult.fqdn ? ` --domain ${deployResult.fqdn}` : ''}
               </div>
               <button
@@ -313,10 +313,10 @@ export default function TunnelsTab() {
               <p className="text-xs font-medium text-foreground mb-1">
                 Install as systemd service <span className="text-muted-foreground font-normal">(paste this in terminal)</span>
               </p>
-              <div className="flex items-center gap-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
+              <div className="flex items-center gap-2 border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 select-all break-all">
                 curl -fsSL {deployUrl} | bash -s -- server-service --token {deployResult.deviceToken} --backend {backendUrl}{deployResult.fqdn ? ` --domain ${deployResult.fqdn}` : ''}
               </div>
-              <div className="mt-2 rounded-lg border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 whitespace-pre-wrap break-all">
+              <div className="mt-2 border border-border/50 bg-muted/30 px-3 py-2 font-mono text-xs text-foreground/80 whitespace-pre-wrap break-all">
                 {`# Or manually:
 sudo tee /etc/systemd/system/eclipanel-tunnel.service <<'UNITEOF'
 [Unit]
@@ -354,7 +354,7 @@ sudo systemctl enable --now eclipanel-tunnel`}
         ) : null}
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="border border-border bg-card p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-foreground">{t("tunnelsTab.sections.devices")}</p>
@@ -405,7 +405,7 @@ sudo systemctl enable --now eclipanel-tunnel`}
                               [device.device_code]: event.target.value,
                             }))
                           }
-                          className="rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none"
+                          className="border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none"
                         >
                           <option value="free">{t("tunnelsTab.serverTypes.free")}</option>
                           <option value="paid">{t("tunnelsTab.serverTypes.paid")}</option>
@@ -426,7 +426,7 @@ sudo systemctl enable --now eclipanel-tunnel`}
                               [device.device_code]: event.target.value,
                             }))
                           }
-                          className="rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none"
+                          className="border border-border/50 bg-muted/30 px-3 py-2 text-sm text-foreground outline-none"
                         >
                           <option value="">{t("tunnelsTab.serverOrg.noOrg")}</option>
                           {organisations.map((org) => (
@@ -470,7 +470,7 @@ sudo systemctl enable --now eclipanel-tunnel`}
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-4">
+      <section className="border border-border bg-card p-4">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-foreground">{t("tunnelsTab.sections.allocations")}</p>

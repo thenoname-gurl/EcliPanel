@@ -21,10 +21,10 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
+            <div className="h-9 w-9 bg-destructive/10 flex items-center justify-center shrink-0">
               <UserX className="h-4 w-4 text-destructive" />
             </div>
             <div>
@@ -40,7 +40,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
                 <span className="sm:hidden">{deletions.filter((d: any) => d.status === "pending").length}</span>
               </span>
             )}
-            <button onClick={() => forceRefreshTab("deletions")} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title={t("actions.refresh")}>
+            <button onClick={() => forceRefreshTab("deletions")} className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" title={t("actions.refresh")}>
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
@@ -63,7 +63,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
           const count = f === "all" ? deletions.length : deletions.filter((d: any) => d.status === f).length
           const isActive = (deletionFilter || "all") === f
           return (
-            <button key={f} onClick={() => setDeletionFilter(f === "all" ? "" : f)} className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+            <button key={f} onClick={() => setDeletionFilter(f === "all" ? "" : f)} className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
               <Icon className="h-3 w-3" />
               {c.label}
               <span className={`ml-0.5 text-[10px] ${isActive ? "opacity-80" : "opacity-50"}`}>{count}</span>
@@ -72,7 +72,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
         })}
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden md:block">
+      <div className="border border-border bg-card hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -148,23 +148,23 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
                         <div className="flex items-center justify-end gap-1">
                           {d.status === "pending" && (
                             <>
-                              <button onClick={() => reviewDeletion(d.id, "approved")} title={t("actions.approveDeletion")} className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"><CheckCircle className="h-3.5 w-3.5" /><span>{t("actions.approveDelete")}</span></button>
-                              <button onClick={() => reviewDeletion(d.id, "rejected")} title={t("actions.keepAccountTitle")} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><XCircle className="h-3.5 w-3.5" /><span>{t("actions.keepAccount")}</span></button>
+                              <button onClick={() => reviewDeletion(d.id, "approved")} title={t("actions.approveDeletion")} className="inline-flex items-center gap-1 border border-destructive/30 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"><CheckCircle className="h-3.5 w-3.5" /><span>{t("actions.approveDelete")}</span></button>
+                              <button onClick={() => reviewDeletion(d.id, "rejected")} title={t("actions.keepAccountTitle")} className="inline-flex items-center gap-1 border border-border px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><XCircle className="h-3.5 w-3.5" /><span>{t("actions.keepAccount")}</span></button>
                             </>
                           )}
                           {d.status === "pending_deletion" && (
                             <>
-                              <button onClick={() => expediteDeletion(d.id)} title={t("actions.deleteUserNow") } className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"><Timer className="h-3.5 w-3.5" /><span>{t("actions.deleteNow")}</span></button>
-                              <button onClick={() => cancelPendingDeletion(d.id)} title={t("actions.dontDeleteUser")} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.dontDelete")}</span></button>
+                              <button onClick={() => expediteDeletion(d.id)} title={t("actions.deleteUserNow") } className="inline-flex items-center gap-1 border border-destructive/30 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"><Timer className="h-3.5 w-3.5" /><span>{t("actions.deleteNow")}</span></button>
+                              <button onClick={() => cancelPendingDeletion(d.id)} title={t("actions.dontDeleteUser")} className="inline-flex items-center gap-1 border border-border px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.dontDelete")}</span></button>
                             </>
                           )}
                           {d.scheduledDeletionAt && d.status !== "pending_deletion" && (
                             <>
-                              <button onClick={() => cancelPendingDeletion(d.id)} title={t("actions.dontDeleteUser")} className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.dontDelete")}</span></button>
+                              <button onClick={() => cancelPendingDeletion(d.id)} title={t("actions.dontDeleteUser")} className="inline-flex items-center gap-1 border border-border px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.dontDelete")}</span></button>
                             </>
                           )}
                           {d.status === "approved" && <span className="text-xs text-muted-foreground italic">{t("status.processed")}</span>}
-                          {d.status === "rejected" && <button onClick={() => reviewDeletion(d.id, "approved")} title={t("actions.reconsiderTitle")} className="inline-flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.reconsider")}</span></button>}
+                          {d.status === "rejected" && <button onClick={() => reviewDeletion(d.id, "approved")} title={t("actions.reconsiderTitle")} className="inline-flex items-center gap-1 border border-destructive/30 px-2.5 py-1.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.reconsider")}</span></button>}
                         </div>
                       </td>
                     </tr>
@@ -181,7 +181,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
           const filtered = deletionFilter ? deletions.filter((d: any) => d.status === deletionFilter) : deletions
           if (filtered.length === 0) {
             return (
-              <div className="rounded-xl border border-border bg-card px-4 py-12">
+              <div className="border border-border bg-card px-4 py-12">
                 <div className="flex flex-col items-center gap-2">
                   <UserX className="h-8 w-8 text-muted-foreground/50" />
                   <p className="text-sm text-muted-foreground">{deletions.length === 0 ? t("states.noneFound") : t("states.noMatch")}</p>
@@ -204,7 +204,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
             const daysAgo = Math.floor((Date.now() - requestedDate.getTime()) / (1000 * 60 * 60 * 24))
 
             return (
-              <div key={d.id ?? i} className={`rounded-xl border bg-card overflow-hidden ${d.status === "pending" ? sc.borderTint : "border-border"}`}>
+              <div key={d.id ?? i} className={`border bg-card overflow-hidden ${d.status === "pending" ? sc.borderTint : "border-border"}`}>
                 {d.status === "pending" && <div className={`h-0.5 ${daysAgo >= 14 ? "bg-gradient-to-r from-destructive/60 via-destructive to-destructive/60" : daysAgo >= 7 ? "bg-gradient-to-r from-warning/60 via-warning to-warning/60" : "bg-gradient-to-r from-primary/40 via-primary to-primary/40"}`} />}
 
                 <div className="flex items-start gap-3 p-4 pb-3">

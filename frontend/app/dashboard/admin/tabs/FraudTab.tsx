@@ -31,7 +31,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
   } = ctx
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="border border-border bg-card">
       <div className="flex items-center justify-between border-b border-border p-4">
         <div>
           <p className="text-sm font-medium text-foreground">{t("header.title")}</p>
@@ -57,14 +57,14 @@ export default function FraudTab({ ctx }: { ctx: any }) {
               }
             }}
             disabled={fraudScanningAll}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
           >
-            {fraudScanningAll ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
+            {fraudScanningAll ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <Brain className="h-3.5 w-3.5" />}
             {fraudScanningAll ? t("actions.scanningAll") : t("actions.scanAllUsers")}
           </button>
           <button
             onClick={() => forceRefreshTab("fraud")}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
@@ -180,7 +180,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                         alert(t("alerts.failed", { reason: e.message }))
                       }
                     }}
-                    className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
+                    className="border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
                   >
                     {t("actions.dismiss")}
                   </button>
@@ -198,7 +198,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                           alert(t("alerts.failed", { reason: e.message }))
                         }
                       }}
-                      className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20 transition-colors"
+                      className="border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20 transition-colors"
                     >
                       {t("actions.suspend")}
                     </button>
@@ -220,7 +220,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                       }
                     }}
                     disabled={fraudScanning}
-                    className="rounded-md border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
+                    className="border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors disabled:opacity-50"
                   >
                     {t("actions.rescan")}
                   </button>

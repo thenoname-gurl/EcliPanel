@@ -118,7 +118,7 @@ function InfoRow({
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden",
+        "border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden",
         copyable &&
           "cursor-pointer hover:bg-secondary/30 active:bg-secondary/40 transition-colors select-none"
       )}
@@ -229,14 +229,14 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
   return (
     <div
       className={cn(
-        "rounded-lg border border-indigo-500/20 bg-indigo-500/5 overflow-hidden",
+        "border border-indigo-500/20 bg-indigo-500/5 overflow-hidden",
         compact ? "p-3" : "p-3.5 sm:p-4"
       )}
     >
       <div className="flex items-start gap-3 min-w-0">
         <div
           className={cn(
-            "rounded-md bg-indigo-500/10 flex items-center justify-center flex-shrink-0",
+            "bg-indigo-500/10 flex items-center justify-center flex-shrink-0",
             compact ? "p-1.5" : "p-2"
           )}
         >
@@ -262,7 +262,7 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
 
 function KvmInfoNotice({ message }: { message: string }) {
   return (
-    <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 px-3 py-2.5 flex items-start gap-2 overflow-hidden">
+    <div className="border border-indigo-500/15 bg-indigo-500/5 px-3 py-2.5 flex items-start gap-2 overflow-hidden">
       <Shield className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
       <p className="text-xs text-indigo-300/80 leading-relaxed break-words min-w-0">
         {message}
@@ -285,7 +285,7 @@ function CollapsibleSection({
   const [open, setOpen] = useState(defaultOpen)
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="border border-border bg-card overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between p-3.5 sm:p-4 hover:bg-secondary/20 active:bg-secondary/30 transition-colors min-w-0"
@@ -421,7 +421,7 @@ function PowerActions({
         />
         <div
           ref={menuRef}
-          className="fixed z-[9999] w-48 rounded-xl border border-border bg-popover p-1.5 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
+          className="fixed z-[9999] w-48 border border-border bg-popover p-1.5 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150"
           style={menuPos ? { top: menuPos.top, left: menuPos.left } : undefined}
           role="menu"
         >
@@ -431,7 +431,7 @@ function PowerActions({
               setMenuOpen(false)
             }}
             disabled={powerLoading || !isPowerable || isHibernated}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             role="menuitem"
           >
             <RotateCcw className="h-4 w-4 flex-shrink-0" />
@@ -443,7 +443,7 @@ function PowerActions({
               setMenuOpen(false)
             }}
             disabled={powerLoading || !isPowerable || isHibernated}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             role="menuitem"
           >
             <Power className="h-4 w-4 flex-shrink-0" />
@@ -457,7 +457,7 @@ function PowerActions({
                   onTransfer()
                   setMenuOpen(false)
                 }}
-                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
                 role="menuitem"
               >
                 <Repeat className="h-4 w-4 flex-shrink-0" />
@@ -474,14 +474,14 @@ function PowerActions({
                   setMenuOpen(false)
                 }}
                 disabled={powerLoading || kvmLoading}
-                className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 role="menuitem"
               >
                 <Monitor className="h-4 w-4 flex-shrink-0" />
                 <span className="flex-1 text-left truncate">
                   {kvmEnabled ? t("actions.disableKvm") : t("actions.enableKvm")}
                 </span>
-                {kvmLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
+                {kvmLoading && <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin flex-shrink-0" />}
               </button>
             </>
           )}
@@ -492,12 +492,12 @@ function PowerActions({
                 setMenuOpen(false)
               }}
               disabled={powerLoading || kvmLoading || markStartedLoading}
-              className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               role="menuitem"
             >
               <Check className="h-4 w-4 flex-shrink-0" />
               <span className="flex-1 text-left truncate">{t("actions.markStarted")}</span>
-              {markStartedLoading && <Loader2 className="h-3.5 w-3.5 animate-spin flex-shrink-0" />}
+              {markStartedLoading && <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin flex-shrink-0" />}
             </button>
           )}
         </div>
@@ -516,7 +516,7 @@ function PowerActions({
         onClick={() => onAction("start")}
       >
         {powerLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
+          <Loader2 className="h-4 w-4 rounded-full animate-spin" />
         ) : (
           <Play className="h-4 w-4" />
         )}
@@ -590,7 +590,7 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
   return (
     <div
       ref={scrollRef}
-      className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 overflow-x-auto scrollbar-none min-w-0 -mx-1 px-1"
+      className="flex items-center gap-1 border border-border bg-card p-1 overflow-x-auto scrollbar-none min-w-0 -mx-1 px-1"
       style={{ WebkitOverflowScrolling: "touch" }}
       role="tablist"
     >
@@ -602,7 +602,7 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
           role="tab"
           aria-selected={activeTab === tab.id}
           className={cn(
-            "flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
+            "flex items-center gap-1.5 px-3 py-2.5 text-xs sm:text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
             "touch-manipulation",
             activeTab === tab.id
               ? "bg-primary text-primary-foreground shadow-sm"
@@ -1088,7 +1088,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     return (
       <div className="flex items-center justify-center h-full min-h-[400px]">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <Loader2 className="h-8 w-8 rounded-full animate-spin text-muted-foreground" />
           <p className="text-sm text-muted-foreground">{t("states.loadingServer")}</p>
         </div>
       </div>
@@ -1117,7 +1117,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     if (isDmcaProtected && !isAdminUser) {
       return (
         <div className="flex min-h-full items-center justify-center p-6">
-          <div className="max-w-2xl rounded-3xl border border-destructive/30 bg-destructive/5 p-8 text-center">
+          <div className="max-w-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-4">
               <AlertTriangle className="h-8 w-8" />
             </div>
@@ -1149,7 +1149,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     }
 
   const dmcaAlert = isDmcaProtected ? (
-    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive mb-3">
+    <div className="border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive mb-3">
       <div className="font-semibold">DMCA takedown active</div>
       <div className="mt-2">
         {dmcaReason}
@@ -1176,7 +1176,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   if (!hasServerAccess) {
     return (
       <div className="flex min-h-full items-center justify-center p-6">
-        <div className="max-w-xl rounded-3xl border border-border bg-card p-8 text-center">
+        <div className="max-w-xl border border-border bg-card p-8 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <AlertTriangle className="h-6 w-6" />
           </div>
@@ -1207,7 +1207,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       {powerToast && (
         <div className="fixed inset-x-0 bottom-4 z-[9999] px-3 sm:px-4 pointer-events-none">
           <div
-            className={`mx-auto w-full max-w-sm sm:max-w-md rounded-2xl border p-3.5 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto ${
+            className={`mx-auto w-full max-w-sm sm:max-w-md border p-3.5 shadow-2xl backdrop-blur-md animate-in slide-in-from-bottom-4 fade-in duration-300 pointer-events-auto ${
               powerToast.type === "success"
                 ? "border-emerald-500/30 bg-emerald-500/10"
                 : powerToast.type === "warning"
@@ -1230,7 +1230,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               <button
                 type="button"
                 onClick={() => setPowerToast(null)}
-                className="rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
@@ -1419,7 +1419,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           }
         }}
       >
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground">
               {t("dialogs.power.confirmPrefix")} 
@@ -1433,7 +1433,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               {t("dialogs.power.confirmMessage", { action: pendingPowerAction || "" })}
             </p>
             {pendingPowerAction === "kill" && (
-              <div className="mt-3 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="mt-3 p-3 bg-destructive/10 border border-destructive/20">
                 <div className="flex items-start gap-2">
                   <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-destructive break-words min-w-0">
@@ -1466,7 +1466,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               disabled={powerLoading}
               className="w-full sm:w-auto"
             >
-              {powerLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {powerLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
               {pendingPowerAction
                 ? pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1)
                 : t("actions.confirm")}
@@ -1486,7 +1486,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           }
         }}
       >
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground">{t("dialogs.transfer.title")}</DialogTitle>
           </DialogHeader>
@@ -1504,7 +1504,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 onChange={(e) =>
                   setTransferNodeId(e.target.value ? Number(e.target.value) : null)
                 }
-                className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none"
+                className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none"
               >
                 <option value="">{t("dialogs.transfer.selectNode")}</option>
                 {transferNodes.map((n: any) => (
@@ -1516,7 +1516,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               </select>
             </div>
             {transferError && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="p-3 bg-destructive/10 border border-destructive/20">
                 <p className="text-xs text-destructive break-words">{transferError}</p>
               </div>
             )}
@@ -1531,7 +1531,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               disabled={cancellingTransfer}
               className="w-full sm:w-auto"
             >
-              {cancellingTransfer && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {cancellingTransfer && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
               Cancel Transfer
             </Button>
             <Button
@@ -1547,7 +1547,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               disabled={transferLoading || cancellingTransfer || !transferNodeId}
               className="w-full sm:w-auto"
             >
-              {transferLoading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {transferLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
               {t("actions.transfer")}
             </Button>
           </DialogFooter>
@@ -1678,24 +1678,24 @@ function DatabasesTab({ serverId }: { serverId: string }) {
       />
 
       {showForm && (
-        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 overflow-hidden">
+        <div className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 overflow-hidden">
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">{t("databases.labelOptional")}</label>
             <input
-              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
+              className="w-full border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
               placeholder={t("databases.labelPlaceholder")}
               value={formLabel}
               onChange={(e) => setFormLabel(e.target.value)}
             />
           </div>
           {createError && (
-            <div className="p-2.5 rounded-lg bg-destructive/10 text-xs text-destructive break-words">
+            <div className="p-2.5 bg-destructive/10 text-xs text-destructive break-words">
               {createError}
             </div>
           )}
           <div className="flex gap-2">
             <Button size="sm" onClick={createDb} disabled={creating} className="h-9">
-              {creating && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+              {creating && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
               {t("databases.create")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setShowForm(false)} className="h-9">
@@ -1712,7 +1712,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
           {databases.map((db: any) => (
             <div
               key={db.id}
-              className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
+              className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
             >
               <div className="flex items-start justify-between gap-3 min-w-0">
                 <div className="min-w-0 flex-1 overflow-hidden">
@@ -1735,7 +1735,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                     className="text-xs h-9 px-2.5"
                   >
                     {loadingCreds[db.id] ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                     ) : creds[db.id] ? (
                       <>
                         <EyeOff className="h-4 w-4 sm:mr-1.5" />
@@ -1757,7 +1757,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                     aria-label={t("databases.deleteDatabase")}
                   >
                     {deletingId === db.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
@@ -1766,7 +1766,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
               </div>
 
               {creds[db.id] && (
-                <div className="rounded-lg bg-background border border-border p-3 space-y-2 min-w-0 overflow-hidden">
+                <div className="bg-background border border-border p-3 space-y-2 min-w-0 overflow-hidden">
                   {[
                     {
                       label: t("databases.credentials.host"),
@@ -1914,7 +1914,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       />
 
       {showForm && (
-        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
+        <div className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">{t("schedules.name")}</label>
             <input
@@ -1922,7 +1922,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder={t("schedules.namePlaceholder")}
-              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
+              className="w-full border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
             />
           </div>
 
@@ -1938,7 +1938,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
                     type="text"
                     value={form[field]}
                     onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="w-full rounded-md border border-border bg-input px-1 py-2.5 text-sm font-mono outline-none text-center focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
+                    className="w-full border border-border bg-input px-1 py-2.5 text-sm font-mono outline-none text-center focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
                   />
                 </div>
               ))}
@@ -1947,7 +1947,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
 
           <div className="flex gap-2">
             <Button size="sm" onClick={createSchedule} disabled={creating} className="h-9">
-              {creating && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+              {creating && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
               {t("schedules.create")}
             </Button>
             <Button
@@ -1969,7 +1969,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
           {schedules.map((sched: any) => (
             <div
               key={sched.id}
-              className="flex items-start justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 min-w-0 overflow-hidden"
+              className="flex items-start justify-between gap-3 border border-border bg-secondary/20 p-3 sm:p-4 min-w-0 overflow-hidden"
             >
               <div className="min-w-0 flex-1 overflow-hidden">
                 <p className="text-sm font-medium text-foreground truncate">
@@ -2193,7 +2193,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
             {!hasIpv6Allocation && featureToggles?.dedicatedIps !== false && (
               <Button size="sm" onClick={() => setIpRequestOpen(true)} disabled={requesting}>
                 {requesting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
                 ) : (
                   <Plus className="h-3.5 w-3.5 mr-1.5" />
                 )}
@@ -2203,7 +2203,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
             )}
             <Button size="sm" variant="outline" onClick={requestPorts} disabled={requesting}>
               {requesting ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
               ) : (
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
               )}
@@ -2213,7 +2213,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
             {hasSecondaryAllocations && (
               <Button size="sm" variant="outline" onClick={clearSecondaryAllocations} disabled={requesting} className="border-border">
                 {requesting ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                  <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
                 ) : (
                   <Trash2 className="h-3.5 w-3.5 mr-1.5" />
                 )}
@@ -2226,13 +2226,13 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       />
 
       {assignedIpv6 ? (
-        <div className="rounded-lg border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-primary">
+        <div className="border border-primary/20 bg-primary/10 px-3 py-2 text-xs text-primary">
           IPv6 assigned: <span className="font-mono">{assignedIpv6}</span>
         </div>
       ) : null}
       {featureToggles?.dedicatedIps !== false && (
       <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle>Request IP allocation</DialogTitle>
             <DialogDescription>Choose IPv4 or IPv6 and explain why you need the allocation.</DialogDescription>
@@ -2266,7 +2266,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
               />
             </div>
             {ipRequestError ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <div className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                 {ipRequestError}
               </div>
             ) : null}
@@ -2276,7 +2276,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
               Cancel
             </Button>
             <Button onClick={submitIpRequest} disabled={requesting}>
-              {requesting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+              {requesting ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" /> : null}
               Submit request
             </Button>
           </DialogFooter>
@@ -2285,7 +2285,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       )}
       {featureToggles?.dedicatedIps !== false && (
       <Dialog open={ipRequestOpen} onOpenChange={(open) => setIpRequestOpen(open)}>
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle>Request IP allocation</DialogTitle>
             <DialogDescription>Choose whether you need an IPv4 or IPv6 allocation and explain your use case.</DialogDescription>
@@ -2319,7 +2319,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
               />
             </div>
             {ipRequestError ? (
-              <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <div className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
                 {ipRequestError}
               </div>
             ) : null}
@@ -2329,7 +2329,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
               Cancel
             </Button>
             <Button onClick={submitIpRequest} disabled={requesting}>
-              {requesting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+              {requesting ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" /> : null}
               Submit request
             </Button>
           </DialogFooter>
@@ -2338,7 +2338,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       )}
 
       {featureToggles?.dedicatedIps !== false && dedicatedIps.length > 0 && (
-        <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3 space-y-2">
+        <div className="border border-violet-500/20 bg-violet-500/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-500 whitespace-nowrap">
               Dedicated IP
@@ -2347,7 +2347,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
           </div>
           <div className="flex flex-wrap gap-2">
             {dedicatedIps.map((di: any, i: number) => (
-              <div key={i} className="flex items-center gap-1.5 rounded-md bg-violet-500/10 px-2.5 py-1">
+              <div key={i} className="flex items-center gap-1.5 bg-violet-500/10 px-2.5 py-1">
                 <span className="font-mono text-xs text-foreground">{di.ip}</span>
                 {di.fqdn && (
                   <span className="text-[10px] text-muted-foreground">({di.fqdn})</span>
@@ -2359,7 +2359,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       )}
 
       {ipv6Allocation && (
-        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+        <div className="border border-primary/20 bg-primary/5 p-3 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="outline" className="text-[10px] border-primary/30 text-primary whitespace-nowrap">
               IPv6
@@ -2375,13 +2375,13 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       )}
 
       {requestError && (
-        <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-sm text-destructive break-words">
+        <div className="p-3 bg-destructive/10 border border-destructive/20 text-sm text-destructive break-words">
           {requestError}
         </div>
       )}
 
       {excludedPorts && (
-        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2">
+        <div className="border border-amber-500/20 bg-amber-500/5 px-3 py-2">
           <p className="text-xs text-amber-600 dark:text-amber-400">
             <span className="font-medium">Unavailable ports:</span> The following ports on this node are excluded and cannot be assigned:{" "}
             <span className="font-mono text-[11px]">{excludedPorts}</span>
@@ -2389,7 +2389,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/20 p-3">
+      <div className="flex flex-col gap-3 border border-border bg-secondary/20 p-3">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-sm font-medium text-foreground">{t("network.title")}</p>
@@ -2403,7 +2403,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
               value={allocationSearch}
               onChange={(e) => setAllocationSearch(e.target.value)}
               placeholder="Search IP or port"
-              className="h-9 w-full sm:w-72 rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary/50"
+              className="h-9 w-full sm:w-72 border border-border bg-card px-3 text-sm text-foreground outline-none focus:border-primary/50"
             />
           </div>
         </div>
@@ -2448,7 +2448,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
             return (
               <div
                 key={i}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
+                className="flex items-center justify-between gap-3 border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
               >
                 {isIpv6AllocationRow ? (
                   <div className="min-w-0 flex-1 overflow-hidden space-y-1">
@@ -2512,7 +2512,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                     aria-label={t("network.removeAllocation")}
                   >
                     {deleting === key ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
                     )}
@@ -2613,7 +2613,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
         action={
           <Button size="sm" onClick={createBackup} disabled={creating}>
             {creating ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+              <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
             ) : (
               <Plus className="h-3.5 w-3.5 mr-1.5" />
             )}
@@ -2641,7 +2641,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
             return (
               <div
                 key={backup.uuid || backup.id}
-                className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
+                className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
               >
                 <div className="flex items-start justify-between gap-2 min-w-0">
                   <div className="min-w-0 flex-1 overflow-hidden">
@@ -2884,7 +2884,7 @@ function StartupTab({ serverId }: { serverId: string }) {
               <select
                 value={selectedDockerImage}
                 onChange={(e) => setSelectedDockerImage(e.target.value)}
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0 appearance-none"
+                className="w-full border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0 appearance-none"
               >
                 <option value="" disabled>
                   {t("startup.selectImage")}
@@ -2903,7 +2903,7 @@ function StartupTab({ serverId }: { serverId: string }) {
           )}
 
           {startup.startup && (
-            <div className="rounded-lg border border-border bg-secondary/30 p-3 min-w-0 overflow-hidden">
+            <div className="border border-border bg-secondary/30 p-3 min-w-0 overflow-hidden">
               <p className="text-[10px] text-muted-foreground mb-1">{t("startup.startupCommand")}</p>
               <p className="text-xs font-mono text-foreground break-all leading-relaxed">
                 {startup.startup}
@@ -2930,7 +2930,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                   setDonePatterns(next)
                 }}
                 placeholder={t("startup.patternPlaceholder")}
-                className="flex-1 min-w-0 rounded-lg border border-border bg-input px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                className="flex-1 min-w-0 border border-border bg-input px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               />
               <Button
                 size="sm"
@@ -2978,7 +2978,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                 className="h-9"
               >
                 {saving ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+                  <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />
                 ) : (
                   <Save className="h-4 w-4 mr-1.5" />
                 )}
@@ -2999,7 +2999,7 @@ function StartupTab({ serverId }: { serverId: string }) {
             return (
               <div
                 key={row.id}
-                className="rounded-lg border border-border bg-secondary/10 p-3 min-w-0 overflow-hidden"
+                className="border border-border bg-secondary/10 p-3 min-w-0 overflow-hidden"
               >
                 <div className="flex items-center gap-1.5 mb-2 flex-wrap min-w-0">
                   {isDefined || !isNew ? (
@@ -3028,7 +3028,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                         )
                       }
                       placeholder={t("startup.variableName")}
-                      className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground font-mono outline-none min-w-0 focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                      className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground font-mono outline-none min-w-0 focus:ring-2 focus:ring-primary/20 focus:border-primary"
                     />
                   )}
                   {!isEditable && (
@@ -3094,7 +3094,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                   placeholder={!isDefined ? t("startup.variableValue") : defaultPlaceholder}
                   disabled={!isEditable}
                   className={cn(
-                    "w-full rounded-lg border border-border px-3 py-2.5 text-sm font-mono outline-none min-w-0",
+                    "w-full border border-border px-3 py-2.5 text-sm font-mono outline-none min-w-0",
                     isEditable
                       ? "bg-input text-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       : "bg-secondary/50 text-muted-foreground cursor-not-allowed"
@@ -3152,7 +3152,7 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
           {mounts.map((mount: any, i: number) => (
             <div
               key={mount.id || i}
-              className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
+              className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 min-w-0 overflow-hidden"
             >
               <div className="flex items-center gap-2 flex-wrap min-w-0">
                 <Box className="h-4 w-4 text-primary flex-shrink-0" />
@@ -3172,13 +3172,13 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
                 <p className="text-xs text-muted-foreground break-words">{mount.description}</p>
               )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="rounded border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
+                <div className="border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
                   <span className="text-[10px] text-muted-foreground">{t("mounts.source")}</span>
                   <p className="text-xs font-mono text-foreground truncate">
                     {mount.source || "—"}
                   </p>
                 </div>
-                <div className="rounded border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
+                <div className="border border-border bg-secondary/30 p-2.5 min-w-0 overflow-hidden">
                   <span className="text-[10px] text-muted-foreground">{t("mounts.target")}</span>
                   <p className="text-xs font-mono text-foreground truncate">
                     {mount.target || "—"}
@@ -3393,7 +3393,7 @@ function SubusersTab({
           <div className="flex items-center gap-2">
             <Link
               href="/dashboard/subusers/invites"
-              className="inline-flex items-center rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary/30"
+              className="inline-flex items-center border border-border bg-secondary/20 px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary/30"
             >
               {t("subusers.pendingInvites")}
             </Link>
@@ -3409,9 +3409,9 @@ function SubusersTab({
       />
 
       {showAdd && (
-        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
+        <div className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
           {error && (
-            <div className="p-2.5 rounded-lg bg-destructive/10 text-xs text-destructive break-words">
+            <div className="p-2.5 bg-destructive/10 text-xs text-destructive break-words">
               {error}
             </div>
           )}
@@ -3423,7 +3423,7 @@ function SubusersTab({
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="user@example.com"
-              className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
+              className="w-full border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
             />
           </div>
 
@@ -3433,7 +3433,7 @@ function SubusersTab({
               {PERMISSIONS.map((p) => (
                 <label
                   key={p.key}
-                  className="flex items-center gap-2 text-xs text-foreground cursor-pointer p-2.5 rounded-lg border border-border hover:bg-secondary/30 active:bg-secondary/50 transition-colors min-w-0 touch-manipulation"
+                  className="flex items-center gap-2 text-xs text-foreground cursor-pointer p-2.5 border border-border hover:bg-secondary/30 active:bg-secondary/50 transition-colors min-w-0 touch-manipulation"
                 >
                   <input
                     type="checkbox"
@@ -3455,7 +3455,7 @@ function SubusersTab({
 
           <div className="flex gap-2">
             <Button size="sm" onClick={handleAdd} disabled={adding} className="h-9">
-              {adding && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+              {adding && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
               {t("subusers.add")}
             </Button>
             <Button
@@ -3488,7 +3488,7 @@ function SubusersTab({
             return (
               <div
                 key={su.id}
-                className="flex items-center justify-between gap-3 rounded-lg border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
+                className="flex items-center justify-between gap-3 border border-border bg-secondary/20 p-3 min-w-0 overflow-hidden"
               >
                 <div className="min-w-0 flex-1 overflow-hidden">
                   <div className="flex items-center gap-3 min-w-0">
@@ -3542,7 +3542,7 @@ function SubusersTab({
                       aria-label={su.locked ? t("subusers.unlockSubuser") : t("subusers.lockSubuser")}
                     >
                       {locking[su.id] ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                       ) : su.locked ? (
                         <Unlock className="h-4 w-4" />
                       ) : (
@@ -3818,7 +3818,7 @@ function SettingsTab({
 
             {/* Launch notice */}
             {launchNotice && (
-              <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 flex items-start gap-2 animate-in fade-in-0 slide-in-from-top-2 overflow-hidden">
+              <div className="border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 flex items-start gap-2 animate-in fade-in-0 slide-in-from-top-2 overflow-hidden">
                 <Info className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-300/80 leading-relaxed break-words min-w-0">
                   {launchNotice}
@@ -3834,7 +3834,7 @@ function SettingsTab({
                     {t("settings.sshCommand")}
                   </p>
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 overflow-hidden">
+                    <div className="flex-1 min-w-0 border border-border bg-secondary/50 overflow-hidden">
                       <div className="overflow-x-auto scrollbar-none">
                         <code className="text-xs font-mono block px-3 py-2.5 whitespace-nowrap">
                           {sshCmd}
@@ -3858,7 +3858,7 @@ function SettingsTab({
                     {t("settings.sftpCommand")}
                   </p>
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 overflow-hidden">
+                    <div className="flex-1 min-w-0 border border-border bg-secondary/50 overflow-hidden">
                       <div className="overflow-x-auto scrollbar-none">
                         <code className="text-xs font-mono block px-3 py-2.5 whitespace-nowrap">
                           {sftpCmd}
@@ -3880,7 +3880,7 @@ function SettingsTab({
             )}
 
             {isKvm ? (
-              <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 p-3 space-y-2 min-w-0 overflow-hidden">
+              <div className="border border-indigo-500/15 bg-indigo-500/5 p-3 space-y-2 min-w-0 overflow-hidden">
                 <div className="flex items-start gap-2 min-w-0">
                   <Monitor className="h-4 w-4 text-indigo-400 flex-shrink-0 mt-0.5" />
                   <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden">
@@ -3913,7 +3913,7 @@ function SettingsTab({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0 pt-3">
             <div className="space-y-4">
               {hasResourcePools && (
-                <div className="space-y-3 rounded-xl border border-border/50 bg-secondary/10 p-4">
+                <div className="space-y-3 border border-border/50 bg-secondary/10 p-4">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     {t("resources.resourcePoolSelection")}
                   </p>
@@ -3925,7 +3925,7 @@ function SettingsTab({
                       <select
                         value={memorySource}
                         onChange={(e) => setMemorySource(e.target.value as "plan" | "node")}
-                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       >
                         {planLimits.memory != null && (
                           <option value="plan">
@@ -3946,7 +3946,7 @@ function SettingsTab({
                       <select
                         value={diskSource}
                         onChange={(e) => setDiskSource(e.target.value as "plan" | "node")}
-                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       >
                         {planLimits.disk != null && (
                           <option value="plan">
@@ -3967,7 +3967,7 @@ function SettingsTab({
                       <select
                         value={cpuSource}
                         onChange={(e) => setCpuSource(e.target.value as "plan" | "node")}
-                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       >
                         {planLimits.cpu != null && (
                           <option value="plan">
@@ -4026,7 +4026,7 @@ function SettingsTab({
               />
             </div>
             <div className="space-y-4">
-              <div className="rounded-xl border border-border/50 bg-secondary/10 p-4 space-y-4">
+              <div className="border border-border/50 bg-secondary/10 p-4 space-y-4">
                 {isAdminUser ? (
                   <>
                     <div className="space-y-1">
@@ -4038,7 +4038,7 @@ function SettingsTab({
                         min={0}
                         value={swapLimit}
                         onChange={(e) => setSwapLimit(Number(e.target.value) || 0)}
-                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="w-full border border-border bg-input px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       />
                     </div>
                     <div className="space-y-1">
@@ -4050,7 +4050,7 @@ function SettingsTab({
                         min={0}
                         value={ioWeight}
                         onChange={(e) => setIoWeight(Number(e.target.value) || 0)}
-                        className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                        className="w-full border border-border bg-input px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                       />
                     </div>
                   </>
@@ -4095,7 +4095,7 @@ function SettingsTab({
                 className="h-10 sm:h-9"
               >
                 {savingResources ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />
                 ) : (
                   <Save className="h-4 w-4 mr-2" />
                 )}
@@ -4107,7 +4107,7 @@ function SettingsTab({
       )}
 
       {/* Danger Zone */}
-      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 sm:p-4 md:p-6 space-y-4 overflow-hidden">
+      <div className="border border-destructive/30 bg-destructive/5 p-3 sm:p-4 md:p-6 space-y-4 overflow-hidden">
         <div>
           <h3 className="text-sm font-semibold text-destructive flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 flex-shrink-0" />
@@ -4125,7 +4125,7 @@ function SettingsTab({
             onClick={() => setReinstallDialogOpen(true)}
             disabled={reinstalling}
           >
-            {reinstalling && <Loader2 className="h-4 w-4 animate-spin mr-1.5" />}
+            {reinstalling && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
             <RefreshCw className="h-4 w-4 mr-1.5" />
             {t("settings.reinstall")}
           </Button>
@@ -4141,7 +4141,7 @@ function SettingsTab({
         </div>
       </div>
       <Dialog open={reinstallDialogOpen} onOpenChange={(open) => setReinstallDialogOpen(open)}>
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md rounded-xl overflow-hidden">
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
           <DialogHeader>
             <DialogTitle className="text-foreground">{t("settings.reinstallDialog.title")}</DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
@@ -4154,7 +4154,7 @@ function SettingsTab({
                 type="button"
                 onClick={() => setWipeOnReinstall(true)}
                 className={cn(
-                  "rounded-lg border p-3 text-left transition-colors",
+                  "border p-3 text-left transition-colors",
                   wipeOnReinstall
                     ? "border-yellow-500/40 bg-yellow-500/10"
                     : "border-border bg-secondary/20 hover:bg-secondary/30"
@@ -4171,7 +4171,7 @@ function SettingsTab({
                 type="button"
                 onClick={() => setWipeOnReinstall(false)}
                 className={cn(
-                  "rounded-lg border p-3 text-left transition-colors",
+                  "border p-3 text-left transition-colors",
                   !wipeOnReinstall
                     ? "border-primary/40 bg-primary/10"
                     : "border-border bg-secondary/20 hover:bg-secondary/30"
@@ -4185,7 +4185,7 @@ function SettingsTab({
                 </p>
               </button>
             </div>
-            <div className="rounded-lg border border-border bg-secondary/20 p-3">
+            <div className="border border-border bg-secondary/20 p-3">
               <p className="text-xs text-muted-foreground">
                 {t("settings.reinstallDialog.wingsNote")}
               </p>
@@ -4209,7 +4209,7 @@ function SettingsTab({
               disabled={reinstalling}
               className="w-full sm:w-auto"
             >
-              {reinstalling && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {reinstalling && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
               {t("settings.reinstall")}
             </Button>
           </DialogFooter>

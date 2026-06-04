@@ -22,7 +22,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = "p
   return (
     <div
       className={cn(
-        "group relative overflow-hidden rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)]",
+        "group relative overflow-hidden border border-border bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)]",
         className
       )}
     >
@@ -47,7 +47,7 @@ export function StatCard({ title, value, subtitle, icon: Icon, trend, color = "p
             </p>
           )}
         </div>
-        <div className="rounded-lg bg-primary/10 p-2.5 text-primary transition-colors group-hover:bg-primary/20">
+        <div className="bg-primary/10 p-2.5 text-primary transition-colors group-hover:bg-primary/20">
           <Icon className="h-5 w-5" />
         </div>
       </div>
@@ -116,10 +116,10 @@ export function UsageBar({ label, value, max = 100, color = "primary" }: { label
         <span className="text-muted-foreground">{label}</span>
         <span className="font-mono text-foreground">{value}%</span>
       </div>
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+      <div className="h-1.5 w-full overflow-hidden bg-secondary">
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-500",
+            "h-full transition-all duration-500",
             percentage > 90 ? "bg-destructive" : percentage > 70 ? "bg-warning" : "bg-primary"
           )}
           style={{ width: `${percentage}%` }}

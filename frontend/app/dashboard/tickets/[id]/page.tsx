@@ -39,7 +39,7 @@ import {
 
 function MarkdownContent({ content }: { content: string }) {
   return (
-    <div className="prose prose-invert prose-sm max-w-full break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+    <div className="prose prose-invert prose-sm max-w-full break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   )
@@ -417,7 +417,7 @@ export default function TicketDetailPage({
         <PanelHeader title={t("header.ticket")} />
         <div className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <Loader2 className="h-6 w-6 rounded-full animate-spin text-primary" />
             <p className="text-sm text-muted-foreground">
               {t("states.loadingTicket")}
             </p>
@@ -453,13 +453,13 @@ export default function TicketDetailPage({
   const TicketDetailsContent = () => (
     <div className="flex flex-col gap-4 sm:gap-5">
       <div className="grid grid-cols-2 gap-2 sm:gap-3">
-        <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
+        <div className="border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
             {t("labels.status")}
           </p>
           <StatusBadge status={ticket.status} />
         </div>
-        <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
+        <div className="border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
             {t("labels.priority")}
           </p>
@@ -472,7 +472,7 @@ export default function TicketDetailPage({
             </span>
           </div>
         </div>
-        <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
+        <div className="border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
             {t("labels.created")}
           </p>
@@ -483,7 +483,7 @@ export default function TicketDetailPage({
             {new Date(ticket.created).toLocaleDateString()}
           </p>
         </div>
-        <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3">
+        <div className="border border-border bg-secondary/20 p-2.5 sm:p-3">
           <p className="text-[9px] sm:text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1 sm:mb-1.5">
             {t("labels.messages")}
           </p>
@@ -498,7 +498,7 @@ export default function TicketDetailPage({
 
       <div className="flex flex-col gap-1.5 sm:gap-2">
         {ticket.department && (
-          <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
+          <div className="flex items-center justify-between border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
             <div className="flex items-center gap-2 text-[11px] sm:text-xs text-muted-foreground">
               <Building2 className="h-3 w-3" />
               {t("labels.department")}
@@ -509,7 +509,7 @@ export default function TicketDetailPage({
           </div>
         )}
         {ticket.assignedTo && (
-          <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
+          <div className="flex items-center justify-between border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
             <div className="flex items-center gap-2 text-[11px] sm:text-xs text-muted-foreground">
               <User className="h-3 w-3" />
               {t("labels.assigned")}
@@ -520,7 +520,7 @@ export default function TicketDetailPage({
           </div>
         )}
         {ticket.updatedAt && (
-          <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
+          <div className="flex items-center justify-between border border-border bg-secondary/20 px-2.5 py-2 sm:px-3">
             <div className="flex items-center gap-2 text-[11px] sm:text-xs text-muted-foreground">
               <Clock className="h-3 w-3" />
               {t("labels.updated")}
@@ -542,7 +542,7 @@ export default function TicketDetailPage({
               setStatus("closed")
               setShowMobileDetails(false)
             }}
-            className="flex items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all w-full"
+            className="flex items-center justify-center gap-2 border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all w-full"
           >
             <XCircle className="h-4 w-4" />
             {t("actions.closeTicket")}
@@ -553,7 +553,7 @@ export default function TicketDetailPage({
               setStatus("open")
               setShowMobileDetails(false)
             }}
-            className="flex items-center justify-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all w-full"
+            className="flex items-center justify-center gap-2 border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all w-full"
           >
             <CheckCircle className="h-4 w-4" />
             {t("actions.reopenTicket")}
@@ -573,7 +573,7 @@ export default function TicketDetailPage({
           <select
             value={adminStatus}
             onChange={(e) => setAdminStatus(e.target.value)}
-            className="rounded-lg border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
+            className="border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
           >
             <option value="opened">{t("status.open")}</option>
             <option value="awaiting_staff_reply">{t("status.awaitingStaff")}</option>
@@ -588,7 +588,7 @@ export default function TicketDetailPage({
           <select
             value={adminPriority}
             onChange={(e) => setAdminPriority(e.target.value)}
-            className="rounded-lg border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
+            className="border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
           >
             <option value="low">{t("priority.low")}</option>
             <option value="medium">{t("priority.medium")}</option>
@@ -605,7 +605,7 @@ export default function TicketDetailPage({
         <select
           value={adminDepartment || ""}
           onChange={(e) => setAdminDepartment(e.target.value)}
-          className="rounded-lg border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
+          className="border border-border bg-secondary/50 px-2.5 py-2 text-xs sm:text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 cursor-pointer transition-colors"
         >
           <option value="">{t("department.none")}</option>
           <option value="Technical Support">{t("department.technicalSupport")}</option>
@@ -622,7 +622,7 @@ export default function TicketDetailPage({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setAdminAiDisabled(!adminAiDisabled)}
-            className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 sm:px-3 sm:py-2.5 text-left transition-colors active:scale-[0.98] ${
+            className={`flex items-center gap-2 border px-2.5 py-2 sm:px-3 sm:py-2.5 text-left transition-colors active:scale-[0.98] ${
               adminAiDisabled
                 ? "border-orange-500/30 bg-orange-500/10 text-orange-400"
                 : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
@@ -644,7 +644,7 @@ export default function TicketDetailPage({
           </button>
           <button
             onClick={() => setAdminAiTouched(!adminAiTouched)}
-            className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 sm:px-3 sm:py-2.5 text-left transition-colors active:scale-[0.98] ${
+            className={`flex items-center gap-2 border px-2.5 py-2 sm:px-3 sm:py-2.5 text-left transition-colors active:scale-[0.98] ${
               adminAiTouched
                 ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
                 : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
@@ -671,7 +671,7 @@ export default function TicketDetailPage({
       >
         {savingAdmin ? (
           <>
-            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
             {t("actions.saving")}
           </>
         ) : (
@@ -706,7 +706,7 @@ export default function TicketDetailPage({
                   alert(t("alerts.failedBan", { reason: e.message }))
                 }
               }}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/5 px-2 py-2 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/15 active:scale-[0.98] transition-all"
+              className="flex items-center justify-center gap-1.5 border border-red-500/30 bg-red-500/5 px-2 py-2 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/15 active:scale-[0.98] transition-all"
             >
               <Ban className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {t("actions.ban")}
@@ -731,7 +731,7 @@ export default function TicketDetailPage({
                   alert(t("alerts.failedUnban", { reason: e.message }))
                 }
               }}
-              className="flex items-center justify-center gap-1.5 rounded-lg border border-border px-2 py-2 text-[11px] sm:text-xs font-medium text-muted-foreground hover:bg-secondary/50 active:scale-[0.98] transition-all"
+              className="flex items-center justify-center gap-1.5 border border-border px-2 py-2 text-[11px] sm:text-xs font-medium text-muted-foreground hover:bg-secondary/50 active:scale-[0.98] transition-all"
             >
               <UserCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {t("actions.unban")}
@@ -740,10 +740,10 @@ export default function TicketDetailPage({
           <button
             onClick={deleteTicket}
             disabled={deleting}
-            className="flex items-center justify-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/15 active:scale-[0.98] transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 border border-red-500/30 px-3 py-2 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/15 active:scale-[0.98] transition-all disabled:opacity-50"
           >
             {deleting ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
             ) : (
               <Trash2 className="h-3.5 w-3.5" />
             )}
@@ -794,7 +794,7 @@ export default function TicketDetailPage({
                 {!isClosed ? (
                   <button
                     onClick={() => setStatus("closed")}
-                    className="flex items-center gap-1.5 rounded-lg border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all"
+                    className="flex items-center gap-1.5 border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all"
                   >
                     <XCircle className="h-3.5 w-3.5" />
                     {t("actions.close")}
@@ -802,7 +802,7 @@ export default function TicketDetailPage({
                 ) : (
                   <button
                     onClick={() => setStatus("open")}
-                    className="flex items-center gap-1.5 rounded-lg border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all"
+                    className="flex items-center gap-1.5 border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all"
                   >
                     <CheckCircle className="h-3.5 w-3.5" />
                     {t("actions.reopen")}
@@ -813,7 +813,7 @@ export default function TicketDetailPage({
               {isAdmin && (
                 <button
                   onClick={() => setShowAdminPanel(!showAdminPanel)}
-                  className={`hidden lg:flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium transition-colors ${
+                  className={`hidden lg:flex items-center gap-1 border px-2.5 py-1.5 text-[11px] sm:text-xs font-medium transition-colors ${
                     showAdminPanel
                       ? "border-primary/30 bg-primary/10 text-primary"
                       : "border-border text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -828,7 +828,7 @@ export default function TicketDetailPage({
                 onClick={() =>
                   setShowMobileDetails(!showMobileDetails)
                 }
-                className="lg:hidden rounded-lg border border-border p-1.5 sm:p-2 text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-95 transition-all"
+                className="lg:hidden border border-border p-1.5 sm:p-2 text-muted-foreground hover:bg-secondary hover:text-foreground active:scale-95 transition-all"
               >
                 <MoreVertical className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               </button>
@@ -837,7 +837,7 @@ export default function TicketDetailPage({
 
           {/* Admin user info */}
           {isAdmin && ticket?.user && (
-            <div className="mx-3 mb-4 rounded-lg border border-border bg-secondary/20 p-3 text-sm text-foreground">
+            <div className="mx-3 mb-4 border border-border bg-secondary/20 p-3 text-sm text-foreground">
               <div className="flex items-center justify-between">
                 <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("owner.ticketOwner")}</h2>
                 <Link
@@ -911,7 +911,7 @@ export default function TicketDetailPage({
                     </h3>
                     <button
                       onClick={() => setShowMobileDetails(false)}
-                      className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                     >
                       <XCircle className="h-4 w-4" />
                     </button>
@@ -954,7 +954,7 @@ export default function TicketDetailPage({
                   </h3>
                   <button
                     onClick={() => setShowAdminPanel(false)}
-                    className="rounded-lg p-1 text-muted-foreground hover:text-foreground transition-colors"
+                    className="p-1 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <XCircle className="h-3.5 w-3.5" />
                   </button>
@@ -976,7 +976,7 @@ export default function TicketDetailPage({
                   {changeNotifications.map((n, idx) => (
                     <div
                       key={`cn-${idx}`}
-                      className="flex items-center gap-2 rounded-lg bg-secondary/30 px-2.5 py-1.5 text-[10px] sm:text-[11px] text-muted-foreground"
+                      className="flex items-center gap-2 bg-secondary/30 px-2.5 py-1.5 text-[10px] sm:text-[11px] text-muted-foreground"
                     >
                       <n.icon className="h-3 w-3 shrink-0" />
                       <span>{n.text}</span>
@@ -1073,7 +1073,7 @@ export default function TicketDetailPage({
                         </div>
                       )}
                       <div
-                        className={`rounded-2xl px-3 py-2 sm:px-3.5 sm:py-2.5 text-[13px] sm:text-sm leading-relaxed w-fit ${
+                        className={`px-3 py-2 sm:px-3.5 sm:py-2.5 text-[13px] sm:text-sm leading-relaxed w-fit ${
                           isStaff
                             ? "rounded-tl-md border border-primary/20 bg-primary/5 text-foreground"
                             : "rounded-tr-md border border-border bg-card text-foreground"
@@ -1095,7 +1095,7 @@ export default function TicketDetailPage({
           {!isClosed ? (
             <div className="shrink-0 border-t border-border bg-card/50 backdrop-blur-xl p-2.5 sm:p-4">
               <div className="mx-auto max-w-3xl">
-                <div className="rounded-xl border border-border/50 bg-background/80 overflow-hidden focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                <div className="border border-border/50 bg-background/80 overflow-hidden focus-within:border-primary/30 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
                   <textarea
                     ref={textareaRef}
                     value={reply}
@@ -1166,14 +1166,14 @@ export default function TicketDetailPage({
                     <button
                       onClick={handleSend}
                       disabled={!reply.trim() || sending}
-                      className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 sm:px-3.5 text-[11px] sm:text-xs font-medium transition-all shrink-0 ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 text-[11px] sm:text-xs font-medium transition-all shrink-0 ${
                         reply.trim() && !sending
                           ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 active:scale-90"
                           : "bg-secondary/50 text-muted-foreground/40 cursor-not-allowed"
                       }`}
                     >
                       {sending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
                       ) : (
                         <Send className="h-3.5 w-3.5" />
                       )}
@@ -1188,7 +1188,7 @@ export default function TicketDetailPage({
           ) : (
             <div className="shrink-0 border-t border-border bg-card/50 p-2.5 sm:p-4">
               <div className="mx-auto max-w-3xl">
-                <div className="flex items-center justify-center gap-2 sm:gap-3 rounded-xl border border-dashed border-border py-2.5 sm:py-3">
+                <div className="flex items-center justify-center gap-2 sm:gap-3 border border-dashed border-border py-2.5 sm:py-3">
                   <XCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     {t("states.ticketClosed")}

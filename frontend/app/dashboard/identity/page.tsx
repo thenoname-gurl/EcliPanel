@@ -250,7 +250,7 @@ export default function IdentityPage() {
                 </button>
                 {submitting && (
                   <p className="mt-2 flex items-center gap-2 text-sm text-primary" aria-live="polite">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                     {t('actions.uploading')}
                   </p>
                 )}

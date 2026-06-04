@@ -234,7 +234,7 @@ export default function AIChatPage() {
             <div className="flex items-center justify-between px-3 py-2.5 sm:px-5 sm:py-3">
               <div className="flex items-center gap-2.5 sm:gap-3">
                 <div className="relative">
-                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20">
+                  <div className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/20">
                     <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
@@ -253,7 +253,7 @@ export default function AIChatPage() {
                 <div className="relative">
                   <button
                     onClick={() => setShowModelSelect(!showModelSelect)}
-                    className="flex items-center gap-1 sm:gap-1.5 rounded-lg bg-secondary/50 px-2 py-1.5 sm:px-2.5 text-[10px] sm:text-[11px] text-muted-foreground hover:bg-secondary transition-colors"
+                    className="flex items-center gap-1 sm:gap-1.5 bg-secondary/50 px-2 py-1.5 sm:px-2.5 text-[10px] sm:text-[11px] text-muted-foreground hover:bg-secondary transition-colors"
                   >
                     <Zap className="h-3 w-3 text-primary" />
                     <span className="max-w-[60px] sm:max-w-[120px] truncate">
@@ -270,7 +270,7 @@ export default function AIChatPage() {
                         className="fixed inset-0 z-40"
                         onClick={() => setShowModelSelect(false)}
                       />
-                      <div className="absolute right-0 top-full z-50 mt-1.5 w-56 rounded-xl border border-border/50 bg-card shadow-xl shadow-black/20 overflow-hidden">
+                      <div className="absolute right-0 top-full z-50 mt-1.5 w-56 border border-border/50 bg-card shadow-xl shadow-black/20 overflow-hidden">
                         <div className="p-1.5 max-h-60 overflow-y-auto">
                           {modelOptions?.map((opt) => (
                             <button
@@ -279,7 +279,7 @@ export default function AIChatPage() {
                                 setSelectedModel(opt.id)
                                 setShowModelSelect(false)
                               }}
-                              className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs transition-colors ${selectedModel === opt.id
+                              className={`flex w-full items-center gap-2 px-3 py-2 text-xs transition-colors ${selectedModel === opt.id
                                   ? "bg-primary/15 text-primary font-medium"
                                   : "text-foreground hover:bg-secondary/50"
                                 }`}
@@ -306,7 +306,7 @@ export default function AIChatPage() {
 
                 <button
                   onClick={() => setMessages(INITIAL_MESSAGES)}
-                  className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-lg bg-secondary/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                  className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center bg-secondary/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   title={t("actions.clearChat")}
                 >
                   <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
@@ -335,14 +335,14 @@ export default function AIChatPage() {
 
                   <div className="group relative min-w-0 max-w-[88%] sm:max-w-[75%]">
                     <div
-                      className={`rounded-2xl px-3.5 py-2.5 sm:px-4 sm:py-3 ${msg.role === "assistant"
+                      className={`px-3.5 py-2.5 sm:px-4 sm:py-3 ${msg.role === "assistant"
                           ? "bg-card/80 backdrop-blur-sm border border-border/50 rounded-tl-md"
                           : "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-tr-md shadow-lg shadow-primary/20"
                         }`}
                     >
                       <div
                         className={`text-[13px] sm:text-sm leading-relaxed break-words ${msg.role === "assistant"
-                            ? "prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none"
+                            ? "prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none"
                             : ""
                           }`}
                       >
@@ -371,7 +371,7 @@ export default function AIChatPage() {
                         <div className="hidden sm:flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => copyToClipboard(msg.content, msg.id)}
-                            className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
+                            className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.copy")}
                           >
                             {copiedId === msg.id ? (
@@ -381,19 +381,19 @@ export default function AIChatPage() {
                             )}
                           </button>
                           <button
-                            className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
+                            className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.good")}
                           >
                             <ThumbsUp className="h-3 w-3" />
                           </button>
                           <button
-                            className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
+                            className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.bad")}
                           >
                             <ThumbsDown className="h-3 w-3" />
                           </button>
                           <button
-                            className="rounded-md p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
+                            className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.retry")}
                           >
                             <RotateCcw className="h-3 w-3" />
@@ -408,7 +408,7 @@ export default function AIChatPage() {
                               activeMessageMenu === msg.id ? null : msg.id
                             )
                           }
-                          className="sm:hidden rounded-md p-1 text-muted-foreground/50 active:bg-secondary transition-colors"
+                          className="sm:hidden p-1 text-muted-foreground/50 active:bg-secondary transition-colors"
                         >
                           <MoreHorizontal className="h-3.5 w-3.5" />
                         </button>
@@ -433,7 +433,7 @@ export default function AIChatPage() {
                       <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" />
                     </div>
                   </div>
-                  <div className="rounded-2xl rounded-tl-md bg-card/80 backdrop-blur-sm border border-border/50 px-4 py-3">
+                  <div className="rounded-tl-md bg-card/80 backdrop-blur-sm border border-border/50 px-4 py-3">
                     <div className="flex items-center gap-2">
                       <div className="flex gap-1">
                         <span
@@ -474,10 +474,10 @@ export default function AIChatPage() {
                       setInput(s.text)
                       inputRef.current?.focus()
                     }}
-                    className="flex items-center gap-2 rounded-xl bg-secondary/30 border border-border/50 px-2.5 py-2 sm:px-3 sm:py-2.5 text-left hover:bg-secondary/50 hover:border-primary/30 active:scale-[0.97] transition-all"
+                    className="flex items-center gap-2 bg-secondary/30 border border-border/50 px-2.5 py-2 sm:px-3 sm:py-2.5 text-left hover:bg-secondary/50 hover:border-primary/30 active:scale-[0.97] transition-all"
                   >
                     <div
-                      className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-lg bg-background/50 shrink-0 ${s.color}`}
+                      className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center bg-background/50 shrink-0 ${s.color}`}
                     >
                       <s.icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                     </div>
@@ -494,7 +494,7 @@ export default function AIChatPage() {
             <div className="mx-auto max-w-2xl">
               <div className="flex items-end gap-2">
                 <div className="flex-1 relative">
-                  <div className="rounded-2xl border border-border/50 bg-background/80 backdrop-blur-sm focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all overflow-hidden">
+                  <div className="border border-border/50 bg-background/80 backdrop-blur-sm focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all overflow-hidden">
                     <textarea
                       ref={inputRef}
                       value={input}
@@ -522,7 +522,7 @@ export default function AIChatPage() {
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || isTyping}
-                  className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ${input.trim() && !isTyping
+                  className={`flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center transition-all duration-200 ${input.trim() && !isTyping
                       ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-90"
                       : "bg-secondary/50 text-muted-foreground/40 cursor-not-allowed"
                     }`}
@@ -598,7 +598,7 @@ export default function AIChatPage() {
                   <button
                     key={i}
                     onClick={item.action}
-                    className="flex flex-col items-center gap-1.5 rounded-xl bg-secondary/40 border border-border/30 p-3 active:scale-95 active:bg-secondary transition-all"
+                    className="flex flex-col items-center gap-1.5 bg-secondary/40 border border-border/30 p-3 active:scale-95 active:bg-secondary transition-all"
                   >
                     <item.icon className="h-5 w-5 text-foreground" />
                     <span className="text-[10px] text-muted-foreground font-medium">

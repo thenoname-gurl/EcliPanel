@@ -113,7 +113,7 @@ export default function ShortUrlsTab() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-border bg-card p-4">
+      <div className="border border-border bg-card p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground">{t("overview.title")}</h2>
@@ -126,7 +126,7 @@ export default function ShortUrlsTab() {
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="border border-border bg-card p-4">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
               <h3 className="text-base font-semibold text-foreground">{editingId ? t("editor.editTitle") : t("editor.createTitle")}</h3>
@@ -156,7 +156,7 @@ export default function ShortUrlsTab() {
                 id="shorturl-prefix"
                 value={form.prefix}
                 onChange={(e) => setForm((prev) => ({ ...prev, prefix: e.target.value }))}
-                className="mt-2 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none transition"
+                className="mt-2 w-full border border-border bg-input px-3 py-2 text-sm text-foreground outline-none transition"
               >
                 <option value="a">/a/{t("fields.optionA")}</option>
                 <option value="root">/{t("fields.optionRoot")}</option>
@@ -181,18 +181,18 @@ export default function ShortUrlsTab() {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="border border-border bg-card p-4">
           <h3 className="text-base font-semibold text-foreground">{t("list.title")}</h3>
           <p className="text-sm text-muted-foreground mb-4">{t("list.description")}</p>
 
           <div className="space-y-3">
             {loading ? (
-              <div className="rounded-lg border border-border bg-secondary/50 p-4 text-sm text-muted-foreground">{t("list.loading")}</div>
+              <div className="border border-border bg-secondary/50 p-4 text-sm text-muted-foreground">{t("list.loading")}</div>
             ) : shortUrls.length === 0 ? (
-              <div className="rounded-lg border border-border bg-secondary/50 p-4 text-sm text-muted-foreground">{t("list.empty")}</div>
+              <div className="border border-border bg-secondary/50 p-4 text-sm text-muted-foreground">{t("list.empty")}</div>
             ) : (
               shortUrls.map((item) => (
-                <div key={item.id} className="rounded-2xl border border-border bg-secondary/50 p-3">
+                <div key={item.id} className="border border-border bg-secondary/50 p-3">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="font-medium text-foreground truncate">{item.prefix === 'root' ? `/${item.code}` : `/a/${item.code}`}</p>

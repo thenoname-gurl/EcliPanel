@@ -175,7 +175,7 @@ function FormCard({
   return (
     <div
       className={cn(
-        "group relative rounded-xl border bg-card overflow-hidden transition-all hover:shadow-md",
+        "group relative border bg-card overflow-hidden transition-all hover:shadow-md",
         action.type === "apply" || action.type === "public"
           ? "border-border hover:border-primary/30 cursor-pointer"
           : "border-border",
@@ -205,7 +205,7 @@ function FormCard({
           <div className="flex items-start gap-3 flex-1 min-w-0">
             <div
               className={cn(
-                "mt-0.5 shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border",
+                "mt-0.5 shrink-0 w-9 h-9 flex items-center justify-center border",
                 kindConfig.className
               )}
             >
@@ -297,7 +297,7 @@ function FormCard({
               target={action.type === "public" ? "_blank" : undefined}
               rel={action.type === "public" ? "noreferrer" : undefined}
               className={cn(
-                "inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all active:scale-[0.98]",
+                "inline-flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all active:scale-[0.98]",
                 action.type === "apply"
                   ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                   : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
@@ -334,8 +334,8 @@ function StatCard({
   className?: string
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card/50 p-4 flex items-center gap-3">
-      <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center shrink-0", className)}>
+    <div className="border border-border bg-card/50 p-4 flex items-center gap-3">
+      <div className={cn("w-9 h-9 flex items-center justify-center shrink-0", className)}>
         <Icon className="h-4 w-4" />
       </div>
       <div className="min-w-0">
@@ -440,7 +440,7 @@ export default function ApplicationsPage() {
 
             {/* Suspended Banner */}
             {user?.suspended && (
-              <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+              <div className="flex items-start gap-3 border border-destructive/30 bg-destructive/10 p-4">
                 <ShieldAlert className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-destructive">Account Suspended</p>
@@ -453,7 +453,7 @@ export default function ApplicationsPage() {
 
             {/* Error Banner */}
             {error && (
-              <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+              <div className="flex items-start gap-3 border border-destructive/30 bg-destructive/10 p-4">
                 <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-destructive">{error}</p>
@@ -469,7 +469,7 @@ export default function ApplicationsPage() {
 
             {loading ? (
               <div className="flex flex-col items-center justify-center py-24 gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <Loader2 className="h-8 w-8 rounded-full animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">Loading applications...</p>
               </div>
             ) : (
@@ -506,9 +506,9 @@ export default function ApplicationsPage() {
 
                 {/* How it works */}
                 {forms.length > 0 && mySubmissions.length === 0 && !user?.suspended && (
-                  <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <div className="border border-primary/20 bg-primary/5 p-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 bg-primary/20 flex items-center justify-center shrink-0">
                         <FileText className="h-4 w-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -536,7 +536,7 @@ export default function ApplicationsPage() {
                     </div>
                     <button
                       onClick={loadData}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      className="flex items-center gap-2 px-4 py-2 border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                     >
                       <RefreshCw className="h-4 w-4" />
                       Refresh
@@ -550,7 +550,7 @@ export default function ApplicationsPage() {
                       </h2>
                       <button
                         onClick={loadData}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                         title="Refresh"
                       >
                         <RefreshCw className="h-3.5 w-3.5" />

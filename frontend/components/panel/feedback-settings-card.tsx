@@ -65,9 +65,9 @@ export function FeedbackSettingsCard() {
   const starLabels = ["", "Very Poor", "Poor", "Okay", "Good", "Excellent"]
 
   return (
-    <div className="rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+    <div className="border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start gap-3">
-        <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+        <div className="shrink-0 w-10 h-10 bg-primary/10 flex items-center justify-center">
           <MessageSquare className="h-5 w-5 text-primary" />
         </div>
         <div className="min-w-0 flex-1">
@@ -131,7 +131,7 @@ export function FeedbackSettingsCard() {
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Tell us more (optional, up to 250 words)..."
                 rows={3}
-                className="mt-3 w-full resize-none rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
+                className="mt-3 w-full resize-none border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
               />
               <div className="flex items-center justify-between mt-2">
                 {error ? (

@@ -62,10 +62,10 @@ export default function UsersTab({ ctx }: { ctx: any }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
           <div className="relative flex-1 max-w-md">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+            <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
               <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <input
                 type="text"
@@ -95,7 +95,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
             </div>
 
             {userSearchFocused && userSearch.trim().length > 0 && filteredUsers.length > 0 && (
-              <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
+              <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-border bg-card shadow-xl overflow-hidden">
                 {filteredUsers.slice(0, 5).map((u: any) => (
                   <button
                     key={u.id}
@@ -132,7 +132,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
             <span className="text-xs text-muted-foreground hidden sm:inline">{usersTotal ? t("search.totalUsers", { count: usersTotal }) : ""}</span>
             <button
               onClick={() => forceRefreshTab("users")}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               title={t("actions.refresh")}
             >
               <RefreshCw className="h-4 w-4" />
@@ -141,7 +141,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden lg:block">
+      <div className="border border-border bg-card hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -235,11 +235,11 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openViewUser(user)} title={t("actions.viewProfile")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <button onClick={() => openViewUser(user)} title={t("actions.viewProfile")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                           <Eye className="h-3.5 w-3.5" />
                         </button>
                         {canEditUser && (
-                          <button onClick={() => openEditUser(user)} title={t("actions.editUser")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                          <button onClick={() => openEditUser(user)} title={t("actions.editUser")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                             <UserCog className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -247,12 +247,12 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                           <button
                             onClick={() => toggleSuspend(user)}
                             title={user.suspended ? t("actions.unsuspend") : t("actions.suspend")}
-                            className={`rounded-md p-1.5 transition-colors ${user.suspended ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400" : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}
+                            className={`p-1.5 transition-colors ${user.suspended ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400" : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}
                           >
                             {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
                           </button>
                         )}
-                        <button onClick={() => startExportJob(user)} title={t("actions.startExportJob")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <button onClick={() => startExportJob(user)} title={t("actions.startExportJob")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                           <FileText className="h-3.5 w-3.5" />
                         </button>
                         {userExportJobId[user.id] && exportJobs[userExportJobId[user.id]] && (
@@ -268,12 +268,12 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                           </>
                         )}
                         {(user.studentVerified || user.portalType === "educational") && canDeassignStudent && (
-                          <button onClick={() => deassignStudent(user)} title={t("actions.deassignStudent")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                          <button onClick={() => deassignStudent(user)} title={t("actions.deassignStudent")} className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                             <UserMinus className="h-3.5 w-3.5" />
                           </button>
                         )}
                         {canRequireStudentReverify && (user.studentVerified || user.portalType === "educational") && (
-                          <button onClick={() => requireStudentReverify(user)} title={t("actions.requireReverify")} className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                          <button onClick={() => requireStudentReverify(user)} title={t("actions.requireReverify")} className="p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
                             <RotateCcw className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -282,12 +282,12 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                               e.preventDefault()
                               if (!confirm("Request KYC from this user?")) return
                               try { await apiFetch(`/api/admin/users/${user.id}/request-kyc`, { method: "POST" }); alert("KYC requested") } catch (e: any) { alert("Failed: " + (e?.message || e)) }
-                           }} title="Request KYC" className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                           }} title="Request KYC" className="p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
                              <ShieldCheck className="h-3.5 w-3.5" />
                            </button>
                         )}
                         {canDeleteUser && (
-                          <button onClick={() => deleteUser(user)} title={t("actions.deleteAccount")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                          <button onClick={() => deleteUser(user)} title={t("actions.deleteAccount")} className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         )}
@@ -303,7 +303,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
 
       <div className="flex flex-col gap-3 lg:hidden">
         {filteredUsers.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card px-4 py-12">
+          <div className="border border-border bg-card px-4 py-12">
             <div className="flex flex-col items-center gap-2">
               <Users className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">{users.length === 0 ? t("states.loading") : t("states.noMatch")}</p>
@@ -311,7 +311,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
           </div>
         ) : (
           filteredUsers.map((user: any) => (
-            <div key={user.id} className="rounded-xl border border-border bg-card overflow-hidden">
+            <div key={user.id} className="border border-border bg-card overflow-hidden">
               <div className="flex items-start gap-3 p-4 pb-3">
                 {user.avatarUrl ? (
                   <img src={user.avatarUrl} alt={`${user.firstName || t("common.user")} ${t("common.avatar")}`} className="h-10 w-10 rounded-full object-cover shrink-0" />
@@ -394,7 +394,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                   <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
                     <MoreHorizontal className="h-3.5 w-3.5" />
                   </button>
-                  <div className="absolute bottom-full right-0 mb-1 hidden group-focus-within/more:block rounded-lg border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
+                  <div className="absolute bottom-full right-0 mb-1 hidden group-focus-within/more:block border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
                     {(user.studentVerified || user.portalType === "educational") && canDeassignStudent && (
                       <button onClick={() => deassignStudent(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                         <UserMinus className="h-3.5 w-3.5" />
@@ -421,7 +421,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
             {t("pagination.page")} <span className="font-medium text-foreground">{usersPage}</span>

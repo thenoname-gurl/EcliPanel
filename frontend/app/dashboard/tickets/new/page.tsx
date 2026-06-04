@@ -58,7 +58,7 @@ export default function NewTicketPage() {
           </button>
 
           {/* Card */}
-          <div className="rounded-xl border border-border bg-card p-6 space-y-5">
+          <div className="border border-border bg-card p-6 space-y-5">
             <div>
               <h2 className="text-lg font-semibold text-foreground">{t("hero.title")}</h2>
               <p className="text-sm text-muted-foreground mt-1">
@@ -67,13 +67,13 @@ export default function NewTicketPage() {
             </div>
 
             {error && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {error}
               </div>
             )}
 
             {user?.supportBanned && (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {t("banned.message", { reason: user.supportBanReason || t("banned.noReason") })}
               </div>
             )}
@@ -91,7 +91,7 @@ export default function NewTicketPage() {
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
                   maxLength={120}
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+                  className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
                 />
               </div>
 
@@ -105,7 +105,7 @@ export default function NewTicketPage() {
                     id="priority"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+                    className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
                   >
                     <option value="low">{t("fields.priority.low")}</option>
                     <option value="medium">{t("fields.priority.medium")}</option>
@@ -121,7 +121,7 @@ export default function NewTicketPage() {
                     id="department"
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
+                    className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
                   >
                     <option value="">{t("fields.department.select")}</option>
                     <option value="Support">{t("fields.department.support")}</option>
@@ -144,7 +144,7 @@ export default function NewTicketPage() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   rows={8}
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
+                  className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
                 />
                 <p className="text-xs text-muted-foreground text-right">{t("fields.message.characters", { count: message.length })}</p>
               </div>
@@ -154,18 +154,18 @@ export default function NewTicketPage() {
                 <button
                   type="button"
                   onClick={() => router.push("/dashboard/tickets")}
-                  className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/80"
+                  className="border border-border bg-secondary px-4 py-2 text-sm text-foreground transition-colors hover:bg-secondary/80"
                 >
                   {t("actions.cancel")}
                 </button>
                 <button
                   type="submit"
                   disabled={user?.supportBanned || submitting || !subject.trim() || !message.trim()}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {submitting ? (
                     <>
-                      <span className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground animate-spin" />
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                       {t("actions.submitting")}
                     </>
                   ) : (

@@ -218,10 +218,10 @@ export default function AIStudioPage() {
         <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
           <div className="flex flex-col gap-6 p-6">
             {activeTool && (
-              <div className="rounded-xl border border-primary/30 bg-card overflow-hidden">
+              <div className="border border-primary/30 bg-card overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border px-5 py-3 bg-primary/5">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-primary/10 p-2">
+                    <div className="bg-primary/10 p-2">
                       <activeTool.icon className={`h-4 w-4 ${activeTool.color}`} />
                     </div>
                     <div>
@@ -231,7 +231,7 @@ export default function AIStudioPage() {
                   </div>
                   <button
                     onClick={closeTool}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -249,7 +249,7 @@ export default function AIStudioPage() {
                     {messages.map((msg, i) => (
                       <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div
-                          className={`max-w-[85%] rounded-xl px-4 py-2.5 ${
+                          className={`max-w-[85%] px-4 py-2.5 ${
                             msg.role === "user"
                               ? "bg-primary/15 text-foreground border border-primary/20 text-sm"
                               : "bg-secondary/60 text-foreground border border-border"
@@ -265,8 +265,8 @@ export default function AIStudioPage() {
                     ))}
                     {sending && (
                       <div className="flex justify-start">
-                        <div className="flex items-center gap-2 rounded-xl bg-secondary/60 border border-border px-4 py-2.5 text-sm text-muted-foreground">
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("chat.thinking")}
+                        <div className="flex items-center gap-2 bg-secondary/60 border border-border px-4 py-2.5 text-sm text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> {t("chat.thinking")}
                         </div>
                       </div>
                     )}
@@ -278,13 +278,13 @@ export default function AIStudioPage() {
                       onChange={(e) => setInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                       placeholder={activeTool.placeholder || t("chat.typeMessage")}
-                      className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40 transition-colors"
+                      className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/40 transition-colors"
                       disabled={sending}
                     />
                     <button
                       onClick={sendMessage}
                       disabled={sending || !input.trim()}
-                      className="rounded-lg bg-primary/20 border border-primary/30 px-3 py-2 text-primary hover:bg-primary/30 transition-colors disabled:opacity-50"
+                      className="bg-primary/20 border border-primary/30 px-3 py-2 text-primary hover:bg-primary/30 transition-colors disabled:opacity-50"
                     >
                       <Send className="h-4 w-4" />
                     </button>
@@ -300,9 +300,9 @@ export default function AIStudioPage() {
                   <button
                     key={tool.id}
                     onClick={() => openTool(tool)}
-                    className={`group flex items-start gap-4 rounded-xl border border-border bg-card p-5 text-left transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)] ${tool.comingSoon ? "opacity-60 cursor-not-allowed" : ""} ${activeTool?.id === tool.id ? "ring-2 ring-primary border-primary/40" : ""}`}
+                    className={`group flex items-start gap-4 border border-border bg-card p-5 text-left transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)] ${tool.comingSoon ? "opacity-60 cursor-not-allowed" : ""} ${activeTool?.id === tool.id ? "ring-2 ring-primary border-primary/40" : ""}`}
                   >
-                    <div className="rounded-lg bg-secondary/50 p-2.5 transition-colors group-hover:bg-primary/10">
+                    <div className="bg-secondary/50 p-2.5 transition-colors group-hover:bg-primary/10">
                       <tool.icon className={`h-5 w-5 ${tool.color}`} />
                     </div>
                     <div className="flex-1">
@@ -328,8 +328,8 @@ export default function AIStudioPage() {
                 {loading ? (
                   <p className="text-sm text-muted-foreground">{t("models.loading")}</p>
                 ) : myModels.length === 0 ? (
-                  <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card p-8 text-center">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary/50">
+                  <div className="flex flex-col items-center gap-3 border border-dashed border-border bg-card p-8 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center bg-secondary/50">
                       <Lock className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
@@ -345,10 +345,10 @@ export default function AIStudioPage() {
                     return (
                       <div
                         key={model.id}
-                        className="group flex items-center justify-between rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30"
+                        className="group flex items-center justify-between border border-border bg-card p-5 transition-all hover:border-primary/30"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                          <div className="flex h-10 w-10 items-center justify-center bg-primary/10">
                             <Brain className="h-5 w-5 text-primary" />
                           </div>
                           <div>
@@ -370,7 +370,7 @@ export default function AIStudioPage() {
                           >
                             {type}
                           </Badge>
-                          <span className="rounded-lg bg-green-500/10 border border-green-500/30 px-3 py-1.5 text-xs text-green-400">
+                          <span className="bg-green-500/10 border border-green-500/30 px-3 py-1.5 text-xs text-green-400">
                             {t("modelStatus.accessGranted")}
                           </span>
                         </div>
@@ -391,11 +391,11 @@ export default function AIStudioPage() {
                     return (
                       <div
                         key={model.id}
-                        className="flex items-center justify-between rounded-xl border border-border bg-card p-5"
+                        className="flex items-center justify-between border border-border bg-card p-5"
                       >
                         <div className="flex items-center gap-4">
                           <div
-                            className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                            className={`flex h-10 w-10 items-center justify-center ${
                               linked ? "bg-primary/10" : "bg-secondary/50"
                             }`}
                           >

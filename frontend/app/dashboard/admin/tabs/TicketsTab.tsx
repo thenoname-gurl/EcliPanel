@@ -103,7 +103,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
   return (
     <>
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-2 p-2 sm:p-3">
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1">
             {["all", "opened", "awaiting_staff_reply", "replied", "closed", "archived"].map((f) => {
@@ -112,7 +112,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                 <button
                   key={f}
                   onClick={() => setTicketFilterAndReload(f)}
-                  className={`relative rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${ticketFilter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
+                  className={`relative px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${ticketFilter === f ? "bg-primary/15 text-primary" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}
                 >
                   {filterLabels[f] || f}
                   {counts[f] && ticketFilter !== f && (
@@ -124,17 +124,17 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
               )
             })}
           </div>
-          <button onClick={() => forceRefreshTab("tickets")} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0" title={t("actions.refresh")}>
+          <button onClick={() => forceRefreshTab("tickets")} className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0" title={t("actions.refresh")}>
             <RefreshCw className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col gap-3 p-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative flex-1 max-w-md">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+              <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
                 <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <input
                   type="text"
@@ -172,8 +172,8 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                 </SelectContent>
               </Select>
 
-              <label className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-secondary transition-colors">
-                <input type="checkbox" checked={showAiTouched} onChange={(e) => setShowAiTouched(e.target.checked)} className="rounded border-border" />
+              <label className="flex items-center gap-1.5 border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-secondary transition-colors">
+                <input type="checkbox" checked={showAiTouched} onChange={(e) => setShowAiTouched(e.target.checked)} className="border-border" />
                 <span className="whitespace-nowrap">{t("filters.aiHandled")}</span>
               </label>
 
@@ -195,7 +195,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
           </div>
 
           {selectedTicketIds.length > 0 && (
-            <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+            <div className="flex items-center gap-3 border border-primary/20 bg-primary/5 px-3 py-2">
               <div className="flex items-center gap-1.5">
                 <CheckSquare className="h-3.5 w-3.5 text-primary" />
                 <span className="text-xs font-medium text-primary">{t("selection.selected", { count: selectedTicketIds.length })}</span>
@@ -237,7 +237,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden xl:block">
+      <div className="border border-border bg-card hidden xl:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -250,7 +250,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                       if (e.target.checked) setSelectedTicketIds(tickets.map((t: any) => t.id))
                       else setSelectedTicketIds([])
                     }}
-                    className="rounded border-border"
+                    className="border-border"
                   />
                 </th>
                 <th className="px-4 py-3 text-left font-medium">{t("table.ticket")}</th>
@@ -284,7 +284,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                           if (e.target.checked) setSelectedTicketIds((prev: number[]) => [...new Set([...prev, ticket.id])])
                           else setSelectedTicketIds((prev: number[]) => prev.filter((id) => id !== ticket.id))
                         }}
-                        className="rounded border-border"
+                        className="border-border"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -325,11 +325,11 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                         {ticket.status !== "closed" && (
-                          <button onClick={() => openReply(ticket)} title={t("actions.reply")} className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                          <button onClick={() => openReply(ticket)} title={t("actions.reply")} className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                             <MessageSquare className="h-3.5 w-3.5" />
                           </button>
                         )}
-                        <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" title={t("actions.openInNewTab")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" title={t("actions.openInNewTab")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       </div>
@@ -342,7 +342,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden md:block xl:hidden">
+      <div className="border border-border bg-card hidden md:block xl:hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -355,7 +355,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                       if (e.target.checked) setSelectedTicketIds(tickets.map((t: any) => t.id))
                       else setSelectedTicketIds([])
                     }}
-                    className="rounded border-border"
+                    className="border-border"
                   />
                 </th>
                 <th className="px-3 py-3 text-left font-medium">{t("table.ticket")}</th>
@@ -385,7 +385,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                           if (e.target.checked) setSelectedTicketIds((prev: number[]) => [...new Set([...prev, ticket.id])])
                           else setSelectedTicketIds((prev: number[]) => prev.filter((id) => id !== ticket.id))
                         }}
-                        className="rounded border-border"
+                        className="border-border"
                       />
                     </td>
                     <td className="px-3 py-3">
@@ -415,11 +415,11 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                     <td className="px-3 py-3">
                       <div className="flex items-center justify-end gap-0.5">
                         {ticket.status !== "closed" && (
-                          <button onClick={() => openReply(ticket)} title={t("actions.reply")} className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                          <button onClick={() => openReply(ticket)} title={t("actions.reply")} className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                             <MessageSquare className="h-3.5 w-3.5" />
                           </button>
                         )}
-                        <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
                       </div>
@@ -442,7 +442,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                 if (e.target.checked) setSelectedTicketIds(tickets.map((t: any) => t.id))
                 else setSelectedTicketIds([])
               }}
-              className="rounded border-border"
+              className="border-border"
             />
             {t("selection.selectAll")}
           </label>
@@ -450,7 +450,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
         </div>
 
         {filteredTickets.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card px-4 py-12">
+          <div className="border border-border bg-card px-4 py-12">
             <div className="flex flex-col items-center gap-2">
               <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">{tickets.length === 0 ? t("states.loading") : t("states.noMatch")}</p>
@@ -460,7 +460,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
           filteredTickets.map((ticket: any, i: number) => {
             const isSelected = selectedTicketIds.includes(ticket.id)
             return (
-              <div key={ticket.id ?? i} className={`rounded-xl border bg-card overflow-hidden transition-colors ${isSelected ? "border-primary/40 bg-primary/5" : "border-border"}`}>
+              <div key={ticket.id ?? i} className={`border bg-card overflow-hidden transition-colors ${isSelected ? "border-primary/40 bg-primary/5" : "border-border"}`}>
                 <div className="flex items-start gap-3 p-4 pb-3">
                   <input
                     type="checkbox"
@@ -469,7 +469,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                       if (e.target.checked) setSelectedTicketIds((prev: number[]) => [...new Set([...prev, ticket.id])])
                       else setSelectedTicketIds((prev: number[]) => prev.filter((id) => id !== ticket.id))
                     }}
-                    className="rounded border-border mt-0.5 shrink-0"
+                    className="border-border mt-0.5 shrink-0"
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
@@ -540,7 +540,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
             {t("pagination.page")} <span className="font-medium text-foreground">{ticketsPage}</span>
@@ -591,7 +591,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
         </DialogHeader>
         {replyTicket && (
           <div className="flex flex-col gap-4 py-2">
-            <div className="rounded-lg border border-border bg-secondary/30 p-3 max-h-64 overflow-y-auto">
+            <div className="border border-border bg-secondary/30 p-3 max-h-64 overflow-y-auto">
               <p className="text-xs font-medium text-muted-foreground mb-2">{t("dialog.conversation")}</p>
               {Array.isArray(replyTicket.messages) && replyTicket.messages.length ? (
                 replyTicket.messages.map((m: any, idx: number) => (
@@ -610,14 +610,14 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.yourReply")}</label>
               <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={4}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none"
                 placeholder={t("dialog.typeReply")} />
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.replyAs")}</label>
                 <select value={replyAs} onChange={(e) => setReplyAs(e.target.value as any)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                   <option value="staff">{t("dialog.staff")}</option>
                   <option value="user">{t("dialog.user")}</option>
                 </select>
@@ -625,7 +625,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("priority.label")}</label>
                 <select value={replyPriority} onChange={(e) => setReplyPriority(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                   <option value="low">{t("priority.low")}</option>
                   <option value="medium">{t("priority.medium")}</option>
                   <option value="high">{t("priority.high")}</option>
@@ -635,7 +635,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("table.department")}</label>
                 <input value={replyDepartment} onChange={(e) => setReplyDepartment(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -656,7 +656,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
               <div className="flex gap-2">
                 {['opened', 'awaiting_staff_reply', 'replied', 'closed'].map((s) => (
                   <button key={s} onClick={() => setReplyStatus(s)}
-                    className={`rounded-md px-3 py-1.5 text-xs transition-colors border ${replyStatus === s
+                    className={`px-3 py-1.5 text-xs transition-colors border ${replyStatus === s
                       ? "border-primary/50 bg-primary/20 text-primary"
                       : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"}`}>
                     {statusLabels[s] || s.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}

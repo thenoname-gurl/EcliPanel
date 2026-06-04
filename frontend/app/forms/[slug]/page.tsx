@@ -705,7 +705,7 @@ export default function PublicFormPage() {
                   >
                     {saving ? (
                       <span className="flex items-center gap-2">
-                        <span className="inline-block h-3 w-3 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
+                        <span className="inline-block h-3 w-3 rounded-full border-2 border-purple-400 border-t-transparent rounded-full animate-spin" />
                           {t("actions.transmitting")}
                       </span>
                     ) : (

@@ -118,7 +118,7 @@ export function ActivityFeed({
   return (
     <div className="flex flex-col gap-4 sm:gap-6 w-full min-w-0">
       {/* Filters */}
-      <div className="rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden">
+      <div className="border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden">
         <div className="flex items-center gap-2 mb-3 min-w-0">
           <Filter className="h-4 w-4 text-primary flex-shrink-0" />
           <span className="text-sm font-medium text-foreground">{t("filters.title")}</span>
@@ -141,7 +141,7 @@ export function ActivityFeed({
               disabled={refreshing}
               className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground flex-shrink-0"
             >
-              <RefreshCw className={cn("h-3 w-3", refreshing && "animate-spin")} />
+              <RefreshCw className={cn("h-3 w-3", refreshing && "rounded-full animate-spin")} />
             </Button>
           )}
         </div>
@@ -149,7 +149,7 @@ export function ActivityFeed({
           <button
             onClick={() => setFilter(null)}
             className={cn(
-              "flex items-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
+              "flex items-center gap-1.5 border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
               !filter
                 ? "border-primary/50 bg-primary/10 text-primary"
                 : "border-border bg-secondary/30 text-muted-foreground hover:border-primary/30 hover:text-foreground"
@@ -166,7 +166,7 @@ export function ActivityFeed({
                 key={key}
                 onClick={() => setFilter(isActive ? null : key)}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-lg border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
+                  "flex items-center gap-1.5 border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
                   isActive
                     ? "border-primary/50 bg-primary/10 text-primary"
                     : "border-border bg-secondary/30 text-muted-foreground hover:border-primary/30 hover:text-foreground"
@@ -181,7 +181,7 @@ export function ActivityFeed({
       </div>
 
       {/* Activity List */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0">
+      <div className="border border-border bg-card overflow-hidden min-w-0">
         {/* Header */}
         <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-border bg-secondary/20 min-w-0">
           <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -252,7 +252,7 @@ export function ActivityFeed({
                     >
                       {/* Icon */}
                       <div className={cn(
-                        "flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center rounded-lg border",
+                        "flex h-8 w-8 sm:h-9 sm:w-9 shrink-0 items-center justify-center border",
                         colorClasses
                       )}>
                         <Icon className="h-4 w-4" />
@@ -333,7 +333,7 @@ export function ActivityFeed({
                     {/* Expanded Details */}
                     {isExpanded && (
                       <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-0 min-w-0 overflow-hidden">
-                        <div className="rounded-lg border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 ml-10 sm:ml-12 min-w-0 overflow-hidden">
+                        <div className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-3 ml-10 sm:ml-12 min-w-0 overflow-hidden">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 min-w-0">
                             <InfoItem
                               icon={Activity}
@@ -432,7 +432,7 @@ export function ActivityFeed({
 
       {/* Selected Log Detail Panel */}
       {selectedLog && (
-        <div className="rounded-xl border border-primary/30 bg-card overflow-hidden min-w-0">
+        <div className="border border-primary/30 bg-card overflow-hidden min-w-0">
           <div className="flex items-center justify-between gap-2 p-3 sm:p-4 border-b border-border bg-primary/5 min-w-0">
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <Eye className="h-4 w-4 text-primary flex-shrink-0" />
@@ -479,7 +479,7 @@ export function ActivityFeed({
               <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none list-none flex items-center gap-1.5 before:content-['▶'] before:text-[10px] before:transition-transform group-open:before:rotate-90">
                 {t("details.rawJson")}
               </summary>
-              <div className="mt-2 rounded-md border border-border bg-background overflow-hidden">
+              <div className="mt-2 border border-border bg-background overflow-hidden">
                 <div className="overflow-x-auto">
                   <pre className="p-2 sm:p-3 text-[10px] sm:text-xs font-mono text-foreground whitespace-pre">
                     {JSON.stringify(selectedLog, null, 2)}

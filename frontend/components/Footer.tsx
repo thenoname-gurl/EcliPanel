@@ -54,7 +54,7 @@ export function Footer({
 
   if (isDashboard) {
     return (
-      <footer className="fixed bottom-4 right-4 z-30 w-auto rounded-lg border border-border bg-background/60 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+      <footer className="fixed bottom-4 right-4 z-30 w-auto border border-border bg-background/60 px-3 py-2 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
         <div className="flex items-center gap-3">
           <span>{t("copyrightShort", { year: new Date().getFullYear() })}</span>
           <span className="hidden sm:inline">·</span>

@@ -149,7 +149,7 @@ function FormInput({
           disabled={disabled}
           maxLength={maxLength}
           className={cn(
-            "w-full rounded-lg border bg-secondary/30 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 disabled:opacity-50 disabled:cursor-not-allowed",
+            "w-full border bg-secondary/30 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 disabled:opacity-50 disabled:cursor-not-allowed",
             Icon ? "pl-10" : "px-3",
             error ? "border-destructive focus:border-destructive" : "border-border focus:border-primary/50"
           )}
@@ -174,7 +174,7 @@ function SettingsCard({
   className?: string
 }) {
   return (
-    <div className={cn("rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow", className)}>
+    <div className={cn("border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow", className)}>
       {children}
     </div>
   )
@@ -200,14 +200,14 @@ function SettingRow({
     <Component
       onClick={onClick}
       className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4 min-w-0 transition-all",
+        "flex items-center justify-between gap-3 border border-border/50 bg-secondary/20 p-3 md:p-4 min-w-0 transition-all",
         onClick && "cursor-pointer hover:bg-secondary/40 active:scale-[0.98]",
         className
       )}
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {Icon && (
-          <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="shrink-0 w-9 h-9 bg-primary/10 flex items-center justify-center">
             <Icon className="h-4 w-4 text-primary" />
           </div>
         )}
@@ -269,7 +269,7 @@ function TabButton({
       data-guide-id={guideId}
       onClick={onClick}
       className={cn(
-        "relative flex items-center gap-2 rounded-lg px-3 md:px-4 py-2.5 text-xs font-medium transition-all whitespace-nowrap flex-shrink-0",
+        "relative flex items-center gap-2 px-3 md:px-4 py-2.5 text-xs font-medium transition-all whitespace-nowrap flex-shrink-0",
         active
           ? "bg-primary text-primary-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary"
@@ -389,7 +389,7 @@ function PasskeyManager() {
   return (
     <div className="mt-4 flex flex-col gap-2.5 min-w-0">
       {typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials) && (
-        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 min-w-0">
+        <div className="flex items-start gap-3 border border-destructive/30 bg-destructive/5 p-3 min-w-0">
           <Shield className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
           <div className="min-w-0">
             <p className="text-xs font-medium text-foreground">HTTPS required</p>
@@ -402,10 +402,10 @@ function PasskeyManager() {
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-          <Loader2 className="h-5 w-5 animate-spin" /> {t("passkeys.loading")}
+          <Loader2 className="h-5 w-5 rounded-full animate-spin" /> {t("passkeys.loading")}
         </div>
       ) : passkeys.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
+        <div className="flex flex-col items-center gap-3 border border-dashed border-border bg-secondary/10 p-8 text-center">
           <div className="w-12 h-12 rounded-full bg-warning/10 flex items-center justify-center">
             <Shield className="h-6 w-6 text-warning" />
           </div>
@@ -421,10 +421,10 @@ function PasskeyManager() {
           {passkeys.map((pk) => (
             <div
               key={pk.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
+              className="flex items-center justify-between border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="shrink-0 w-10 h-10 bg-primary/10 flex items-center justify-center">
                   <KeyRound className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
@@ -433,7 +433,7 @@ function PasskeyManager() {
                       <input
                         value={editingPasskeyName}
                         onChange={(e) => setEditingPasskeyName(e.target.value)}
-                        className="flex-1 min-w-0 rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                        className="flex-1 min-w-0 border border-border bg-input px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Enter") updatePasskeyName(pk.id, editingPasskeyName)
@@ -444,13 +444,13 @@ function PasskeyManager() {
                         }}
                       />
                       <button
-                        className="shrink-0 rounded-lg p-2 text-primary hover:bg-primary/10 transition-colors"
+                        className="shrink-0 p-2 text-primary hover:bg-primary/10 transition-colors"
                         onClick={() => updatePasskeyName(pk.id, editingPasskeyName)}
                       >
                         <Check className="h-4 w-4" />
                       </button>
                       <button
-                        className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary transition-colors"
+                        className="shrink-0 p-2 text-muted-foreground hover:bg-secondary transition-colors"
                         onClick={() => {
                           setEditingPasskeyId(null)
                           setEditingPasskeyName("")
@@ -478,13 +478,13 @@ function PasskeyManager() {
                       setEditingPasskeyId(pk.id)
                       setEditingPasskeyName(pk.name || `${t("passkeys.fallbackName")} #${pk.id}`)
                     }}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                   >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => removePasskey(pk.id)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -501,11 +501,11 @@ function PasskeyManager() {
           registering ||
           (typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials))
         }
-        className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/20 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+        className="flex items-center justify-center gap-2 border-2 border-dashed border-border bg-secondary/20 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
       >
         {registering ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 rounded-full animate-spin" />
             {t("passkeys.waitingForDevice")}
           </>
         ) : (
@@ -596,10 +596,10 @@ function SshKeyManager() {
     <div className="mt-4 flex flex-col gap-2.5 min-w-0">
       {loading ? (
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-          <Loader2 className="h-5 w-5 animate-spin" /> {t("ssh.loading")}
+          <Loader2 className="h-5 w-5 rounded-full animate-spin" /> {t("ssh.loading")}
         </div>
       ) : keys.length === 0 && !showForm ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
+        <div className="flex flex-col items-center gap-3 border border-dashed border-border bg-secondary/10 p-8 text-center">
           <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
             <Key className="h-6 w-6 text-muted-foreground" />
           </div>
@@ -615,10 +615,10 @@ function SshKeyManager() {
           {keys.map((k: any) => (
             <div
               key={k.id}
-              className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
+              className="flex items-center justify-between border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
             >
               <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-                <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="shrink-0 w-10 h-10 bg-primary/10 flex items-center justify-center">
                   <KeyRound className="h-5 w-5 text-primary" />
                 </div>
                 <div className="min-w-0 flex-1 overflow-hidden">
@@ -627,7 +627,7 @@ function SshKeyManager() {
                       <input
                         value={editingSshKeyName}
                         onChange={(e) => setEditingSshKeyName(e.target.value)}
-                        className="flex-1 min-w-0 rounded-lg border border-border bg-input px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                        className="flex-1 min-w-0 border border-border bg-input px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === "Enter") updateSshKeyName(k.id, editingSshKeyName)
@@ -638,13 +638,13 @@ function SshKeyManager() {
                         }}
                       />
                       <button
-                        className="shrink-0 rounded-lg p-2 text-primary hover:bg-primary/10 transition-colors"
+                        className="shrink-0 p-2 text-primary hover:bg-primary/10 transition-colors"
                         onClick={() => updateSshKeyName(k.id, editingSshKeyName)}
                       >
                         <Check className="h-4 w-4" />
                       </button>
                       <button
-                        className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary transition-colors"
+                        className="shrink-0 p-2 text-muted-foreground hover:bg-secondary transition-colors"
                         onClick={() => {
                           setEditingSshKeyId(null)
                           setEditingSshKeyName("")
@@ -668,7 +668,7 @@ function SshKeyManager() {
               {editingSshKeyId !== k.id && (
                 <div className="flex items-center gap-1 shrink-0">
                   <button
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                    className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                     onClick={() => {
                       setEditingSshKeyId(k.id)
                       setEditingSshKeyName(k.name || "")
@@ -678,7 +678,7 @@ function SshKeyManager() {
                   </button>
                   <button
                     onClick={() => handleDelete(k.id)}
-                    className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                    className="p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -690,9 +690,9 @@ function SshKeyManager() {
       )}
 
       {showForm ? (
-        <div className="rounded-xl border border-border bg-secondary/10 p-4 flex flex-col gap-3 min-w-0 overflow-hidden animate-in slide-in-from-top-2">
+        <div className="border border-border bg-secondary/10 p-4 flex flex-col gap-3 min-w-0 overflow-hidden animate-in slide-in-from-top-2">
           {error && (
-            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+            <div className="flex items-start gap-2 bg-destructive/10 border border-destructive/20 p-3">
               <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
               <p className="text-xs text-destructive break-words">{error}</p>
             </div>
@@ -709,7 +709,7 @@ function SshKeyManager() {
               value={publicKey}
               onChange={(e) => setPublicKey(e.target.value)}
               rows={4}
-              className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none min-w-0 w-full"
+              className="border border-border bg-secondary/30 px-3 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none min-w-0 w-full"
               placeholder={t("ssh.publicKeyPlaceholder")}
             />
           </div>
@@ -719,16 +719,16 @@ function SshKeyManager() {
                 setShowForm(false)
                 setError(null)
               }}
-              className="flex-1 rounded-lg border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+              className="flex-1 border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
             >
               {t("actions.cancel")}
             </button>
             <button
               onClick={handleAdd}
               disabled={adding || !name.trim() || !publicKey.trim()}
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors active:scale-[0.98]"
+              className="flex-1 flex items-center justify-center gap-2 bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors active:scale-[0.98]"
             >
-              {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              {adding ? <Loader2 className="h-4 w-4 rounded-full animate-spin" /> : <Plus className="h-4 w-4" />}
               {t("ssh.addKey")}
             </button>
           </div>
@@ -736,7 +736,7 @@ function SshKeyManager() {
       ) : (
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-secondary/20 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary active:scale-[0.98]"
+          className="flex items-center justify-center gap-2 border-2 border-dashed border-border bg-secondary/20 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary active:scale-[0.98]"
         >
           <Plus className="h-4 w-4" />
           {t("ssh.addSshKey")}
@@ -826,7 +826,7 @@ function TwoFactorManager() {
   return (
     <div className="mt-4 flex flex-col gap-4 min-w-0">
       {!enabled ? (
-        <div className="rounded-xl border border-border bg-secondary/20 p-4 md:p-5 min-w-0 overflow-hidden">
+        <div className="border border-border bg-secondary/20 p-4 md:p-5 min-w-0 overflow-hidden">
           {!secret ? (
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 min-w-0">
               <div className="min-w-0">
@@ -838,7 +838,7 @@ function TwoFactorManager() {
               <button
                 onClick={startSetup}
                 disabled={loading}
-                className="w-full sm:w-auto shrink-0 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
+                className="w-full sm:w-auto shrink-0 bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
               >
                 {loading ? t("twoFactor.loading") : t("twoFactor.enable")}
               </button>
@@ -851,9 +851,9 @@ function TwoFactorManager() {
                     <img
                       src={qrDataUrl}
                       alt="TOTP QR"
-                      className="h-40 w-40 md:h-48 md:w-48 rounded-xl border-2 border-border shadow-lg"
+                      className="h-40 w-40 md:h-48 md:w-48 border-2 border-border shadow-lg"
                     />
-                    <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                   </div>
                 )}
                 <div className="text-center max-w-md">
@@ -865,12 +865,12 @@ function TwoFactorManager() {
                     {t("twoFactor.enterCodeManually")}
                   </p>
                   <div className="relative">
-                    <code className="block font-mono text-xs md:text-sm p-3 md:p-4 rounded-lg border bg-secondary/30 break-all text-center select-all">
+                    <code className="block font-mono text-xs md:text-sm p-3 md:p-4 border bg-secondary/30 break-all text-center select-all">
                       {secret}
                     </code>
                     <button
                       onClick={copySecret}
-                      className="absolute top-2 right-2 p-2 rounded-lg bg-secondary/80 hover:bg-secondary transition-colors"
+                      className="absolute top-2 right-2 p-2 bg-secondary/80 hover:bg-secondary transition-colors"
                       title={t("twoFactor.copyToClipboard")}
                     >
                       {copied ? (
@@ -897,14 +897,14 @@ function TwoFactorManager() {
                       setOtpauth(null)
                       setQrDataUrl(null)
                     }}
-                    className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary active:scale-[0.98] transition-all"
+                    className="flex-1 border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary active:scale-[0.98] transition-all"
                   >
                     {t("actions.cancel")}
                   </button>
                   <button
                     onClick={verifyAndEnable}
                     disabled={loading || !token || token.length !== 6}
-                    className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
+                    className="flex-1 bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
                   >
                     {loading ? t("twoFactor.verifying") : t("twoFactor.verifyEnable")}
                   </button>
@@ -914,7 +914,7 @@ function TwoFactorManager() {
           )}
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-secondary/20 p-4 md:p-5 min-w-0 overflow-hidden">
+        <div className="border border-border bg-secondary/20 p-4 md:p-5 min-w-0 overflow-hidden">
           <div className="flex items-center gap-3 mb-5">
             <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center shrink-0">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
@@ -935,7 +935,7 @@ function TwoFactorManager() {
             <button
               onClick={disable2fa}
               disabled={loading || !disableToken || disableToken.length !== 6}
-              className="rounded-lg bg-destructive py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 active:scale-[0.98] transition-all"
+              className="bg-destructive py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 active:scale-[0.98] transition-all"
             >
               {loading ? t("twoFactor.disabling") : t("twoFactor.disable")}
             </button>
@@ -944,7 +944,7 @@ function TwoFactorManager() {
       )}
 
       {recoveryCodes && (
-        <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 md:p-5 min-w-0 overflow-hidden animate-in slide-in-from-bottom-3">
+        <div className="border border-warning/30 bg-warning/5 p-4 md:p-5 min-w-0 overflow-hidden animate-in slide-in-from-bottom-3">
           <div className="flex items-start gap-3 mb-4">
             <AlertCircle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
             <div>
@@ -956,7 +956,7 @@ function TwoFactorManager() {
             {recoveryCodes.map((c, i) => (
               <code
                 key={i}
-                className="font-mono text-xs md:text-sm rounded-lg border bg-secondary/30 p-3 text-center select-all truncate hover:bg-secondary/50 transition-colors cursor-pointer"
+                className="font-mono text-xs md:text-sm border bg-secondary/30 p-3 text-center select-all truncate hover:bg-secondary/50 transition-colors cursor-pointer"
               >
                 {c}
               </code>
@@ -968,7 +968,7 @@ function TwoFactorManager() {
               navigator.clipboard.writeText(text)
               alert(t("twoFactor.recoveryCopied"))
             }}
-            className="w-full mt-3 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
+            className="w-full mt-3 flex items-center justify-center gap-2 border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
           >
             <Copy className="h-4 w-4" />
             {t("twoFactor.copyAllCodes")}
@@ -1008,7 +1008,7 @@ function SessionList() {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-        <Loader2 className="h-5 w-5 animate-spin" /> {t("sessions.loading")}
+        <Loader2 className="h-5 w-5 rounded-full animate-spin" /> {t("sessions.loading")}
       </div>
     )
   }
@@ -1018,10 +1018,10 @@ function SessionList() {
       {sessions.map((sessionId) => (
         <div
           key={sessionId}
-          className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
+          className="flex items-center justify-between border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
         >
           <div className="flex items-center gap-3 min-w-0 flex-1 overflow-hidden">
-            <div className="shrink-0 w-10 h-10 rounded-lg bg-secondary/50 flex items-center justify-center">
+            <div className="shrink-0 w-10 h-10 bg-secondary/50 flex items-center justify-center">
               <Globe className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1 overflow-hidden">
@@ -1040,7 +1040,7 @@ function SessionList() {
           {user?.sessionId !== sessionId && (
             <button
               onClick={() => revoke(sessionId)}
-              className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.98]"
+              className="shrink-0 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors active:scale-[0.98]"
             >
               {t("sessions.revoke")}
             </button>
@@ -1771,7 +1771,7 @@ export default function SettingsPage() {
         <div className="flex flex-col gap-4 md:gap-6 p-4 md:p-6 lg:p-8 max-w-5xl mx-auto pb-8 w-full min-w-0">
           {/* Tab Navigation */}
           <div
-            className="flex items-center gap-1.5 rounded-xl border border-border bg-card/80 p-1.5 overflow-x-auto scrollbar-none min-w-0 sticky top-0 z-20 backdrop-blur-xl shadow-sm"
+            className="flex items-center gap-1.5 border border-border bg-card/80 p-1.5 overflow-x-auto scrollbar-none min-w-0 sticky top-0 z-20 backdrop-blur-xl shadow-sm"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             {tabs.map((tab) => (
@@ -1791,7 +1791,7 @@ export default function SettingsPage() {
           {activeTab === "profile" && (
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
               {user?.ageVerificationRequired && (
-                <div className="rounded-xl border border-yellow-300 bg-yellow-100/80 p-4 text-sm text-yellow-900">
+                <div className="border border-yellow-300 bg-yellow-100/80 p-4 text-sm text-yellow-900">
                   <div className="flex items-start gap-2">
                     <AlertCircle className="mt-0.5 h-4 w-4" />
                     <div>
@@ -1807,7 +1807,7 @@ export default function SettingsPage() {
                 <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start min-w-0">
                   <div className="w-full sm:w-auto shrink-0 flex flex-col items-center gap-3">
                     <div className="relative shrink-0">
-                      <div className="h-20 w-20 md:h-24 md:w-24 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-border flex items-center justify-center overflow-hidden shadow-lg">
+                      <div className="h-20 w-20 md:h-24 md:w-24 bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-border flex items-center justify-center overflow-hidden shadow-lg">
                         {user?.avatarUrl ? (
                           <img
                             src={user.avatarUrl}
@@ -1849,7 +1849,7 @@ export default function SettingsPage() {
                       </label>
                       {avatarUploading && (
                         <p className="mt-2 flex items-center justify-center gap-2 text-sm text-primary">
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                           {t("actions.uploading")}
                         </p>
                       )}
@@ -2004,7 +2004,7 @@ export default function SettingsPage() {
 
                   {!Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt) && (
                     <div className="md:col-span-3">
-                      <div className="rounded-2xl border border-border bg-secondary/5 p-4 space-y-3">
+                      <div className="border border-border bg-secondary/5 p-4 space-y-3">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <p className="text-sm font-semibold text-foreground">
@@ -2025,7 +2025,7 @@ export default function SettingsPage() {
                               <select
                                 value={selectedCameraId ?? ""}
                                 onChange={(e) => setSelectedCameraId(e.target.value || null)}
-                                className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                                className="w-full border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                               >
                                 {videoDevices.map((device) => (
                                   <option key={device.deviceId} value={device.deviceId}>
@@ -2049,11 +2049,11 @@ export default function SettingsPage() {
                                 selfieAttemptsRemaining === 0 ||
                                 !!user?.idVerified
                               }
-                              className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="inline-flex items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                               Open camera
                             </button>
-                            <label className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
+                            <label className="inline-flex cursor-pointer items-center justify-center border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
                               Upload image
                               <input
                                 type="file"
@@ -2090,20 +2090,20 @@ export default function SettingsPage() {
                               autoPlay
                               playsInline
                               muted
-                              className="h-64 w-full rounded-lg bg-black object-cover"
+                              className="h-64 w-full bg-black object-cover"
                             />
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
                                 onClick={captureSelfie}
-                                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                                className="inline-flex items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                               >
                                 Capture photo
                               </button>
                               <button
                                 type="button"
                                 onClick={stopCamera}
-                                className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+                                className="inline-flex items-center justify-center border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
                               >
                                 Cancel
                               </button>
@@ -2116,7 +2116,7 @@ export default function SettingsPage() {
                             <img
                               src={capturedSelfieUrl ?? undefined}
                               alt="Captured selfie preview"
-                              className="h-64 w-full rounded-lg object-cover"
+                              className="h-64 w-full object-cover"
                             />
                             <div className="flex flex-wrap gap-2">
                               <button
@@ -2127,7 +2127,7 @@ export default function SettingsPage() {
                                   selfieAttemptsRemaining === 0 ||
                                   !!user?.idVerified
                                 }
-                                className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {selfieLoading ? "Verifying..." : "Verify selfie age"}
                               </button>
@@ -2137,7 +2137,7 @@ export default function SettingsPage() {
                                   setCapturedSelfie(null)
                                   setCameraError(null)
                                 }}
-                                className="inline-flex items-center justify-center rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+                                className="inline-flex items-center justify-center border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
                               >
                                 Retake
                               </button>
@@ -2215,7 +2215,7 @@ export default function SettingsPage() {
                     <select
                       value={form.billingCountry}
                       onChange={(e) => setForm({ ...form, billingCountry: e.target.value })}
-                      className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
+                      className="w-full border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
                     >
                       <option value="">{t("profile.selectCountry")}</option>
                       {COUNTRIES.map((country) => (
@@ -2238,11 +2238,11 @@ export default function SettingsPage() {
                   <button
                     onClick={saveProfile}
                     disabled={saving}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98] disabled:opacity-50"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98] disabled:opacity-50"
                   >
                     {saving ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                         {t("actions.saving")}
                       </>
                     ) : (
@@ -2256,9 +2256,9 @@ export default function SettingsPage() {
               </SettingsCard>
 
               {/* Help */}
-              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 min-w-0 overflow-hidden">
+              <div className="border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 min-w-0 overflow-hidden">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="shrink-0 w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <div className="shrink-0 w-10 h-10 bg-primary/20 flex items-center justify-center">
                     <HelpCircle className="h-5 w-5 text-primary" />
                   </div>
                   <div className="min-w-0">
@@ -2272,7 +2272,7 @@ export default function SettingsPage() {
                 </div>
                 <button
                   onClick={showGuideAgain}
-                  className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 rounded-lg border border-border bg-background/50 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-background transition-all active:scale-[0.98]"
+                  className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 border border-border bg-background/50 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-background transition-all active:scale-[0.98]"
                 >
                   <BookOpen className="h-4 w-4" />
                   {t("profile.showGuideAgain")}
@@ -2291,7 +2291,7 @@ export default function SettingsPage() {
                   {t("security.changePassword")}
                 </h3>
                 {passwordError && (
-                  <div className="mb-4 flex items-start gap-2 rounded-lg bg-destructive/10 border border-destructive/20 p-3">
+                  <div className="mb-4 flex items-start gap-2 bg-destructive/10 border border-destructive/20 p-3">
                     <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
                     <p className="text-xs text-destructive">{passwordError}</p>
                   </div>
@@ -2354,11 +2354,11 @@ export default function SettingsPage() {
                   <button
                     onClick={updatePassword}
                     disabled={passwordSaving}
-                    className="w-full md:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                    className="w-full md:w-auto flex items-center justify-center gap-2 bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
                     {passwordSaving ? (
                       <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                         {t("actions.updating")}
                       </>
                     ) : (
@@ -2417,7 +2417,7 @@ export default function SettingsPage() {
                         alert(t("messages.failed") + ": " + e.message)
                       }
                     }}
-                    className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/50 transition-all active:scale-[0.98]"
+                    className="border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/50 transition-all active:scale-[0.98]"
                   >
                     {t("security.logoutElsewhere")}
                   </button>
@@ -2431,7 +2431,7 @@ export default function SettingsPage() {
                         alert(t("messages.failed") + ": " + e.message)
                       }
                     }}
-                    className="rounded-lg bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-[0.98]"
+                    className="bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-[0.98]"
                   >
                     {t("security.requestDeletion")}
                   </button>
@@ -2501,7 +2501,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div className="grid gap-4">
-                  <div className="rounded-xl border border-border bg-secondary/20 p-4">
+                  <div className="border border-border bg-secondary/20 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
                         <p className="text-sm font-semibold text-foreground">
@@ -2517,7 +2517,7 @@ export default function SettingsPage() {
                     ) : (
                       <div className="space-y-3">
                         {allAgreedDocuments.map((doc: any, index: number) => (
-                          <div key={index} className="rounded-lg border border-border bg-card/80 p-3">
+                          <div key={index} className="border border-border bg-card/80 p-3">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div className="min-w-0">
                                 <p className="text-sm font-semibold text-foreground truncate">
@@ -2553,7 +2553,7 @@ export default function SettingsPage() {
                     )}
                   </div>
 
-                  <div className="rounded-xl border border-border bg-secondary/20 p-4">
+                  <div className="border border-border bg-secondary/20 p-4">
                     <div className="flex items-center justify-between gap-3 mb-3">
                       <div>
                         <p className="text-sm font-semibold text-foreground">
@@ -2573,7 +2573,7 @@ export default function SettingsPage() {
                         {adminDocuments.map((doc: any) => (
                           <div
                             key={doc.id || doc.filename}
-                            className="rounded-lg border border-border bg-card/80 p-3"
+                            className="border border-border bg-card/80 p-3"
                           >
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div className="min-w-0">
@@ -2622,7 +2622,7 @@ export default function SettingsPage() {
                   {!showApiForm && (
                     <button
                       onClick={() => setShowApiForm(true)}
-                      className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98] shrink-0"
+                      className="flex items-center gap-2 bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98] shrink-0"
                     >
                       <Plus className="h-4 w-4" />
                       <span className="hidden sm:inline">{t("api.newKey")}</span>
@@ -2632,7 +2632,7 @@ export default function SettingsPage() {
                 </div>
 
                 {showApiForm && (
-                  <div className="rounded-xl border border-border bg-secondary/10 p-4 mb-5 space-y-4 min-w-0 overflow-hidden animate-in slide-in-from-top-2">
+                  <div className="border border-border bg-secondary/10 p-4 mb-5 space-y-4 min-w-0 overflow-hidden animate-in slide-in-from-top-2">
                     <FormInput
                       label={t("api.keyName")}
                       value={newKeyName}
@@ -2647,7 +2647,7 @@ export default function SettingsPage() {
                       <select
                         value={newKeyType}
                         onChange={(e) => setNewKeyType(e.target.value)}
-                        className="rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 w-full"
+                        className="border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 w-full"
                       >
                         <option value="client">{t("api.client")}</option>
                         {canCreateAdminKey && (
@@ -2660,7 +2660,7 @@ export default function SettingsPage() {
                         <label className="text-xs font-medium text-muted-foreground">
                           {t("api.permissions")}
                         </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 rounded-lg border border-border bg-secondary/20 p-3 md:p-4 max-h-64 overflow-y-auto min-w-0">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 border border-border bg-secondary/20 p-3 md:p-4 max-h-64 overflow-y-auto min-w-0">
                           {AVAILABLE_PERMISSIONS.map((perm) => (
                             <label
                               key={perm}
@@ -2691,14 +2691,14 @@ export default function SettingsPage() {
                           setNewKeyName("")
                           setNewKeyPerms([])
                         }}
-                        className="flex-1 rounded-lg border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-all active:scale-[0.98]"
+                        className="flex-1 border border-border py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-all active:scale-[0.98]"
                       >
                         {t("actions.cancel")}
                       </button>
                       <button
                         onClick={createApiKey}
                         disabled={!newKeyName.trim()}
-                        className="flex-1 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                        className="flex-1 bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                       >
                         {t("api.createKey")}
                       </button>
@@ -2708,10 +2708,10 @@ export default function SettingsPage() {
 
                 {apiLoading ? (
                   <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground py-12">
-                    <Loader2 className="h-5 w-5 animate-spin" /> {t("api.loadingKeys")}
+                    <Loader2 className="h-5 w-5 rounded-full animate-spin" /> {t("api.loadingKeys")}
                   </div>
                 ) : apiKeys.length === 0 ? (
-                  <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
+                  <div className="flex flex-col items-center gap-3 border border-dashed border-border bg-secondary/10 p-8 text-center">
                     <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
                       <Code className="h-6 w-6 text-muted-foreground" />
                     </div>
@@ -2727,7 +2727,7 @@ export default function SettingsPage() {
                     {apiKeys.map((k) => (
                       <div
                         key={k.id}
-                        className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
+                        className="flex items-center justify-between border border-border bg-secondary/20 p-3 md:p-4 min-w-0 overflow-hidden hover:bg-secondary/30 transition-colors"
                       >
                         <div className="min-w-0 flex-1 overflow-hidden">
                           <p className="text-sm font-medium text-foreground truncate">{k.name}</p>
@@ -2739,7 +2739,7 @@ export default function SettingsPage() {
                         </div>
                         <button
                           onClick={() => revokeApiKey(k.id)}
-                          className="shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
+                          className="shrink-0 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-all active:scale-[0.98]"
                         >
                           {t("api.revoke")}
                         </button>
@@ -2761,7 +2761,7 @@ export default function SettingsPage() {
                   </div>
                   <button
                     onClick={() => window.open("https://backend.ecli.app/openapi", "_blank")}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/80 transition-all active:scale-[0.98]"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-secondary px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/80 transition-all active:scale-[0.98]"
                   >
                     <BookOpen className="h-4 w-4" />
                     {t("api.viewDocs")}
@@ -2782,7 +2782,7 @@ export default function SettingsPage() {
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">{t("appearance.themeHint")}</p>
                 </div>
-                <div className="mb-4 rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4">
+                <div className="mb-4 border border-border/50 bg-secondary/20 p-3 md:p-4">
                   <label className="text-xs font-medium text-muted-foreground">
                     {t("appearance.language")}
                   </label>
@@ -2814,7 +2814,7 @@ export default function SettingsPage() {
                         onClick={() => updateTheme(theme.name)}
                         disabled={isActive || themeTransitioning}
                         className={cn(
-                          "relative flex flex-col items-center gap-3 rounded-xl border p-4 transition-all active:scale-[0.97] min-w-0 disabled:pointer-events-none",
+                          "relative flex flex-col items-center gap-3 border p-4 transition-all active:scale-[0.97] min-w-0 disabled:pointer-events-none",
                           isActive
                             ? "border-primary bg-primary/5 ring-2 ring-primary/30 shadow-lg"
                             : "border-border bg-secondary/20 hover:border-primary/40 hover:bg-secondary/40 hover:shadow-md"
@@ -2822,14 +2822,14 @@ export default function SettingsPage() {
                       >
                         <div className="flex gap-1.5">
                           <div
-                            className="h-8 w-8 md:h-10 md:w-10 rounded-lg shadow-md transition-transform hover:scale-105"
+                            className="h-8 w-8 md:h-10 md:w-10 shadow-md transition-transform hover:scale-105"
                             style={{
                               backgroundColor: theme.bg,
                               border: "1px solid var(--border)",
                             }}
                           />
                           <div
-                            className="h-8 w-8 md:h-10 md:w-10 rounded-lg shadow-md transition-transform hover:scale-105"
+                            className="h-8 w-8 md:h-10 md:w-10 shadow-md transition-transform hover:scale-105"
                             style={{ backgroundColor: theme.primary }}
                           />
                         </div>
@@ -2942,7 +2942,7 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           updateEditorSettings({ fontSize: Number(e.target.value) })
                         }
-                        className="w-16 md:w-20 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm text-center text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        className="w-16 md:w-20 border border-border bg-secondary/30 px-3 py-2 text-sm text-center text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       />
                     }
                   />
@@ -2958,11 +2958,11 @@ export default function SettingsPage() {
                         onChange={(e) =>
                           updateEditorSettings({ tabSize: Number(e.target.value) })
                         }
-                        className="w-16 md:w-20 rounded-lg border border-border bg-secondary/30 px-3 py-2 text-sm text-center text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                        className="w-16 md:w-20 border border-border bg-secondary/30 px-3 py-2 text-sm text-center text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                       />
                     }
                   />
-                  <div className="flex flex-col gap-2 p-4 rounded-lg border border-border/50 bg-secondary/20 min-w-0">
+                  <div className="flex flex-col gap-2 p-4 border border-border/50 bg-secondary/20 min-w-0">
                     <div className="flex items-center justify-between gap-3">
                       <span className="text-sm font-medium text-foreground">
                         {t("editor.fontFamily")}
@@ -2973,7 +2973,7 @@ export default function SettingsPage() {
                         editorSettings.fontFamily ?? DEFAULT_EDITOR_SETTINGS.fontFamily
                       }
                       onChange={(e) => updateEditorSettings({ fontFamily: e.target.value })}
-                      className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
+                      className="w-full border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0"
                     >
                       <option
                         value='"JetBrains Mono", "Fira Code", "Cascadia Code", Menlo, Monaco, monospace'

@@ -17,7 +17,7 @@ const MonacoEditor = dynamic(
   {
     loading: () => (
       <div className="flex items-center justify-center h-full">
-        <Loader2 className="h-5 w-5 animate-spin text-white/40" />
+        <Loader2 className="h-5 w-5 rounded-full animate-spin text-white/40" />
       </div>
     ),
     ssr: false,
@@ -267,7 +267,7 @@ export default function ShareFileClient({ token }: { token: string }) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-black **:font-flink">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-[#e594c7]" />
+          <Loader2 className="h-8 w-8 rounded-full animate-spin text-[#e594c7]" />
           <p className="text-sm text-white/50">{t("loading")}</p>
         </div>
       </div>
@@ -375,7 +375,7 @@ export default function ShareFileClient({ token }: { token: string }) {
             <CodePreview fileName={info.fileName} language={getMonacoLang(info.fileName)} content={content} />
           ) : info.isPreviewableCode && contentLoading ? (
             <div className="flex-1 flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+              <Loader2 className="h-6 w-6 rounded-full animate-spin text-white/40" />
             </div>
           ) : (
             <div className="flex-1 flex items-center justify-center">

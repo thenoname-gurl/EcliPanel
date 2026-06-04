@@ -61,8 +61,8 @@ export default function OauthTab({ ctx }: { ctx: any }) {
           { icon: Zap, label: t("stats.grantTypes"), value: "3" },
           { icon: Lock, label: t("stats.pkce"), value: "S256 / plain" },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-            <div className="rounded-lg bg-primary/10 p-2">
+          <div key={s.label} className="border border-border bg-card p-4 flex items-center gap-3">
+            <div className="bg-primary/10 p-2">
               <s.icon className="h-4 w-4 text-primary" />
             </div>
             <div>
@@ -75,7 +75,7 @@ export default function OauthTab({ ctx }: { ctx: any }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 flex flex-col gap-4">
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Globe className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">{t("sections.discovery")}</p>
@@ -83,15 +83,15 @@ export default function OauthTab({ ctx }: { ctx: any }) {
             <div className="p-4">
               <p className="text-xs text-muted-foreground mb-3">{t("sections.discoverySubtitle")}</p>
               <div className="relative">
-                <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto">
+                <pre className="border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto">
                   {`GET /.well-known/oauth-authorization-server`}</pre>
-                <button onClick={() => navigator.clipboard.writeText("GET /.well-known/oauth-authorization-server")} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
+                <button onClick={() => navigator.clipboard.writeText("GET /.well-known/oauth-authorization-server")} className="absolute top-2 right-2 border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">Returns <code className="font-mono text-foreground">issuer</code>, <code className="font-mono text-foreground">authorization_endpoint</code>, <code className="font-mono text-foreground">token_endpoint</code>, supported scopes and grant types.</p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <BookOpen className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">{t("sections.endpointReference")}</p>
@@ -142,7 +142,7 @@ export default function OauthTab({ ctx }: { ctx: any }) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Shield className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">{t("sections.scopeReference")}</p>
@@ -165,7 +165,7 @@ export default function OauthTab({ ctx }: { ctx: any }) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Zap className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">{t("sections.authCodeFlow")}</p>
@@ -226,8 +226,8 @@ Authorization: Bearer <access_token>`,
                 <div key={i} className="flex flex-col gap-1.5">
                   <p className="text-xs font-semibold text-foreground">{s.step}</p>
                   <div className="relative">
-                    <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{s.code}</pre>
-                    <button onClick={() => navigator.clipboard.writeText(s.code)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
+                    <pre className="border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{s.code}</pre>
+                    <button onClick={() => navigator.clipboard.writeText(s.code)} className="absolute top-2 right-2 border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
                   </div>
                   {s.note && <p className="text-[11px] text-muted-foreground">{s.note}</p>}
                 </div>
@@ -235,7 +235,7 @@ Authorization: Bearer <access_token>`,
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Key className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">{t("sections.clientCredentialsFlow")}</p>
@@ -243,7 +243,7 @@ Authorization: Bearer <access_token>`,
             <div className="p-4 flex flex-col gap-3">
               <p className="text-xs text-muted-foreground">No user involved — use when an Eclipse backend service authenticates directly as the app.</p>
               <div className="relative">
-                <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{`POST /api/oauth/token
+                <pre className="border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{`POST /api/oauth/token
 Content-Type: application/json
 
 {
@@ -252,13 +252,13 @@ Content-Type: application/json
   "client_secret": "<clientSecret>",
   "scope": "servers:read"
 }`}</pre>
-                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token\nContent-Type: application/json\n\n{\n  "grant_type": "client_credentials",\n  "client_id": "<clientId>",\n  "client_secret": "<clientSecret>",\n  "scope": "servers:read"\n}`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
+                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token\nContent-Type: application/json\n\n{\n  "grant_type": "client_credentials",\n  "client_id": "<clientId>",\n  "client_secret": "<clientSecret>",\n  "scope": "servers:read"\n}`)} className="absolute top-2 right-2 border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
               <p className="text-[11px] text-muted-foreground">The app must have <code className="font-mono text-foreground">client_credentials</code> in its <code className="font-mono text-foreground">grantTypes</code> when registered.</p>
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <FileCode className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">{t("sections.tokenIntrospection")}</p>
@@ -266,7 +266,7 @@ Content-Type: application/json
             <div className="p-4 flex flex-col gap-3">
               <p className="text-xs text-muted-foreground">Resource servers can validate any access token without calling userinfo. Returns <code className="font-mono text-foreground">{`{ "active": false }`}</code> for invalid/expired tokens.</p>
               <div className="relative">
-                <pre className="rounded-lg border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{`POST /api/oauth/token/introspect
+                <pre className="border border-border bg-black/40 px-4 py-3 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-snug">{`POST /api/oauth/token/introspect
 Content-Type: application/json
 
 {
@@ -285,14 +285,14 @@ Content-Type: application/json
   "iat": 1741219200,
   "sub": "42"
 }`}</pre>
-                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token/introspect`)} className="absolute top-2 right-2 rounded border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
+                <button onClick={() => navigator.clipboard.writeText(`POST /api/oauth/token/introspect`)} className="absolute top-2 right-2 border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <Package className="h-4 w-4 text-primary" />
@@ -320,7 +320,7 @@ Content-Type: application/json
                       setOauthApps(Array.isArray(data) ? data : [])
                     } catch { }
                   }}
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                  className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
@@ -342,7 +342,7 @@ Content-Type: application/json
                             setOauthApps((prev: any[]) => prev.filter((a: any) => a.id !== oa.id))
                           } catch { }
                         }}
-                        className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        className="shrink-0 p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                         title={t("actions.deleteApp")}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -370,13 +370,13 @@ Content-Type: application/json
                     <div className="flex items-center gap-1.5 mt-1">
                       <button
                         onClick={() => openEditOAuthApp(oa)}
-                        className="flex items-center gap-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        className="flex items-center gap-1 border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       >
                         <Edit className="h-3 w-3" /> {t("actions.edit")}
                       </button>
                       <button
                         onClick={() => setOauthRotateApp(oa)}
-                        className="flex items-center gap-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                        className="flex items-center gap-1 border border-border bg-secondary/50 px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       >
                         <RefreshCw className="h-3 w-3" /> {t("actions.rotateSecret")}
                       </button>
@@ -390,7 +390,7 @@ Content-Type: application/json
             )}
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Lock className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">{t("sections.tokenLifetimes")}</p>
@@ -410,7 +410,7 @@ Content-Type: application/json
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               <Shield className="h-4 w-4 text-primary" />
               <p className="text-sm font-medium text-foreground">Client Auth Methods</p>
@@ -446,7 +446,7 @@ Content-Type: application/json
               value={oauthCreateName}
               onChange={(e) => setOauthCreateName(e.target.value)}
               placeholder={t("createDialog.appNamePlaceholder")}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -455,7 +455,7 @@ Content-Type: application/json
               value={oauthCreateDesc}
               onChange={(e) => setOauthCreateDesc(e.target.value)}
               placeholder={t("createDialog.descriptionPlaceholder")}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
             />
           </div>
           <div className="flex flex-col gap-1.5">
@@ -471,18 +471,18 @@ Content-Type: application/json
                       setOauthCreateRedirects(next)
                     }}
                     placeholder="https://yourapp.example.com/callback"
-                    className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+                    className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
                   />
                   {oauthCreateRedirects.length > 1 && (
                     <button onClick={() => setOauthCreateRedirects((p: string[]) => p.filter((_, i) => i !== idx))}
-                      className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                      className="border border-border p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                       <XCircle className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
               ))}
               <button onClick={() => setOauthCreateRedirects((p: string[]) => [...p, ""])}
-                className="flex items-center gap-1 self-start rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+                className="flex items-center gap-1 self-start border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
                 <Plus className="h-3 w-3" /> {t("actions.addUri")}
               </button>
             </div>
@@ -529,7 +529,7 @@ Content-Type: application/json
           <DialogTitle className="text-foreground">{t("newSecretDialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-1">
-          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5 text-xs text-yellow-300">
+          <div className="border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5 text-xs text-yellow-300">
             This is the <strong>only time</strong> the client secret is shown. Copy it now — it cannot be retrieved later.
           </div>
           <div className="flex flex-col gap-3">
@@ -540,17 +540,17 @@ Content-Type: application/json
             <div className="flex flex-col gap-1">
               <p className="text-xs text-muted-foreground">{t("newSecretDialog.clientId")}</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-lg border border-border bg-black/40 px-3 py-2 text-xs font-mono text-foreground break-all">{oauthNewSecret?.clientId}</code>
+                <code className="flex-1 border border-border bg-black/40 px-3 py-2 text-xs font-mono text-foreground break-all">{oauthNewSecret?.clientId}</code>
                 <button onClick={() => navigator.clipboard.writeText(oauthNewSecret?.clientId || "")}
-                  className="shrink-0 rounded border border-border bg-secondary/80 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
+                  className="shrink-0 border border-border bg-secondary/80 px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">{t("actions.copy")}</button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
               <p className="text-xs text-muted-foreground">{t("newSecretDialog.clientSecret")}</p>
               <div className="flex items-center gap-2">
-                <code className="flex-1 rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs font-mono text-yellow-200 break-all">{oauthNewSecret?.clientSecret}</code>
+                <code className="flex-1 border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs font-mono text-yellow-200 break-all">{oauthNewSecret?.clientSecret}</code>
                 <button onClick={() => navigator.clipboard.writeText(oauthNewSecret?.clientSecret || "")}
-                  className="shrink-0 rounded border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-xs text-yellow-300 hover:bg-yellow-500/20 transition-colors">{t("actions.copy")}</button>
+                  className="shrink-0 border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-xs text-yellow-300 hover:bg-yellow-500/20 transition-colors">{t("actions.copy")}</button>
               </div>
             </div>
           </div>
@@ -580,18 +580,18 @@ Content-Type: application/json
                       setOauthEditRedirects(next)
                     }}
                     placeholder="https://yourapp.example.com/callback"
-                    className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
+                    className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50"
                   />
                   {oauthEditRedirects.length > 1 && (
                     <button onClick={() => setOauthEditRedirects((p: string[]) => p.filter((_, i) => i !== idx))}
-                      className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                      className="border border-border p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                       <XCircle className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
               ))}
               <button onClick={() => setOauthEditRedirects((p: string[]) => [...p, ""])}
-                className="flex items-center gap-1 self-start rounded border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
+                className="flex items-center gap-1 self-start border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors">
                 <Plus className="h-3 w-3" /> {t("actions.addUri")}
               </button>
             </div>

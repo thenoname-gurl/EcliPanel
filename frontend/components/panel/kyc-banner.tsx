@@ -97,7 +97,7 @@ export function KycBanner() {
                 className="w-full flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground py-2 transition-colors disabled:opacity-50"
               >
                 {refreshing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                 ) : (
                   <RefreshCw className="h-4 w-4" />
                 )}

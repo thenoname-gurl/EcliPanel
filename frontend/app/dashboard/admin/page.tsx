@@ -776,11 +776,11 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
     }
   }
 
-  if (loading) return <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />{tDb("states.loading")}</div>
+  if (loading) return <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 rounded-full animate-spin" />{tDb("states.loading")}</div>
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <Database className="h-4 w-4 text-primary" />
@@ -801,46 +801,46 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
                 <label className="text-xs text-muted-foreground">{tDb("form.fields.name")}</label>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder={tDb("form.placeholders.name")}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">{tDb("form.fields.host")}</label>
                 <input value={form.host} onChange={e => setForm(f => ({ ...f, host: e.target.value }))}
                   placeholder={tDb("form.placeholders.host")}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">{tDb("form.fields.port")}</label>
                 <input type="number" value={form.port} onChange={e => setForm(f => ({ ...f, port: e.target.value }))}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">{tDb("form.fields.username")}</label>
                 <input value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
                   placeholder={tDb("form.placeholders.username")}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">{editHost ? tDb("form.fields.passwordKeep") : tDb("form.fields.password")}</label>
                 <input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">{tDb("form.fields.linkedNodeId")}</label>
                 <input type="number" value={form.nodeId} onChange={e => setForm(f => ({ ...f, nodeId: e.target.value }))}
                   placeholder={tDb("form.placeholders.linkedNodeId")}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-muted-foreground">{tDb("form.fields.maxDatabases")}</label>
                 <input type="number" min="0" value={form.maxDatabases} onChange={e => setForm(f => ({ ...f, maxDatabases: e.target.value }))}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm outline-none focus:border-primary/50" />
               </div>
             </div>
             {formError && <p className="mt-2 text-xs text-destructive">{formError}</p>}
             <div className="flex gap-2 mt-3">
               <Button size="sm" onClick={submitForm} disabled={saving}>
-                {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />{tDb("actions.saving")}</> : (editHost ? tDb("actions.saveChanges") : tDb("actions.createHost"))}
+                {saving ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{tDb("actions.saving")}</> : (editHost ? tDb("actions.saveChanges") : tDb("actions.createHost"))}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => setShowForm(false)}>{tDb("actions.cancel")}</Button>
             </div>
@@ -868,7 +868,7 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
                 </div>
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" onClick={() => testConn(h.id)} disabled={testingId === h.id}>
-                    {testingId === h.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : tDb("actions.test")}
+                    {testingId === h.id ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : tDb("actions.test")}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => openEdit(h)}>
                     <Edit className="h-3.5 w-3.5" />
@@ -3958,7 +3958,7 @@ remote: ${panelUrl}`
   return (
     <>
       <PanelHeader title={t("header.title")} description={t("header.description")} />
-      <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground mb-4">
+      <div className="border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-foreground mb-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span>
             {t("privacy.sensitiveDataPrefix")} <strong>{privateMode ? t("privacy.hidden") : t("privacy.visible")}</strong>.
@@ -4057,7 +4057,7 @@ remote: ${panelUrl}`
           </div>
 
           {/* Global search */}
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="flex flex-col gap-3 p-4">
               <h3 className="text-sm font-semibold text-foreground">{t("globalSearch.title")}</h3>
               <div className="relative flex items-center gap-2 max-w-lg">
@@ -4067,7 +4067,7 @@ remote: ${panelUrl}`
                   onChange={(e) => fetchGlobalSearch(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && fetchGlobalSearch(globalSearch)}
                   placeholder={t("globalSearch.placeholder")}
-                  className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
+                  className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none"
                 />
                 {globalSearch && (
                   <button
@@ -4085,7 +4085,7 @@ remote: ${panelUrl}`
                 <p className="text-xs text-muted-foreground">{t("globalSearch.hint")}</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                  <div className="border border-border p-2 bg-secondary/50">
                     <p className="text-xs font-semibold text-foreground mb-1">{t("globalSearch.users", { count: globalResults.users.length })}</p>
                     {globalResults.users.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground">{t("globalSearch.noMatches")}</p>
@@ -4106,7 +4106,7 @@ remote: ${panelUrl}`
                       ))
                     )}
                   </div>
-                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                  <div className="border border-border p-2 bg-secondary/50">
                     <p className="text-xs font-semibold text-foreground mb-1">{t("globalSearch.organisations", { count: globalResults.organisations.length })}</p>
                     {globalResults.organisations.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground">{t("globalSearch.noMatches")}</p>
@@ -4126,7 +4126,7 @@ remote: ${panelUrl}`
                       ))
                     )}
                   </div>
-                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                  <div className="border border-border p-2 bg-secondary/50">
                     <p className="text-xs font-semibold text-foreground mb-1">{t("globalSearch.servers", { count: globalResults.servers.length })}</p>
                     {globalResults.servers.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground">{t("globalSearch.noMatches")}</p>
@@ -4149,7 +4149,7 @@ remote: ${panelUrl}`
                       })
                     )}
                   </div>
-                  <div className="rounded-lg border border-border p-2 bg-secondary/50">
+                  <div className="border border-border p-2 bg-secondary/50">
                     <p className="text-xs font-semibold text-foreground mb-1">{t("globalSearch.orders", { count: globalResults.orders.length })}</p>
                     {globalResults.orders.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground">{t("globalSearch.noMatches")}</p>
@@ -4400,7 +4400,7 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-4">
 
                 {/* Status Filter Tabs */}
-                <div className="rounded-xl border border-border bg-card">
+                <div className="border border-border bg-card">
                   <div className="flex items-center justify-between gap-2 p-2 sm:p-3">
                     <div className="flex items-center gap-1 overflow-x-auto no-scrollbar flex-1">
                       {["all", "opened", "awaiting_staff_reply", "replied", "closed", "archived"].map((f) => {
@@ -4419,7 +4419,7 @@ remote: ${panelUrl}`
                           <button
                             key={f}
                             onClick={() => setTicketFilterAndReload(f)}
-                            className={`relative rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${ticketFilter === f
+                            className={`relative px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${ticketFilter === f
                               ? "bg-primary/15 text-primary"
                               : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                               }`}
@@ -4436,7 +4436,7 @@ remote: ${panelUrl}`
                     </div>
                     <button
                       onClick={() => forceRefreshTab("tickets")}
-                      className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
+                      className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
                       title="Refresh"
                     >
                       <RefreshCw className="h-4 w-4" />
@@ -4445,12 +4445,12 @@ remote: ${panelUrl}`
                 </div>
 
                 {/* Search, Filters & Bulk Actions */}
-                <div className="rounded-xl border border-border bg-card">
+                <div className="border border-border bg-card">
                   <div className="flex flex-col gap-3 p-4">
                     {/* Search row */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                       <div className="relative flex-1 max-w-md">
-                        <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+                        <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
                           <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <input
                             type="text"
@@ -4486,12 +4486,12 @@ remote: ${panelUrl}`
                           </SelectContent>
                         </Select>
 
-                        <label className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-secondary transition-colors">
+                        <label className="flex items-center gap-1.5 border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-muted-foreground cursor-pointer hover:bg-secondary transition-colors">
                           <input
                             type="checkbox"
                             checked={showAiTouched}
                             onChange={(e) => setShowAiTouched(e.target.checked)}
-                            className="rounded border-border"
+                            className="border-border"
                           />
                           <span className="whitespace-nowrap">AI-handled</span>
                         </label>
@@ -4515,7 +4515,7 @@ remote: ${panelUrl}`
 
                     {/* Bulk actions */}
                     {selectedTicketIds.length > 0 && (
-                      <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                      <div className="flex items-center gap-3 border border-primary/20 bg-primary/5 px-3 py-2">
                         <div className="flex items-center gap-1.5">
                           <CheckSquare className="h-3.5 w-3.5 text-primary" />
                           <span className="text-xs font-medium text-primary">{selectedTicketIds.length} selected</span>
@@ -4561,7 +4561,7 @@ remote: ${panelUrl}`
                 </div>
 
                 {/* Desktop Table */}
-                <div className="rounded-xl border border-border bg-card hidden xl:block">
+                <div className="border border-border bg-card hidden xl:block">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -4574,7 +4574,7 @@ remote: ${panelUrl}`
                                 if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id));
                                 else setSelectedTicketIds([]);
                               }}
-                              className="rounded border-border"
+                              className="border-border"
                             />
                           </th>
                           <th className="px-4 py-3 text-left font-medium">Ticket</th>
@@ -4610,7 +4610,7 @@ remote: ${panelUrl}`
                                     if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])]);
                                     else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id));
                                   }}
-                                  className="rounded border-border"
+                                  className="border-border"
                                 />
                               </td>
                               <td className="px-4 py-3">
@@ -4670,12 +4670,12 @@ remote: ${panelUrl}`
                                 <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                                   {ticket.status !== "closed" && (
                                     <button onClick={() => openReply(ticket)} title="Reply"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                      className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                                       <MessageSquare className="h-3.5 w-3.5" />
                                     </button>
                                   )}
                                   <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer" title="Open in new tab"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                                     <ExternalLink className="h-3.5 w-3.5" />
                                   </a>
                                 </div>
@@ -4689,7 +4689,7 @@ remote: ${panelUrl}`
                 </div>
 
                 {/* Tablet Table (simplified columns) */}
-                <div className="rounded-xl border border-border bg-card hidden md:block xl:hidden">
+                <div className="border border-border bg-card hidden md:block xl:hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -4702,7 +4702,7 @@ remote: ${panelUrl}`
                                 if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id));
                                 else setSelectedTicketIds([]);
                               }}
-                              className="rounded border-border"
+                              className="border-border"
                             />
                           </th>
                           <th className="px-3 py-3 text-left font-medium">Ticket</th>
@@ -4734,7 +4734,7 @@ remote: ${panelUrl}`
                                     if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])]);
                                     else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id));
                                   }}
-                                  className="rounded border-border"
+                                  className="border-border"
                                 />
                               </td>
                               <td className="px-3 py-3">
@@ -4773,12 +4773,12 @@ remote: ${panelUrl}`
                                 <div className="flex items-center justify-end gap-0.5">
                                   {ticket.status !== "closed" && canReply && (
                                     <button onClick={() => openReply(ticket)} title="Reply"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                                      className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                                       <MessageSquare className="h-3.5 w-3.5" />
                                     </button>
                                   )}
                                   <a href={`/dashboard/tickets/${ticket.id}`} target="_blank" rel="noreferrer"
-                                    className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                    className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                                     <ExternalLink className="h-3.5 w-3.5" />
                                   </a>
                                 </div>
@@ -4803,7 +4803,7 @@ remote: ${panelUrl}`
                           if (e.target.checked) setSelectedTicketIds(tickets.map((t) => t.id));
                           else setSelectedTicketIds([]);
                         }}
-                        className="rounded border-border"
+                        className="border-border"
                       />
                       Select all
                     </label>
@@ -4813,7 +4813,7 @@ remote: ${panelUrl}`
                   </div>
 
                   {filteredTickets.length === 0 ? (
-                    <div className="rounded-xl border border-border bg-card px-4 py-12">
+                    <div className="border border-border bg-card px-4 py-12">
                       <div className="flex flex-col items-center gap-2">
                         <MessageSquare className="h-8 w-8 text-muted-foreground/50" />
                         <p className="text-sm text-muted-foreground">
@@ -4827,7 +4827,7 @@ remote: ${panelUrl}`
                       return (
                         <div
                           key={ticket.id ?? i}
-                          className={`rounded-xl border bg-card overflow-hidden transition-colors ${isSelected ? "border-primary/40 bg-primary/5" : "border-border"
+                          className={`border bg-card overflow-hidden transition-colors ${isSelected ? "border-primary/40 bg-primary/5" : "border-border"
                             }`}
                         >
                           {/* Card Header */}
@@ -4839,7 +4839,7 @@ remote: ${panelUrl}`
                                 if (e.target.checked) setSelectedTicketIds((prev) => [...new Set([...prev, ticket.id])]);
                                 else setSelectedTicketIds((prev) => prev.filter((id) => id !== ticket.id));
                               }}
-                              className="rounded border-border mt-0.5 shrink-0"
+                              className="border-border mt-0.5 shrink-0"
                             />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-start justify-between gap-2">
@@ -4939,7 +4939,7 @@ remote: ${panelUrl}`
                 </div>
 
                 {/* Pagination */}
-                <div className="rounded-xl border border-border bg-card">
+                <div className="border border-border bg-card">
                   <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
                     <p className="text-xs text-muted-foreground">
                       Page <span className="font-medium text-foreground">{ticketsPage}</span>
@@ -4990,10 +4990,10 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-4">
 
                 {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
+                <div className="border border-border bg-card">
                   <div className="flex items-center justify-between gap-3 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <div className="h-9 w-9 bg-primary/10 flex items-center justify-center shrink-0">
                         <ShieldCheck className="h-4 w-4 text-primary" />
                       </div>
                       <div>
@@ -5016,7 +5016,7 @@ remote: ${panelUrl}`
                       )}
                       <button
                         onClick={() => forceRefreshTab("verifications")}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                         title="Refresh"
                       >
                         <RefreshCw className="h-4 w-4" />
@@ -5043,7 +5043,7 @@ remote: ${panelUrl}`
                       <button
                         key={f}
                         onClick={() => setVerificationFilter(f === "all" ? "" : f)}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                           }`}
                       >
                         <Icon className="h-3 w-3" />
@@ -5057,7 +5057,7 @@ remote: ${panelUrl}`
                 </div>
 
                 {/* Desktop Table */}
-                <div className="rounded-xl border border-border bg-card hidden md:block">
+                <div className="border border-border bg-card hidden md:block">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -5129,7 +5129,7 @@ remote: ${panelUrl}`
                                     {v.idDocumentUrl && (
                                       <button
                                         onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, "ID Document")}
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
+                                        className="inline-flex items-center gap-1.5 border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
                                       >
                                         <FileText className="h-3 w-3 text-primary" />
                                         ID Doc
@@ -5138,7 +5138,7 @@ remote: ${panelUrl}`
                                     {v.selfieUrl && (
                                       <button
                                         onClick={() => v.selfieUrl && openPreview(v.selfieUrl, "Selfie")}
-                                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
+                                        className="inline-flex items-center gap-1.5 border border-border bg-secondary/50 px-2.5 py-1.5 text-xs text-foreground hover:bg-secondary transition-colors"
                                       >
                                         <Camera className="h-3 w-3 text-primary" />
                                         Selfie
@@ -5154,23 +5154,23 @@ remote: ${panelUrl}`
                                     {v.status === "pending" && (
                                       <>
                                         <button onClick={() => reviewVerification(v.id, "verified")} title="Approve"
-                                          className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                                          className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                                           <CheckCircle className="h-3.5 w-3.5" />
                                         </button>
                                         <button onClick={() => reviewVerification(v.id, "failed")} title="Reject"
-                                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                          className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                                           <XCircle className="h-3.5 w-3.5" />
                                         </button>
                                       </>
                                     )}
                                     {v.status === "verified" && (
                                       <button onClick={() => reviewVerification(v.id, "failed")} title="Revoke verification"
-                                        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                        className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                                         <XCircle className="h-3.5 w-3.5" />
                                       </button>
                                     )}
                                     <button onClick={() => deleteVerification(v.id)} title="Delete record & files"
-                                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                      className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                   </div>
@@ -5193,7 +5193,7 @@ remote: ${panelUrl}`
 
                     if (filtered.length === 0) {
                       return (
-                        <div className="rounded-xl border border-border bg-card px-4 py-12">
+                        <div className="border border-border bg-card px-4 py-12">
                           <div className="flex flex-col items-center gap-2">
                             <ShieldCheck className="h-8 w-8 text-muted-foreground/50" />
                             <p className="text-sm text-muted-foreground">
@@ -5217,7 +5217,7 @@ remote: ${panelUrl}`
                       return (
                         <div
                           key={v.id ?? i}
-                          className={`rounded-xl border bg-card overflow-hidden ${v.status === "pending" ? "border-warning/20" : "border-border"
+                          className={`border bg-card overflow-hidden ${v.status === "pending" ? "border-warning/20" : "border-border"
                             }`}
                         >
                           {/* Pending highlight bar */}
@@ -5258,7 +5258,7 @@ remote: ${panelUrl}`
                               {v.idDocumentUrl && (
                                 <button
                                   onClick={() => v.idDocumentUrl && openPreview(v.idDocumentUrl, "ID Document")}
-                                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                                  className="flex-1 flex items-center justify-center gap-2 border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
                                 >
                                   <FileText className="h-4 w-4 text-primary" />
                                   <div className="text-left">
@@ -5270,7 +5270,7 @@ remote: ${panelUrl}`
                               {v.selfieUrl && (
                                 <button
                                   onClick={() => v.selfieUrl && openPreview(v.selfieUrl, "Selfie")}
-                                  className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+                                  className="flex-1 flex items-center justify-center gap-2 border border-border bg-secondary/50 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
                                 >
                                   <Camera className="h-4 w-4 text-primary" />
                                   <div className="text-left">
@@ -5280,7 +5280,7 @@ remote: ${panelUrl}`
                                 </button>
                               )}
                               {!v.idDocumentUrl && !v.selfieUrl && (
-                                <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-border py-3">
+                                <div className="flex-1 flex items-center justify-center border border-dashed border-border py-3">
                                   <p className="text-xs text-muted-foreground">No documents uploaded</p>
                                 </div>
                               )}
@@ -5336,10 +5336,10 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-4">
 
                 {/* Header Bar */}
-                <div className="rounded-xl border border-border bg-card">
+                <div className="border border-border bg-card">
                   <div className="flex items-center justify-between gap-3 p-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-lg bg-destructive/10 flex items-center justify-center shrink-0">
+                      <div className="h-9 w-9 bg-destructive/10 flex items-center justify-center shrink-0">
                         <UserX className="h-4 w-4 text-destructive" />
                       </div>
                       <div>
@@ -5361,7 +5361,7 @@ remote: ${panelUrl}`
                       )}
                       <button
                         onClick={() => forceRefreshTab("deletions")}
-                        className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                        className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                         title="Refresh"
                       >
                         <RefreshCw className="h-4 w-4" />
@@ -5388,7 +5388,7 @@ remote: ${panelUrl}`
                       <button
                         key={f}
                         onClick={() => setDeletionFilter(f === "all" ? "" : f)}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive ? c.activeColor : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                           }`}
                       >
                         <Icon className="h-3 w-3" />
@@ -5402,7 +5402,7 @@ remote: ${panelUrl}`
                 </div>
 
                 {/* Desktop Table */}
-                <div className="rounded-xl border border-border bg-card hidden md:block">
+                <div className="border border-border bg-card hidden md:block">
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
@@ -5486,12 +5486,12 @@ remote: ${panelUrl}`
                                     {d.status === "pending" && (
                                       <>
                                         <button onClick={() => reviewDeletion(d.id, "approved")} title="Approve deletion"
-                                          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                                           <CheckCircle className="h-3.5 w-3.5" />
                                           <span className="hidden lg:inline">Approve</span>
                                         </button>
                                         <button onClick={() => reviewDeletion(d.id, "rejected")} title="Reject deletion"
-                                          className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                                          className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                                           <XCircle className="h-3.5 w-3.5" />
                                           <span className="hidden lg:inline">Reject</span>
                                         </button>
@@ -5502,7 +5502,7 @@ remote: ${panelUrl}`
                                     )}
                                     {d.status === "rejected" && (
                                       <button onClick={() => reviewDeletion(d.id, "approved")} title="Reconsider — approve deletion"
-                                        className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                                         <RotateCcw className="h-3.5 w-3.5" />
                                         <span className="hidden lg:inline">Reconsider</span>
                                       </button>
@@ -5527,7 +5527,7 @@ remote: ${panelUrl}`
 
                     if (filtered.length === 0) {
                       return (
-                        <div className="rounded-xl border border-border bg-card px-4 py-12">
+                        <div className="border border-border bg-card px-4 py-12">
                           <div className="flex flex-col items-center gap-2">
                             <UserX className="h-8 w-8 text-muted-foreground/50" />
                             <p className="text-sm text-muted-foreground">
@@ -5554,7 +5554,7 @@ remote: ${panelUrl}`
                       return (
                         <div
                           key={d.id ?? i}
-                          className={`rounded-xl border bg-card overflow-hidden ${d.status === "pending" ? sc.borderTint : "border-border"
+                          className={`border bg-card overflow-hidden ${d.status === "pending" ? sc.borderTint : "border-border"
                             }`}
                         >
                           {/* Pending urgency bar */}
@@ -6219,7 +6219,7 @@ remote: ${panelUrl}`
                 value={roleName}
                 onChange={(e) => setRoleName(e.target.value)}
                 placeholder="e.g. support-agent"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -6228,7 +6228,7 @@ remote: ${panelUrl}`
                 value={roleDesc}
                 onChange={(e) => setRoleDesc(e.target.value)}
                 placeholder="What is this role for?"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -6236,7 +6236,7 @@ remote: ${panelUrl}`
               <select
                 value={roleParentId}
                 onChange={(e) => setRoleParentId(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 cursor-pointer"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 cursor-pointer"
               >
                 <option value="">None</option>
                 {roles.map((role) => (
@@ -6314,7 +6314,7 @@ remote: ${panelUrl}`
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             {/* Current Plans */}
-            <div className="rounded-lg border border-border bg-secondary/20 p-3">
+            <div className="border border-border bg-secondary/20 p-3">
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   Active Plans ({userCurrentPlans.length})
@@ -6381,75 +6381,75 @@ remote: ${panelUrl}`
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">First Name</label>
-                  <input value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editFirstName} onChange={(e) => setEditFirstName(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Middle Name</label>
-                  <input value={editMiddleName} onChange={(e) => setEditMiddleName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editMiddleName} onChange={(e) => setEditMiddleName(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Last Name</label>
-                  <input value={editLastName} onChange={(e) => setEditLastName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editLastName} onChange={(e) => setEditLastName(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Display Name</label>
-                  <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} placeholder="Optional public name" className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editDisplayName} onChange={(e) => setEditDisplayName(e.target.value)} placeholder="Optional public name" className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email</label>
-                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Avatar URL</label>
-                  <input value={editAvatarUrl} onChange={(e) => setEditAvatarUrl(e.target.value)} placeholder="https://..." className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editAvatarUrl} onChange={(e) => setEditAvatarUrl(e.target.value)} placeholder="https://..." className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Phone</label>
-                  <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editPhone} onChange={(e) => setEditPhone(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address</label>
-                  <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editAddress} onChange={(e) => setEditAddress(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5 md:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Address Line 2</label>
-                  <input value={editAddress2} onChange={(e) => setEditAddress2(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editAddress2} onChange={(e) => setEditAddress2(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing Company</label>
-                  <input value={editBillingCompany} onChange={(e) => setEditBillingCompany(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editBillingCompany} onChange={(e) => setEditBillingCompany(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing City</label>
-                  <input value={editBillingCity} onChange={(e) => setEditBillingCity(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editBillingCity} onChange={(e) => setEditBillingCity(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing State</label>
-                  <input value={editBillingState} onChange={(e) => setEditBillingState(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editBillingState} onChange={(e) => setEditBillingState(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing ZIP</label>
-                  <input value={editBillingZip} onChange={(e) => setEditBillingZip(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editBillingZip} onChange={(e) => setEditBillingZip(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing Country</label>
-                  <input value={editBillingCountry} onChange={(e) => setEditBillingCountry(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  <input value={editBillingCountry} onChange={(e) => setEditBillingCountry(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Role</label>
               <select value={editRole} onChange={(e) => setEditRole(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tier</label>
               <select value={editTier} onChange={(e) => setEditTier(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
@@ -6459,7 +6459,7 @@ remote: ${panelUrl}`
                 type="date"
                 value={editDateOfBirth}
                 onChange={(e) => setEditDateOfBirth(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
               <p className="text-xs text-muted-foreground">Enter a birth date for age verification and child account handling.</p>
             </div>
@@ -6478,7 +6478,7 @@ remote: ${panelUrl}`
                 value={editParentId}
                 onChange={(e) => setEditParentId(e.target.value)}
                 placeholder="Parent user id"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
               <p className="text-xs text-muted-foreground">Assign a parent account for underage users. Leave blank to clear.</p>
             </div>
@@ -6489,37 +6489,37 @@ remote: ${panelUrl}`
                   <label className="text-xs text-muted-foreground">Max Servers</label>
                   <input type="number" min="0" value={editServerLimit} onChange={(e) => setEditServerLimit(e.target.value)}
                     placeholder="unlimited"
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">CPU Limit (%)</label>
                   <input type="number" min="0" value={editCpuLimit} onChange={(e) => setEditCpuLimit(e.target.value)}
                     placeholder="unlimited"
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Memory (MB)</label>
                   <input type="number" min="0" value={editMemoryLimit} onChange={(e) => setEditMemoryLimit(e.target.value)}
                     placeholder="unlimited"
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Disk (MB)</label>
                   <input type="number" min="0" value={editDiskLimit} onChange={(e) => setEditDiskLimit(e.target.value)}
                     placeholder="unlimited"
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Databases</label>
                   <input type="number" min="0" value={editDatabaseLimit} onChange={(e) => setEditDatabaseLimit(e.target.value)}
                     placeholder="0"
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Backups</label>
                   <input type="number" min="0" value={editBackupLimit} onChange={(e) => setEditBackupLimit(e.target.value)}
                     placeholder="0"
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
               </div>
             </div>
@@ -6550,7 +6550,7 @@ remote: ${panelUrl}`
                 onChange={(e) => setEditBadgesText(e.target.value)}
                 rows={3}
                 placeholder="bug hunter, staff, ex staff, contributor"
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="w-full border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
               <p className="text-[11px] text-muted-foreground mt-1">Separate badges with commas or new lines.</p>
             </div>
@@ -6582,22 +6582,22 @@ remote: ${panelUrl}`
               <div className="col-span-2 flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Name</label>
                 <input value={esName} onChange={(e) => setEsName(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
                 <input value={esDesc} onChange={(e) => setEsDesc(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Owner User ID</label>
                 <input type="number" value={esUserId} onChange={(e) => setEsUserId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5 pt-2">
                 <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
                   <input type="checkbox" checked={esIgnoreAntiAbuse} onChange={(e) => setEsIgnoreAntiAbuse(e.target.checked)}
-                    className="h-4 w-4 rounded border border-border bg-secondary/50 text-primary focus:ring-2 focus:ring-primary" />
+                    className="h-4 w-4 border border-border bg-secondary/50 text-primary focus:ring-2 focus:ring-primary" />
                   Ignore anti-abuse reports
                 </label>
                 <p className="text-xs text-muted-foreground">When enabled, this server will not log or enforce incoming anti-abuse events.</p>
@@ -6605,32 +6605,32 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Memory (MB)</label>
                 <input type="number" min="128" value={esMemory} onChange={(e) => setEsMemory(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Disk (MB)</label>
                 <input type="number" min="512" value={esDisk} onChange={(e) => setEsDisk(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPU (%)</label>
                 <input type="number" min="10" value={esCpu} onChange={(e) => setEsCpu(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Swap (MB)</label>
                 <input type="number" min="0" value={esSwap} onChange={(e) => setEsSwap(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Docker Image</label>
                 <input value={esDockerImage} onChange={(e) => setEsDockerImage(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Startup Command</label>
                 <input value={esStartup} onChange={(e) => setEsStartup(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
               </div>
               <div className="col-span-2 flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
@@ -6653,7 +6653,7 @@ remote: ${panelUrl}`
                 </div>
                 <div className="space-y-3">
                   {esEnvRows.map((row: any) => (
-                    <div key={row.id} className="rounded-lg border border-border bg-secondary/10 p-3">
+                    <div key={row.id} className="border border-border bg-secondary/10 p-3">
                       <div className="flex items-center gap-2 mb-2 flex-wrap">
                         {row.isDefined || !row.isNew ? (
                           <>
@@ -6673,7 +6673,7 @@ remote: ${panelUrl}`
                               setEsEnvModified(true)
                             }}
                             placeholder={t("editDialog.fields.variableName")}
-                            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50"
+                            className="w-full border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50"
                           />
                         )}
                         {!row.isEditable && (
@@ -6715,7 +6715,7 @@ remote: ${panelUrl}`
                         }}
                         placeholder={row.isDefined ? row.placeholder : t("editDialog.fields.variableValue")}
                         disabled={!row.isEditable}
-                        className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50"
+                        className="w-full border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50"
                       />
                     </div>
                   ))}
@@ -6728,7 +6728,7 @@ remote: ${panelUrl}`
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Egg / Template</label>
                 <div>
                   <Select value={esEggId ?? "none"} onValueChange={(v) => setEsEggId(v === "none" ? undefined : v)}>
-                    <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                    <SelectTrigger className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
                       <SelectValue placeholder="— No template —" />
                     </SelectTrigger>
                     <SelectContent className="z-[10000]">
@@ -6747,7 +6747,7 @@ remote: ${panelUrl}`
                   </Select>
                 </div>
               </div>
-              <div className="col-span-2 rounded-2xl border border-border/70 bg-secondary/10 p-4">
+              <div className="col-span-2 border border-border/70 bg-secondary/10 p-4">
                 <div className="flex items-center justify-between gap-4 mb-3">
                   <div>
                     <p className="text-sm font-semibold text-foreground">Abuse Reports</p>
@@ -6766,7 +6766,7 @@ remote: ${panelUrl}`
                 ) : (
                   <div className="space-y-3">
                     {esAbuseReports.map((report) => (
-                      <div key={report.id} className="rounded-xl border border-border/70 bg-background/80 p-3">
+                      <div key={report.id} className="border border-border/70 bg-background/80 p-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="space-y-1">
                             <p className="text-sm font-semibold text-foreground">Report #{report.id}</p>
@@ -6796,7 +6796,7 @@ remote: ${panelUrl}`
                     <p className="text-xs text-muted-foreground italic">No allocations configured.</p>
                   )}
                   {esAllocations.map((a, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-1.5">
+                    <div key={i} className="flex items-center gap-2 border border-border bg-secondary/30 px-3 py-1.5">
                       {esEditFqdnIdx === i ? (
                         <>
                           <div className="flex-1 min-w-0 flex items-center gap-1.5">
@@ -6812,7 +6812,7 @@ remote: ${panelUrl}`
                                   setEsEditFqdnIdx(null)
                                 } else if (e.key === 'Escape') setEsEditFqdnIdx(null)
                               }}
-                              className="flex-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                              className="flex-1 border border-border bg-secondary/50 px-2 py-0.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                             />
                           </div>
                           <button onClick={() => {
@@ -6856,11 +6856,11 @@ remote: ${panelUrl}`
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <input placeholder="Bind IP" value={esAllocIp} onChange={(e) => setEsAllocIp(e.target.value)}
-                    className="w-32 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                    className="w-32 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                   <input type="number" placeholder="Port" value={esAllocPort} onChange={(e) => setEsAllocPort(e.target.value)}
-                    className="w-24 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                    className="w-24 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                   <input placeholder="Display FQDN (e.g. n1.ecli.app)" value={esAllocFqdn} onChange={(e) => setEsAllocFqdn(e.target.value)}
-                    className="flex-1 min-w-[160px] rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                    className="flex-1 min-w-[160px] border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                   <Button size="sm" variant="outline" className="border-border h-9" onClick={() => {
                     const port = Number(esAllocPort); if (!esAllocIp || !port) return
                     setEsAllocations(prev => [...prev, { ip: esAllocIp, port, fqdn: esAllocFqdn.trim(), is_default: prev.length === 0 }])
@@ -6873,7 +6873,7 @@ remote: ${panelUrl}`
                 <div className="space-y-1.5">
                   {esDedicatedIps.length === 0 && <p className="text-xs text-muted-foreground italic">No dedicated IPs assigned</p>}
                   {esDedicatedIps.map((d, i) => (
-                    <div key={i} className="flex items-center gap-2 rounded-md border border-purple-500/20 bg-purple-500/5 px-3 py-1.5">
+                    <div key={i} className="flex items-center gap-2 border border-purple-500/20 bg-purple-500/5 px-3 py-1.5">
                       <div className="flex-1 min-w-0">
                         <span className="font-mono text-sm text-foreground">{d.ip}</span>
                         <span className="ml-2 text-[10px] font-semibold uppercase text-purple-400">{d.type}</span>
@@ -6890,12 +6890,12 @@ remote: ${panelUrl}`
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] text-muted-foreground">IP Address</label>
                     <input placeholder="e.g. 166.88.225.39" value={esDedicatedIpInput} onChange={(e) => setEsDedicatedIpInput(e.target.value)}
-                      className="w-40 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                      className="w-40 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] text-muted-foreground">Type</label>
                     <select value={esDedicatedIpType} onChange={(e) => setEsDedicatedIpType(e.target.value as "ipv4" | "ipv6")}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                       <option value="ipv4">IPv4</option>
                       <option value="ipv6">IPv6</option>
                     </select>
@@ -6903,10 +6903,10 @@ remote: ${panelUrl}`
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] text-muted-foreground">FQDN (optional)</label>
                     <input placeholder="e.g. server.example.com" value={esDedicatedIpFqdn} onChange={(e) => setEsDedicatedIpFqdn(e.target.value)}
-                      className="w-48 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                      className="w-48 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                   </div>
                   <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 h-9" onClick={assignDedicatedIp} disabled={esDedicatedIpLoading || !esDedicatedIpInput.trim()}>
-                    {esDedicatedIpLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                    {esDedicatedIpLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
                     Assign
                   </Button>
                 </div>
@@ -6926,7 +6926,7 @@ remote: ${panelUrl}`
                     {esAttachedMounts.length === 0 ? (
                       <p className="text-xs text-muted-foreground italic">No mounts attached.</p>
                     ) : esAttachedMounts.map((mount) => (
-                      <div key={mount.id} className="flex flex-col gap-2 rounded-lg border border-border bg-secondary/20 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div key={mount.id} className="flex flex-col gap-2 border border-border bg-secondary/20 p-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-semibold text-foreground truncate">{mount.name || `${mount.source} → ${mount.target}`}</p>
                           <p className="text-xs text-muted-foreground truncate">{mount.source} → {mount.target}</p>
@@ -6941,7 +6941,7 @@ remote: ${panelUrl}`
                   <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
                     {esAvailableMounts.length > 0 ? (
                       <Select value={esSelectedMountId} onValueChange={(v) => setEsSelectedMountId(v)} disabled={esMountsLoading || esMountsSaving}>
-                        <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                        <SelectTrigger className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
                           <SelectValue placeholder="Select a mount to attach" />
                         </SelectTrigger>
                         <SelectContent className="z-[10000]">
@@ -6956,7 +6956,7 @@ remote: ${panelUrl}`
                         </SelectContent>
                       </Select>
                     ) : (
-                      <div className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">No additional mounts available to attach.</div>
+                      <div className="border border-border bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">No additional mounts available to attach.</div>
                     )}
                     <Button size="sm" variant="outline" className="border-border h-9" onClick={attachEditServerMount} disabled={!esSelectedMountId || esMountsSaving || esAvailableMounts.length === 0}>
                       <Plus className="h-3.5 w-3.5 mr-1" /> Attach
@@ -6971,7 +6971,7 @@ remote: ${panelUrl}`
           <DialogFooter>
             <Button variant="outline" onClick={reinstallServerFromDialog} disabled={esReinstalling || esLoading}
               className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 mr-auto">
-              {esReinstalling ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+              {esReinstalling ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
               Reinstall
             </Button>
             <Button variant="outline" onClick={() => setEditServerDialog(null)} className="border-border">Cancel</Button>
@@ -6996,12 +6996,12 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-1.5 col-span-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Server Name (optional)</label>
                 <input value={csName} onChange={(e) => setCsName(e.target.value)} placeholder="My Server"
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5 col-span-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Node *</label>
                 <select value={csNodeId} onChange={(e) => setCsNodeId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                   <option value="">Select node…</option>
                   {nodes.map((n) => (
                     <option key={n.id} value={String(n.id)} disabled={Boolean((n as any).deploymentsDisabled)}>
@@ -7010,7 +7010,7 @@ remote: ${panelUrl}`
                   ))}
                 </select>
                 {csNodeId && nodes.find((n) => String(n.id) === String(csNodeId) && (n as any).deploymentsDisabled) && (
-                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                  <div className="border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
                     {(nodes.find((n) => String(n.id) === String(csNodeId)) as any)?.deploymentNotice || 'This node is temporarily unavailable for deployments.'}
                   </div>
                 )}
@@ -7019,7 +7019,7 @@ remote: ${panelUrl}`
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Egg (optional)</label>
                 <div>
                   <Select value={csEggId ?? "none"} onValueChange={(v) => setCsEggId(v === "none" ? undefined : v)}>
-                    <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                    <SelectTrigger className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
                       <SelectValue placeholder="Default (Node.js)" />
                     </SelectTrigger>
                     <SelectContent>
@@ -7041,7 +7041,7 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Owner User ID (optional)</label>
                 <input type="number" value={csUserId} onChange={(e) => setCsUserId(e.target.value)} placeholder="User ID"
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
             </div>
             <div className="border-t border-border pt-3">
@@ -7050,23 +7050,23 @@ remote: ${panelUrl}`
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Memory (MB)</label>
                   <input type="number" min="1" value={csMemory} onChange={(e) => setCsMemory(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">Disk (MB)</label>
                   <input type="number" min="1" value={csDisk} onChange={(e) => setCsDisk(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs text-muted-foreground">CPU (%)</label>
                   <input type="number" min="5" value={csCpu} onChange={(e) => setCsCpu(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 </div>
               </div>
               <div className="flex flex-col gap-2 mt-3">
                 <div className="flex items-center gap-2">
                   <input id="cs-kvm-passthrough" type="checkbox" checked={csKvmPassthroughEnabled} onChange={(e) => setCsKvmPassthroughEnabled(e.target.checked)}
-                    className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
+                    className="h-4 w-4 border-border bg-secondary/50 text-primary focus:ring-primary" />
                   <label htmlFor="cs-kvm-passthrough" className="text-sm text-foreground">Enable KVM passthrough</label>
                 </div>
               </div>
@@ -7076,7 +7076,7 @@ remote: ${panelUrl}`
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateServerOpen(false)} className="border-border">Cancel</Button>
             <Button onClick={submitCreateServer} disabled={csLoading || !csNodeId} className="bg-primary text-primary-foreground">
-              {csLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Creating…</> : "Create Server"}
+              {csLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />Creating…</> : "Create Server"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -7096,12 +7096,12 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-1.5 col-span-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Plan Name *</label>
                 <input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder="e.g. Starter"
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</label>
                 <select value={planType} onChange={(e) => setPlanType(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                   <option value="free">Free</option>
                   <option value="paid">Paid</option>
                   <option value="educational">Educational</option>
@@ -7111,12 +7111,12 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Price ($/mo)</label>
                 <input type="number" min="0" step="0.01" value={planPrice} onChange={(e) => setPlanPrice(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5 col-span-2">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Description</label>
                 <input value={planDesc} onChange={(e) => setPlanDesc(e.target.value)} placeholder="Brief description of the plan"
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
             </div>
             <p className="text-xs text-muted-foreground font-medium">Resource Limits (leave blank for unlimited)</p>
@@ -7124,62 +7124,62 @@ remote: ${panelUrl}`
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Memory (MB)</label>
                 <input type="number" min="0" placeholder="e.g. 2048" value={planMemory} onChange={(e) => setPlanMemory(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Disk (MB)</label>
                 <input type="number" min="0" placeholder="e.g. 10240" value={planDisk} onChange={(e) => setPlanDisk(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">CPU (%)</label>
                 <input type="number" min="0" placeholder="e.g. 100" value={planCpu} onChange={(e) => setPlanCpu(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Server Limit</label>
                 <input type="number" min="0" placeholder="e.g. 3" value={planServerLimit} onChange={(e) => setPlanServerLimit(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Databases</label>
                 <input type="number" min="0" placeholder="e.g. 10" value={planDatabases} onChange={(e) => setPlanDatabases(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Backups</label>
                 <input type="number" min="0" placeholder="e.g. 20" value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email send per day</label>
                 <input type="number" min="0" placeholder="e.g. 50" value={planEmailSendDailyLimit} onChange={(e) => setPlanEmailSendDailyLimit(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email queue limit</label>
                 <input type="number" min="0" placeholder="e.g. 10" value={planEmailSendQueueLimit} onChange={(e) => setPlanEmailSendQueueLimit(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ports per Server</label>
                 <input type="number" min="1" placeholder="1" value={planPortCount} onChange={(e) => setPlanPortCount(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tunnel Ports</label>
                 <input type="number" min="1" placeholder="10" value={planTunnelPortCount} onChange={(e) => setPlanTunnelPortCount(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Account Databases Limit</label>
                 <input type="number" min="0" placeholder="0" value={planDatabases} onChange={(e) => setPlanDatabases(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Account Backups Limit</label>
                 <input type="number" min="0" placeholder="0" value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5 justify-end">
                 <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
@@ -7197,7 +7197,7 @@ remote: ${panelUrl}`
                 value={planFeatures}
                 onChange={(e) => setPlanFeatures(e.target.value)}
                 placeholder={"e.g.\n3 Servers\n2048 MB RAM\n10 GB SSD\nPriority Support"}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none font-mono"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none font-mono"
               />
               <p className="text-xs text-muted-foreground">These lines appear as feature bullets on the user's Billing page.</p>
             </div>
@@ -7206,7 +7206,7 @@ remote: ${panelUrl}`
           <DialogFooter>
             <Button variant="outline" onClick={() => setPlanDialogOpen(false)} className="border-border">Cancel</Button>
             <Button onClick={savePlan} disabled={planLoading} className="bg-primary text-primary-foreground">
-              {planLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Saving…</> : (planEditTarget ? "Save Changes" : "Create Plan")}
+              {planLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />Saving…</> : (planEditTarget ? "Save Changes" : "Create Plan")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -7229,7 +7229,7 @@ remote: ${panelUrl}`
           ) : viewUserProfile ? (
             <div className="flex flex-col gap-5 py-2">
               {/* Profile Info */}
-              <div className="rounded-lg border border-border bg-secondary/20 p-4 grid grid-cols-2 gap-3 text-sm">
+              <div className="border border-border bg-secondary/20 p-4 grid grid-cols-2 gap-3 text-sm">
                 <div><span className="text-muted-foreground">Email: </span><span className="text-foreground">{redact(viewUserProfile.email)}</span></div>
                 {viewUserProfile.title && <div><span className="text-muted-foreground">Title: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.title) : viewUserProfile.title}</span></div>}
                 {viewUserProfile.gender && <div><span className="text-muted-foreground">Gender: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.gender) : viewUserProfile.gender}</span></div>}
@@ -7255,7 +7255,7 @@ remote: ${panelUrl}`
               </div>
 
               {canRequestServerSunset && viewUserDialog && ['free', 'educational'].includes(String(viewUserProfile.portalType || '').toLowerCase()) && (
-                <div className="rounded-lg border border-border bg-secondary/20 p-4 flex flex-col gap-2">
+                <div className="border border-border bg-secondary/20 p-4 flex flex-col gap-2">
                   <div className="text-xs text-muted-foreground">
                     Send a sunset confirmation email with a 48h grace period for this user’s online servers.
                   </div>
@@ -7265,13 +7265,13 @@ remote: ${panelUrl}`
                     disabled={viewUserSunsetLoading}
                     className="w-fit bg-primary text-primary-foreground"
                   >
-                    {viewUserSunsetLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Sending…</> : <>Request Sunset Notice (48h)</>}
+                    {viewUserSunsetLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />Sending…</> : <>Request Sunset Notice (48h)</>}
                   </Button>
                 </div>
               )}
 
               {/* Contributor Profile */}
-              <div className="rounded-lg border border-border bg-secondary/20 p-4 flex flex-col gap-4">
+              <div className="border border-border bg-secondary/20 p-4 flex flex-col gap-4">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contributor profile</p>
                   <p className="text-xs text-muted-foreground">Link a GitHub account or maintain a manual activity timeline for external contributors.</p>
@@ -7282,28 +7282,28 @@ remote: ${panelUrl}`
                     value={viewUserContributorLogin}
                     onChange={(e) => setViewUserContributorLogin(e.target.value)}
                     placeholder="GitHub login (optional)"
-                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                    className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                   />
                   <input
                     type="text"
                     value={viewUserContributorProfileUrl}
                     onChange={(e) => setViewUserContributorProfileUrl(e.target.value)}
                     placeholder="GitHub profile URL (optional)"
-                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                    className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                   />
                   <input
                     type="text"
                     value={viewUserContributorAvatarUrl}
                     onChange={(e) => setViewUserContributorAvatarUrl(e.target.value)}
                     placeholder="Avatar override URL (optional)"
-                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                    className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                   />
                   <input
                     type="text"
                     value={viewUserContributorTitle}
                     onChange={(e) => setViewUserContributorTitle(e.target.value)}
                     placeholder="Contributor title / role"
-                    className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                    className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                   />
                 </div>
 
@@ -7315,7 +7315,7 @@ remote: ${panelUrl}`
                     Clear activity
                   </Button>
                   <Button size="sm" onClick={saveContributorProfile} disabled={viewUserContributorSaving} className="bg-primary text-primary-foreground gap-1.5">
-                    {viewUserContributorSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : <><Save className="h-3.5 w-3.5" /> Save contributor profile</>}
+                    {viewUserContributorSaving ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> Saving…</> : <><Save className="h-3.5 w-3.5" /> Save contributor profile</>}
                   </Button>
                 </div>
 
@@ -7324,7 +7324,7 @@ remote: ${panelUrl}`
                     <p className="text-xs text-muted-foreground">No manual activity entries yet.</p>
                   ) : (
                     viewUserContributorActivity.map((entry, idx) => (
-                      <div key={`${entry.date}-${entry.label}-${idx}`} className="rounded-lg border border-border bg-card/80 px-3 py-2">
+                      <div key={`${entry.date}-${entry.label}-${idx}`} className="border border-border bg-card/80 px-3 py-2">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">{entry.label}</p>
@@ -7337,7 +7337,7 @@ remote: ${panelUrl}`
                             ) : null}
                             <button
                               onClick={() => setViewUserContributorActivity((prev) => prev.filter((_, i) => i !== idx))}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                               title="Remove activity"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
@@ -7352,7 +7352,7 @@ remote: ${panelUrl}`
 
               {/* Fraud Scan */}
               {viewUserProfile.fraudFlag && (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 flex items-center gap-3">
+                <div className="border border-destructive/30 bg-destructive/10 p-3 flex items-center gap-3">
                   <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-destructive">Fraud Alert</p>
@@ -7371,7 +7371,7 @@ remote: ${panelUrl}`
                     alert("Fraud scan failed: " + e.message);
                   }
                 }}
-                className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors w-fit"
+                className="flex items-center gap-1.5 border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors w-fit"
               >
                 <Brain className="h-3.5 w-3.5" /> Run Fraud Scan
               </button>
@@ -7386,7 +7386,7 @@ remote: ${panelUrl}`
                 ) : (
                   <div className="flex flex-col gap-2">
                     {viewUserProfile.aiModels.map((link: any) => (
-                      <div key={link.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                      <div key={link.id} className="flex items-center justify-between border border-border bg-secondary/20 px-3 py-2">
                         <div>
                           <p className="text-sm font-medium text-foreground">{link.model?.name}</p>
                           {link.limits && (
@@ -7399,7 +7399,7 @@ remote: ${panelUrl}`
                         </div>
                         <button
                           onClick={() => revokeAiLink(link.id)}
-                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                           title="Revoke access"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -7420,25 +7420,25 @@ remote: ${panelUrl}`
                 ) : (
                   <div className="flex flex-col gap-2">
                     {viewUserProfile.servers.map((s: any) => (
-                      <div key={s.uuid} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                      <div key={s.uuid} className="flex items-center justify-between border border-border bg-secondary/20 px-3 py-2">
                         <div>
                           <p className="text-sm font-medium text-foreground">{s.name || s.uuid}</p>
                           <p className="text-xs text-muted-foreground font-mono">{s.uuid} · {s.nodeName}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <button onClick={() => serverPower(s.uuid, "start")} title="Start"
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                            className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                             <Power className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => markServerStarted(s.uuid)}
                             title="Mark Started"
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-blue-500/10 hover:text-blue-400 transition-colors"
+                            className="p-1.5 text-muted-foreground hover:bg-blue-500/10 hover:text-blue-400 transition-colors"
                           >
                             <CheckCircle className="h-3.5 w-3.5" />
                           </button>
                           <button onClick={() => deleteServer(s.uuid)} title="Delete"
-                            className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                            className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -7458,7 +7458,7 @@ remote: ${panelUrl}`
                 ) : (
                   <div className="flex flex-col gap-2">
                     {viewUserProfile.orders.map((o: any) => (
-                      <div key={o.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                      <div key={o.id} className="flex items-center justify-between border border-border bg-secondary/20 px-3 py-2">
                         <div>
                           <p className="text-sm font-medium text-foreground">Order #{o.id} — ${o.amount?.toFixed(2)}</p>
                           <p className="text-xs text-muted-foreground">{o.status} · {new Date(o.createdAt).toLocaleDateString()}</p>
@@ -7473,7 +7473,7 @@ remote: ${panelUrl}`
               </div>
 
               {/* Admin Documents */}
-              <div className="rounded-lg border border-border bg-secondary/20 p-4">
+              <div className="border border-border bg-secondary/20 p-4">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Admin Documents</p>
@@ -7481,7 +7481,7 @@ remote: ${panelUrl}`
                   </div>
                   {canUploadUserDocuments ? (
                     <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                      <label className="cursor-pointer rounded-lg border border-border bg-background/80 px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/50 transition-all w-full sm:w-auto text-center">
+                      <label className="cursor-pointer border border-border bg-background/80 px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary/50 transition-all w-full sm:w-auto text-center">
                         Choose PDF
                         <input
                           type="file"
@@ -7498,7 +7498,7 @@ remote: ${panelUrl}`
                       <button
                         onClick={uploadUserDocument}
                         disabled={!viewUserDocFile || viewUserDocUploading}
-                        className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {viewUserDocUploading ? 'Uploading…' : 'Upload PDF'}
                       </button>
@@ -7515,14 +7515,14 @@ remote: ${panelUrl}`
                       value={viewUserDocName}
                       onChange={(e) => setViewUserDocName(e.target.value)}
                       placeholder="Document name"
-                      className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                      className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                     />
                     <textarea
                       value={viewUserDocDescription}
                       onChange={(e) => setViewUserDocDescription(e.target.value)}
                       placeholder="Optional description"
                       rows={3}
-                      className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                      className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                     />
                   </div>
                 )}
@@ -7532,7 +7532,7 @@ remote: ${panelUrl}`
                     <p className="text-xs text-muted-foreground">No admin documents uploaded.</p>
                   ) : (
                     (viewUserProfile.settings?.documents?.admin || []).map((doc: any) => (
-                      <div key={doc.id || doc.filename} className="rounded-lg border border-border bg-card/80 p-3">
+                      <div key={doc.id || doc.filename} className="border border-border bg-card/80 p-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-foreground truncate">{doc.name || doc.filename}</p>
@@ -7559,7 +7559,7 @@ remote: ${panelUrl}`
                     <p className="text-xs text-muted-foreground">No custom roles assigned.</p>
                   ) : (
                     viewUserRoles.map((ur: any) => (
-                      <div key={ur.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                      <div key={ur.id} className="flex items-center justify-between border border-border bg-secondary/20 px-3 py-2">
                         <div>
                           <p className="text-sm font-medium text-foreground">{ur.role?.name}</p>
                           {ur.role?.description && <p className="text-xs text-muted-foreground">{ur.role.description}</p>}
@@ -7573,7 +7573,7 @@ remote: ${panelUrl}`
                               setViewUserRoles((prev) => prev.filter((r) => r.id !== ur.id))
                             } finally { setViewUserRoleLoading(false) }
                           }}
-                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                           title="Remove role"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -7587,7 +7587,7 @@ remote: ${panelUrl}`
                       <select
                         value={viewUserAssignRoleId}
                         onChange={(e) => setViewUserAssignRoleId(e.target.value)}
-                        className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                        className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                       >
                         <option value="">— assign a role —</option>
                         {roles.map((r) => (
@@ -7619,7 +7619,7 @@ remote: ${panelUrl}`
               </div>
 
               {/* Suspend / Unsuspend / Support Ban */}
-              <div className="flex flex-col gap-3 rounded-lg border border-border bg-secondary/20 px-4 py-3">
+              <div className="flex flex-col gap-3 border border-border bg-secondary/20 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">Account Status</p>
                   <p className="text-xs text-muted-foreground">{viewUserProfile.suspended ? "This account is currently suspended." : "This account is active."}</p>
