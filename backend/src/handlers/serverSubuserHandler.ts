@@ -11,6 +11,7 @@ import { createMailboxMessageForUser } from '../utils/mailboxMessage';
 import { getMailboxAccountForUser } from '../services/mailcowService';
 import { consumeRateLimit } from '../config/redis';
 import { resolvePanelBaseUrl } from '../utils/url';
+import { requiresKyc, isKycVerified } from '../utils/eu';
 import type { RequestContext, AppLike, RouteMethod } from '../types/request';
 
 const VALID_PERMISSIONS = [
@@ -156,6 +157,11 @@ export async function serverSubuserRoutes(app: AppLike, prefix = '') {
       if (target.id === user.id) {
         ctx.set.status = 400;
         return { error: ctx.t('server.cannotAddSelfAsSubuser') };
+      }
+
+      if (await requiresKyc(target.billingCountry) && !(await isKycVerified(target.id))) {
+        ctx.set.status = 403;
+        return { error: 'This user must complete KYC identity verification before they can be added as a subuser.' };
       }
 
       const existing = await subuserRepo().findOneBy({ serverUuid: id, userId: target.id });

@@ -215,6 +215,13 @@
     "requiresHttpsPrefix": "Requires HTTPS — access the panel via",
     "requiresHttpsSuffix": "to register a passkey."
   },
+  "kycBanner": {
+    "title": "Identity Verification Required",
+    "description": "To comply with regional regulations, you must verify your identity before accessing the panel. This is a one-time process — upload your ID document and a selfie to get verified.",
+    "verify": "Verify Identity",
+    "checkStatus": "I already verified elsewhere — check status",
+    "adminContact": "If you believe this is a mistake, contact our support at hi@ecli.app."
+  },
   "footer": {
     "legalDocuments": "Legal Documents",
     "docs": "Docs",

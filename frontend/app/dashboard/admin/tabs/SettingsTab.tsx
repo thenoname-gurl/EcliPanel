@@ -1097,6 +1097,20 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         )}
       </div>
 
+      {/* KYC-Required Countries */}
+      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        <h3 className="text-sm font-semibold text-foreground mb-4">KYC-Required Countries</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Users from these countries must complete identity verification (KYC) before they can own servers or become subusers. Enter comma-separated <strong>ISO 3166-1 alpha-2</strong> codes (e.g. <code>ru, cn, ir</code>).
+        </p>
+        <textarea
+          value={panelSettings.kycRequiredCountries || ""}
+          onChange={(e) => setPanelSettings((s: any) => ({ ...s, kycRequiredCountries: e.target.value }))}
+          className="w-full min-h-[80px] rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-y"
+          placeholder="ru, cn, ir, kp"
+        />
+      </div>
+
       {/* Mobile Sticky Save Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
         <div className="flex items-center justify-between rounded-xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-2xl pointer-events-auto">

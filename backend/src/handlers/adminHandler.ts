@@ -40,11 +40,13 @@ import {
   getGeoBlockRules,
   getGeoBlockLevelFromRules,
   getGeoBlockLevel,
+  clearKycCache,
   getMinimumAgeForCountry,
 } from '../utils/eu';
 import { getPanelFeatureToggles } from '../utils/featureToggles';
 import { encryptBufferWithWorker } from '../workers/cryptoWorker';
 import { redisDel } from '../config/redis';
+import { createMailboxMessageForUser } from '../utils/mailboxMessage';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -2941,6 +2943,50 @@ export async function adminRoutes(app: any, prefix = '') {
         summary: 'Require a user to re-verify student status (admin only)',
         tags: ['Admin'],
       },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/users/:id/request-kyc',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:kyc:manage');
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.id);
+      const userRepo = AppDataSource.getRepository(User);
+      const target = await userRepo.findOneBy({ id: userId });
+      if (!target) {
+        ctx.set.status = 404;
+        return { error: 'User not found' };
+      }
+      target.settings = target.settings || {};
+      (target.settings as any).kycRequestedByAdmin = true;
+      (target.settings as any).kycRequestedAt = new Date().toISOString();
+      (target.settings as any).kycRequestedByAdminId = ctx.user.id;
+      // Mark any existing verification as invalidated by this request
+      const idRepo = AppDataSource.getRepository(IDVerification);
+      const existing = await idRepo.findOneBy({ userId: target.id, status: 'verified' as any });
+      if (existing) {
+        (target.settings as any).kycRequiresOverwrite = {
+          previousVerifiedId: existing.id,
+          previousVerifiedAt: existing.verifiedAt,
+        };
+      }
+      await userRepo.save(target);
+      await createMailboxMessageForUser(target, {
+        subject: 'KYC Verification Required',
+        body: 'An administrator has requested that you complete identity verification (KYC). Please visit the Identity page in your dashboard to submit your documents.',
+      });
+      await createActivityLog({
+        userId: target.id,
+        action: 'admin:request_kyc',
+        targetId: String(target.id),
+        targetType: 'user',
+      });
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      detail: { summary: 'Admin manually requests KYC for a user', tags: ['Admin'] },
     }
   );
 
@@ -7471,6 +7517,7 @@ export async function adminRoutes(app: any, prefix = '') {
         registrationNotice: map['registrationNotice'] || '',
         portalDescriptions: portalDescriptions || null,
         geoBlockCountries: map['geoBlockCountries'] || '',
+        kycRequiredCountries: map['kycRequiredCountries'] || '',
         countryAgeRules: map['countryAgeRules'] || '',
         billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
         billingTaxRules: map['billingTaxRules'] || '',
@@ -7488,6 +7535,7 @@ export async function adminRoutes(app: any, prefix = '') {
           portalDescriptions: t.Optional(t.Any()),
           featureToggles: t.Record(t.String(), t.Boolean()),
           geoBlockCountries: t.String(),
+          kycRequiredCountries: t.Optional(t.String()),
           countryAgeRules: t.Optional(t.String()),
           billingCurrency: t.String(),
           billingTaxRules: t.String(),
@@ -7535,6 +7583,7 @@ export async function adminRoutes(app: any, prefix = '') {
         registrationNotice: map['registrationNotice'] || '',
         portalDescriptions: portalDescriptions || null,
         geoBlockCountries: map['geoBlockCountries'] || '',
+        kycRequiredCountries: map['kycRequiredCountries'] || '',
         countryAgeRules: map['countryAgeRules'] || '',
         billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
         billingTaxRules: map['billingTaxRules'] || '',
@@ -7552,6 +7601,7 @@ export async function adminRoutes(app: any, prefix = '') {
           registrationNotice: t.String(),
           portalDescriptions: t.Optional(t.Any()),
           geoBlockCountries: t.String(),
+          kycRequiredCountries: t.Optional(t.String()),
           countryAgeRules: t.Optional(t.String()),
           billingCurrency: t.String(),
           billingTaxRules: t.String(),
@@ -7671,6 +7721,7 @@ export async function adminRoutes(app: any, prefix = '') {
         'registrationEnabled',
         'registrationNotice',
         'geoBlockCountries',
+        'kycRequiredCountries',
         'countryAgeRules',
         'billingCurrency',
         'billingTaxRules',
@@ -7691,6 +7742,7 @@ export async function adminRoutes(app: any, prefix = '') {
             value = String(clampChance(Number(body[key]), GAMBLING_DEFAULT_POWER_DENY_CHANCE));
           }
           await repo.save({ key, value });
+          if (key === 'kycRequiredCountries') clearKycCache();
         }
       }
       if (body.portalDescriptions !== undefined) {
@@ -7721,6 +7773,7 @@ export async function adminRoutes(app: any, prefix = '') {
           registrationNotice: map['registrationNotice'] || '',
           portalDescriptions: portalDescriptions || null,
           geoBlockCountries: map['geoBlockCountries'] || '',
+          kycRequiredCountries: map['kycRequiredCountries'] || '',
           countryAgeRules: map['countryAgeRules'] || '',
           billingCurrency: (map['billingCurrency'] || 'USD').toUpperCase(),
           billingTaxRules: map['billingTaxRules'] || '',

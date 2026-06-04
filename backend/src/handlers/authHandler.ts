@@ -1,8 +1,9 @@
 import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
+import { IDVerification } from '../models/idVerification.entity';
 import { comparePassword, hashPassword, isLegacyPasswordHash } from '../utils/password';
-import { getGeoBlockLevel, canPerformIdVerification } from '../utils/eu';
+import { getGeoBlockLevel, canPerformIdVerification, requiresKyc, isKycVerified } from '../utils/eu';
 import { authenticate } from '../middleware/auth';
 import { UserLog } from '../models/userLog.entity';
 import { PasskeyService } from '../services/passkeyService';
@@ -119,6 +120,35 @@ async function verifyTempToken(token: string, logSource: string, ctx: BaseHandle
     ctx.set.status = 400;
     return { error: ctx.t('auth.invalidTempToken') };
   }
+}
+
+async function applyAdminKycCheck(user: User): Promise<void> {
+  const settings = (user.settings || {}) as Record<string, any>;
+  if (!settings.kycRequestedByAdmin) return;
+  const requestedAt = settings.kycRequestedAt ? new Date(settings.kycRequestedAt).getTime() : 0;
+  const lastVerified = settings.kycRequiresOverwrite?.previousVerifiedAt
+    ? new Date(settings.kycRequiresOverwrite.previousVerifiedAt).getTime()
+    : 0;
+  if (requestedAt <= lastVerified) return;
+  try {
+    const idRepo = AppDataSource.getRepository(IDVerification);
+    const latest = await idRepo.findOne({
+      where: { userId: user.id, status: 'verified' as any },
+      order: { verifiedAt: 'DESC' },
+    });
+    if (latest?.verifiedAt && new Date(latest.verifiedAt).getTime() > requestedAt) {
+      (user as any)._kycRequired = false;
+      (user as any)._kycVerified = true;
+      delete settings.kycRequestedByAdmin;
+      delete settings.kycRequestedAt;
+      delete settings.kycRequestedByAdminId;
+      delete settings.kycRequiresOverwrite;
+      await AppDataSource.getRepository(User).save(user);
+      return;
+    }
+  } catch {}
+  (user as any)._kycRequired = true;
+  (user as any)._kycVerified = false;
 }
 
 export async function authRoutes(app: AuthRouteApp, prefix = '') {
@@ -417,6 +447,15 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
 
       const geoBlockLevel = await getGeoBlockLevel(user.billingCountry);
       const idVerificationAllowed = await canPerformIdVerification(user.billingCountry);
+      let kycRequired = await requiresKyc(user.billingCountry);
+      let kycVerified = kycRequired ? await isKycVerified(user.id) : true;
+
+      // Admin-requested KYC overrides
+      if (!kycRequired || !kycVerified) {
+        await applyAdminKycCheck(user);
+        kycRequired = (user as any)._kycRequired ?? kycRequired;
+        kycVerified = (user as any)._kycVerified ?? kycVerified;
+      }
       const orgs = await getUserOrgMemberships(user.id);
       const legacyOrg = orgs[0] || null;
 
@@ -465,6 +504,8 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
           nodeId: user.nodeId || null,
           geoBlockLevel,
           idVerificationAllowed,
+          kycRequired,
+          kycVerified,
         },
       };
     },
@@ -2207,6 +2248,14 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
           }
         }
 
+        let refreshKycRequired = await requiresKyc(user.billingCountry);
+        let refreshKycVerified = refreshKycRequired ? await isKycVerified(user.id) : true;
+        if (!refreshKycRequired || !refreshKycVerified) {
+          await applyAdminKycCheck(user);
+          refreshKycRequired = (user as any)._kycRequired ?? refreshKycRequired;
+          refreshKycVerified = (user as any)._kycVerified ?? refreshKycVerified;
+        }
+
         return {
           user: {
             id: user.id,
@@ -2255,6 +2304,8 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
             usesLegacyPasswordHash: isLegacyPasswordHash(user.passwordHash),
             geoBlockLevel: await getGeoBlockLevel(user.billingCountry),
             idVerificationAllowed: await canPerformIdVerification(user.billingCountry),
+            kycRequired: refreshKycRequired,
+            kycVerified: refreshKycVerified,
             guideShown: user.guideShown === true,
             serverSunsetNoticeSentAt: user.serverSunsetNoticeSentAt || null,
           },
