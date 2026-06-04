@@ -317,8 +317,13 @@ export async function setupConfig(app: ConfigApp) {
     } catch (e) {
       app.log.warn({ err: e }, 'startup: duplicate server config merge check failed');
     }
-    if (nodes.length > 0) {
-      for (const n of nodes) {
+    const wingsNodes = nodes.filter(n => !n.provider || n.provider === 'wings') as NodeWithBackendUrl[];
+    const proxmoxNodes = nodes.filter(n => n.provider === 'proxmox');
+    if (proxmoxNodes.length > 0) {
+      app.log.info({ count: proxmoxNodes.length }, 'proxmox nodes configured, skipping wings socket for them');
+    }
+    if (wingsNodes.length > 0) {
+      for (const n of wingsNodes) {
         connectNodeWithRetry(app, n);
       }
     } else {

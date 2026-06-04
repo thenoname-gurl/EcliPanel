@@ -1,6 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
+import { ProxmoxApiService } from './proxmoxApiService';
 
 const INTERVAL_MS = 30_000;
 const PING_TIMEOUT = 8_000;
@@ -36,30 +37,19 @@ export class NodeHeartbeatService {
   }
 
   private async pingNode(node: Node) {
-    const raw = ((node as any).backendWingsUrl || node.url).replace(/\/+$/, '');
-    const baseUrl = raw.endsWith('/api') ? raw.slice(0, -4) : raw;
-    const endpoint = `${baseUrl}/api/servers`;
-
     let responseMs: number | undefined;
     let status = 'ok';
     const start = Date.now();
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT);
-      try {
-        const fetchOpts: RequestInit & { tls?: { rejectUnauthorized: boolean } } = {
-          method: 'GET',
-          headers: { Authorization: `Bearer ${node.token}` },
-          signal: controller.signal,
-        };
-        if (ALLOW_INVALID_CERTS) fetchOpts.tls = { rejectUnauthorized: false };
-        await fetch(endpoint, fetchOpts);
-      } finally {
-        clearTimeout(timeout);
+      if (node.provider === 'proxmox') {
+        await this.pingProxmox(node);
+      } else {
+        await this.pingWings(node);
       }
       responseMs = Date.now() - start;
     } catch (e: any) {
+      responseMs = Date.now() - start;
       if (
         e.code === 'ETIMEDOUT' ||
         e.code === 'ECONNABORTED' ||
@@ -73,6 +63,49 @@ export class NodeHeartbeatService {
 
     const hbRepo = AppDataSource.getRepository(NodeHeartbeat);
     await hbRepo.save(hbRepo.create({ nodeId: node.id, responseMs, status })).catch(() => {});
+  }
+
+  private async pingWings(node: Node) {
+    const raw = (node.backendWingsUrl || node.url).replace(/\/+$/, '');
+    const baseUrl = raw.endsWith('/api') ? raw.slice(0, -4) : raw;
+    const endpoint = `${baseUrl}/api/servers`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT);
+    try {
+      const fetchOpts: RequestInit & { tls?: { rejectUnauthorized: boolean } } = {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${node.token}` },
+        signal: controller.signal,
+      };
+      if (ALLOW_INVALID_CERTS) fetchOpts.tls = { rejectUnauthorized: false };
+      await fetch(endpoint, fetchOpts);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private async pingProxmox(node: Node) {
+    if (!node.proxmoxHost || !node.proxmoxTokenId || !node.proxmoxSecret) {
+      throw new Error('Proxmox node missing connection details');
+    }
+    const svc = new ProxmoxApiService({
+      host: node.proxmoxHost,
+      tokenId: node.proxmoxTokenId,
+      secret: node.proxmoxSecret,
+      realm: node.proxmoxRealm || 'pam',
+      proxmoxNode: node.proxmoxNode || 'pve',
+      storage: node.proxmoxStorage || 'local',
+      bridge: node.proxmoxBridge || 'vmbr0',
+    });
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT);
+    try {
+      await svc.getVersion();
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   private async purgeOld() {

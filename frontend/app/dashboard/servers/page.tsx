@@ -262,7 +262,7 @@ function TemplateSelector({
           <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] sm:hidden" onClick={() => setOpen(false)} />
 
           {/* Dropdown */}
-          <div className="fixed sm:absolute inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 z-50 w-full sm:w-full sm:max-w-md max-h-[70vh] sm:max-h-[400px] flex flex-col rounded-t-3xl sm:rounded-2xl border border-border/50 bg-card shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-top-2 duration-300">
+          <div className="fixed sm:absolute inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 z-50 w-full sm:w-full sm:max-w-md max-h-[70vh] sm:max-h-[400px] flex flex-col rounded-t-3xl sm:border border-border/50 bg-card shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-top-2 duration-300">
             {/* Mobile drag handle */}
             <div className="flex justify-center pt-3 pb-2 sm:hidden">
               <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
@@ -389,7 +389,7 @@ function NodeSelector({
       {open && (
         <>
           <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] sm:hidden" onClick={() => setOpen(false)} />
-          <div className="fixed sm:absolute inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 z-50 w-full sm:w-full sm:max-w-md max-h-[70vh] sm:max-h-[400px] flex flex-col rounded-t-3xl sm:rounded-2xl border border-border/50 bg-card shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-top-2 duration-300">
+          <div className="fixed sm:absolute inset-x-0 bottom-0 sm:inset-x-auto sm:bottom-auto sm:left-0 sm:top-full sm:mt-2 z-50 w-full sm:w-full sm:max-w-md max-h-[70vh] sm:max-h-[400px] flex flex-col rounded-t-3xl sm:border border-border/50 bg-card shadow-2xl animate-in slide-in-from-bottom-full sm:slide-in-from-top-2 duration-300">
             <div className="flex justify-center pt-3 pb-2 sm:hidden">
               <div className="h-1 w-12 rounded-full bg-muted-foreground/20" />
             </div>
@@ -1254,7 +1254,7 @@ function ServerCard({
     : 0
 
   return (
-    <div data-guide-id="server-card" className="group relative rounded-2xl border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
+    <div data-guide-id="server-card" className="group relative border border-border/50 bg-card overflow-hidden transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5">
       {/* Top accent bar */}
       <div className={`h-0.5 w-full ${isOnline ? "bg-gradient-to-r from-emerald-500/80 via-emerald-400/50 to-transparent" : "bg-gradient-to-r from-zinc-500/40 to-transparent"}`} />
 
@@ -1683,15 +1683,15 @@ export default function ServersPage() {
           {/* Quick stats */}
           {!loading && servers.length > 0 && (
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
-              <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
+              <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.total")}</p>
                 <p className="text-lg sm:text-2xl font-bold text-foreground tabular-nums mt-0.5">{servers.length}</p>
               </div>
-              <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
+              <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.online")}</p>
                 <p className="text-lg sm:text-2xl font-bold text-emerald-500 tabular-nums mt-0.5">{onlineCount}</p>
               </div>
-              <div className="rounded-2xl border border-border/50 bg-card p-3 sm:p-4">
+              <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.offline")}</p>
                 <p className="text-lg sm:text-2xl font-bold text-muted-foreground tabular-nums mt-0.5">{servers.length - onlineCount}</p>
               </div>
@@ -1700,7 +1700,7 @@ export default function ServersPage() {
 
           {/* Favorites */}
           {favoriteServers.length > 0 && (
-            <section className="sticky top-0 z-20 rounded-2xl border border-border/50 bg-card p-3 sm:p-4 shadow-sm shadow-black/5">
+            <section className="sticky top-0 z-20 border border-border/50 bg-card p-3 sm:p-4 shadow-sm shadow-black/5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">{t("sections.favorites")}</h3>
                 <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{favoriteServers.length}</span>

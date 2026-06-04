@@ -4,8 +4,7 @@ import { Node } from '../models/node.entity';
 import { Notification } from '../models/notification.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { User } from '../models/user.entity';
-import { nodeService } from './nodeService';
-import { WingsApiService } from './wingsApiService';
+import { nodeService, type ProviderService } from './nodeService';
 import { sendMail } from './mailService';
 import { createActivityLog } from '../handlers/logHandler';
 import { resolveLocale } from '../i18n/resolve';
@@ -38,7 +37,7 @@ function normalizeStatus(value: any): string {
     .toLowerCase();
 }
 
-async function getServerStatusMap(svc: WingsApiService): Promise<Map<string, string>> {
+async function getServerStatusMap(svc: ProviderService): Promise<Map<string, string>> {
   const res = await svc.getServers();
   const data = Array.isArray(res.data) ? res.data : (res.data?.servers ?? []);
   const map = new Map<string, string>();

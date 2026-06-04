@@ -2,6 +2,7 @@
 
 import { use, useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
+import { motion, AnimatePresence } from "framer-motion"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTranslations } from "next-intl"
@@ -36,6 +37,7 @@ import {
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { formatBytes } from "./serverTabHelpers"
 import { StatCard, LoadingState, MiniStat, CardGrid } from "./serverTabShared"
+import { ServerViewV2 } from "./ServerViewV2"
 import {
   Play,
   Square,
@@ -82,6 +84,7 @@ import {
   Shield,
   ExternalLink,
   Link2,
+  Server,
 } from "lucide-react"
 
 const ConsoleTabLazy = lazy(() => import("./ConsoleTab").then((m) => ({ default: m.ConsoleTab })))
@@ -689,7 +692,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   const [mounts, setMounts] = useState<any[] | null>(null)
   useEffect(() => {
-    apiFetch(`/api/servers/${id}/mounts`)
+    apiFetch(`/api/servers/v1/${id}/mounts`)
       .then((data) => setMounts(Array.isArray(data) ? data : []))
       .catch(() => setMounts([]))
   }, [id])
@@ -1195,6 +1198,10 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     )
   }
 
+  if (server?.provider === "proxmox") {
+    return <ServerViewV2 server={server} id={id} />
+  }
+
   return (
     <div className="flex flex-col h-full w-full overflow-hidden">
       {powerToast && (
@@ -1233,106 +1240,101 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* Header */}
-      <div data-guide-id="server-header" className="flex-shrink-0">
-        <PanelHeader
-          title={server.name || server.uuid?.slice(0, 8) || t("header.serverFallback")}
-          description={`${server.uuid || id}`}
-        />
-      </div>
-
-      {isDmcaProtected && (
-        <div className="rounded-3xl border border-destructive/30 bg-destructive/5 p-4 text-destructive mb-3">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4" />
-            <p className="text-sm font-semibold">DMCA takedown active</p>
+      <div className="border-b border-border px-6 sm:px-12 lg:px-40 py-5">
+        <motion.div
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+        >
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-foreground truncate">
+              {server.name || server.uuid?.slice(0, 8) || t("header.serverFallback")}
+            </h1>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span
+                className={cn(
+                  "inline-block h-2 w-2 flex-shrink-0",
+                  server?.status === "running" ? "bg-green-500"
+                  : server?.status === "stopped" ? "bg-red-400"
+                  : "bg-yellow-400"
+                )}
+              />
+              <span className="text-muted-foreground text-sm capitalize">{server?.status || t("states.unknown")}</span>
+              <span className="w-px h-3 bg-border mx-1 hidden sm:block" />
+              <span className="text-muted-foreground text-xs font-mono truncate hidden sm:block">
+                {server?.uuid || id}
+              </span>
+              {isKvm && (
+                <>
+                  <span className="w-px h-3 bg-border mx-1" />
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-400">
+                    <Monitor className="h-3 w-3" />
+                    KVM
+                  </span>
+                </>
+              )}
+            </div>
           </div>
-          <p className="text-xs text-destructive/80 mt-2">
-            {dmcaReason}. Deletion scheduled for {dmcaDeletionAt ? dmcaDeletionAt.toLocaleString() : 'within 30 days'}{dmcaDaysLeft !== null ? ` (${dmcaDaysLeft} day${dmcaDaysLeft === 1 ? '' : 's'} remaining)` : ''}.
-          </p>
-        </div>
-      )}
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <PowerActions
+              server={server}
+              t={t}
+              powerLoading={powerLoading}
+              markStartedLoading={markStartedLoading}
+              kvmLoading={kvmLoading}
+              kvmEnabled={isKvm}
+              onAction={confirmPowerAction}
+              onToggleKvm={canToggleKvm ? toggleKvm : undefined}
+              onMarkStarted={canMarkStarted ? markServerAsStarted : undefined}
+              onTransfer={openTransferDialog}
+              canTransfer={canTransfer}
+            />
+            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+              {canOpenAdminMode && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    router.push(
+                      `/dashboard/admin?tab=servers&viewServer=${encodeURIComponent(server?.uuid || id)}`
+                    )
+                  }
+                  className="h-9"
+                >
+                  <ExternalLink className="h-4 w-4 mr-1.5" />
+                  {t("actions.adminMode")}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={loadServer}
+                className="h-9 w-9 p-0"
+                aria-label={t("actions.refreshServer")}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+
+        {isDmcaProtected && (
+          <motion.div
+            className="mt-4 flex items-center gap-2 text-red-400 text-sm border border-red-400/20 bg-red-400/5 px-4 py-2"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+            <p>{dmcaReason}. Deletion scheduled for {dmcaDeletionAt ? dmcaDeletionAt.toLocaleString() : 'within 30 days'}{dmcaDaysLeft !== null ? ` (${dmcaDaysLeft} day${dmcaDaysLeft === 1 ? '' : 's'} remaining)` : ''}.</p>
+          </motion.div>
+        )}
+      </div>
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
         <div className="flex flex-col gap-3 p-3 sm:p-4 md:p-6 w-full min-w-0 max-w-full">
-          {/* Server Header Card */}
-          <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className={cn(
-                  "h-3 w-3 rounded-full flex-shrink-0 animate-pulse",
-                  statusColor.split(" ")[1]
-                )}
-              />
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {server.name || t("header.unnamedServer")}
-                </p>
-                <p className="text-[11px] text-muted-foreground truncate font-mono hidden sm:block">
-                  {server.uuid || id}
-                </p>
-              </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0 flex-wrap justify-end">
-                <Badge
-                  variant="outline"
-                  className={cn("text-xs whitespace-nowrap", statusColor.split(" ")[0])}
-                >
-                  {server.status || t("states.unknown")}
-                </Badge>
-                {isKvm && (
-                  <Badge
-                    variant="outline"
-                    className="text-xs border-indigo-500/30 text-indigo-400 bg-indigo-500/5 whitespace-nowrap"
-                  >
-                    <Monitor className="h-3 w-3 mr-1" />
-                    KVM
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-2 min-w-0">
-              <PowerActions
-                server={server}
-                t={t}
-                powerLoading={powerLoading}
-                markStartedLoading={markStartedLoading}
-                kvmLoading={kvmLoading}
-                kvmEnabled={isKvm}
-                onAction={confirmPowerAction}
-                onToggleKvm={canToggleKvm ? toggleKvm : undefined}
-                onMarkStarted={canMarkStarted ? markServerAsStarted : undefined}
-                onTransfer={openTransferDialog}
-                canTransfer={canTransfer}
-              />
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {canOpenAdminMode && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      router.push(
-                        `/dashboard/admin?tab=servers&viewServer=${encodeURIComponent(server?.uuid || id)}`
-                      )
-                    }
-                    className="h-9"
-                  >
-                    <ExternalLink className="h-4 w-4 mr-1.5" />
-                    {t("actions.adminMode")}
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={loadServer}
-                  className="h-9 w-9 p-0"
-                  aria-label={t("actions.refreshServer")}
-                >
-                  <RefreshCw className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
 
           {/* Resource Stats */}
           <div data-guide-id="server-resources" className="min-w-0">
@@ -1345,7 +1347,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Tab Content */}
-          <div className="rounded-xl border border-border bg-card overflow-hidden min-w-0 w-full">
+          <div className="border border-border bg-card overflow-hidden min-w-0 w-full">
             {activeTab === "console" && (
               <Suspense fallback={<LoadingState message={t("states.loadingConsole")} />}>
                 <ConsoleTabLazy serverId={id} installing={server?.installing} />
@@ -2591,7 +2593,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
 
   const lockBackup = async (bid: string, lock: boolean) => {
     try {
-      await apiFetch(`/api/servers/${serverId}/backups/${bid}/lock`, {
+      await apiFetch(`/api/servers/v1/${serverId}/backups/${bid}/lock`, {
         method: "POST",
         body: JSON.stringify({ lock }),
       })
@@ -3118,7 +3120,7 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiFetch(`/api/servers/${serverId}/mounts`)
+    apiFetch(`/api/servers/v1/${serverId}/mounts`)
       .then((data) => setMounts(Array.isArray(data) ? data : []))
       .catch(() => setMounts([]))
       .finally(() => setLoading(false))

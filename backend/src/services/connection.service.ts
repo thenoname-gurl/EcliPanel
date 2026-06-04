@@ -83,6 +83,13 @@ export async function handleServerConnectionOpen(
     console.warn(
       `[tunnel] Failed to deliver connection.open to client agent ${allocation.clientDevice.deviceCode} for connection ${connectionId}`
     );
+    // Client is offline — close orphaned connection on the server side immediately
+    sendAgentMessage(serverAgentId, {
+      type: 'connection.close',
+      connectionId,
+    });
+    connectionMap.delete(connectionId);
+    return;
   }
 
   dispatchPendingData(connectionId);

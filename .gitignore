@@ -81,3 +81,5 @@ tunnel/client/target/*
 
 # Age Verification Model
 /backend/model
+
+AGENTS.md

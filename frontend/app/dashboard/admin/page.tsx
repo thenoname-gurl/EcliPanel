@@ -1331,6 +1331,14 @@ export default function AdminPanel() {
   const [addNodeTokenLoading, setAddNodeTokenLoading] = useState(false)
   const [addNodeLoading, setAddNodeLoading] = useState(false)
   const [addNodeCreated, setAddNodeCreated] = useState<AdminNode | null>(null)
+  const [addNodeProvider, setAddNodeProvider] = useState<"wings" | "proxmox">("wings")
+  const [addNodeProxmoxHost, setAddNodeProxmoxHost] = useState("")
+  const [addNodeProxmoxTokenId, setAddNodeProxmoxTokenId] = useState("")
+  const [addNodeProxmoxSecret, setAddNodeProxmoxSecret] = useState("")
+  const [addNodeProxmoxRealm, setAddNodeProxmoxRealm] = useState("pam")
+  const [addNodeProxmoxNode, setAddNodeProxmoxNode] = useState("pve")
+  const [addNodeProxmoxStorage, setAddNodeProxmoxStorage] = useState("local")
+  const [addNodeProxmoxBridge, setAddNodeProxmoxBridge] = useState("vmbr0")
 
   // ── AI Model state ──
   const [aiModels, setAiModels] = useState<AdminAIModel[]>([])
@@ -2828,7 +2836,7 @@ export default function AdminPanel() {
     if (!(await confirmAsync(confirmMessage))) return
     setEsReinstalling(true)
     try {
-      await apiFetch(`/api/servers/${editServerDialog.uuid}/reinstall`, {
+      await apiFetch(`/api/servers/v1/${editServerDialog.uuid}/reinstall`, {
         method: "POST",
         body: JSON.stringify({ truncate_directory: wipe }),
       })
@@ -3296,6 +3304,9 @@ remote: ${backendUrl}`
     setAddNodeDataPath("/var/lib/eclipanel/volumes"); setAddNodeSftpPort("2022")
     setAddNodeType("free"); setAddNodeToken(""); setAddNodeCreated(null)
     setAddNodeIpv6Subnet(""); setAddNodeIpv6ExcludedPorts(""); setAddNodeIpv6ReservedCount("0");
+    setAddNodeProvider("wings")
+    setAddNodeProxmoxHost(""); setAddNodeProxmoxTokenId(""); setAddNodeProxmoxSecret("")
+    setAddNodeProxmoxRealm("pam"); setAddNodeProxmoxNode("pve"); setAddNodeProxmoxStorage("local"); setAddNodeProxmoxBridge("vmbr0")
   }
 
   async function generateAddNodeToken() {
@@ -3309,27 +3320,46 @@ remote: ${backendUrl}`
   }
 
   async function submitAddNode() {
-    if (!addNodeToken) { await generateAddNodeToken(); return }
+    if (addNodeProvider === "wings" && !addNodeToken) { await generateAddNodeToken(); return }
     setAddNodeLoading(true)
     try {
       const scheme = addNodeSsl ? "https" : "http"
-      const url = `${scheme}://${addNodeFqdn}:${addNodePort}`
+      const url = addNodeProvider === "wings"
+        ? `${scheme}://${addNodeFqdn}:${addNodePort}`
+        : `https://${addNodeProxmoxHost}:8006`
+      const body: Record<string, any> = {
+        name: addNodeName,
+        url,
+        token: addNodeToken || crypto.randomUUID(),
+        provider: addNodeProvider,
+        nodeType: addNodeType,
+      }
+      if (addNodeProvider === "wings") {
+        body.ipv6Subnet = addNodeIpv6Subnet || undefined
+        body.ipv6ExcludedPorts = addNodeIpv6ExcludedPorts || undefined
+        body.ipv6ReservedCount = addNodeIpv6ReservedCount ? Number(addNodeIpv6ReservedCount) : undefined
+      }
+      if (addNodeProvider === "proxmox") {
+        body.proxmoxHost = addNodeProxmoxHost
+        body.proxmoxTokenId = addNodeProxmoxTokenId
+        body.proxmoxSecret = addNodeProxmoxSecret
+        body.proxmoxRealm = addNodeProxmoxRealm
+        body.proxmoxNode = addNodeProxmoxNode
+        body.proxmoxStorage = addNodeProxmoxStorage
+        body.proxmoxBridge = addNodeProxmoxBridge
+      }
       const created = await apiFetch(API_ENDPOINTS.nodes, {
         method: "POST",
-        body: JSON.stringify({
-          name: addNodeName,
-          url,
-          token: addNodeToken,
-          nodeType: addNodeType,
-          ipv6Subnet: addNodeIpv6Subnet || undefined,
-          ipv6ExcludedPorts: addNodeIpv6ExcludedPorts || undefined,
-          ipv6ReservedCount: addNodeIpv6ReservedCount ? Number(addNodeIpv6ReservedCount) : undefined,
-        }),
+        body: JSON.stringify(body),
       })
       const node = created.node ?? created
       setNodes((prev) => [...prev, node])
       setAddNodeCreated(node)
-      setAddNodeStep("config")
+      if (addNodeProvider === "proxmox") {
+        setAddNodeStep("done")
+      } else {
+        setAddNodeStep("config")
+      }
       apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
     } finally {
       setAddNodeLoading(false)
@@ -5664,6 +5694,28 @@ remote: ${panelUrl}`
                     generateAddNodeToken,
                     addNodeTokenLoading,
                     addNodeCreated,
+                    addNodeProvider,
+                    setAddNodeProvider,
+                    addNodeProxmoxHost,
+                    setAddNodeProxmoxHost,
+                    addNodeProxmoxTokenId,
+                    setAddNodeProxmoxTokenId,
+                    addNodeProxmoxSecret,
+                    setAddNodeProxmoxSecret,
+                    addNodeProxmoxRealm,
+                    setAddNodeProxmoxRealm,
+                    addNodeProxmoxNode,
+                    setAddNodeProxmoxNode,
+                    addNodeProxmoxStorage,
+                    setAddNodeProxmoxStorage,
+                    addNodeProxmoxBridge,
+                    setAddNodeProxmoxBridge,
+                    addNodeIpv6Subnet,
+                    setAddNodeIpv6Subnet,
+                    addNodeIpv6ExcludedPorts,
+                    setAddNodeIpv6ExcludedPorts,
+                    addNodeIpv6ReservedCount,
+                    setAddNodeIpv6ReservedCount,
                     buildWingsConfig,
                     submitAddNode,
                     addNodeLoading,

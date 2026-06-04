@@ -17,6 +17,7 @@ export interface CreateNodeBody {
   url?: string;
   token?: string;
   nodeId?: string;
+  provider?: string;
   nodeType?: string;
   useSSL?: unknown;
   allowedOrigin?: string;
@@ -31,12 +32,20 @@ export interface CreateNodeBody {
   portRangeEnd?: unknown;
   deploymentsDisabled?: unknown;
   deploymentNotice?: string;
+  proxmoxHost?: string;
+  proxmoxTokenId?: string;
+  proxmoxSecret?: string;
+  proxmoxRealm?: string;
+  proxmoxNode?: string;
+  proxmoxStorage?: string;
+  proxmoxBridge?: string;
 }
 
 export interface UpdateNodeBody {
   nodeId?: string;
   url?: string;
   nodeType?: string;
+  provider?: string;
   orgId?: unknown;
   name?: string;
   portRangeStart?: unknown;
@@ -58,6 +67,13 @@ export interface UpdateNodeBody {
   backendWingsUrl?: string;
   deploymentsDisabled?: unknown;
   deploymentNotice?: string;
+  proxmoxHost?: string;
+  proxmoxTokenId?: string;
+  proxmoxSecret?: string;
+  proxmoxRealm?: string;
+  proxmoxNode?: string;
+  proxmoxStorage?: string;
+  proxmoxBridge?: string;
 }
 
 export type RebootOperation = {

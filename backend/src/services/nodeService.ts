@@ -2,35 +2,77 @@ import { AppDataSource } from '../config/typeorm';
 import { Node } from '../models/node.entity';
 import { ServerMapping } from '../models/serverMapping.entity';
 import { WingsApiService } from './wingsApiService';
+import { ProxmoxApiService } from './proxmoxApiService';
 import { encrypt, decrypt } from '../utils/crypto';
+import type { NodeProvider } from '../types/nodeProvider';
+
+export type ProviderService = WingsApiService | ProxmoxApiService;
 
 export class NodeService {
   private cache: Map<number, WingsApiService> = new Map();
+  private proxmoxCache: Map<number, ProxmoxApiService> = new Map();
 
-  async getServiceForServer(uuid: string): Promise<WingsApiService> {
+  invalidateNode(nodeId: number) {
+    this.cache.delete(nodeId);
+    this.proxmoxCache.delete(nodeId);
+  }
+
+  invalidateAll() {
+    this.cache.clear();
+    this.proxmoxCache.clear();
+  }
+
+  async getServiceForServer(uuid: string): Promise<ProviderService> {
     const repo = AppDataSource.getRepository(ServerMapping);
     const mapping = await repo.findOne({ where: { uuid }, relations: { node: true } });
     if (!mapping) throw new Error('No node mapping for server');
     return this.getServiceForNode(mapping.node.id);
   }
 
-  invalidateNode(nodeId: number) {
-    this.cache.delete(nodeId);
-  }
-
-  invalidateAll() {
-    this.cache.clear();
-  }
-
-  async getServiceForNode(nodeId: number): Promise<WingsApiService> {
-    if (this.cache.has(nodeId)) return this.cache.get(nodeId)!;
+  async getServiceForNode(nodeId: number): Promise<ProviderService> {
     const nodeRepo = AppDataSource.getRepository(Node);
     const node = await nodeRepo.findOneBy({ id: nodeId });
     if (!node) throw new Error('Node not found');
-    const base = (node as any).backendWingsUrl || node.url;
+
+    if (node.provider === 'proxmox') {
+      if (this.proxmoxCache.has(nodeId)) return this.proxmoxCache.get(nodeId)!;
+      const svc = this.buildProxmoxService(node);
+      this.proxmoxCache.set(nodeId, svc);
+      return svc;
+    }
+
+    if (this.cache.has(nodeId)) return this.cache.get(nodeId)!;
+    const base = node.backendWingsUrl || node.url;
     const svc = new WingsApiService(base, node.token);
     this.cache.set(nodeId, svc);
     return svc;
+  }
+
+  async getWingsService(nodeId: number): Promise<WingsApiService> {
+    const svc = await this.getServiceForNode(nodeId);
+    if (svc instanceof WingsApiService) return svc;
+    throw new Error('Node is not a Wings node');
+  }
+
+  async getProxmoxService(nodeId: number): Promise<ProxmoxApiService> {
+    const svc = await this.getServiceForNode(nodeId);
+    if (svc instanceof ProxmoxApiService) return svc;
+    throw new Error('Node is not a Proxmox node');
+  }
+
+  private buildProxmoxService(node: Node): ProxmoxApiService {
+    if (!node.proxmoxHost || !node.proxmoxTokenId || !node.proxmoxSecret) {
+      throw new Error('Proxmox node missing connection details');
+    }
+    return new ProxmoxApiService({
+      host: node.proxmoxHost,
+      tokenId: node.proxmoxTokenId,
+      secret: node.proxmoxSecret,
+      realm: node.proxmoxRealm || 'pam',
+      proxmoxNode: node.proxmoxNode || 'pve',
+      storage: node.proxmoxStorage || 'local',
+      bridge: node.proxmoxBridge || 'vmbr0',
+    });
   }
 
   async registerNode(
@@ -38,10 +80,18 @@ export class NodeService {
     url: string,
     token: string,
     nodeId?: string,
-    backendWingsUrl?: string
+    backendWingsUrl?: string,
+    provider?: string
   ) {
     const repo = AppDataSource.getRepository(Node);
-    let node = repo.create({ name, url, token, nodeId, backendWingsUrl });
+    let node = repo.create({
+      name,
+      url,
+      token,
+      nodeId,
+      backendWingsUrl,
+      provider: (provider as any) || 'wings',
+    });
     node = await repo.save(node);
     this.invalidateNode(node.id);
     return node;
@@ -78,6 +128,14 @@ export class NodeService {
       rootUser: node.rootUser ? decrypt(node.rootUser) : undefined,
       rootPassword: node.rootPassword ? decrypt(node.rootPassword) : undefined,
     };
+  }
+
+  isProxmoxNode(node: Node): boolean {
+    return node.provider === 'proxmox';
+  }
+
+  isWingsNode(node: Node): boolean {
+    return !node.provider || node.provider === 'wings';
   }
 }
 

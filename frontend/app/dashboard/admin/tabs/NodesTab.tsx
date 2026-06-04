@@ -49,13 +49,29 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     generateAddNodeToken,
     addNodeTokenLoading,
     addNodeCreated,
+    addNodeProvider,
+    setAddNodeProvider,
+    addNodeProxmoxHost,
+    setAddNodeProxmoxHost,
+    addNodeProxmoxTokenId,
+    setAddNodeProxmoxTokenId,
+    addNodeProxmoxSecret,
+    setAddNodeProxmoxSecret,
+    addNodeProxmoxRealm,
+    setAddNodeProxmoxRealm,
+    addNodeProxmoxNode,
+    setAddNodeProxmoxNode,
+    addNodeProxmoxStorage,
+    setAddNodeProxmoxStorage,
+    addNodeProxmoxBridge,
+    setAddNodeProxmoxBridge,
+    buildWingsConfig,
     addNodeIpv6Subnet,
     setAddNodeIpv6Subnet,
     addNodeIpv6ExcludedPorts,
     setAddNodeIpv6ExcludedPorts,
     addNodeIpv6ReservedCount,
     setAddNodeIpv6ReservedCount,
-    buildWingsConfig,
     submitAddNode,
     addNodeLoading,
     editNodeDialog,
@@ -95,6 +111,8 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     buildNodeConfigYaml,
   } = ctx
 
+  const isProxmox = addNodeProvider === "proxmox"
+
   return (
     <>
     <div className="flex flex-col gap-4">
@@ -133,6 +151,10 @@ export default function NodesTab({ ctx }: { ctx: any }) {
             const typeLabel: Record<string, string> = {
               free: "Free", paid: "Paid", free_and_paid: "Free + Paid", enterprise: "Enterprise",
             }
+            const providerColors: Record<string, string> = {
+              wings: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400",
+              proxmox: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+            }
             return (
               <div key={node.id} className="rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30">
                 <div className="flex items-start justify-between gap-3">
@@ -149,11 +171,14 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs">#{node.id}</Badge>
+                    <Badge variant="outline" className={`text-xs ${providerColors[node.provider || 'wings']}`}>{node.provider || 'wings'}</Badge>
                     <Badge variant="outline" className={`text-xs ${typeColors[node.nodeType] || typeColors.free}`}>{typeLabel[node.nodeType] || node.nodeType}</Badge>
                     {node.deploymentsDisabled && <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs">Disabled</Badge>}
                     <div className="flex gap-1">
                       <Button size="sm" variant="outline" onClick={() => openEditNode(node)} className="border-border h-7 px-2 text-xs gap-1"><Edit className="h-3 w-3" /> {t("actions.classify")}</Button>
-                      <Button size="sm" variant="outline" onClick={() => viewNodeConfig(node)} className="border-border h-7 px-2 text-xs gap-1" title={t("actions.viewWingsConfig")}><FileCode className="h-3 w-3" /></Button>
+                      {(!node.provider || node.provider === 'wings') && (
+                        <Button size="sm" variant="outline" onClick={() => viewNodeConfig(node)} className="border-border h-7 px-2 text-xs gap-1" title={t("actions.viewWingsConfig")}><FileCode className="h-3 w-3" /></Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => deleteNode(node)} className="border-destructive/50 text-destructive h-7 px-2 text-xs"><Trash2 className="h-3 w-3" /></Button>
                     </div>
                   </div>
@@ -177,121 +202,187 @@ export default function NodesTab({ ctx }: { ctx: any }) {
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
             <HardDrive className="h-4 w-4 text-muted-foreground" />
-            {addNodeStep === "config" ? t("addDialog.configTitle") : t("addDialog.title")}
+            {addNodeStep === "config" ? t("addDialog.configTitle") : addNodeStep === "done" ? "Proxmox Node Created" : t("addDialog.title")}
           </DialogTitle>
         </DialogHeader>
 
         {addNodeStep === "form" && (
           <div className="flex flex-col gap-3 py-1">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.nodeName")}</label>
-                <input value={addNodeName} onChange={(e) => setAddNodeName(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                  placeholder={t("addDialog.fields.nodeNamePlaceholder")} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.nodeType")}</label>
-                <select value={addNodeType} onChange={(e) => setAddNodeType(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
-                  <option value="free">{t("types.free")}</option>
-                  <option value="paid">{t("types.paid")}</option>
-                  <option value="free_and_paid">{t("types.freeAndPaid")}</option>
-                  <option value="enterprise">{t("types.enterprise")}</option>
-                </select>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.fqdn")}</label>
-              <input value={addNodeFqdn} onChange={(e) => setAddNodeFqdn(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                placeholder={t("addDialog.fields.fqdnPlaceholder")} />
-            </div>
-
-            <div className="grid grid-cols-3 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.wingsPort")}</label>
-                <input value={addNodePort} onChange={(e) => setAddNodePort(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                  placeholder={t("addDialog.fields.wingsPortPlaceholder")} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.sftpPort")}</label>
-                <input value={addNodeSftpPort} onChange={(e) => setAddNodeSftpPort(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                  placeholder={t("addDialog.fields.sftpPortPlaceholder")} />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.ssl")}</label>
-                <div className="flex gap-2 h-9 items-center">
-                  {["https", "http"].map((s) => (
-                    <button key={s} type="button"
-                      onClick={() => setAddNodeSsl(s === "https")}
-                      className={`rounded-md px-3 py-1.5 text-xs border transition-colors ${(s === "https") === addNodeSsl
-                        ? "border-primary/50 bg-primary/20 text-primary"
-                        : "border-border bg-secondary/50 text-muted-foreground"
-                        }`}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.wingsDataDirectory")}</label>
-              <input value={addNodeDataPath} onChange={(e) => setAddNodeDataPath(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
-            </div>
-
-            <div className="grid grid-cols-1 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Subnet</label>
-                <input value={addNodeIpv6Subnet} onChange={(e) => setAddNodeIpv6Subnet(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                  placeholder="e.g. 2001:db8:100::/64" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Excluded Ports</label>
-                <input value={addNodeIpv6ExcludedPorts} onChange={(e) => setAddNodeIpv6ExcludedPorts(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-                  placeholder="e.g. 25,465,587" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
-                <input type="number" min="0" value={addNodeIpv6ReservedCount} onChange={(e) => setAddNodeIpv6ReservedCount(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.authToken")}</label>
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Provider</label>
               <div className="flex gap-2">
-                <input value={addNodeToken} onChange={(e) => setAddNodeToken(e.target.value)}
-                  className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
-                  placeholder={t("addDialog.fields.authTokenPlaceholder")} />
-                <Button type="button" size="sm" variant="outline" onClick={generateAddNodeToken}
-                  disabled={addNodeTokenLoading} className="border-border shrink-0 h-9 px-3 text-xs">
-                  {addNodeTokenLoading ? "…" : t("actions.generate")}
-                </Button>
-              </div>
-              {addNodeToken && (
-                <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-1.5">
-                  <span className="flex-1 font-mono text-xs text-green-400 break-all truncate">{addNodeToken}</span>
-                  <button onClick={() => navigator.clipboard.writeText(addNodeToken)} className="text-green-400 hover:text-green-300 shrink-0">
-                    {t("actions.copy")}
+                {["wings", "proxmox"].map((p) => (
+                  <button key={p} type="button"
+                    onClick={() => setAddNodeProvider(p)}
+                    className={`rounded-md px-4 py-2 text-xs border transition-colors ${addNodeProvider === p
+                      ? "border-primary/50 bg-primary/20 text-primary"
+                      : "border-border bg-secondary/50 text-muted-foreground"
+                    }`}>
+                    {p === "wings" ? "Wings (Docker)" : "Proxmox VE (LXC/KVM)"}
                   </button>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.nodeName")}</label>
+              <input value={addNodeName} onChange={(e) => setAddNodeName(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                placeholder={t("addDialog.fields.nodeNamePlaceholder")} />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.nodeType")}</label>
+              <select value={addNodeType} onChange={(e) => setAddNodeType(e.target.value)}
+                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                <option value="free">{t("types.free")}</option>
+                <option value="paid">{t("types.paid")}</option>
+                <option value="free_and_paid">{t("types.freeAndPaid")}</option>
+                <option value="enterprise">{t("types.enterprise")}</option>
+              </select>
+            </div>
+
+            {isProxmox ? (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proxmox Host</label>
+                  <input value={addNodeProxmoxHost} onChange={(e) => setAddNodeProxmoxHost(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder="pve.example.com" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Token ID</label>
+                    <input value={addNodeProxmoxTokenId} onChange={(e) => setAddNodeProxmoxTokenId(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="root@pam!mytoken" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Secret</label>
+                    <input type="password" value={addNodeProxmoxSecret} onChange={(e) => setAddNodeProxmoxSecret(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="••••••••" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Realm</label>
+                    <input value={addNodeProxmoxRealm} onChange={(e) => setAddNodeProxmoxRealm(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="pam" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proxmox Node</label>
+                    <input value={addNodeProxmoxNode} onChange={(e) => setAddNodeProxmoxNode(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="pve" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Storage</label>
+                    <input value={addNodeProxmoxStorage} onChange={(e) => setAddNodeProxmoxStorage(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="local" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Bridge</label>
+                    <input value={addNodeProxmoxBridge} onChange={(e) => setAddNodeProxmoxBridge(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="vmbr0" />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.fqdn")}</label>
+                  <input value={addNodeFqdn} onChange={(e) => setAddNodeFqdn(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder={t("addDialog.fields.fqdnPlaceholder")} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.wingsPort")}</label>
+                    <input value={addNodePort} onChange={(e) => setAddNodePort(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder={t("addDialog.fields.wingsPortPlaceholder")} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.sftpPort")}</label>
+                    <input value={addNodeSftpPort} onChange={(e) => setAddNodeSftpPort(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder={t("addDialog.fields.sftpPortPlaceholder")} />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.ssl")}</label>
+                    <div className="flex gap-2 h-9 items-center">
+                      {["https", "http"].map((s) => (
+                        <button key={s} type="button"
+                          onClick={() => setAddNodeSsl(s === "https")}
+                          className={`rounded-md px-3 py-1.5 text-xs border transition-colors ${(s === "https") === addNodeSsl
+                            ? "border-primary/50 bg-primary/20 text-primary"
+                            : "border-border bg-secondary/50 text-muted-foreground"
+                          }`}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.wingsDataDirectory")}</label>
+                  <input value={addNodeDataPath} onChange={(e) => setAddNodeDataPath(e.target.value)}
+                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Subnet</label>
+                    <input value={addNodeIpv6Subnet} onChange={(e) => setAddNodeIpv6Subnet(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                      placeholder="e.g. 2001:db8:100::/64" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Excluded Ports</label>
+                    <input value={addNodeIpv6ExcludedPorts} onChange={(e) => setAddNodeIpv6ExcludedPorts(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                      placeholder="e.g. 25,465,587" />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
+                    <input type="number" min="0" value={addNodeIpv6ReservedCount} onChange={(e) => setAddNodeIpv6ReservedCount(e.target.value)}
+                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.authToken")}</label>
+                  <div className="flex gap-2">
+                    <input value={addNodeToken} onChange={(e) => setAddNodeToken(e.target.value)}
+                      className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder={t("addDialog.fields.authTokenPlaceholder")} />
+                    <Button type="button" size="sm" variant="outline" onClick={generateAddNodeToken}
+                      disabled={addNodeTokenLoading} className="border-border shrink-0 h-9 px-3 text-xs">
+                      {addNodeTokenLoading ? "…" : t("actions.generate")}
+                    </Button>
+                  </div>
+                  {addNodeToken && (
+                    <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-1.5">
+                      <span className="flex-1 font-mono text-xs text-green-400 break-all truncate">{addNodeToken}</span>
+                      <button onClick={() => navigator.clipboard.writeText(addNodeToken)} className="text-green-400 hover:text-green-300 shrink-0">
+                        {t("actions.copy")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {addNodeStep === "config" && (
           <div className="flex flex-col gap-3 py-1">
             <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs text-green-400">
-              ✓ {t("addDialog.configReady", { name: addNodeCreated?.name })} 
+              ✓ {t("addDialog.configReady", { name: addNodeCreated?.name })}
               <code className="font-mono">/etc/eclipanel/config.yml</code> on your Wings server.
             </div>
             <div className="relative">
@@ -312,16 +403,28 @@ export default function NodesTab({ ctx }: { ctx: any }) {
           </div>
         )}
 
+        {addNodeStep === "done" && (
+          <div className="flex flex-col gap-3 py-3 text-center">
+            <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-xs text-green-400">
+              ✓ Proxmox node <strong>{addNodeCreated?.name}</strong> created successfully.
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The panel will now communicate directly with your Proxmox VE host via its API.
+              You can manage LXC containers and KVM virtual machines on this node.
+            </p>
+          </div>
+        )}
+
         <DialogFooter>
           {addNodeStep === "form" ? (
             <>
               <Button variant="outline" onClick={() => setAddNodeOpen(false)} className="border-border">{t("actions.cancel")}</Button>
               <Button
                 onClick={submitAddNode}
-                disabled={addNodeLoading || !addNodeName.trim() || !addNodeFqdn.trim() || !addNodeToken.trim()}
+                disabled={addNodeLoading || !addNodeName.trim() || (!isProxmox && (!addNodeFqdn.trim() || !addNodeToken.trim())) || (isProxmox && (!addNodeProxmoxHost.trim() || !addNodeProxmoxTokenId.trim() || !addNodeProxmoxSecret.trim()))}
                 className="bg-primary text-primary-foreground"
               >
-                {addNodeLoading ? t("actions.creating") : !addNodeToken ? t("actions.generateTokenFirst") : t("actions.createNode")}
+                {addNodeLoading ? t("actions.creating") : t("actions.createNode")}
               </Button>
             </>
           ) : (
@@ -444,7 +547,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
               className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${heartbeatDialogWindow === w
                 ? "border-primary bg-primary/10 text-primary"
                 : "border-border text-muted-foreground hover:text-foreground"
-                }`}
+              }`}
             >
               {w === "24h" ? t("heartbeatDialog.last24Hours") : t("heartbeatDialog.last7Days")}
             </button>
@@ -462,7 +565,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                 <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
                   : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
                     : "text-red-400"
-                  }`}>
+                }`}>
                   {heartbeatDialogData.summary.uptime_pct}%
                 </p>
               </div>

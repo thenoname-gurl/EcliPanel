@@ -7,4 +7,6 @@ export * from './auth';
 export * from './handler';
 export * from './organisation';
 export * from './node';
+export * from './nodeProvider';
+export * from './proxmox';
 export * from './server';

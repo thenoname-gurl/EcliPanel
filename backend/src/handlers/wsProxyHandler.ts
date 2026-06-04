@@ -58,7 +58,7 @@ export function wsProxyRoutes(app: any, prefix: string) {
     },
   });
 
-  app.ws(prefix + '/servers/:id/ws/proxy', {
+  app.ws(prefix + '/servers/v1/:id/ws/proxy', {
     open(...args: any[]) {
       const { ctx, ws } = unwrapArgs(arguments);
       if (!ws) return;

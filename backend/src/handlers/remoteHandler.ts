@@ -1334,9 +1334,9 @@ export async function saveServerConfig(params: {
   userId: number;
   name?: string;
   description?: string;
-  dockerImage: string;
-  startup: string;
-  environment: Record<string, string>;
+  dockerImage?: string;
+  startup?: string;
+  environment?: Record<string, string>;
   memory: number;
   disk: number;
   cpu: number;
@@ -1351,6 +1351,16 @@ export async function saveServerConfig(params: {
   hibernated?: boolean;
   ignoreAntiAbuse?: boolean;
   installing?: boolean;
+  vmType?: 'lxc' | 'qemu';
+  template?: string;
+  isoFile?: string;
+  cores?: number;
+  sockets?: number;
+  ostemplate?: string;
+  rootfs?: string;
+  netif?: string;
+  nameserver?: string;
+  searchdomain?: string;
 }): Promise<ServerConfig> {
   if (!Number.isFinite(params.memory) || params.memory < 0) throw new Error('Invalid memory value');
   if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
@@ -1364,9 +1374,9 @@ export async function saveServerConfig(params: {
       userId: params.userId,
       name: params.name,
       description: params.description,
-      dockerImage: params.dockerImage,
-      startup: params.startup,
-      environment: params.environment,
+      dockerImage: params.dockerImage ?? '',
+      startup: params.startup ?? '',
+      environment: params.environment ?? {},
       memory: params.memory,
       disk: params.disk,
       cpu: params.cpu,
@@ -1382,6 +1392,16 @@ export async function saveServerConfig(params: {
       processConfig: normalizeProcessConfig(params.processConfig ?? null),
       lastActivityAt: params.lastActivityAt ?? null,
       installing: params.installing ?? false,
+      vmType: params.vmType ?? null,
+      template: params.template ?? null,
+      isoFile: params.isoFile ?? null,
+      cores: params.cores ?? null,
+      sockets: params.sockets ?? null,
+      ostemplate: params.ostemplate ?? null,
+      rootfs: params.rootfs ?? null,
+      netif: params.netif ?? null,
+      nameserver: params.nameserver ?? null,
+      searchdomain: params.searchdomain ?? null,
     });
     return r.save(cfg);
   }
@@ -1395,6 +1415,16 @@ export async function saveServerConfig(params: {
   keep.startup = params.startup ?? keep.startup;
   keep.environment = params.environment ?? keep.environment;
   keep.kvmPassthroughEnabled = params.kvmPassthroughEnabled ?? keep.kvmPassthroughEnabled;
+  keep.vmType = params.vmType ?? keep.vmType ?? null;
+  keep.template = params.template ?? keep.template ?? null;
+  keep.isoFile = params.isoFile ?? keep.isoFile ?? null;
+  keep.cores = params.cores ?? keep.cores ?? null;
+  keep.sockets = params.sockets ?? keep.sockets ?? null;
+  keep.ostemplate = params.ostemplate ?? keep.ostemplate ?? null;
+  keep.rootfs = params.rootfs ?? keep.rootfs ?? null;
+  keep.netif = params.netif ?? keep.netif ?? null;
+  keep.nameserver = params.nameserver ?? keep.nameserver ?? null;
+  keep.searchdomain = params.searchdomain ?? keep.searchdomain ?? null;
   keep.memory = params.memory;
   keep.disk = params.disk;
   keep.cpu = params.cpu;
@@ -1503,6 +1533,16 @@ export async function mergeDuplicateServerConfigs(targetUuid?: string): Promise<
           keep.processConfig && Object.keys(keep.processConfig || {}).length > 0
             ? keep.processConfig
             : o.processConfig;
+        keep.vmType = keep.vmType ?? o.vmType;
+        keep.template = keep.template ?? o.template;
+        keep.isoFile = keep.isoFile ?? o.isoFile;
+        keep.cores = keep.cores ?? o.cores;
+        keep.sockets = keep.sockets ?? o.sockets;
+        keep.ostemplate = keep.ostemplate ?? o.ostemplate;
+        keep.rootfs = keep.rootfs ?? o.rootfs;
+        keep.netif = keep.netif ?? o.netif;
+        keep.nameserver = keep.nameserver ?? o.nameserver;
+        keep.searchdomain = keep.searchdomain ?? o.searchdomain;
       }
       await r.save(keep);
       const toDelete = others.map(rw => ({ uuid: rw.uuid, createdAt: rw.createdAt }));
