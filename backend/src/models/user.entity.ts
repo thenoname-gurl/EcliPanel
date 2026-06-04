@@ -2,6 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  Index,
   ManyToOne,
   OneToMany,
   BeforeInsert,
@@ -215,6 +216,7 @@ export class User {
   @Column('text', { nullable: true })
   billingCountry?: string;
 
+  @Index()
   @Column({ default: false })
   fraudFlag: boolean;
 
@@ -236,6 +238,7 @@ export class User {
   @Column({ default: 'member' })
   orgRole: 'member' | 'admin' | 'owner';
 
+  @Index()
   @Column({ default: 'free' })
   portalType: string;
 
@@ -245,6 +248,7 @@ export class User {
   @ManyToOne(() => Node, { nullable: true })
   node?: Node;
 
+  @Index()
   @Column({ nullable: true })
   nodeId?: number;
   @OneToMany(() => UserRole, ur => ur.user)
@@ -271,9 +275,11 @@ export class User {
   @Column('json', { nullable: true })
   sessions?: string[];
 
+  @Index()
   @Column({ default: false })
   emailVerified: boolean;
 
+  @Index()
   @Column({ default: false })
   studentVerified: boolean;
 
@@ -295,6 +301,7 @@ export class User {
   @Column('json', { nullable: true })
   twoFactorRecoveryCodes?: string[];
 
+  @Index()
   @Column({ default: false })
   suspended: boolean;
 
@@ -304,6 +311,7 @@ export class User {
   @Column('text', { nullable: true })
   supportBanReason?: string;
 
+  @Index()
   @Column({ default: false })
   deletionRequested: boolean;
 

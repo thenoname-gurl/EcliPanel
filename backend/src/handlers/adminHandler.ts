@@ -3463,7 +3463,7 @@ export async function adminRoutes(app: any, prefix = '') {
           const filepath = getSafeRelativeFilePath(uploadDir, url);
           if (filepath) {
             try {
-              fs.unlinkSync(filepath);
+              await fs.promises.unlink(filepath);
             } catch {}
           }
           rec[field] = null;
@@ -5011,9 +5011,32 @@ export async function adminRoutes(app: any, prefix = '') {
       void (async () => {
         const nodeRepo = AppDataSource.getRepository(Node);
         const cfgRepo = AppDataSource.getRepository(ServerConfig);
+        const eggRepo = AppDataSource.getRepository(Egg);
+        const mountRepo = AppDataSource.getRepository(ServerMount);
         const nodes = await nodeRepo.find();
         const configs = await cfgRepo.find();
         const results: any[] = [];
+
+        // Batch-load eggs and mounts upfront to avoid N+1 queries
+        const eggIds = [...new Set(configs.map(c => c.eggId).filter(Boolean))] as number[];
+        const eggs = eggIds.length
+          ? await eggRepo.findBy({ id: In(eggIds) })
+          : [];
+        const eggMap = new Map(eggs.map(e => [e.id, e]));
+
+        const serverUuids = configs.map(c => c.uuid);
+        const allMounts = serverUuids.length
+          ? await mountRepo.findBy({ serverUuid: In(serverUuids as any[]) })
+          : [];
+        const mountsByServer = new Map<string, any[]>();
+        for (const m of allMounts) {
+          const list = mountsByServer.get(m.serverUuid) || [];
+          list.push(m);
+          mountsByServer.set(m.serverUuid, list);
+        }
+
+        // Reuse WingsApiService per node
+        const serviceCache = new Map<number, WingsApiService>();
 
         for (const cfg of configs) {
           const node = nodes.find(n => n.id === cfg.nodeId);
@@ -5024,7 +5047,11 @@ export async function adminRoutes(app: any, prefix = '') {
 
           const syncServer = async () => {
             const base = (node as any).backendWingsUrl || node.url;
-            const svc = new WingsApiService(base, node.token);
+            let svc = serviceCache.get(node.id);
+            if (!svc) {
+              svc = new WingsApiService(base, node.token);
+              serviceCache.set(node.id, svc);
+            }
 
             try {
               await svc.getServer(cfg.uuid);
@@ -5036,20 +5063,16 @@ export async function adminRoutes(app: any, prefix = '') {
               }
             }
 
-            const egg = cfg.eggId
-              ? await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId })
-              : null;
-            const mounts = await AppDataSource.getRepository(ServerMount).findBy({
-              serverUuid: cfg.uuid,
-            });
+            const egg = cfg.eggId ? eggMap.get(cfg.eggId) ?? null : null;
+            const mounts = mountsByServer.get(cfg.uuid) || [];
             const mountEntities: any[] = [];
-            if (mounts && mounts.length) {
+            if (mounts.length) {
               const mountIds = mounts.map((m: any) => m.mountId);
-              const allMounts = await AppDataSource.getRepository(Mount).findBy({
+              const allMountEntities = await AppDataSource.getRepository(Mount).findBy({
                 id: In(mountIds),
               });
               for (const m of mounts) {
-                const found = allMounts.find((am: any) => am.id === m.mountId);
+                const found = allMountEntities.find((am: any) => am.id === m.mountId);
                 if (found) mountEntities.push(found);
               }
             }
@@ -6550,7 +6573,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const filename = `document_${Date.now()}_${safeName}`;
 
       const uploadDir = path.join(process.cwd(), 'uploads', 'user-documents', String(user.id));
-      fs.mkdirSync(uploadDir, { recursive: true });
+      await fs.promises.mkdir(uploadDir, { recursive: true });
       const filepath = path.join(uploadDir, filename);
 
       const encrypted = await encryptBufferWithWorker(buffer).catch(() => {

@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Index, Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import type { User } from './user.entity';
 
 @Entity()
@@ -10,6 +10,7 @@ export class Passkey {
   user: User;
 
   @Column()
+  @Index()
   credentialID: string;
 
   @Column({ nullable: true })

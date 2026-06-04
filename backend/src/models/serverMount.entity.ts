@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Index, Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
 
 @Entity()
 export class ServerMount {
@@ -6,6 +6,7 @@ export class ServerMount {
   id: number;
 
   @Column()
+  @Index()
   serverUuid: string;
 
   @Column()

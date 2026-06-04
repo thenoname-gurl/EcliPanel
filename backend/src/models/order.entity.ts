@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Index, Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity()
 export class Order {
@@ -6,6 +6,7 @@ export class Order {
   id: number;
 
   @Column()
+  @Index()
   userId: number;
 
   @Column({ nullable: true })
@@ -18,6 +19,7 @@ export class Order {
   amount: number;
 
   @Column()
+  @Index()
   status: string;
 
   @Column({ nullable: true, type: 'text' })

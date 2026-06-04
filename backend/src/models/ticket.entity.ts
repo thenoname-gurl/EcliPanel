@@ -2,6 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  Index,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -11,6 +12,7 @@ export class Ticket {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @Column()
   userId: number;
 
@@ -20,12 +22,14 @@ export class Ticket {
   @Column({ type: 'text', charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   message: string;
 
+  @Index()
   @Column({ default: 'opened', charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   status: string;
 
   @Column({ default: 'medium' })
   priority: string;
 
+  @Index()
   @Column({ nullable: true })
   assignedTo: number | null;
 

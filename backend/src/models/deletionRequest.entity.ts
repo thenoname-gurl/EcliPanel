@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Index, Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
 
 @Entity()
 export class DeletionRequest {
@@ -6,9 +6,11 @@ export class DeletionRequest {
   id: number;
 
   @Column()
+  @Index()
   userId: number;
 
   @Column()
+  @Index()
   status: string;
 
   @Column('datetime')
