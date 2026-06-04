@@ -218,25 +218,25 @@ export default function BillingPage() {
           </div>
 
           {/* Tax Information */}
-          <div className="rounded-xl border border-border bg-card p-5 min-w-0 box-border overflow-hidden">
+          <div className="border border-border bg-card p-5 min-w-0 box-border overflow-hidden">
             <SectionHeader
               title={t("tax.title")}
               description={t("tax.description")}
             />
             <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+              <div className="border border-border bg-secondary/20 px-3 py-2">
                 <p className="text-xs text-muted-foreground">{t("tax.billingCountry")}</p>
                 <p className="text-foreground font-medium">{currentUser?.billingCountry || t("tax.notSet")}</p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+              <div className="border border-border bg-secondary/20 px-3 py-2">
                 <p className="text-xs text-muted-foreground">{t("tax.taxRate")}</p>
                 <p className="text-foreground font-medium">{taxRate.toFixed(2)}%</p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+              <div className="border border-border bg-secondary/20 px-3 py-2">
                 <p className="text-xs text-muted-foreground">{t("tax.preTaxMonthly")}</p>
                 <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.base, normalizedCurrency) : t("common.na")}</p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2">
+              <div className="border border-border bg-secondary/20 px-3 py-2">
                 <p className="text-xs text-muted-foreground">{t("tax.taxAmount")}</p>
                 <p className="text-foreground font-medium">{activeTaxBreakdown ? formatMoney(activeTaxBreakdown.tax, normalizedCurrency) : t("common.na")}</p>
               </div>
@@ -245,14 +245,14 @@ export default function BillingPage() {
 
           {/* Live Active Plan Details */}
           {activePlans.length > 0 && (
-            <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
+            <div className="border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
               <SectionHeader
                 title={activePlans.length === 1 ? t("activeSubscription.title") : t("activeSubscription.title") + ` (${activePlans.length})`}
                 description={activePlans.length === 1 ? (activePlans[0].plan.description || t("activeSubscription.descriptionFallback")) : t("activeSubscription.descriptionFallback")}
                 action={
                   <a
                     href="mailto:sales@ecli.app"
-                    className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
+                    className="flex items-center gap-2 border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
                   >
                     {t("activeSubscription.manage")}
                   </a>
@@ -311,14 +311,14 @@ export default function BillingPage() {
           )}
 
           {/* Current Plan */}
-          <div className="rounded-xl border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
+          <div className="border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
             <SectionHeader
               title={t("currentSubscription.title")}
               description={t("currentSubscription.description")}
               action={
                 <a
                   href="mailto:sales@ecli.app"
-                  className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
+                  className="flex items-center gap-2 border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
                 >
                   {t("currentSubscription.requestChange")}
                 </a>
@@ -330,7 +330,7 @@ export default function BillingPage() {
                 return (
                   <div
                     key={planCard.key}
-                    className={`rounded-xl border p-5 transition-all ${
+                    className={`border p-5 transition-all ${
                       planCard.isActive
                         ? "border-primary/50 bg-primary/5 shadow-[0_0_20px_var(--glow)]"
                         : "border-border bg-secondary/30 hover:border-primary/20"
@@ -375,7 +375,7 @@ export default function BillingPage() {
                             alert(e?.message || t("errors.failedStudentVerification"))
                           }
                         }}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                        className="mt-4 flex w-full items-center justify-center gap-2 border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
                         {t("currentSubscription.connect")} {HACKCLUB_STUDENT_ENABLED ? 'Hack Club' : 'GitHub'}
                         <ArrowRight className="h-3 w-3" />
@@ -384,7 +384,7 @@ export default function BillingPage() {
                     {!planCard.isActive && planCard.type !== 'free' && planCard.type !== 'educational' && (
                       <a
                         href="mailto:sales@ecli.app"
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                        className="mt-4 flex w-full items-center justify-center gap-2 border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                       >
                         {t("currentSubscription.contactSales")}
                         <ArrowRight className="h-3 w-3" />
@@ -394,14 +394,14 @@ export default function BillingPage() {
                 )
               })}
               {livePlanCards.length > 0 && subscriptionCards.length === 0 && (
-                <div className="rounded-xl border border-border bg-secondary/20 p-5 text-sm text-muted-foreground lg:col-span-3">
+                <div className="border border-border bg-secondary/20 p-5 text-sm text-muted-foreground lg:col-span-3">
                   {t("currentSubscription.noPlansVisible")}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card">
+          <div className="border border-border bg-card">
             <div className="border-b border-border p-5">
               <SectionHeader
                 title={t("invoices.title")}
@@ -464,7 +464,7 @@ export default function BillingPage() {
                               alert(t("errors.unableDownloadInvoice"));
                             }
                           }}
-                          className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                         >
                           <Download className="h-3.5 w-3.5" />
                         </button>

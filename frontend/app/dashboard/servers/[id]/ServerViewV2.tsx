@@ -162,7 +162,7 @@ export function ServerViewV2({ server, id }: ServerViewV2Props) {
               whileTap={{ scale: 0.97 }}
             >
               {powerLoading === "start" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 rounded-full animate-spin" />
               ) : (
                 <Play className="h-4 w-4" />
               )}
@@ -175,7 +175,7 @@ export function ServerViewV2({ server, id }: ServerViewV2Props) {
               whileTap={{ scale: 0.97 }}
             >
               {powerLoading === "stop" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 rounded-full animate-spin" />
               ) : (
                 <Square className="h-4 w-4" />
               )}
@@ -188,7 +188,7 @@ export function ServerViewV2({ server, id }: ServerViewV2Props) {
               whileTap={{ scale: 0.97 }}
             >
               {powerLoading === "restart" ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 rounded-full animate-spin" />
               ) : (
                 <RotateCcw className="h-4 w-4" />
               )}

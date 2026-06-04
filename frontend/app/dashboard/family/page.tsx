@@ -46,7 +46,7 @@ function SettingsCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow",
+        "border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow",
         className
       )}
     >
@@ -92,7 +92,7 @@ function FormInput({
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           className={cn(
-            "w-full rounded-lg border bg-secondary/30 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 disabled:opacity-50 disabled:cursor-not-allowed",
+            "w-full border bg-secondary/30 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all min-w-0 disabled:opacity-50 disabled:cursor-not-allowed",
             Icon ? "pl-10" : "px-3",
             error
               ? "border-destructive focus:border-destructive"
@@ -131,7 +131,7 @@ function SettingRow({
     <Tag
       {...(onClick ? { onClick } : {})}
       className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4 min-w-0 transition-all",
+        "flex items-center justify-between gap-3 border border-border/50 bg-secondary/20 p-3 md:p-4 min-w-0 transition-all",
         onClick &&
           "cursor-pointer hover:bg-secondary/40 active:scale-[0.98] w-full text-left",
         className
@@ -139,7 +139,7 @@ function SettingRow({
     >
       <div className="flex items-center gap-3 min-w-0 flex-1">
         {Icon && (
-          <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="shrink-0 w-9 h-9 bg-primary/10 flex items-center justify-center">
             <Icon className="h-4 w-4 text-primary" />
           </div>
         )}
@@ -190,7 +190,7 @@ function InlineAlert({
   return (
     <div
       className={cn(
-        "flex items-start gap-2.5 rounded-lg border p-3 text-xs",
+        "flex items-start gap-2.5 border p-3 text-xs",
         styles[type]
       )}
     >
@@ -210,7 +210,7 @@ function EmptyState({
   description?: string
 }) {
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-secondary/10 p-8 text-center">
+    <div className="flex flex-col items-center gap-3 border border-dashed border-border bg-secondary/10 p-8 text-center">
       <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
         <Icon className="h-6 w-6 text-muted-foreground" />
       </div>
@@ -249,13 +249,13 @@ function ChildCard({
   const childAge = getAgeFromDob(child.dateOfBirth)
 
   return (
-    <div className="rounded-lg border border-border/50 bg-secondary/20 overflow-hidden hover:bg-secondary/30 transition-colors">
+    <div className="border border-border/50 bg-secondary/20 overflow-hidden hover:bg-secondary/30 transition-colors">
       {/* ── Header ── */}
       <button
         onClick={() => setExpanded((p) => !p)}
         className="w-full flex items-center gap-3 p-3 md:p-4 text-left active:scale-[0.99] transition-all"
       >
-        <div className="shrink-0 w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+        <div className="shrink-0 w-10 h-10 bg-primary/10 flex items-center justify-center">
           <Baby className="h-5 w-5 text-primary" />
         </div>
 
@@ -288,22 +288,22 @@ function ChildCard({
         <div className="border-t border-border/50 p-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
 
           {/* Date of birth */}
-          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-3">
+          <div className="border border-border/50 bg-secondary/20 p-4 space-y-3">
             <p className="text-xs font-medium text-muted-foreground">{t("childCard.dateOfBirth")}</p>
             <div className="flex gap-2">
               <input
                 type="date"
                 value={dobEdit}
                 onChange={(e) => onDobChange(e.target.value)}
-                className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
+                className="flex-1 min-w-0 border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all"
               />
               <button
                 onClick={onSaveDob}
                 disabled={savingDob}
-                className="shrink-0 flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                className="shrink-0 flex items-center gap-2 bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
               >
                 {savingDob
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  ? <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                   : <Check className="h-4 w-4" />}
                 <span className="hidden sm:inline">{t("childCard.save")}</span>
               </button>
@@ -311,9 +311,9 @@ function ChildCard({
           </div>
 
           {/* Servers */}
-          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-2.5">
+          <div className="border border-border/50 bg-secondary/20 p-4 space-y-2.5">
             <div className="flex items-center gap-2">
-              <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="shrink-0 w-9 h-9 bg-primary/10 flex items-center justify-center">
                 <Server className="h-4 w-4 text-primary" />
               </div>
               <p className="text-sm font-medium text-foreground flex-1">{t("childCard.servers")}</p>
@@ -326,7 +326,7 @@ function ChildCard({
                 {servers.slice(0, 5).map((s: any) => (
                   <div
                     key={s.uuid}
-                    className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
+                    className="flex items-center justify-between border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
                   >
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-foreground truncate">{s.name}</p>
@@ -347,9 +347,9 @@ function ChildCard({
           </div>
 
           {/* Billing */}
-          <div className="rounded-lg border border-border/50 bg-secondary/20 p-4 space-y-2.5">
+          <div className="border border-border/50 bg-secondary/20 p-4 space-y-2.5">
             <div className="flex items-center gap-2">
-              <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <div className="shrink-0 w-9 h-9 bg-primary/10 flex items-center justify-center">
                 <Receipt className="h-4 w-4 text-primary" />
               </div>
               <p className="text-sm font-medium text-foreground flex-1">{t("childCard.billing")}</p>
@@ -362,7 +362,7 @@ function ChildCard({
                 {orders.slice(0, 5).map((order: any) => (
                   <div
                     key={order.id}
-                    className="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
+                    className="flex items-center justify-between border border-border/50 bg-secondary/20 px-3 py-2 hover:bg-secondary/40 transition-colors"
                   >
                     <div className="min-w-0">
                       <p className="text-xs font-medium text-foreground">
@@ -377,7 +377,7 @@ function ChildCard({
                       href={API_ENDPOINTS.orderInvoice.replace(":id", String(order.id))}
                       target="_blank"
                       rel="noreferrer"
-                      className="shrink-0 ml-2 flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2.5 py-1.5 text-[10px] font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
+                      className="shrink-0 ml-2 flex items-center gap-1.5 border border-border bg-secondary/50 px-2.5 py-1.5 text-[10px] font-medium text-foreground hover:bg-secondary transition-colors active:scale-[0.98]"
                     >
                       <ExternalLink className="h-3 w-3" />
                       {t("childCard.invoice")}
@@ -656,7 +656,7 @@ export default function FamilyPage() {
         <div className="flex flex-col gap-4 md:gap-6 p-4 md:p-6 lg:p-8 max-w-4xl mx-auto pb-8 w-full min-w-0">
 
           {/* Beta notice – mirrors the yellow warning style used in settings */}
-          <div className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 p-3.5 min-w-0">
+          <div className="flex items-start gap-3 border border-yellow-500/20 bg-yellow-500/5 p-3.5 min-w-0">
             <AlertTriangle className="h-4 w-4 shrink-0 text-yellow-600 dark:text-yellow-400 mt-0.5" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-foreground">{t("beta.title")}</p>
@@ -676,7 +676,7 @@ export default function FamilyPage() {
           {user && (
             <div
               className={cn(
-                "rounded-xl border p-4 md:p-5 min-w-0 overflow-hidden shadow-sm",
+                "border p-4 md:p-5 min-w-0 overflow-hidden shadow-sm",
                 isAdult
                   ? "border-green-500/20 bg-green-500/5"
                   : isChildUser
@@ -733,9 +733,9 @@ export default function FamilyPage() {
                 <button
                   onClick={fetchData}
                   disabled={loading}
-                  className="shrink-0 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all active:scale-95 disabled:opacity-50"
+                  className="shrink-0 p-2 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all active:scale-95 disabled:opacity-50"
                 >
-                  <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+                  <RefreshCw className={cn("h-4 w-4", loading && "rounded-full animate-spin")} />
                 </button>
               </div>
             </div>
@@ -743,7 +743,7 @@ export default function FamilyPage() {
 
           {/* Adult-age reached notice */}
           {user?.parentId != null && hasKnownAge && isAdult && (
-            <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 min-w-0">
+            <div className="flex items-start gap-3 border border-primary/20 bg-primary/5 p-3 min-w-0">
               <AlertCircle className="h-4 w-4 shrink-0 text-primary mt-0.5" />
               <p className="text-xs text-primary">
                 {t("accountStatus.adultAgeNotice")}
@@ -753,8 +753,8 @@ export default function FamilyPage() {
 
           {/* Loading */}
           {loading && (
-            <div className="flex items-center justify-center gap-2 rounded-xl border border-border bg-card/50 p-10 text-sm text-muted-foreground">
-              <Loader2 className="h-5 w-5 animate-spin" /> Loading family data…
+            <div className="flex items-center justify-center gap-2 border border-border bg-card/50 p-10 text-sm text-muted-foreground">
+              <Loader2 className="h-5 w-5 rounded-full animate-spin" /> Loading family data…
             </div>
           )}
 
@@ -781,9 +781,9 @@ export default function FamilyPage() {
                 ].map(({ label, value, Icon }) => (
                   <div
                     key={label}
-                    className="flex items-center gap-3 rounded-lg border border-border/50 bg-secondary/20 p-3 min-w-0"
+                    className="flex items-center gap-3 border border-border/50 bg-secondary/20 p-3 min-w-0"
                   >
-                    <div className="shrink-0 w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <div className="shrink-0 w-9 h-9 bg-primary/10 flex items-center justify-center">
                       <Icon className="h-4 w-4 text-primary" />
                     </div>
                     <div className="min-w-0">
@@ -820,10 +820,10 @@ export default function FamilyPage() {
                   <button
                     onClick={sendParentRequest}
                     disabled={sendingRequest || !parentEmail.trim()}
-                    className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
                     {sendingRequest
-                      ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("requestParent.actions.sending")}</>
+                      ? <><Loader2 className="h-4 w-4 rounded-full animate-spin" /> {t("requestParent.actions.sending")}</>
                       : <><UserPlus className="h-4 w-4" /> {t("requestParent.actions.sendRequest")}</>}
                   </button>
                 </div>
@@ -850,14 +850,14 @@ export default function FamilyPage() {
                 {requests.map((req) => (
                   <div
                     key={req.id}
-                    className="rounded-lg border border-border/50 bg-secondary/20 overflow-hidden min-w-0"
+                    className="border border-border/50 bg-secondary/20 overflow-hidden min-w-0"
                   >
                     {/* Row */}
                     <div className="flex items-start justify-between gap-3 p-3 md:p-4 min-w-0">
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <div
                           className={cn(
-                            "shrink-0 w-9 h-9 rounded-lg flex items-center justify-center",
+                            "shrink-0 w-9 h-9 flex items-center justify-center",
                             req.status === "accepted"
                               ? "bg-green-500/10 text-green-600 dark:text-green-400"
                               : "bg-primary/10 text-primary"
@@ -894,7 +894,7 @@ export default function FamilyPage() {
 
                     {/* Linking code */}
                     {req.code && (
-                      <div className="mx-3 md:mx-4 mb-3 flex items-center justify-between rounded-lg border border-border/50 bg-secondary/30 px-4 py-3 min-w-0">
+                      <div className="mx-3 md:mx-4 mb-3 flex items-center justify-between border border-border/50 bg-secondary/30 px-4 py-3 min-w-0">
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                             Linking Code
@@ -908,7 +908,7 @@ export default function FamilyPage() {
                             navigator.clipboard.writeText(req.code)
                             toast({ title: t("messages.codeCopied") })
                           }}
-                          className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
+                          className="shrink-0 p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
@@ -928,16 +928,16 @@ export default function FamilyPage() {
                               setAcceptCodes((p) => ({ ...p, [req.id]: e.target.value }))
                             }
                             placeholder={t("linkRequests.enterCodePlaceholder")}
-                            className="w-full rounded-lg border border-border bg-secondary/30 px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all min-w-0"
+                            className="w-full border border-border bg-secondary/30 px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50 transition-all min-w-0"
                           />
                         </div>
                         <button
                           onClick={() => acceptRequest(req.id)}
                           disabled={acceptingRequest[req.id]}
-                          className="shrink-0 flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                          className="shrink-0 flex items-center justify-center gap-2 bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                         >
                           {acceptingRequest[req.id]
-                            ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("linkRequests.actions.accepting")}</>
+                            ? <><Loader2 className="h-4 w-4 rounded-full animate-spin" /> {t("linkRequests.actions.accepting")}</>
                             : <><CheckCircle className="h-4 w-4" /> {t("linkRequests.actions.accept")}</>}
                         </button>
                       </div>
@@ -972,10 +972,10 @@ export default function FamilyPage() {
                     <button
                       onClick={createParentInvite}
                       disabled={creatingInvite}
-                      className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
                     >
                       {creatingInvite
-                        ? <><Loader2 className="h-4 w-4 animate-spin" /> {t("inviteChild.actions.creating")}</>
+                        ? <><Loader2 className="h-4 w-4 rounded-full animate-spin" /> {t("inviteChild.actions.creating")}</>
                         : <><UserPlus className="h-4 w-4" /> {t("inviteChild.actions.createInvite")}</>}
                     </button>
                   </div>
@@ -1016,7 +1016,7 @@ export default function FamilyPage() {
                     {invites.map((invite) => (
                       <div
                         key={invite.id}
-                        className="rounded-lg border border-border/50 bg-secondary/20 p-3 md:p-4 hover:bg-secondary/30 transition-colors min-w-0 overflow-hidden"
+                        className="border border-border/50 bg-secondary/20 p-3 md:p-4 hover:bg-secondary/30 transition-colors min-w-0 overflow-hidden"
                       >
                         <div className="flex items-start justify-between gap-3 min-w-0">
                           <div className="min-w-0 flex-1">
@@ -1033,7 +1033,7 @@ export default function FamilyPage() {
                                 navigator.clipboard.writeText(invite.link)
                                 toast({ title: t("messages.codeCopied") })
                               }}
-                              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
+                              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-[0.98]"
                             >
                               <Copy className="h-4 w-4" />
                             </button>
@@ -1041,19 +1041,19 @@ export default function FamilyPage() {
                               href={invite.link}
                               target="_blank"
                               rel="noreferrer"
-                              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                             >
                               <ExternalLink className="h-4 w-4" />
                             </a>
                             <button
                               onClick={() => revokeInvite(invite.id)}
-                              className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-[0.98]"
+                              className="p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-[0.98]"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
                           </div>
                         </div>
-                        <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-border/50 bg-secondary/30 px-3 py-2 min-w-0">
+                        <div className="mt-2.5 flex items-center gap-2 border border-border/50 bg-secondary/30 px-3 py-2 min-w-0">
                           <p className="flex-1 truncate font-mono text-xs text-muted-foreground min-w-0">
                             {invite.link}
                           </p>

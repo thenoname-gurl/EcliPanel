@@ -58,10 +58,10 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
   return (
     <>
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
           <div className="relative flex-1 max-w-md">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+            <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
               <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <input
                 type="text"
@@ -90,13 +90,13 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
             <button
               onClick={() => setRedactOrganisations(!redactOrganisations)}
               title={redactOrganisations ? t("actions.showFullDetails") : t("actions.redactDetails")}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
               {redactOrganisations ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
             <button
               onClick={() => forceRefreshTab("organisations")}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               title={t("actions.refresh")}
             >
               <RefreshCw className="h-4 w-4" />
@@ -105,7 +105,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden lg:block">
+      <div className="border border-border bg-card hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -134,9 +134,9 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         {org.avatarUrl ? (
-                          <img src={org.avatarUrl} alt={`${org.name} ${t("common.logo")}`} className="h-8 w-8 rounded-lg object-cover shrink-0" />
+                          <img src={org.avatarUrl} alt={`${org.name} ${t("common.logo")}`} className="h-8 w-8 object-cover shrink-0" />
                         ) : (
-                          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                          <div className="h-8 w-8 bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                             {org.name?.[0]?.toUpperCase() || "?"}
                           </div>
                         )}
@@ -147,7 +147,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">@{redactOrg(org.handle)}</span>
+                      <span className="inline-flex items-center bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">@{redactOrg(org.handle)}</span>
                     </td>
                     <td className="px-4 py-3">
                       {org.owner ? (
@@ -181,10 +181,10 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEditOrg(org)} title={t("actions.editOrganisation")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                        <button onClick={() => openEditOrg(org)} title={t("actions.editOrganisation")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                           <Edit className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => deleteOrg(org)} title={t("actions.deleteOrganisation")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                        <button onClick={() => deleteOrg(org)} title={t("actions.deleteOrganisation")} className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -199,7 +199,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
 
       <div className="flex flex-col gap-3 lg:hidden">
         {filteredOrgs.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card px-4 py-12">
+          <div className="border border-border bg-card px-4 py-12">
             <div className="flex flex-col items-center gap-2">
               <Building2 className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">{organisations.length === 0 ? t("states.loading") : t("states.noMatch")}</p>
@@ -207,18 +207,18 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
           </div>
         ) : (
           filteredOrgs.map((org: any) => (
-            <div key={org.id} className="rounded-xl border border-border bg-card overflow-hidden">
+            <div key={org.id} className="border border-border bg-card overflow-hidden">
               <div className="flex items-start gap-3 p-4 pb-3">
                 {org.avatarUrl ? (
-                  <img src={org.avatarUrl} alt={`${org.name} ${t("common.logo")}`} className="h-10 w-10 rounded-lg object-cover shrink-0" />
+                  <img src={org.avatarUrl} alt={`${org.name} ${t("common.logo")}`} className="h-10 w-10 object-cover shrink-0" />
                 ) : (
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">{org.name?.[0]?.toUpperCase() || "?"}</div>
+                  <div className="h-10 w-10 bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">{org.name?.[0]?.toUpperCase() || "?"}</div>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">{redactOrg(org.name)}</p>
-                      <span className="inline-flex items-center rounded-md bg-secondary/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground mt-0.5">@{redactOrg(org.handle)}</span>
+                      <span className="inline-flex items-center bg-secondary/50 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground mt-0.5">@{redactOrg(org.handle)}</span>
                     </div>
                     <Badge
                       variant="outline"
@@ -271,7 +271,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
             {t("pagination.page")} <span className="font-medium text-foreground">{organisationsPage}</span>
@@ -324,18 +324,18 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.name")}</label>
             <input value={editOrgName} onChange={(e) => setEditOrgName(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.handle")}</label>
             <input value={editOrgHandle} onChange={(e) => setEditOrgHandle(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.tier")}</label>
               <select value={editOrgTier} onChange={(e) => setEditOrgTier(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 {TIERS.map((t: string) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
@@ -343,7 +343,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.ownerUserId")}</label>
               <input type="number" value={editOrgOwnerId} onChange={(e) => setEditOrgOwnerId(e.target.value)}
                 placeholder={t("editDialog.fields.userIdPlaceholder")}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
             </div>
           </div>
           <div className="mt-2">
@@ -354,7 +354,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
             </div>
           </div>
 
-          <div className="rounded-lg border border-border bg-secondary/10 p-3 flex flex-col gap-2">
+          <div className="border border-border bg-secondary/10 p-3 flex flex-col gap-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.addMemberByUserId")}</p>
             <div className="flex gap-2">
               <input
@@ -362,12 +362,12 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
                 placeholder={t("editDialog.fields.userIdPlaceholder")}
                 value={editOrgAddMemberId}
                 onChange={(e) => setEditOrgAddMemberId(e.target.value)}
-                className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
               />
               <select
                 value={editOrgAddMemberRole}
                 onChange={(e) => setEditOrgAddMemberRole(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               >
                 <option value="member">member</option>
                 <option value="admin">admin</option>

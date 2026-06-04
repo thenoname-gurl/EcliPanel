@@ -24,11 +24,11 @@ export default function LogsTab({ ctx }: { ctx: any }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col gap-3 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+              <div className="h-9 w-9 bg-indigo-500/10 flex items-center justify-center shrink-0">
                 <ScrollText className="h-4 w-4 text-indigo-400" />
               </div>
               <div>
@@ -65,7 +65,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                     await fetchLogs(1, logType, logsUserFilter)
                   }
                 }}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 title={t("actions.refresh")}
               >
                 <RefreshCw className="h-4 w-4" />
@@ -94,7 +94,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                       await fetchLogs(1, tKey, logsUserFilter)
                     } catch { }
                   }}
-                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors shrink-0 ${isActive
                     ? `bg-secondary ${c.color}`
                     : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                     }`}
@@ -108,7 +108,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden md:block">
+      <div className="border border-border bg-card hidden md:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -215,7 +215,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
 
                       {logType === "audit" && (
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
+                          <span className="inline-flex items-center bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
                             {log.action}
                           </span>
                         </td>
@@ -224,7 +224,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                       {logType === "serverErrors" && (
                         <>
                           <td className="px-4 py-3">
-                            <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-0.5 font-mono text-xs text-destructive">
+                            <span className="inline-flex items-center bg-destructive/10 px-2 py-0.5 font-mono text-xs text-destructive">
                               {log.action}
                             </span>
                           </td>
@@ -242,7 +242,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                           <td className="px-4 py-3">
                             <button
                               onClick={() => deleteLog(log.id)}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -253,7 +253,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                       {logType === "requests" && (
                         <>
                           <td className="px-4 py-3">
-                            <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground max-w-[300px] truncate">
+                            <span className="inline-flex items-center bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground max-w-[300px] truncate">
                               {log.endpoint}
                             </span>
                           </td>
@@ -298,7 +298,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
 
       <div className="flex flex-col gap-2 md:hidden">
         {logs.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card px-4 py-12">
+          <div className="border border-border bg-card px-4 py-12">
             <div className="flex flex-col items-center gap-2">
               <ScrollText className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">{t("states.noLogs")}</p>
@@ -312,7 +312,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
             return (
               <div
                 key={log.id ?? i}
-                className={`rounded-xl border bg-card overflow-hidden ${isSlowCritical
+                className={`border bg-card overflow-hidden ${isSlowCritical
                   ? "border-destructive/30"
                   : isSlowWarning
                     ? "border-warning/30"
@@ -382,7 +382,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                   )}
 
                   {logType === "audit" && (
-                    <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
+                    <span className="inline-flex items-center bg-secondary/50 px-2 py-0.5 font-mono text-xs text-foreground">
                       {log.action}
                     </span>
                   )}
@@ -403,7 +403,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
             {logType === "slow" ? (

@@ -39,7 +39,7 @@ export default function CreateOrganisationPage() {
       <PanelHeader title={t("header.title")} description={t("header.description")} />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex h-full items-center justify-center p-6">
-          <div className="w-full max-w-md rounded-lg border border-border bg-card p-6">
+          <div className="w-full max-w-md border border-border bg-card p-6">
             {error && <div className="mb-4 text-sm text-destructive">{error}</div>}
             <form onSubmit={submit} className="flex flex-col gap-4">
               <input
@@ -47,19 +47,19 @@ export default function CreateOrganisationPage() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("fields.namePlaceholder")}
                 required
-                className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+                className="border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
               />
               <input
                 value={handle}
                 onChange={(e) => setHandle(e.target.value)}
                 placeholder={t("fields.handlePlaceholder")}
                 required
-                className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+                className="border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
               />
               <select
                 value={tier}
                 onChange={(e) => setTier(e.target.value)}
-                className="rounded border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
+                className="border border-border bg-transparent px-3 py-2 text-sm text-foreground outline-none"
               >
                 <option value="free">{t("tiers.free")}</option>
                 <option value="paid">{t("tiers.paid")}</option>

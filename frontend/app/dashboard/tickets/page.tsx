@@ -116,7 +116,7 @@ export default function TicketsPage() {
       <>
         <PanelHeader title={t("header.title")} description={t("header.description")} />
       {user?.supportBanned && (
-        <div className="mx-6 my-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+        <div className="mx-6 my-2 border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
           {t("banned.message", { reason: user?.supportBanReason || t("banned.noReason") })}
         </div>
       )}
@@ -138,7 +138,7 @@ export default function TicketsPage() {
           {/* Toolbar */}
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+              <div className="flex items-center gap-2 border border-border bg-card px-3 py-2">
                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   type="text"
@@ -148,7 +148,7 @@ export default function TicketsPage() {
                   className="bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none w-48"
                 />
               </div>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="border border-border bg-card px-3 py-2 text-sm">
                 <option value="">{t("filters.status.all")}</option>
                 <option value="opened">{t("filters.status.open")}</option>
                 <option value="awaiting_staff_reply">{t("filters.status.awaitingStaff")}</option>
@@ -156,14 +156,14 @@ export default function TicketsPage() {
                 <option value="closed">{t("filters.status.closed")}</option>
                 <option value="archived">{t("filters.status.archived")}</option>
               </select>
-              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+              <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="border border-border bg-card px-3 py-2 text-sm">
                 <option value="">{t("filters.priority.all")}</option>
                 <option value="urgent">{t("filters.priority.urgent")}</option>
                 <option value="high">{t("filters.priority.high")}</option>
                 <option value="medium">{t("filters.priority.medium")}</option>
                 <option value="low">{t("filters.priority.low")}</option>
               </select>
-              <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-2 text-sm">
+              <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} className="border border-border bg-card px-3 py-2 text-sm">
                 <option value="">{t("filters.department.all")}</option>
                 <option value="Technical Support">{t("filters.department.technicalSupport")}</option>
                 <option value="Billing">{t("filters.department.billing")}</option>
@@ -173,7 +173,7 @@ export default function TicketsPage() {
             </div>
             <Link
               href="/dashboard/tickets/new"
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              className="flex items-center gap-2 bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
               {t("actions.newTicket")}
@@ -193,7 +193,7 @@ export default function TicketsPage() {
                 <Link
                   key={ticket.id}
                   href={`/dashboard/tickets/${ticket.id}`}
-                  className="group rounded-xl border border-border bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)]"
+                  className="group border border-border bg-card p-5 transition-all duration-300 hover:border-primary/30 hover:shadow-[0_0_15px_var(--glow)]"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

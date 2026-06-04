@@ -199,7 +199,7 @@ export function InfoItem({ icon: Icon, label, value, mono, copyable }: {
   return (
     <div
       className={cn(
-        "rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden",
+        "border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden",
         copyable && value !== "-" && "cursor-pointer hover:bg-secondary/40 active:bg-secondary/50 transition-colors"
       )}
       onClick={handleCopy}
@@ -229,7 +229,7 @@ export function JsonBlock({ label, data }: { label: string; data: unknown }) {
 
   if (!isComplex) {
     return (
-      <div className="rounded-lg border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden">
+      <div className="border border-border bg-secondary/20 p-2.5 sm:p-3 min-w-0 overflow-hidden">
         <p className="text-[10px] sm:text-xs text-muted-foreground truncate mb-1">{label}</p>
         <p className="font-mono text-[10px] sm:text-xs text-foreground break-all">
           {data !== null ? String(data) : "-"}
@@ -239,7 +239,7 @@ export function JsonBlock({ label, data }: { label: string; data: unknown }) {
   }
 
   return (
-    <div className="rounded-lg border border-border bg-secondary/20 min-w-0 overflow-hidden">
+    <div className="border border-border bg-secondary/20 min-w-0 overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 w-full p-2.5 sm:p-3 hover:bg-secondary/40 transition-colors text-left"
@@ -318,7 +318,7 @@ export function EmptyState({ icon: Icon = AlertCircle, title, message }: {
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center">
-      <div className="rounded-full bg-secondary/50 p-4 mb-4">
+      <div className="bg-secondary/50 p-4 mb-4">
         <Icon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
       </div>
       {title && <h3 className="text-sm font-medium text-foreground mb-1">{title}</h3>}
@@ -330,7 +330,7 @@ export function EmptyState({ icon: Icon = AlertCircle, title, message }: {
 export function LoadingState({ message }: { message: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 sm:py-16">
-      <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-muted-foreground mb-3" />
+      <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 rounded-full animate-spin text-muted-foreground mb-3" />
       <p className="text-xs sm:text-sm text-muted-foreground">{message}</p>
     </div>
   )

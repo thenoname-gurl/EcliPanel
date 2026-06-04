@@ -160,7 +160,7 @@ function AuthLoadingScreen({ message = "Loading..." }: { message?: string }) {
       aria-label={message}
     >
       <div className="relative h-4 w-4">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        <Loader2 className="h-4 w-4 rounded-full animate-spin text-primary" />
       </div>
       <div className="flex flex-col leading-tight">
         <span className="font-medium">{message}</span>

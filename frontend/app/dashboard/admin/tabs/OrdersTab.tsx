@@ -155,12 +155,12 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     <>
     <div className="flex flex-col gap-4">
       {/* Header Bar */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col gap-3 p-4">
           {/* Top row */}
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+              <div className="h-9 w-9 bg-emerald-500/10 flex items-center justify-center shrink-0">
                 <Receipt className="h-4 w-4 text-emerald-400" />
               </div>
               <div>
@@ -184,7 +184,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
               )}
               <button
                 onClick={() => fetchOrders(ordersPage, ordersQuery)}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 title={t("actions.refresh")}
               >
                 <RefreshCw className="h-4 w-4" />
@@ -195,7 +195,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           {/* Search */}
           <div className="flex items-center gap-2">
             <div className="relative flex-1 max-w-md">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+              <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
                 <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <input
                   type="text"
@@ -224,15 +224,15 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
 
       {/* Content */}
       {ordersLoading ? (
-        <div className="rounded-xl border border-border bg-card px-4 py-12">
+        <div className="border border-border bg-card px-4 py-12">
           <div className="flex flex-col items-center gap-2">
-            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+            <Loader2 className="h-6 w-6 text-primary rounded-full animate-spin" />
             <p className="text-sm text-muted-foreground">{t("states.loading")}</p>
           </div>
         </div>
       ) : adminOrders.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+        <div className="border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
+          <div className="h-12 w-12 bg-emerald-500/10 flex items-center justify-center">
             <Receipt className="h-6 w-6 text-emerald-400/60" />
           </div>
           <div>
@@ -248,7 +248,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="rounded-xl border border-border bg-card hidden md:block">
+          <div className="border border-border bg-card hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -275,7 +275,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                       <tr key={order.id} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                            <div className="h-8 w-8 bg-emerald-500/10 flex items-center justify-center shrink-0">
                               <Receipt className="h-3.5 w-3.5 text-emerald-400" />
                             </div>
                             <div className="min-w-0">
@@ -291,7 +291,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                          <span className="inline-flex items-center bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground">
                             {t("common.userId", { id: privateMode ? "████" : order.userId })}
                           </span>
                         </td>
@@ -326,7 +326,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                               <button
                                 onClick={() => openEditOrder(order)}
                                 title={t("actions.editOrder")}
-                                className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                                className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                               >
                                 <Edit className="h-3.5 w-3.5" />
                               </button>
@@ -335,7 +335,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                               <button
                                 onClick={() => cancelOrder(order)}
                                 title={t("actions.cancelOrder")}
-                                className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors"
+                                className="p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors"
                               >
                                 <XCircle className="h-3.5 w-3.5" />
                               </button>
@@ -344,7 +344,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                               <button
                                 onClick={() => deleteOrder(order)}
                                 title={t("actions.deleteOrder")}
-                                className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -373,11 +373,11 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
               return (
                 <div
                   key={order.id}
-                  className={`rounded-xl border bg-card overflow-hidden ${order.status === "active" ? sc.borderTint : "border-border"}`}
+                  className={`border bg-card overflow-hidden ${order.status === "active" ? sc.borderTint : "border-border"}`}
                 >
                   {/* Card Header */}
                   <div className="flex items-start gap-3 p-4 pb-3">
-                    <div className="relative h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <div className="relative h-10 w-10 bg-emerald-500/10 flex items-center justify-center shrink-0">
                       <Receipt className="h-4 w-4 text-emerald-400" />
                       <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
                     </div>
@@ -463,7 +463,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
 
       {/* Pagination */}
       {!ordersLoading && adminOrders.length > 0 && (
-        <div className="rounded-xl border border-border bg-card">
+        <div className="border border-border bg-card">
           <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
             <p className="text-xs text-muted-foreground">
               {t("pagination.page")} <span className="font-medium text-foreground">{ordersPage}</span>
@@ -526,13 +526,13 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("issueDialog.description")}</label>
             <input placeholder={t("issueDialog.descriptionPlaceholder")} value={ioDesc} onChange={(e) => setIoDesc(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("issueDialog.planOptional")}</label>
               <select value={ioPlanId} onChange={(e) => setIoPlanId(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="">{t("common.none")}</option>
                 {plans.map((p: any) => <option key={p.id} value={String(p.id)}>{p.name}</option>)}
               </select>
@@ -540,10 +540,10 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("issueDialog.amount", { currency: currencyCode })}</label>
               <input type="number" min="0" step="0.01" value={ioAmount} onChange={(e) => setIoAmount(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
           </div>
-          <div className="rounded-lg border border-border bg-secondary/20 px-3 py-2 text-xs text-muted-foreground">
+          <div className="border border-border bg-secondary/20 px-3 py-2 text-xs text-muted-foreground">
             <p>{t("issueDialog.issueStatus")} <span className="text-foreground font-medium">{t("issueDialog.pendingUnpaid")}</span></p>
             <p>
               {t("issueDialog.taxPreview")} {issueUserCountry ? `(${issueUserCountry})` : ""}: {issueTaxRate.toFixed(2)}% → {formatMoney(issueTax.base, currencyCode)} + {formatMoney(issueTax.tax, currencyCode)} = <span className="text-foreground font-medium">{formatMoney(issueTax.total, currencyCode)}</span>
@@ -552,19 +552,19 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("issueDialog.expiresOptional")}</label>
             <input type="date" value={ioExpiresAt} onChange={(e) => setIoExpiresAt(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("issueDialog.notes")}</label>
             <input placeholder={t("issueDialog.notesPlaceholder")} value={ioNotes} onChange={(e) => setIoNotes(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
           {ioError && <p className="text-xs text-destructive">{ioError}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setIssueOrderOpen(false)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={submitIssueOrder} disabled={ioLoading} className="bg-primary text-primary-foreground">
-            {ioLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />{t("actions.issuing")}</> : t("actions.issueOrder")}
+            {ioLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.issuing")}</> : t("actions.issueOrder")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -579,7 +579,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("applyPlanDialog.planRequired")}</label>
             <select value={applyPlanId} onChange={(e) => setApplyPlanId(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
               <option value="">{t("applyPlanDialog.selectPlan")}</option>
               {plans.map((p: any) => <option key={p.id} value={String(p.id)}>{p.name} ({p.type})</option>)}
             </select>
@@ -592,7 +592,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("applyPlanDialog.expiresOptional")}</label>
             <input type="date" value={applyPlanExpiry} onChange={(e) => setApplyPlanExpiry(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
           {(() => {
             const selectedPlan = plans.find((x: any) => x.id === Number(applyPlanId))
@@ -601,7 +601,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("applyPlanDialog.assignOrgOptional")}</label>
                 <input type="number" min="1" placeholder={t("applyPlanDialog.assignOrgPlaceholder")} value={applyPlanOrgId} onChange={(e) => setApplyPlanOrgId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                 <p className="text-xs text-muted-foreground">{t("applyPlanDialog.assignOrgHint")}</p>
               </div>
             )
@@ -609,14 +609,14 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("applyPlanDialog.notesInternal")}</label>
             <input placeholder={t("applyPlanDialog.notesPlaceholder")} value={applyPlanNotes} onChange={(e) => setApplyPlanNotes(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
           {applyPlanError && <p className="text-xs text-destructive">{applyPlanError}</p>}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setApplyPlanOpen(false)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={submitApplyPlan} disabled={applyPlanLoading} className="bg-primary text-primary-foreground">
-            {applyPlanLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />{t("actions.applying")}</> : t("actions.applyPlan")}
+            {applyPlanLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.applying")}</> : t("actions.applyPlan")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -631,30 +631,30 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
         <div className="flex flex-col gap-3 py-2">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.description")}</label>
-            <input value={eoDescription} onChange={(e) => setEoDescription(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            <input value={eoDescription} onChange={(e) => setEoDescription(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.amount", { currency: currencyCode })}</label>
-              <input type="number" value={eoAmount} onChange={(e) => setEoAmount(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              <input type="number" value={eoAmount} onChange={(e) => setEoAmount(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
             </div>
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.planId")}</label>
-              <input value={eoPlanId} onChange={(e) => setEoPlanId(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              <input value={eoPlanId} onChange={(e) => setEoPlanId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.notes")}</label>
-            <input value={eoNotes} onChange={(e) => setEoNotes(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none" />
+            <input value={eoNotes} onChange={(e) => setEoNotes(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none" />
           </div>
           <div className="flex gap-2">
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.expiresAt")}</label>
-              <input type="date" value={eoExpiresAt?.split("T")?.[0] || eoExpiresAt} onChange={(e) => setEoExpiresAt(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              <input type="date" value={eoExpiresAt?.split("T")?.[0] || eoExpiresAt} onChange={(e) => setEoExpiresAt(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
             </div>
             <div className="flex-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.status")}</label>
-              <input value={eoStatus} onChange={(e) => setEoStatus(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              <input value={eoStatus} onChange={(e) => setEoStatus(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
             </div>
           </div>
           {eoError && <p className="text-xs text-destructive">{eoError}</p>}
@@ -662,7 +662,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
         <DialogFooter>
           <Button variant="outline" onClick={() => setEditOrderOpen(false)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={submitEditOrder} disabled={eoLoading} className="bg-primary text-primary-foreground">
-            {eoLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />{t("actions.saving")}</> : t("actions.saveChanges")}
+            {eoLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.saving")}</> : t("actions.saveChanges")}
           </Button>
         </DialogFooter>
       </DialogContent>

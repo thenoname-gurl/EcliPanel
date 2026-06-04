@@ -140,11 +140,11 @@ export default function ServersTab({ ctx }: { ctx: any }) {
   return (
     <>
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col gap-3 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="relative flex-1 max-w-md">
-              <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+              <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
                 <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <input
                   type="text"
@@ -174,13 +174,13 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               <button
                 onClick={() => setRedactServers(!redactServers)}
                 title={redactServers ? t("actions.showFullDetails") : t("actions.redactDetails")}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               >
                 {redactServers ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
               <button
                 onClick={() => forceRefreshTab("servers")}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 title={t("actions.refresh")}
               >
                 <RefreshCw className="h-4 w-4" />
@@ -189,7 +189,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Button size="sm" variant="outline" onClick={syncFromWings} disabled={syncingFromWings} className="h-8 gap-1.5 border-border text-muted-foreground">
-              {syncingFromWings ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+              {syncingFromWings ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">{t("actions.syncFromWings")}</span>
               <span className="sm:hidden">{t("actions.sync")}</span>
             </Button>
@@ -210,7 +210,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
         </div>
       </div>
 
-      <div className="rounded-xl border border-border bg-card hidden lg:block">
+      <div className="border border-border bg-card hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -246,7 +246,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                     <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="relative h-8 w-8 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
+                          <div className="relative h-8 w-8 bg-secondary/80 flex items-center justify-center shrink-0">
                             <Server className="h-3.5 w-3.5 text-muted-foreground" />
                             <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
                           </div>
@@ -260,7 +260,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                         <button
                           onClick={() => navigator.clipboard?.writeText(srv.uuid || "")}
                           title={t("actions.copyUuid")}
-                          className="inline-flex items-center gap-1 rounded-md bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 bg-secondary/50 px-2 py-0.5 font-mono text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors cursor-pointer"
                         >
                           {(srv.uuid || "").substring(0, 8)}…
                           <Copy className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -280,29 +280,29 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                           <div className="flex items-center gap-0.5 border-r border-border pr-1 mr-1">
-                              <button onClick={() => serverPower(srv.uuid, "start")} title={t("actions.start")} className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                              <button onClick={() => serverPower(srv.uuid, "start")} title={t("actions.start")} className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                               <Play className="h-3.5 w-3.5" />
                             </button>
-                              <button onClick={() => serverPower(srv.uuid, "restart")} title={t("actions.restart")} className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                              <button onClick={() => serverPower(srv.uuid, "restart")} title={t("actions.restart")} className="p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
                               <RotateCcw className="h-3.5 w-3.5" />
                             </button>
-                              <button onClick={() => serverPower(srv.uuid, "stop")} title={t("actions.stop")} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                              <button onClick={() => serverPower(srv.uuid, "stop")} title={t("actions.stop")} className="p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
                               <Square className="h-3.5 w-3.5" />
                             </button>
                           </div>
                           {srv.status === "suspended" ? (
-                              <button onClick={() => unsuspendServer(srv.uuid)} title={t("actions.unsuspend")} className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                              <button onClick={() => unsuspendServer(srv.uuid)} title={t("actions.unsuspend")} className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                               <CheckCircle className="h-3.5 w-3.5" />
                             </button>
                           ) : (
-                              <button onClick={() => suspendServer(srv.uuid)} title={t("actions.suspend")} className="rounded-md p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                              <button onClick={() => suspendServer(srv.uuid)} title={t("actions.suspend")} className="p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
                               <Shield className="h-3.5 w-3.5" />
                             </button>
                           )}
-                            <button onClick={() => openEditServer(srv)} title={t("actions.editServer")} className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                            <button onClick={() => openEditServer(srv)} title={t("actions.editServer")} className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                             <Edit className="h-3.5 w-3.5" />
                           </button>
-                            <button onClick={() => deleteServer(srv.uuid)} title={t("actions.deleteServer")} className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                            <button onClick={() => deleteServer(srv.uuid)} title={t("actions.deleteServer")} className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -318,7 +318,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
 
       <div className="flex flex-col gap-3 lg:hidden">
         {filteredServers.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card px-4 py-12">
+          <div className="border border-border bg-card px-4 py-12">
             <div className="flex flex-col items-center gap-2">
               <Server className="h-8 w-8 text-muted-foreground/50" />
               <p className="text-sm text-muted-foreground">{servers.length === 0 ? t("states.loading") : t("states.noMatch")}</p>
@@ -335,9 +335,9 @@ export default function ServersTab({ ctx }: { ctx: any }) {
             const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "text-muted-foreground", dot: "bg-muted-foreground", bg: "bg-secondary/50 border-border" }
 
             return (
-              <div key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="rounded-xl border border-border bg-card overflow-hidden">
+              <div key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="border border-border bg-card overflow-hidden">
                 <div className="flex items-start gap-3 p-4 pb-3">
-                  <div className="relative h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0">
+                  <div className="relative h-10 w-10 bg-secondary/80 flex items-center justify-center shrink-0">
                     <Server className="h-4 w-4 text-muted-foreground" />
                     <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
                   </div>
@@ -370,15 +370,15 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                 </div>
 
                 <div className="flex items-center justify-center gap-1 px-4 py-2.5 border-t border-border bg-secondary/20">
-                  <button onClick={() => serverPower(srv.uuid, "start")} title={t("actions.start")} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
+                  <button onClick={() => serverPower(srv.uuid, "start")} title={t("actions.start")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                     <Play className="h-3.5 w-3.5" />
                     <span>{t("actions.start")}</span>
                   </button>
-                  <button onClick={() => serverPower(srv.uuid, "restart")} title={t("actions.restart")} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
+                  <button onClick={() => serverPower(srv.uuid, "restart")} title={t("actions.restart")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
                     <RotateCcw className="h-3.5 w-3.5" />
                     <span>{t("actions.restart")}</span>
                   </button>
-                  <button onClick={() => serverPower(srv.uuid, "stop")} title={t("actions.stop")} className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                  <button onClick={() => serverPower(srv.uuid, "stop")} title={t("actions.stop")} className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
                     <Square className="h-3.5 w-3.5" />
                     <span>{t("actions.stop")}</span>
                   </button>
@@ -411,7 +411,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
         )}
       </div>
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
             {t("pagination.page")} <span className="font-medium text-foreground">{serversPage}</span>
@@ -462,44 +462,44 @@ export default function ServersTab({ ctx }: { ctx: any }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.name")}</label>
-              <input value={esName} onChange={(e) => setEsName(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input value={esName} onChange={(e) => setEsName(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.description")}</label>
-              <input value={esDesc} onChange={(e) => setEsDesc(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input value={esDesc} onChange={(e) => setEsDesc(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.ownerUserId")}</label>
-              <input type="number" value={esUserId} onChange={(e) => setEsUserId(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input type="number" value={esUserId} onChange={(e) => setEsUserId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.memoryMb")}</label>
-              <input type="number" min="128" value={esMemory} onChange={(e) => setEsMemory(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input type="number" min="128" value={esMemory} onChange={(e) => setEsMemory(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.diskMb")}</label>
-              <input type="number" min="512" value={esDisk} onChange={(e) => setEsDisk(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input type="number" min="512" value={esDisk} onChange={(e) => setEsDisk(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.cpuPercent")}</label>
-              <input type="number" min="10" value={esCpu} onChange={(e) => setEsCpu(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input type="number" min="10" value={esCpu} onChange={(e) => setEsCpu(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.swapMb")}</label>
-              <input type="number" min="0" value={esSwap} onChange={(e) => setEsSwap(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input type="number" min="0" value={esSwap} onChange={(e) => setEsSwap(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.dockerImage")}</label>
-              <input value={esDockerImage} onChange={(e) => setEsDockerImage(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+              <input value={esDockerImage} onChange={(e) => setEsDockerImage(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.startupCommand")}</label>
-              <input value={esStartup} onChange={(e) => setEsStartup(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+              <input value={esStartup} onChange={(e) => setEsStartup(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
             </div>
             <div className="col-span-2 flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.eggTemplate")}</label>
               <Select value={esEggId ?? "none"} onValueChange={(v) => setEsEggId(v === "none" ? undefined : v)}>
-                <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                <SelectTrigger className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
                   <SelectValue placeholder={t("editDialog.fields.noTemplate")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -520,7 +520,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               <div className="space-y-1.5">
                 {esAllocations.length === 0 && <p className="text-xs text-muted-foreground italic">{t("editDialog.fields.noAllocations")}</p>}
                 {esAllocations.map((a: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2 rounded-md border border-border bg-secondary/30 px-3 py-1.5">
+                  <div key={i} className="flex items-center gap-2 border border-border bg-secondary/30 px-3 py-1.5">
                     {esEditFqdnIdx === i ? (
                       <>
                         <div className="flex-1 min-w-0 flex items-center gap-1.5">
@@ -531,7 +531,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                               if (e.key === 'Enter') { setEsAllocations((prev: any[]) => prev.map((x, j) => j === i ? { ...x, fqdn: esEditFqdnVal.trim() || undefined } : x)); setEsEditFqdnIdx(null) }
                               else if (e.key === 'Escape') setEsEditFqdnIdx(null)
                             }}
-                            className="flex-1 rounded border border-border bg-secondary/50 px-2 py-0.5 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
+                            className="flex-1 border border-border bg-secondary/50 px-2 py-0.5 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
                         </div>
                         <button onClick={() => { setEsAllocations((prev: any[]) => prev.map((x, j) => j === i ? { ...x, fqdn: esEditFqdnVal.trim() || undefined } : x)); setEsEditFqdnIdx(null) }} title={t("actions.saveFqdn")} className="text-muted-foreground hover:text-green-400 transition-colors"><Check className="h-3.5 w-3.5" /></button>
                         <button onClick={() => setEsEditFqdnIdx(null)} title={t("actions.cancel")} className="text-muted-foreground hover:text-destructive transition-colors"><XCircle className="h-3.5 w-3.5" /></button>
@@ -554,9 +554,9 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                 ))}
               </div>
               <div className="flex gap-2 flex-wrap">
-                <input placeholder={t("editDialog.fields.bindIp")} value={esAllocIp} onChange={(e) => setEsAllocIp(e.target.value)} className="w-32 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
-                <input type="number" placeholder={t("editDialog.fields.port")} value={esAllocPort} onChange={(e) => setEsAllocPort(e.target.value)} className="w-24 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
-                <input placeholder={t("editDialog.fields.displayFqdn")} value={esAllocFqdn} onChange={(e) => setEsAllocFqdn(e.target.value)} className="flex-1 min-w-[160px] rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                <input placeholder={t("editDialog.fields.bindIp")} value={esAllocIp} onChange={(e) => setEsAllocIp(e.target.value)} className="w-32 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                <input type="number" placeholder={t("editDialog.fields.port")} value={esAllocPort} onChange={(e) => setEsAllocPort(e.target.value)} className="w-24 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                <input placeholder={t("editDialog.fields.displayFqdn")} value={esAllocFqdn} onChange={(e) => setEsAllocFqdn(e.target.value)} className="flex-1 min-w-[160px] border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                 <Button size="sm" variant="outline" className="border-border h-9" onClick={() => { const port = Number(esAllocPort); if (!esAllocIp || !port) return; setEsAllocations((prev: any[]) => [...prev, { ip: esAllocIp, port, fqdn: esAllocFqdn.trim(), is_default: prev.length === 0 }]); setEsAllocPort(""); setEsAllocFqdn("") }}><Plus className="h-3.5 w-3.5 mr-1" /> {t("actions.add")}</Button>
               </div>
             </div>
@@ -567,7 +567,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               <div className="space-y-1.5">
                 {esDedicatedIps.length === 0 && <p className="text-xs text-muted-foreground italic">No dedicated IPs assigned</p>}
                 {esDedicatedIps.map((d: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2 rounded-md border border-purple-500/20 bg-purple-500/5 px-3 py-1.5">
+                  <div key={i} className="flex items-center gap-2 border border-purple-500/20 bg-purple-500/5 px-3 py-1.5">
                     <div className="flex-1 min-w-0">
                       <span className="font-mono text-sm text-foreground">{d.ip}</span>
                       <span className="ml-2 text-[10px] font-semibold uppercase text-purple-400">{d.type}</span>
@@ -584,12 +584,12 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-muted-foreground">IP Address</label>
                   <input placeholder="e.g. 166.88.225.39" value={esDedicatedIpInput} onChange={(e) => setEsDedicatedIpInput(e.target.value)}
-                    className="w-40 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                    className="w-40 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-muted-foreground">Type</label>
                   <select value={esDedicatedIpType} onChange={(e) => setEsDedicatedIpType(e.target.value as "ipv4" | "ipv6")}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                     <option value="ipv4">IPv4</option>
                     <option value="ipv6">IPv6</option>
                   </select>
@@ -597,10 +597,10 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-muted-foreground">FQDN (optional)</label>
                   <input placeholder="e.g. server.example.com" value={esDedicatedIpFqdn} onChange={(e) => setEsDedicatedIpFqdn(e.target.value)}
-                    className="w-48 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
+                    className="w-48 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                 </div>
                 <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 h-9" onClick={assignDedicatedIp} disabled={esDedicatedIpLoading || !esDedicatedIpInput.trim()}>
-                  {esDedicatedIpLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
+                  {esDedicatedIpLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
                   Assign
                 </Button>
               </div>
@@ -613,7 +613,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={reinstallServerFromDialog} disabled={esReinstalling || esLoading} className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 mr-auto">
-            {esReinstalling ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
+            {esReinstalling ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
             {t("actions.reinstall")}
           </Button>
           <Button variant="outline" onClick={() => setEditServerDialog(null)} className="border-border">{t("actions.cancel")}</Button>
@@ -633,11 +633,11 @@ export default function ServersTab({ ctx }: { ctx: any }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5 col-span-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("createDialog.fields.serverNameOptional")}</label>
-              <input value={csName} onChange={(e) => setCsName(e.target.value)} placeholder={t("createDialog.fields.serverNamePlaceholder")} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input value={csName} onChange={(e) => setCsName(e.target.value)} placeholder={t("createDialog.fields.serverNamePlaceholder")} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5 col-span-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("createDialog.fields.nodeRequired")}</label>
-              <select value={csNodeId} onChange={(e) => setCsNodeId(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+              <select value={csNodeId} onChange={(e) => setCsNodeId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="">{t("createDialog.fields.selectNode")}</option>
                 {nodes.map((n: any) => <option key={n.id} value={String(n.id)}>{n.name} ({n.nodeType})</option>)}
               </select>
@@ -645,7 +645,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("createDialog.fields.eggOptional")}</label>
               <Select value={csEggId ?? "none"} onValueChange={(v) => setCsEggId(v === "none" ? undefined : v)}>
-                <SelectTrigger className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
+                <SelectTrigger className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 w-full">
                   <SelectValue placeholder={t("createDialog.fields.defaultNodeJs")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -663,7 +663,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("createDialog.fields.ownerUserIdOptional")}</label>
-              <input type="number" value={csUserId} onChange={(e) => setCsUserId(e.target.value)} placeholder={t("createDialog.fields.userIdPlaceholder")} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <input type="number" value={csUserId} onChange={(e) => setCsUserId(e.target.value)} placeholder={t("createDialog.fields.userIdPlaceholder")} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
           </div>
           <div className="border-t border-border pt-3">
@@ -671,19 +671,19 @@ export default function ServersTab({ ctx }: { ctx: any }) {
             <div className="grid grid-cols-3 gap-3">
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-muted-foreground">{t("createDialog.fields.memoryMb")}</label>
-                <input type="number" min="1" value={csMemory} onChange={(e) => setCsMemory(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                <input type="number" min="1" value={csMemory} onChange={(e) => setCsMemory(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-muted-foreground">{t("createDialog.fields.diskMb")}</label>
-                <input type="number" min="1" value={csDisk} onChange={(e) => setCsDisk(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                <input type="number" min="1" value={csDisk} onChange={(e) => setCsDisk(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs text-muted-foreground">{t("createDialog.fields.cpuPercent")}</label>
-                <input type="number" min="5" value={csCpu} onChange={(e) => setCsCpu(e.target.value)} className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                <input type="number" min="5" value={csCpu} onChange={(e) => setCsCpu(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
               </div>
             </div>
             <div className="flex items-center gap-2 mt-3">
-              <input id="cs-kvm-passthrough" type="checkbox" checked={csKvmPassthroughEnabled} onChange={(e) => setCsKvmPassthroughEnabled(e.target.checked)} className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary" />
+              <input id="cs-kvm-passthrough" type="checkbox" checked={csKvmPassthroughEnabled} onChange={(e) => setCsKvmPassthroughEnabled(e.target.checked)} className="h-4 w-4 border-border bg-secondary/50 text-primary focus:ring-primary" />
               <label htmlFor="cs-kvm-passthrough" className="text-sm text-foreground">{t("createDialog.fields.enableKvmPassthrough")}</label>
             </div>
           </div>
@@ -692,7 +692,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
         <DialogFooter>
           <Button variant="outline" onClick={() => setCreateServerOpen(false)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={submitCreateServer} disabled={csLoading || !csNodeId} className="bg-primary text-primary-foreground">
-            {csLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />{t("actions.creating")}</> : t("actions.createServer")}
+            {csLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.creating")}</> : t("actions.createServer")}
           </Button>
         </DialogFooter>
       </DialogContent>

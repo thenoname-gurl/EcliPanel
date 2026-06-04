@@ -128,7 +128,7 @@ function ToastContainer({ toasts, onDismiss }: {
         <div
           key={toast.id}
           className={cn(
-            "flex items-start gap-3 rounded-lg border px-4 py-3 shadow-lg backdrop-blur-sm pointer-events-auto",
+            "flex items-start gap-3 border px-4 py-3 shadow-lg backdrop-blur-sm pointer-events-auto",
             "animate-in slide-in-from-bottom-2 fade-in-0 duration-200",
             styles[toast.type]
           )}
@@ -187,7 +187,7 @@ function ConfirmDialog({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onCancel}
       />
-      <div className="relative z-10 w-full max-w-sm rounded-xl border border-border bg-popover p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150">
+      <div className="relative z-10 w-full max-w-sm border border-border bg-popover p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150">
         <h3 className="font-semibold text-foreground mb-2">{title}</h3>
         <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{description}</p>
         <div className="flex gap-3 justify-end">
@@ -303,7 +303,7 @@ function ImagePreviewModal({ url, filename, onClose, onDownload, t }: {
         <div style={{ transform: `translate(${position.x}px,${position.y}px) scale(${scale})`, transformOrigin: "center", transition: isDragging ? "none" : "transform 0.1s" }}>
           <img
             src={url} alt={filename} draggable={false}
-            className="max-w-[95vw] max-h-[88vh] object-contain rounded-lg shadow-2xl select-none"
+            className="max-w-[95vw] max-h-[88vh] object-contain shadow-2xl select-none"
           />
         </div>
       </div>
@@ -383,7 +383,7 @@ function VideoPreviewModal({ url, filename, onClose, onDownload, t }: {
           ref={videoRef}
           src={url}
           controls
-          className="max-w-full max-h-full rounded-lg shadow-2xl"
+          className="max-w-full max-h-full shadow-2xl"
           onClick={(e) => e.stopPropagation()}
           onPlay={() => setIsPlaying(true)}
           onPause={() => setIsPlaying(false)}
@@ -406,7 +406,7 @@ function ToolbarBtn({
       onClick={onClick}
       disabled={disabled || loading}
       className={cn(
-        "flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-all",
+        "flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium transition-all",
         "disabled:opacity-40 disabled:cursor-not-allowed",
         variant === "destructive"
           ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
@@ -414,7 +414,7 @@ function ToolbarBtn({
       )}
     >
       {loading
-        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
         : <Icon className="h-3.5 w-3.5" />}
       {label && <span className="hidden sm:inline">{label}</span>}
     </button>
@@ -488,7 +488,7 @@ function CreateItemForm({ type, value, onChange, onSubmit, onCancel, t }: {
         ref={ref} type="text" value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={type === "file" ? t("inputs.fileNamePlaceholder") : t("inputs.folderNamePlaceholder")}
-        className="flex-1 min-w-0 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+        className="flex-1 min-w-0 border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
         onKeyDown={e => { if (e.key === "Enter") onSubmit(); if (e.key === "Escape") onCancel() }}
       />
       <Button size="sm" onClick={onSubmit} className="gap-1 h-7 text-xs">
@@ -506,7 +506,7 @@ function CreateItemForm({ type, value, onChange, onSubmit, onCancel, t }: {
 function DropZoneOverlay({ active, t }: { active: boolean; t: any }) {
   if (!active) return null
   return (
-    <div className="absolute inset-0 z-30 m-2 flex items-center justify-center rounded-xl border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm pointer-events-none">
+    <div className="absolute inset-0 z-30 m-2 flex items-center justify-center border-2 border-dashed border-primary bg-primary/10 backdrop-blur-sm pointer-events-none">
       <div className="flex flex-col items-center gap-3 text-primary">
         <div className="p-4 rounded-full bg-primary/15">
           <Upload className="h-8 w-8" />
@@ -574,7 +574,7 @@ function SftpConnectionPanel({
               { label: t("labels.port"), value: sftpInfo?.port?.toString() || "—", icon: Server },
               { label: t("labels.username"), value: sftpInfo?.username ?? "—", icon: Terminal },
             ].map(({ label, value, icon: Icon }) => (
-              <div key={label} className="rounded-lg border border-border/60 bg-secondary/30 p-2.5">
+              <div key={label} className="border border-border/60 bg-secondary/30 p-2.5">
                 <div className="flex items-center gap-1.5 mb-1">
                   <Icon className="h-3 w-3 text-muted-foreground" />
                   <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</p>
@@ -585,7 +585,7 @@ function SftpConnectionPanel({
           </div>
 
           {/* Command */}
-          <div className="rounded-lg border border-border/60 bg-secondary/30 p-3">
+          <div className="border border-border/60 bg-secondary/30 p-3">
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-medium text-muted-foreground">{t("labels.sftpCommand")}</p>
               <button
@@ -602,7 +602,7 @@ function SftpConnectionPanel({
           </div>
 
           {/* KVM Notes */}
-          <div className="rounded-lg border border-indigo-500/15 bg-indigo-500/5 p-3 text-xs text-indigo-300/80 space-y-1.5">
+          <div className="border border-indigo-500/15 bg-indigo-500/5 p-3 text-xs text-indigo-300/80 space-y-1.5">
             <p className="font-semibold text-indigo-200">{t("kvmNotes.title")}</p>
             <ul className="list-disc pl-4 space-y-1 leading-relaxed">
               <li>{t("kvmNotes.usePrimary")}</li>
@@ -628,27 +628,27 @@ function SftpConnectionPanel({
                 value={sftpPassword}
                 onChange={e => setSftpPassword(e.target.value)}
                 placeholder={t("inputs.sftpPassword")}
-                className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                className="flex-1 border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
                 onKeyDown={e => e.key === "Enter" && onConnect()}
               />
               <button
                 onClick={onConnect}
                 disabled={sftpChecking || !sftpPassword}
                 className={cn(
-                  "flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-all",
+                  "flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium transition-all",
                   "bg-primary text-primary-foreground hover:bg-primary/90",
                   "disabled:opacity-40 disabled:cursor-not-allowed"
                 )}
               >
                 {sftpChecking
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
                   : <Unlock className="h-3.5 w-3.5" />}
                 {t("actions.connect")}
               </button>
             </div>
             {sftpError && (
               <p className="flex items-center gap-1.5 text-xs text-red-400 pl-5">
-                <AlertCircle className="h-3 w-3 flex-shrink-0" />
+                <AlertCircle className="h-3 w-3 rounded-full flex-shrink-0" />
                 {sftpError}
               </p>
             )}
@@ -690,7 +690,7 @@ function FileRow({
       {/* Checkbox */}
       <input
         type="checkbox" checked={isSelected} onChange={onToggle}
-        className="h-3.5 w-3.5 rounded border-border accent-primary"
+        className="h-3.5 w-3.5 border-border accent-primary"
       />
 
       {/* Name */}
@@ -841,7 +841,7 @@ function ShareFileLinkModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md rounded-xl border border-border bg-popover p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150">
+      <div className="relative z-10 w-full max-w-md border border-border bg-popover p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2.5">
             <Link2 className="h-4 w-4 text-violet-400" />
@@ -853,7 +853,7 @@ function ShareFileLinkModal({
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-lg bg-secondary/20 border border-border/60 px-3.5 py-2.5">
+          <div className="bg-secondary/20 border border-border/60 px-3.5 py-2.5">
             <p className="text-xs text-muted-foreground mb-0.5">{t("shareModal.file")}</p>
             <p className="text-sm font-mono text-foreground truncate">{fileName}</p>
           </div>
@@ -871,7 +871,7 @@ function ShareFileLinkModal({
                       key={d.value}
                       onClick={() => setExpiresIn(d.value)}
                       className={cn(
-                        "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-all",
+                        "border px-2.5 py-1.5 text-xs font-medium transition-all",
                         expiresIn === d.value
                           ? "border-violet-500/50 bg-violet-500/10 text-violet-300"
                           : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
@@ -893,7 +893,7 @@ function ShareFileLinkModal({
                   disabled={creating}
                   className="h-8 text-xs gap-1.5"
                 >
-                  {creating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2 className="h-3 w-3" />}
+                  {creating ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <Link2 className="h-3 w-3" />}
                   {t("shareModal.createShareLink")}
                 </Button>
               </div>
@@ -909,7 +909,7 @@ function ShareFileLinkModal({
                     type="text"
                     readOnly
                     value={shareUrl}
-                    className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary"
+                    className="flex-1 border border-border bg-background px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary"
                   />
                   <Button size="sm" onClick={copyLink} className="h-8 text-xs gap-1 flex-shrink-0">
                     {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
@@ -1748,14 +1748,14 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
               disabled={revisionsLoading}
               className="h-7 text-xs gap-1.5"
             >
-              {revisionsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+              {revisionsLoading ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <RotateCcw className="h-3 w-3" />}
               History
             </Button>
             <Button size="sm" variant="outline" onClick={() => setEditingFile(null)} className="h-7 text-xs">
               {t("actions.cancel")}
             </Button>
             <Button size="sm" onClick={saveFile} disabled={saving} className="h-7 text-xs gap-1.5">
-              {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+              {saving ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <Save className="h-3 w-3" />}
               {t("actions.save")}
             </Button>
           </div>
@@ -1802,7 +1802,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
               )}
               {revisionContentLoading && (
                 <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  <Loader2 className="h-4 w-4 rounded-full animate-spin text-muted-foreground" />
                 </div>
               )}
               {activeRevisionId && revisionContent !== null && !revisionContentLoading && (
@@ -1813,7 +1813,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
                     disabled={restoringRevision}
                     className="w-full h-7 text-xs gap-1.5"
                   >
-                    {restoringRevision ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                    {restoringRevision ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                     Restore this version
                   </Button>
                 </div>
@@ -2035,7 +2035,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       <div className="flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin opacity-50" />
+            <Loader2 className="h-6 w-6 rounded-full animate-spin opacity-50" />
             <p className="text-sm">{t("states.loadingFiles")}</p>
           </div>
         ) : isSftpMode && !sftpAuthorized ? (
@@ -2100,7 +2100,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
       {largestDirs !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[70vh] flex flex-col">
+          <div className="bg-background border border-border shadow-2xl w-full max-w-lg mx-4 max-h-[70vh] flex flex-col">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
               <h3 className="text-sm font-semibold">Largest Directories</h3>
               <button

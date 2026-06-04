@@ -82,7 +82,7 @@ export function EnforcementBanner() {
               <button
                 onClick={handleResend}
                 disabled={resending}
-                className="ml-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-medium text-warning hover:bg-warning/20 transition-colors disabled:opacity-50"
+                className="ml-2 border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-medium text-warning hover:bg-warning/20 transition-colors disabled:opacity-50"
               >
                 {resending ? t("sending") : resent ? t("resendShort") : t("sendVerificationEmail")}
               </button>
@@ -98,14 +98,14 @@ export function EnforcementBanner() {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 placeholder={t("codePlaceholder")}
                 maxLength={6}
-                className="w-28 rounded-md border border-border bg-input px-3 py-1.5 text-center font-mono text-sm tracking-widest text-foreground outline-none focus:border-primary/50 transition-all"
+                className="w-28 border border-border bg-input px-3 py-1.5 text-center font-mono text-sm tracking-widest text-foreground outline-none focus:border-primary/50 transition-all"
               />
               <button
                 onClick={handleVerifyCode}
                 disabled={verifying || code.length < 6}
-                className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                className="bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {verifying ? <Loader2 className="h-3 w-3 animate-spin" /> : t("verify")}
+                {verifying ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : t("verify")}
               </button>
               <button
                 onClick={handleResend}
@@ -133,7 +133,7 @@ export function EnforcementBanner() {
                 {!securityDone && (
                   <a
                     href="/dashboard/settings"
-                    className="ml-2 rounded-md border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-medium text-warning hover:bg-warning/20 transition-colors"
+                    className="ml-2 border border-warning/30 bg-warning/10 px-3 py-1 text-xs font-medium text-warning hover:bg-warning/20 transition-colors"
                   >
                     {t("goToSecurity")}
                   </a>

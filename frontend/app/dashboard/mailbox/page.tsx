@@ -442,7 +442,7 @@ function SandboxedEmailFrame({ html, blockRemoteImages }: { html: string; blockR
 // ─────────────────────────────────────────────────────────────────────────────
 
 function Spinner({ className }: { className?: string }) {
-  return <Loader2 className={cn("animate-spin", className)} />
+  return <Loader2 className={cn("rounded-full animate-spin", className)} />
 }
 
 // Simple address input supporting multiple recipients (chips)
@@ -472,7 +472,7 @@ function AddressInput({
     <div className="flex items-center gap-2 min-w-0 flex-1">
       <div className="flex flex-wrap gap-1 flex-1">
         {values.map((v, i) => (
-          <span key={i} className="inline-flex items-center gap-2 px-2 py-0.5 rounded-md bg-muted text-muted-foreground text-sm">
+          <span key={i} className="inline-flex items-center gap-2 px-2 py-0.5 bg-muted text-muted-foreground text-sm">
             <span className="truncate max-w-xs">{v}</span>
             <button type="button" onClick={() => onChange(values.filter((_, idx) => idx !== i))} className="p-0.5 rounded text-muted-foreground hover:text-foreground">
               <X className="h-3 w-3" />
@@ -502,7 +502,7 @@ function TypeBadge({ type }: { type: ItemType }) {
   const cfg = TYPE_CONFIG[type]
   return (
     <span className={cn(
-      "inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide border border-border/20",
+      "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide border border-border/20",
       cfg.pill,
     )}>
       {cfg.icon}
@@ -573,7 +573,7 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
   const [preview, setPreview] = useState(false)
 
   return (
-    <div className="group rounded-xl border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all duration-150">
+    <div className="group border border-border bg-card hover:border-primary/30 hover:shadow-sm transition-all duration-150">
       {isImage && preview && (
         <div
           className="relative border-b border-border cursor-zoom-out overflow-hidden rounded-t-xl bg-muted/30"
@@ -584,7 +584,7 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
       )}
       <div className="flex items-center gap-3 px-3.5 py-2.5">
         <div className={cn(
-          "rounded-lg p-2 flex-shrink-0 transition-colors",
+          "p-2 flex-shrink-0 transition-colors",
           isImage ? "bg-primary/10 text-primary" :
             isPdf ? "bg-destructive/10 text-destructive" :
               "bg-muted text-muted-foreground",
@@ -607,13 +607,13 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
           {isImage && (
             <button
               onClick={() => setPreview(s => !s)}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
             >
               {preview ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
             </button>
           )}
           <a href={attachment.url} download={attachment.filename} target="_blank" rel="noreferrer"
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors">
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors">
             <Download className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -657,7 +657,7 @@ function MetadataRow({ label, value, mono = false, copyable = false }: {
 function SecurityBadge({ item }: { item: MailboxItem }) {
   if (item.isVirus) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2">
+      <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 px-3 py-2">
         <ShieldAlert className="h-4 w-4 text-destructive flex-shrink-0" />
         <div>
           <p className="text-xs font-semibold text-destructive">Virus detected</p>
@@ -668,7 +668,7 @@ function SecurityBadge({ item }: { item: MailboxItem }) {
   }
   if (item.isSpam) {
     return (
-      <div className="flex items-center gap-2 rounded-lg bg-accent/30 border border-accent/40 px-3 py-2">
+      <div className="flex items-center gap-2 bg-accent/30 border border-accent/40 px-3 py-2">
         <AlertTriangle className="h-4 w-4 text-accent-foreground flex-shrink-0" />
         <div>
           <p className="text-xs font-semibold text-accent-foreground">Likely spam</p>
@@ -680,7 +680,7 @@ function SecurityBadge({ item }: { item: MailboxItem }) {
     )
   }
   return (
-    <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 px-3 py-2">
+    <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-2">
       <Shield className="h-4 w-4 text-primary flex-shrink-0" />
       <p className="text-xs font-semibold text-primary">No threats detected</p>
     </div>
@@ -833,7 +833,7 @@ function RichComposer({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-background overflow-hidden focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all">
+    <div className="border border-border bg-background overflow-hidden focus-within:ring-1 focus-within:ring-primary/50 focus-within:border-primary/50 transition-all">
       {/* Toolbar */}
       <div className="flex items-center gap-0.5 px-2 py-1.5 border-b border-border bg-muted/10 flex-wrap">
         {TOOLBAR_GROUPS.map((group, gi) => (
@@ -861,12 +861,12 @@ function RichComposer({
 
         <div className="flex-1" />
 
-        <div className="flex items-center rounded-lg bg-muted/10 p-0.5 gap-0.5">
+        <div className="flex items-center bg-muted/10 p-0.5 gap-0.5">
           <button
             type="button"
             onClick={() => setEditorMode("write")}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all",
               editorMode === "write"
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -879,7 +879,7 @@ function RichComposer({
             type="button"
             onClick={() => setEditorMode("preview")}
             className={cn(
-              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+              "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all",
               editorMode === "preview"
                 ? "bg-card text-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground",
@@ -909,7 +909,7 @@ function RichComposer({
           style={{ minHeight: `${minRows * 1.625}rem` }}
         >
           {value.trim() ? (
-            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+            <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
             </div>
           ) : (
@@ -922,7 +922,7 @@ function RichComposer({
       <div className="flex items-center gap-3 px-3 py-1.5 border-t border-border/50 bg-muted/20">
         <span className="text-[11px] text-muted-foreground/60">
           Markdown supported ·{" "}
-          <kbd className="font-mono text-[10px] bg-muted px-1 py-0.5 rounded border border-border">Tab</kbd>
+          <kbd className="font-mono text-[10px] bg-muted px-1 py-0.5 border border-border">Tab</kbd>
           {" "}to indent
         </span>
         <div className="flex-1" />
@@ -1015,7 +1015,7 @@ function ComposePane({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+          className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
         >
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -1037,7 +1037,7 @@ function ComposePane({
             onClick={handleSend}
             disabled={sending || !canSend}
           >
-            {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+            {sending ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline">Send</span>
           </Button>
         </div>
@@ -1047,7 +1047,7 @@ function ComposePane({
         <div className="max-w-3xl mx-auto px-4 sm:px-8 py-6 space-y-5">
 
           {/* Recipients block */}
-          <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="border border-border bg-card overflow-hidden">
             {/* To */}
             <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50">
               <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">To</span>
@@ -1118,7 +1118,7 @@ function ComposePane({
           </div>
 
           {/* Rich markdown body */}
-          <div className="rounded-xl border border-border bg-muted/10 px-4 py-3 text-[12px] text-muted-foreground space-y-1">
+          <div className="border border-border bg-muted/10 px-4 py-3 text-[12px] text-muted-foreground space-y-1">
             <p>
               {queuedCount > 0
                 ? `${queuedCount} message${queuedCount !== 1 ? "s" : ""} currently queued`
@@ -1139,7 +1139,7 @@ function ComposePane({
           />
 
           {/* Markdown cheat sheet */}
-          <div className="rounded-xl border border-border bg-muted/10 p-4 space-y-3">
+          <div className="border border-border bg-muted/10 p-4 space-y-3">
             <div className="flex items-center gap-2">
               <FileText className="h-3.5 w-3.5 text-muted-foreground" />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
@@ -1634,7 +1634,7 @@ export default function MailboxPage() {
             <button
               onClick={() => setShowFilters(s => !s)}
               className={cn(
-                "p-1.5 rounded-lg transition-colors text-xs",
+                "p-1.5 transition-colors text-xs",
                 showFilters || selectedCategory || unreadOnly || favoriteOnly
                   ? "bg-primary/15 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
@@ -1645,9 +1645,9 @@ export default function MailboxPage() {
             <button
               onClick={handleRefresh}
               disabled={refreshing || sentLoading}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
             >
-              <RefreshCw className={cn("h-3.5 w-3.5", (refreshing || sentLoading) && "animate-spin")} />
+              <RefreshCw className={cn("h-3.5 w-3.5", (refreshing || sentLoading) && "rounded-full animate-spin")} />
             </button>
           </div>
         </div>
@@ -1660,7 +1660,7 @@ export default function MailboxPage() {
             placeholder="Search messages…"
             value={searchQuery}
             onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
-            className="w-full rounded-lg border border-border bg-muted/10 hover:bg-muted/20 py-2 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-card transition-all"
+            className="w-full border border-border bg-muted/10 hover:bg-muted/20 py-2 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-card transition-all"
           />
         </div>
 
@@ -1670,7 +1670,7 @@ export default function MailboxPage() {
             <button
               onClick={() => setFavoriteOnly(s => !s)}
               className={cn(
-                "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors",
+                "flex w-full items-center justify-between px-3 py-2 text-xs transition-colors",
                 favoriteOnly ? "bg-primary/15 text-primary font-medium" : "bg-muted/10 text-foreground hover:bg-muted/20",
               )}
             >
@@ -1685,7 +1685,7 @@ export default function MailboxPage() {
                 <button
                   onClick={() => setUnreadOnly(s => !s)}
                   className={cn(
-                    "flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs transition-colors",
+                    "flex w-full items-center justify-between px-3 py-2 text-xs transition-colors",
                     unreadOnly ? "bg-primary/15 text-primary font-medium" : "bg-muted/10 text-foreground hover:bg-muted/20",
                   )}
                 >
@@ -1703,7 +1703,7 @@ export default function MailboxPage() {
                         key={cat ?? "all"}
                         onClick={() => setSelectedCategory(cat)}
                         className={cn(
-                          "rounded-md px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
+                          "px-2.5 py-1 text-[11px] font-medium capitalize transition-colors",
                           selectedCategory === cat
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground",
@@ -1906,14 +1906,14 @@ export default function MailboxPage() {
           <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/60 bg-card/60">
             <button
               onClick={() => setMobileView("list")}
-              className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
+              className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
 
             <TypeBadge type={selectedItem.type} />
             {selectedItem.category && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1 bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                 <Tag className="h-2.5 w-2.5" />
                 {selectedItem.category}
               </span>
@@ -1924,7 +1924,7 @@ export default function MailboxPage() {
             <button
               onClick={() => handleFavoriteToggle(selectedItem, !selectedItem.favorite)}
               disabled={actionLoading[`favorite-${selectedItem.id}`]}
-              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
               title={selectedItem.favorite ? "Remove from favourites" : "Add to favourites"}
             >
               {selectedItem.favorite
@@ -1937,7 +1937,7 @@ export default function MailboxPage() {
                 <button
                   onClick={() => handleMarkRead(selectedItem)}
                   disabled={actionLoading[markReadKey]}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
                 >
                   {actionLoading[markReadKey]
                     ? <Spinner className="h-3.5 w-3.5" />
@@ -1949,7 +1949,7 @@ export default function MailboxPage() {
                 <button
                   onClick={() => handleDelete(selectedItem)}
                   disabled={actionLoading[deleteKey]}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
                 >
                   {actionLoading[deleteKey] ? <Spinner className="h-3.5 w-3.5" /> : <Trash2 className="h-3.5 w-3.5" />}
                   <span className="hidden sm:inline text-[11px]">{t("actions.delete")}</span>
@@ -1962,7 +1962,7 @@ export default function MailboxPage() {
                 <button
                   onClick={() => handleInviteAction(selectedItem.type as any, selectedItem.inviteId, "reject")}
                   disabled={actionLoading[inviteKey]}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border border-border text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
                 >
                   {actionLoading[inviteKey] ? <Spinner className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                   {t("actions.reject")}
@@ -1970,7 +1970,7 @@ export default function MailboxPage() {
                 <button
                   onClick={() => handleInviteAction(selectedItem.type as any, selectedItem.inviteId, "accept")}
                   disabled={actionLoading[inviteKey]}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   {actionLoading[inviteKey] ? <Spinner className="h-3.5 w-3.5" /> : <Check className="h-3.5 w-3.5" />}
                   {t("actions.accept")}
@@ -1990,7 +1990,7 @@ export default function MailboxPage() {
               </div>
 
               {/* Sender card */}
-              <div className="rounded-xl border border-border bg-card p-4">
+              <div className="border border-border bg-card p-4">
                 <div className="flex items-start gap-3">
                   <SenderAvatar item={selectedItem} size="md" />
                   <div className="min-w-0 flex-1">
@@ -2020,7 +2020,7 @@ export default function MailboxPage() {
                       <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-border/50">
                         <SecurityBadge item={selectedItem} />
                         {(selectedItem.attachments?.length ?? 0) > 0 && (
-                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted rounded-lg px-2.5 py-1.5">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2.5 py-1.5">
                             <Paperclip className="h-3 w-3" />
                             <span>{selectedItem.attachments!.length} attachment{selectedItem.attachments!.length !== 1 ? "s" : ""}</span>
                           </div>
@@ -2038,9 +2038,9 @@ export default function MailboxPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       onClick={() => setBodyView("plain")}
-                      className="flex items-start gap-3 rounded-xl border-2 border-border bg-card px-4 py-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-all group"
+                      className="flex items-start gap-3 border-2 border-border bg-card px-4 py-4 text-left hover:border-primary/40 hover:bg-primary/5 transition-all group"
                     >
-                      <div className="rounded-lg bg-muted p-2.5 flex-shrink-0 group-hover:bg-primary/10 transition-colors">
+                      <div className="bg-muted p-2.5 flex-shrink-0 group-hover:bg-primary/10 transition-colors">
                         <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                       <div>
@@ -2050,9 +2050,9 @@ export default function MailboxPage() {
                     </button>
                     <button
                       onClick={() => { setHtmlConfirmed(true); setBodyView("html") }}
-                      className="flex items-start gap-3 rounded-xl border-2 border-border bg-card px-4 py-4 text-left hover:border-accent/50 hover:bg-accent/10 transition-all group"
+                      className="flex items-start gap-3 border-2 border-border bg-card px-4 py-4 text-left hover:border-accent/50 hover:bg-accent/10 transition-all group"
                     >
-                      <div className="rounded-lg bg-accent/20 p-2.5 flex-shrink-0">
+                      <div className="bg-accent/20 p-2.5 flex-shrink-0">
                         <AlertTriangle className="h-4 w-4 text-accent-foreground" />
                       </div>
                       <div>
@@ -2062,7 +2062,7 @@ export default function MailboxPage() {
                     </button>
                   </div>
                   {selectedItem.details && (
-                    <div className="rounded-xl border border-border bg-muted/30 px-4 py-3">
+                    <div className="border border-border bg-muted/30 px-4 py-3">
                       <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-semibold">Preview</p>
                       <p className="text-sm leading-relaxed text-foreground/70 whitespace-pre-wrap line-clamp-4">
                         {selectedItem.details}
@@ -2074,11 +2074,11 @@ export default function MailboxPage() {
                 <div className="space-y-4">
                   {hasHtml && bodyView !== null && (
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center rounded-lg bg-muted p-0.5 gap-0.5">
+                      <div className="flex items-center bg-muted p-0.5 gap-0.5">
                         <button
                           onClick={() => setBodyView("plain")}
                           className={cn(
-                            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all",
                             resolvedView === "plain" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                           )}
                         >
@@ -2087,7 +2087,7 @@ export default function MailboxPage() {
                         <button
                           onClick={() => { if (!htmlConfirmed) setHtmlConfirmed(true); setBodyView("html") }}
                           className={cn(
-                            "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                            "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium transition-all",
                             resolvedView === "html" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                           )}
                         >
@@ -2106,10 +2106,10 @@ export default function MailboxPage() {
                   )}
 
                   {resolvedView === "plain" && (
-                    <div className="rounded-xl border border-border bg-card">
+                    <div className="border border-border bg-card">
                       {selectedItem.details ? (
                         <div className="px-5 py-5">
-                          <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+                          <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{selectedItem.details}</ReactMarkdown>
                           </div>
                         </div>
@@ -2123,7 +2123,7 @@ export default function MailboxPage() {
                   )}
 
                   {resolvedView === "html" && htmlConfirmed && selectedItem.html && (
-                    <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="border border-border overflow-hidden">
                       {blockRemoteImages && (
                         <RemoteImagesBar
                           onAllow={() => setBlockRemoteImages(false)}
@@ -2161,14 +2161,14 @@ export default function MailboxPage() {
 
               {/* Category */}
               {selectedItem.type === "email" && categories.length > 0 && (
-                <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                <div className="border border-border bg-card p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <Tag className="h-3.5 w-3.5 text-muted-foreground" />
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</p>
                   </div>
                   <div className="flex gap-2">
                     <select
-                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
+                      className="flex-1 border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 transition-all"
                       value={currentMessageCategory ?? ""}
                       onChange={e => setCurrentMessageCategory(e.target.value || null)}
                     >
@@ -2184,7 +2184,7 @@ export default function MailboxPage() {
               )}
 
               {/* Metadata accordion */}
-              <div className="rounded-xl border border-border overflow-hidden">
+              <div className="border border-border overflow-hidden">
                 <button
                   onClick={() => setShowMetadata(s => !s)}
                   className="flex items-center justify-between w-full px-4 py-3 bg-muted/10 hover:bg-muted/20 transition-colors"
@@ -2256,7 +2256,7 @@ export default function MailboxPage() {
 
                       {metadataSection === "raw" && (
                         <div className="py-2">
-                          <div className="rounded-lg bg-muted/50 border border-border overflow-auto max-h-80">
+                          <div className="bg-muted/50 border border-border overflow-auto max-h-80">
                             <pre className="p-3 text-[11px] leading-5 text-foreground/80 whitespace-pre font-mono">
                               {selectedItem.rawHeaders
                                 ? formatHeaderSource(selectedItem.rawHeaders)

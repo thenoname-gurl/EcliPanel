@@ -23,7 +23,7 @@ export function InfoRow({ label, value, mono, copyable, className }: InfoRowProp
   return (
     <div 
       className={cn(
-        "rounded-lg border border-border bg-secondary/20 p-3",
+        "border border-border bg-secondary/20 p-3",
         copyable && "cursor-pointer hover:bg-secondary/30 transition-colors",
         className
       )}
@@ -66,7 +66,7 @@ export function LoadingState({ message = "Loading...", size = "md", className }:
       paddingClasses[size],
       className
     )}>
-      <Loader2 className={cn("animate-spin text-muted-foreground mb-2", sizeClasses[size])} />
+      <Loader2 className={cn("rounded-full animate-spin text-muted-foreground mb-2", sizeClasses[size])} />
       <p className="text-sm text-muted-foreground">{message === "Loading..." ? t("loading") : message}</p>
     </div>
   )
@@ -143,7 +143,7 @@ interface StatCardProps {
 export function StatCard({ label, value, icon: Icon, trend, trendValue, className }: StatCardProps) {
   return (
     <div className={cn(
-      "rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0",
+      "border border-border bg-card p-3 sm:p-4 min-w-0",
       className
     )}>
       <div className="flex items-center justify-between mb-2">
@@ -180,7 +180,7 @@ interface MiniStatProps {
 export function MiniStat({ label, value, sub, color, className }: MiniStatProps) {
   return (
     <div className={cn(
-      "rounded-xl border border-border bg-card p-2.5 sm:p-3 min-w-0",
+      "border border-border bg-card p-2.5 sm:p-3 min-w-0",
       className
     )}>
       <div className="flex items-center gap-1.5 mb-1">
@@ -227,7 +227,7 @@ export function ProgressStat({
 
   return (
     <div className={cn(
-      "rounded-xl border border-border bg-card p-3 min-w-0",
+      "border border-border bg-card p-3 min-w-0",
       className
     )}>
       <div className="flex items-center justify-between mb-2">
@@ -263,7 +263,7 @@ interface ChartCardProps {
 export function ChartCard({ title, icon: Icon, children, action, className }: ChartCardProps) {
   return (
     <div className={cn(
-      "rounded-xl border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden",
+      "border border-border bg-card p-3 sm:p-4 min-w-0 overflow-hidden",
       className
     )}>
       <div className="flex items-center justify-between mb-3">
@@ -322,7 +322,7 @@ export function ToggleGroup<T extends string>({
 }: ToggleGroupProps<T>) {
   return (
     <div className={cn(
-      "flex items-center gap-0.5 rounded-lg border border-border bg-secondary/30 p-0.5 overflow-x-auto",
+      "flex items-center gap-0.5 border border-border bg-secondary/30 p-0.5 overflow-x-auto",
       className
     )}>
       {options.map((opt) => (
@@ -330,7 +330,7 @@ export function ToggleGroup<T extends string>({
           key={opt.value}
           onClick={() => onChange(opt.value)}
           className={cn(
-            "rounded-md px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium transition-colors whitespace-nowrap",
+            "px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs font-medium transition-colors whitespace-nowrap",
             value === opt.value
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground"
@@ -371,7 +371,7 @@ export function CardGrid({ children, columns = 2, className }: CardGridProps) {
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div className={cn(
-      "animate-pulse rounded-md bg-secondary/50",
+      "animate-pulse bg-secondary/50",
       className
     )} />
   )
@@ -379,7 +379,7 @@ export function Skeleton({ className }: { className?: string }) {
 
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+    <div className="border border-border bg-card p-3 sm:p-4">
       <div className="flex items-center gap-2 mb-2">
         <Skeleton className="h-4 w-4 rounded" />
         <Skeleton className="h-3 w-16" />
@@ -391,7 +391,7 @@ export function StatCardSkeleton() {
 
 export function ChartCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+    <div className="border border-border bg-card p-3 sm:p-4">
       <div className="flex items-center gap-2 mb-3">
         <Skeleton className="h-4 w-4 rounded" />
         <Skeleton className="h-4 w-24" />

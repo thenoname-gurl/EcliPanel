@@ -564,7 +564,7 @@ export default function RegisterPage() {
                           )}
                         >
                           {backendChecking ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                           ) : (
                             t("retry")
                           )}
@@ -956,7 +956,7 @@ export default function RegisterPage() {
                             <div className="relative rounded-lg overflow-hidden bg-background border border-white/20">
                               {captchaLoading ? (
                                 <div className="flex items-center justify-center h-24">
-                                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                                  <Loader2 className="h-5 w-5 rounded-full animate-spin text-muted-foreground" />
                                 </div>
                               ) : captchaImage ? (
                                 <img
@@ -1038,7 +1038,7 @@ export default function RegisterPage() {
                                   <RefreshCw
                                     className={cn(
                                       "h-4 w-4",
-                                      captchaLoading && "animate-spin",
+                                      captchaLoading && "rounded-full animate-spin",
                                     )}
                                   />
                                 </button>
@@ -1108,7 +1108,7 @@ export default function RegisterPage() {
                         >
                           {loading ? (
                             <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                               {t("creatingAccount")}
                             </>
                           ) : (

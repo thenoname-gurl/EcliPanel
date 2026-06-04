@@ -348,9 +348,9 @@ function GuideOverlay({ open, onOpenChange, defs, onBuild }: {
           <div className="grid grid-cols-2 gap-2 py-2">
             {GUIDE_TEMPLATES.map((t, i) => (
               <button key={t.id} onClick={() => { setTmplIdx(i); setStep(0); setCompleted(false) }}
-                className="flex flex-col items-start gap-1.5 p-3 rounded-lg border border-border/30 hover:border-purple-500/40 hover:bg-purple-500/5 transition-all text-left">
+                className="flex flex-col items-start gap-1.5 p-3 border border-border/30 hover:border-purple-500/40 hover:bg-purple-500/5 transition-all text-left">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold" style={{ backgroundColor: t.color + "20", color: t.color }}>
+                  <div className="w-7 h-7 flex items-center justify-center text-xs font-bold" style={{ backgroundColor: t.color + "20", color: t.color }}>
                     <BlockIcon icon={t.icon} className="h-3.5 w-3.5" />
                   </div>
                   <span className="text-sm font-medium">{t.name}</span>
@@ -420,11 +420,11 @@ function GuideOverlay({ open, onOpenChange, defs, onBuild }: {
       <div className="absolute inset-0 bg-black/40" style={{ pointerEvents: "auto" }} onClick={() => onOpenChange(false)} />
       {/* Highlight ring around target */}
       {pos.width > 0 && (
-        <div className="absolute rounded-lg border-2 border-purple-500 shadow-[0_0_0_4px_rgba(168,85,247,0.3),0_0_20px_rgba(168,85,247,0.15)] transition-all duration-300"
+        <div className="absolute border-2 border-purple-500 shadow-[0_0_0_4px_rgba(168,85,247,0.3),0_0_20px_rgba(168,85,247,0.15)] transition-all duration-300"
           style={{ top: pos.top - 4, left: pos.left - 4, width: pos.width + 8, height: pos.height + 8, pointerEvents: "none" }} />
       )}
       {/* Tooltip */}
-      <div ref={tooltipRef} className="absolute bg-background border border-border/50 rounded-xl shadow-2xl p-4 transition-all duration-200"
+      <div ref={tooltipRef} className="absolute bg-background border border-border/50 shadow-2xl p-4 transition-all duration-200"
         style={{ top: tp, left: lf, width: tooltipW, pointerEvents: "auto" }}>
         {/* Step indicator */}
         <div className="flex items-center justify-between mb-2">
@@ -460,7 +460,7 @@ function GuideOverlay({ open, onOpenChange, defs, onBuild }: {
         {/* Description */}
         <p className="text-[11px] text-muted-foreground mb-2">{s.description}</p>
         {/* Action callout */}
-        <div className="flex items-start gap-1.5 p-2 rounded-lg bg-purple-500/5 border border-purple-500/15 mb-3">
+        <div className="flex items-start gap-1.5 p-2 bg-purple-500/5 border border-purple-500/15 mb-3">
           <ArrowRight className="h-3 w-3 text-purple-400 shrink-0 mt-0.5" />
           <p className="text-[10px] text-purple-300/90 leading-relaxed">{s.action}</p>
         </div>
@@ -1509,7 +1509,7 @@ export default function VisualEditorPage() {
         onDragOver={(e) => onDragOverZone(e, parentId, index)}
         onDragLeave={() => onDragLeaveZone(key)}
         onDrop={onDropZone}
-        className={`rounded border border-dashed transition-all duration-150
+        className={`border border-dashed transition-all duration-150
           ${over
             ? 'h-8 border-purple-400/50 bg-purple-500/20 my-2 ring-1 ring-purple-500/20'
             : isDragging
@@ -1790,7 +1790,7 @@ export default function VisualEditorPage() {
           onDragStart={(e) => handleCanvasDragStart(e, b.id)}
           onDragEnd={() => { setDropZoneHover(null); setDragBlockId(null) }}
           onClick={() => setSelectedId(b.id)}
-          className={`flex items-center gap-1.5 p-1.5 rounded-md border cursor-pointer transition-all text-xs
+          className={`flex items-center gap-1.5 p-1.5 border cursor-pointer transition-all text-xs
             ${isGroup ? "border-dashed border-border/40 bg-muted/10" : ""}
             ${d?.canHaveChildren && !isGroup ? "bg-gradient-to-r from-transparent to-transparent hover:to-purple-500/[0.03]" : ""}
             ${hasBlockError ? "border-red-500/60 bg-red-500/10 ring-1 ring-red-500/20" : hasBlockWarning ? "border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/20" : isSel ? "border-purple-500/50 bg-purple-500/10 ring-1 ring-purple-500/20" : "border-border/30 bg-card/40 hover:border-border/60"}
@@ -1863,20 +1863,20 @@ export default function VisualEditorPage() {
                 onDragOver={(e) => onDragOverZone(e, b.id, safeArr(b.children).length)}
                 onDragLeave={() => onDragLeaveZone(zoneKey(b.id, safeArr(b.children).length))}
                 onDrop={onDropZone}
-                className={`flex-1 flex items-center justify-center gap-1.5 p-2 rounded border-2 border-dashed text-[10px] transition-colors cursor-default
+                className={`flex-1 flex items-center justify-center gap-1.5 p-2 border-2 border-dashed text-[10px] transition-colors cursor-default
                   ${dropZoneHover === zoneKey(b.id, safeArr(b.children).length) ? "border-purple-400/40 bg-purple-500/10 text-purple-400/60" : "border-border/10 text-muted-foreground/20 hover:border-purple-500/30 hover:text-purple-400/40"}`}>
                 <AddIcon className="h-2.5 w-2.5" /> {safeArr(b.children).length > 0 ? 'drop here' : 'drop blocks here'}
               </div>
               <div className="relative" ref={quickAddParent === b.id ? quickAddRef : undefined}>
                 <button onClick={(e) => { e.stopPropagation(); setQuickAddParent(quickAddParent === b.id ? null : b.id) }}
-                  className="p-1.5 lg:p-1 rounded border border-dashed border-border/20 text-muted-foreground/30 hover:text-purple-400/60 hover:border-purple-400/30 transition-colors text-[10px]">
+                  className="p-1.5 lg:p-1 border border-dashed border-border/20 text-muted-foreground/30 hover:text-purple-400/60 hover:border-purple-400/30 transition-colors text-[10px]">
                   <Plus className="h-3.5 w-3.5 lg:h-3 lg:w-3" />
                 </button>
                 {quickAddParent === b.id && (
-                  <div className="absolute bottom-full right-0 mb-1 z-50 w-44 rounded-lg border border-border/30 bg-popover shadow-xl backdrop-blur-md p-1 max-h-52 overflow-y-auto">
+                  <div className="absolute bottom-full right-0 mb-1 z-50 w-44 border border-border/30 bg-popover shadow-xl backdrop-blur-md p-1 max-h-52 overflow-y-auto">
                     <input type="text" placeholder="Search..."
                       onChange={e => { const q = e.target.value.toLowerCase(); setQuickAddFilter(q) }}
-                      className="w-full h-6 px-1.5 text-[10px] rounded border border-border/20 bg-background/50 focus:outline-none mb-1"
+                      className="w-full h-6 px-1.5 text-[10px] border border-border/20 bg-background/50 focus:outline-none mb-1"
                       onClick={e => e.stopPropagation()} autoFocus />
                     {defs.filter(d => {
                       if (d.type === 'otherwise' || d.type === 'otherwise_if' || d.type === 'default_case' || d.type === 'case') return false
@@ -1972,7 +1972,7 @@ export default function VisualEditorPage() {
             ) : null}
             <div className="w-px h-5 bg-border/30 mx-0.5" />
             <Button size="sm" className="h-7 text-xs" data-guide-id="btn-generate" onClick={handleGenerate} disabled={generating}>
-              {generating ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <PlayIcon className="h-3.5 w-3.5 mr-1" />}
+              {generating ? <Loader2 className="h-3.5 w-3.5 mr-1 rounded-full animate-spin" /> : <PlayIcon className="h-3.5 w-3.5 mr-1" />}
               {generating ? "Generating..." : validation.hasErrors ? "Fix Errors" : "Generate"}
             </Button>
             {clipboardRef.current && (
@@ -2006,7 +2006,7 @@ export default function VisualEditorPage() {
                 <button
                   key={`${issue.blockId || "global"}-${index}`}
                   onClick={() => issue.blockId && setSelectedId(issue.blockId)}
-                  className={`w-full text-left rounded border px-2 py-1.5 text-xs transition-colors ${
+                  className={`w-full text-left border px-2 py-1.5 text-xs transition-colors ${
                     issue.severity === "error"
                       ? "border-red-500/20 bg-red-500/5 hover:bg-red-500/10"
                       : "border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10"
@@ -2057,14 +2057,14 @@ export default function VisualEditorPage() {
                 </SelectContent>
               </Select>
               <Button variant="outline" size="sm" className="h-7 text-xs whitespace-nowrap" onClick={handleSave} disabled={saving}>
-                {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 rounded-full animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
                 {selectedBpToOverwrite ? "Overwrite" : "Save current"}
               </Button>
             </div>
             {blueprints.length === 0 ? <p className="text-xs text-muted-foreground">None saved yet.</p> : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {blueprints.map((bp: Blueprint) => (
-                  <div key={bp.id} className="flex items-center justify-between p-1.5 rounded border border-border/30 hover:bg-accent/30 text-xs">
+                  <div key={bp.id} className="flex items-center justify-between p-1.5 border border-border/30 hover:bg-accent/30 text-xs">
                     <button onClick={() => loadBp(bp.id)} className="flex items-center gap-1.5 font-medium">
                       <FileCode className="h-3.5 w-3.5 text-purple-400" />{bp.name}
                       <span className="text-muted-foreground font-normal">{(bp.updatedAt || "").slice(0, 10)}</span>
@@ -2106,7 +2106,7 @@ export default function VisualEditorPage() {
             {savedBlocks.length === 0 ? <p className="text-xs text-muted-foreground">No saved snippets yet.</p> : (
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {savedBlocks.map(s => (
-                  <div key={s.id} className="flex items-center justify-between p-1.5 rounded border border-border/30 hover:bg-accent/30 text-xs">
+                  <div key={s.id} className="flex items-center justify-between p-1.5 border border-border/30 hover:bg-accent/30 text-xs">
                     <button onClick={() => insertFromLib(s.blocks)} className="flex items-center gap-1.5 font-medium">
                       <Library className="h-3.5 w-3.5 text-purple-400" />{s.name}
                       <span className="text-muted-foreground font-normal">({s.blocks.length} blocks)</span>
@@ -2141,7 +2141,7 @@ export default function VisualEditorPage() {
                     if (e.key === 'Escape') setRenamingFileId(null)
                   }}
                   autoFocus
-                  className="w-32 h-5 px-1.5 text-xs rounded border border-purple-500/30 bg-background focus:outline-none"
+                  className="w-32 h-5 px-1.5 text-xs border border-purple-500/30 bg-background focus:outline-none"
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
@@ -2207,13 +2207,13 @@ export default function VisualEditorPage() {
                 <div className="relative">
                   <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
                   <input type="text" placeholder="Search blocks..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full h-8 pl-6 pr-2 text-xs rounded border border-border/20 bg-background/50 focus:outline-none focus:border-purple-500/40 placeholder:text-muted-foreground/30" />
+                    className="w-full h-8 pl-6 pr-2 text-xs border border-border/20 bg-background/50 focus:outline-none focus:border-purple-500/40 placeholder:text-muted-foreground/30" />
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0">
                 {filtered.map(d => (
                   <div key={d.type} onClick={() => { addBlock(d.type); setMobileView(null) }}
-                    className="flex items-center gap-2 p-2 rounded border border-border/20 bg-card/20 hover:bg-accent/30 hover:border-border/40 transition-all text-xs cursor-pointer active:scale-[0.98]">
+                    className="flex items-center gap-2 p-2 border border-border/20 bg-card/20 hover:bg-accent/30 hover:border-border/40 transition-all text-xs cursor-pointer active:scale-[0.98]">
                     <span className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: d.color + "25" }}>
                       <BlockIcon icon={d.icon} className="h-3.5 w-3.5" style={{ color: d.color }} />
                     </span>
@@ -2284,7 +2284,7 @@ export default function VisualEditorPage() {
                             )}
                           </Label>
                           {useMonaco ? (
-                            <div className="h-32 w-full rounded border overflow-hidden border-border/30">
+                            <div className="h-32 w-full border overflow-hidden border-border/30">
                               <Suspense fallback={<div className="p-3 text-xs text-muted-foreground/50">Loading...</div>}>
                                 <MonacoEditor
                                   height="100%"
@@ -2361,7 +2361,7 @@ export default function VisualEditorPage() {
                   data-guide-id="palette-search"
                   type="text" placeholder="Search blocks..."
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full h-7 pl-6 pr-2 text-[11px] rounded border border-border/20 bg-background/50 focus:outline-none focus:border-purple-500/40 placeholder:text-muted-foreground/30"
+                  className="w-full h-7 pl-6 pr-2 text-[11px] border border-border/20 bg-background/50 focus:outline-none focus:border-purple-500/40 placeholder:text-muted-foreground/30"
                 />
               </div>
             </div>
@@ -2370,7 +2370,7 @@ export default function VisualEditorPage() {
                 <div key={d.type} data-guide-id={`palette-block-${d.type}`} draggable
                   onDragStart={(e) => { e.dataTransfer.setData("text/plain", d.type); e.dataTransfer.effectAllowed = "copy" }}
                   onClick={() => addBlock(d.type)}
-                  className="flex items-center gap-2 p-1.5 rounded border border-border/20 bg-card/20 hover:bg-accent/30 hover:border-border/40 transition-all cursor-grab active:cursor-grabbing text-xs touch-none">
+                  className="flex items-center gap-2 p-1.5 border border-border/20 bg-card/20 hover:bg-accent/30 hover:border-border/40 transition-all cursor-grab active:cursor-grabbing text-xs touch-none">
                   <span className="w-5 h-5 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: d.color + "25" }}>
                     <BlockIcon icon={d.icon} className="h-3 w-3" style={{ color: d.color }} />
                   </span>
@@ -2398,7 +2398,7 @@ export default function VisualEditorPage() {
                   <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/30 pointer-events-none" />
                   <input type="text" placeholder="Find blocks on canvas..."
                     value={canvasSearch} onChange={e => setCanvasSearch(e.target.value)}
-                    className="w-full h-6 pl-6 pr-2 text-[10px] rounded border border-border/20 bg-background/50 focus:outline-none focus:border-purple-500/30 placeholder:text-muted-foreground/30" />
+                    className="w-full h-6 pl-6 pr-2 text-[10px] border border-border/20 bg-background/50 focus:outline-none focus:border-purple-500/30 placeholder:text-muted-foreground/30" />
                 </div>
               </div>
             )}
@@ -2437,7 +2437,7 @@ export default function VisualEditorPage() {
                 onDragOver={(e) => onDragOverZone(e, null, safeArr(activeBlocks).length)}
                 onDragLeave={() => onDragLeaveZone(zoneKey(null, safeArr(activeBlocks).length))}
                 onDrop={onDropZone}
-                className={`mt-1 flex items-center justify-center gap-1 p-2 rounded border-2 border-dashed text-[10px] transition-colors cursor-default
+                className={`mt-1 flex items-center justify-center gap-1 p-2 border-2 border-dashed text-[10px] transition-colors cursor-default
                   ${dropZoneHover === zoneKey(null, safeArr(activeBlocks).length) ? "border-purple-400/40 bg-purple-500/10 text-purple-400/60" : "border-border/10 text-muted-foreground/20 hover:border-purple-500/30 hover:text-purple-400/40"}`}>
                 <AddIcon className="h-3 w-3" /> drop here
               </div>
@@ -2496,7 +2496,7 @@ export default function VisualEditorPage() {
                         </Label>
                         {useMonaco ? (
                           <div className="space-y-1">
-                            <div className={`h-32 w-full rounded border overflow-hidden ${hasFieldError ? "border-red-500/40" : hasFieldWarning ? "border-amber-500/30" : "border-border/30"}`}>
+                            <div className={`h-32 w-full border overflow-hidden ${hasFieldError ? "border-red-500/40" : hasFieldWarning ? "border-amber-500/30" : "border-border/30"}`}>
                               <Suspense fallback={<div className="p-3 text-xs text-muted-foreground/50">Loading editor...</div>}>
                                 <MonacoEditor
                                   height="100%"
@@ -2532,7 +2532,7 @@ export default function VisualEditorPage() {
                                 <DialogHeader>
                                   <DialogTitle className="text-sm">Edit Custom Code</DialogTitle>
                                 </DialogHeader>
-                                <div className="flex-1 min-h-0 rounded border border-border/30 overflow-hidden">
+                                <div className="flex-1 min-h-0 border border-border/30 overflow-hidden">
                                   <Suspense fallback={<div className="p-4 text-xs text-muted-foreground/50">Loading editor...</div>}>
                                     <MonacoEditor
                                       height="100%"
@@ -2683,7 +2683,7 @@ function FieldInput({ field, block, onUpdate, fieldIssues }: {
     case "json":
       return (
         <div>
-          <div className={`h-32 w-full rounded border overflow-hidden ${hasError ? "border-red-500/40" : hasWarning ? "border-amber-500/30" : "border-border/30"}`}>
+          <div className={`h-32 w-full border overflow-hidden ${hasError ? "border-red-500/40" : hasWarning ? "border-amber-500/30" : "border-border/30"}`}>
             <Suspense fallback={<div className="p-2 text-[10px] text-muted-foreground/50">Loading editor...</div>}>
               <MonacoEditor
                 height="100%"
@@ -2726,7 +2726,7 @@ function HandlerParamsFields({
 
   if (!handlerBlock) {
     return (
-      <div className="p-2 rounded border border-amber-500/20 bg-amber-500/5">
+      <div className="p-2 border border-amber-500/20 bg-amber-500/5">
         <p className="text-[10px] text-amber-400/70">Define a "<span className="font-mono">{handlerName}</span>" handler block in the canvas to configure arguments.</p>
       </div>
     )
@@ -2734,7 +2734,7 @@ function HandlerParamsFields({
 
   if (params.length === 0) {
     return (
-      <div className="p-2 rounded border border-border/20 bg-muted/20">
+      <div className="p-2 border border-border/20 bg-muted/20">
         <p className="text-[9px] text-muted-foreground/50">No parameters for this handler.</p>
       </div>
     )

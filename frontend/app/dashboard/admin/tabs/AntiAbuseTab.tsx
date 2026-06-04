@@ -280,12 +280,12 @@ export default function AntiAbuseTab() {
     <div className="flex flex-col gap-4">
 
       {/* ── Search / header bar ── */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4">
 
           {/* Search */}
           <div className="relative flex-1 max-w-md">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+            <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
               <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <input
                 type="text"
@@ -311,7 +311,7 @@ export default function AntiAbuseTab() {
             <select
               value={sort}
               onChange={(e) => { setSort(e.target.value as any); setPage(1) }}
-              className="h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground outline-none cursor-pointer"
+              className="h-8 border border-border bg-secondary/50 px-2 text-xs text-foreground outline-none cursor-pointer"
             >
               <option value="aiRisk">{t("filters.sortRisk")}</option>
               <option value="createdAt">{t("filters.sortCreated")}</option>
@@ -319,12 +319,12 @@ export default function AntiAbuseTab() {
             <select
               value={order}
               onChange={(e) => { setOrder(e.target.value as any); setPage(1) }}
-              className="h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground outline-none cursor-pointer"
+              className="h-8 border border-border bg-secondary/50 px-2 text-xs text-foreground outline-none cursor-pointer"
             >
               <option value="desc">{t("filters.desc")}</option>
               <option value="asc">{t("filters.asc")}</option>
             </select>
-            <div className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/50 px-2 h-8">
+            <div className="flex items-center gap-1.5 border border-border bg-secondary/50 px-2 h-8">
               <span className="text-xs text-muted-foreground shrink-0">{t("filters.minRisk")}</span>
               <input
                 type="number" min={0} max={100} value={minRisk}
@@ -334,13 +334,13 @@ export default function AntiAbuseTab() {
             </div>
             <button
               onClick={() => { setPage(1); load(1) }}
-              className="h-8 px-3 rounded-lg border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
+              className="h-8 px-3 border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary transition-colors"
             >
               {t("actions.apply")}
             </button>
             <button
               onClick={() => load()}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               title={t("actions.refresh")}
             >
               <RefreshCw className="h-4 w-4" />
@@ -373,8 +373,8 @@ export default function AntiAbuseTab() {
           { label: t("summary.suspended"),     value: summary.suspended,    icon: Ban,         valueClass: "text-orange-400" },
           { label: t("summary.activeAgents"),  value: activeAgents.length,  icon: Zap,         valueClass: "text-emerald-400" },
         ].map(({ label, value, icon: Icon, valueClass }) => (
-          <div key={label} className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
-            <div className="h-8 w-8 rounded-lg bg-secondary/60 flex items-center justify-center shrink-0">
+          <div key={label} className="border border-border bg-card p-3 flex items-center gap-3">
+            <div className="h-8 w-8 bg-secondary/60 flex items-center justify-center shrink-0">
               <Icon className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0">
@@ -387,7 +387,7 @@ export default function AntiAbuseTab() {
 
       {/* ── Bulk actions bar (only when selection active) ── */}
       {selectedIds.length > 0 && (
-        <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center gap-2 flex-wrap">
+        <div className="border border-border bg-card px-4 py-3 flex items-center gap-2 flex-wrap">
           <span className="text-xs font-semibold text-foreground shrink-0">
             {selectedIds.length} {t("bulk.selected")}
           </span>
@@ -397,7 +397,7 @@ export default function AntiAbuseTab() {
                 key={action}
                 onClick={() => bulkUpdate(action)}
                 disabled={updatingId !== null}
-                className="h-7 px-3 rounded-lg border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 transition-colors"
+                className="h-7 px-3 border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50 transition-colors"
               >
                 {t(`actions.bulk${action.charAt(0).toUpperCase() + action.slice(1)}`)}
               </button>
@@ -405,7 +405,7 @@ export default function AntiAbuseTab() {
             <button
               onClick={bulkDelete}
               disabled={updatingId !== null}
-              className="h-7 px-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+              className="h-7 px-3 border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
             >
               {t("actions.bulkDelete", { count: selectedIds.length })}
             </button>
@@ -420,7 +420,7 @@ export default function AntiAbuseTab() {
       )}
 
       {/* ── Desktop table ── */}
-      <div className="rounded-xl border border-border bg-card hidden lg:block">
+      <div className="border border-border bg-card hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
@@ -430,7 +430,7 @@ export default function AntiAbuseTab() {
                     type="checkbox"
                     checked={allSelected}
                     onChange={toggleAll}
-                    className="h-4 w-4 rounded border-border accent-primary"
+                    className="h-4 w-4 border-border accent-primary"
                   />
                 </th>
                 <th className="px-4 py-3 text-left font-medium">{t("table.server")}</th>
@@ -483,7 +483,7 @@ export default function AntiAbuseTab() {
                             type="checkbox"
                             checked={selectedIds.includes(item.id)}
                             onChange={() => toggleOne(item.id)}
-                            className="h-4 w-4 rounded border-border accent-primary"
+                            className="h-4 w-4 border-border accent-primary"
                           />
                         </td>
 
@@ -544,7 +544,7 @@ export default function AntiAbuseTab() {
                             <button
                               onClick={() => toggleExpand(item.id)}
                               title={t("actions.details")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                              className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                             >
                               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
                             </button>
@@ -552,7 +552,7 @@ export default function AntiAbuseTab() {
                               onClick={() => updateStatus(item.id, "resolve")}
                               disabled={isUpdating}
                               title={t("actions.markSolved")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors disabled:opacity-40"
+                              className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors disabled:opacity-40"
                             >
                               <ShieldCheck className="h-3.5 w-3.5" />
                             </button>
@@ -560,7 +560,7 @@ export default function AntiAbuseTab() {
                               onClick={() => updateStatus(item.id, "dismiss")}
                               disabled={isUpdating}
                               title={t("actions.dismiss")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-40"
+                              className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-40"
                             >
                               <Check className="h-3.5 w-3.5" />
                             </button>
@@ -568,7 +568,7 @@ export default function AntiAbuseTab() {
                               onClick={() => deleteOne(item.id)}
                               disabled={isUpdating}
                               title={t("actions.delete")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-40"
+                              className="p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors disabled:opacity-40"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -604,7 +604,7 @@ export default function AntiAbuseTab() {
 
                               {/* AI summary */}
                               {item.aiSummary && (
-                                <div className="flex gap-2 rounded-lg bg-primary/5 border border-primary/15 px-3 py-2">
+                                <div className="flex gap-2 bg-primary/5 border border-primary/15 px-3 py-2">
                                   <Brain className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                                   <p className="text-xs text-foreground/80">{item.aiSummary}</p>
                                 </div>
@@ -634,7 +634,7 @@ export default function AntiAbuseTab() {
       <div className="flex flex-col gap-3 lg:hidden">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card p-4 space-y-3 animate-pulse">
+            <div key={i} className="border border-border bg-card p-4 space-y-3 animate-pulse">
               <div className="flex items-center gap-3">
                 <div className="h-4 w-4 rounded bg-secondary shrink-0" />
                 <div className="h-4 w-36 rounded bg-secondary" />
@@ -648,7 +648,7 @@ export default function AntiAbuseTab() {
             </div>
           ))
         ) : items.length === 0 ? (
-          <div className="rounded-xl border border-border bg-card px-4 py-12">
+          <div className="border border-border bg-card px-4 py-12">
             <div className="flex flex-col items-center gap-2">
               <ShieldCheck className="h-8 w-8 text-muted-foreground/40" />
               <p className="text-sm text-muted-foreground">{t("states.empty")}</p>
@@ -663,7 +663,7 @@ export default function AntiAbuseTab() {
             const isExpanded = expandedIds.has(item.id)
 
             return (
-              <div key={item.id} className="rounded-xl border border-border bg-card overflow-hidden">
+              <div key={item.id} className="border border-border bg-card overflow-hidden">
 
                 {/* Top: checkbox + server + status */}
                 <div className="flex items-start gap-3 p-4 pb-3">
@@ -671,7 +671,7 @@ export default function AntiAbuseTab() {
                     type="checkbox"
                     checked={selectedIds.includes(item.id)}
                     onChange={() => toggleOne(item.id)}
-                    className="mt-0.5 h-4 w-4 rounded border-border accent-primary shrink-0"
+                    className="mt-0.5 h-4 w-4 border-border accent-primary shrink-0"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -752,7 +752,7 @@ export default function AntiAbuseTab() {
                       ))}
                     </div>
                     {item.aiSummary && (
-                      <div className="flex gap-2 rounded-lg bg-primary/5 border border-primary/15 px-3 py-2">
+                      <div className="flex gap-2 bg-primary/5 border border-primary/15 px-3 py-2">
                         <Brain className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
                         <p className="text-xs text-foreground/80">{item.aiSummary}</p>
                       </div>
@@ -799,7 +799,7 @@ export default function AntiAbuseTab() {
       </div>
 
       {/* ── Pagination ── */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
             {t("pagination.page")}{" "}

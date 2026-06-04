@@ -97,7 +97,7 @@ function CustomTooltipContent({ active, payload, label }: any) {
   const unitFor = (key: string) => (key === 'cpu' ? '%' : key.endsWith('MB') ? ' MB' : '')
   
   return (
-    <div className="rounded-lg border border-border bg-popover/95 backdrop-blur px-3 py-2 shadow-lg">
+    <div className="border border-border bg-popover/95 backdrop-blur px-3 py-2 shadow-lg">
       <p className="text-xs text-muted-foreground mb-1.5 font-medium">{fmtLabel}</p>
       {payload.map((p: any) => (
         <p key={p.dataKey} className="text-xs flex items-center gap-2" style={{ color: p.color }}>
@@ -573,7 +573,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
   if (!hasNodeInfo) return null
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className="border border-border bg-card overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between p-3 sm:p-4 hover:bg-secondary/20 transition-colors"
@@ -621,7 +621,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
               />
             )}
             {(nodeInfo.version || nodeInfo.kernel_version) && (
-              <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+              <div className="border border-border bg-secondary/20 p-2 sm:p-3">
                 <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.version")}</p>
                 <p className="text-xs sm:text-sm font-mono font-medium text-foreground truncate">
                   {nodeInfo.version || nodeInfo.kernel_version || "—"}
@@ -629,26 +629,26 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
               </div>
             )}
             {(nodeInfo.architecture || nodeInfo.arch) && (
-              <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+              <div className="border border-border bg-secondary/20 p-2 sm:p-3">
                 <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.architecture")}</p>
                 <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                   {nodeInfo.architecture || nodeInfo.arch}
                 </p>
               </div>
             )}
-            <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+            <div className="border border-border bg-secondary/20 p-2 sm:p-3">
               <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.cpuAvg24h")}</p>
               <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                 {nodeHistorySummary.cpuAvg.toFixed(2)}%
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+            <div className="border border-border bg-secondary/20 p-2 sm:p-3">
               <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.net24h")}</p>
               <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                 {formatBytes(nodeHistorySummary.rx24h)} / {formatBytes(nodeHistorySummary.tx24h)}
               </p>
             </div>
-            <div className="rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+            <div className="border border-border bg-secondary/20 p-2 sm:p-3">
               <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5">{t("node.currentNet")}</p>
               <p className="text-xs sm:text-sm font-mono font-medium text-foreground">
                 {formatAdaptiveMbps(currentNodeNetMbps.rx)} / {formatAdaptiveMbps(currentNodeNetMbps.tx)}
@@ -657,7 +657,7 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
           </div>
 
           {recharts && nodeUsageChartData.length > 1 && (
-            <div className="mt-3 sm:mt-4 rounded-lg border border-border bg-secondary/20 p-2 sm:p-3">
+            <div className="mt-3 sm:mt-4 border border-border bg-secondary/20 p-2 sm:p-3">
               <p className="text-[10px] sm:text-xs text-muted-foreground mb-2">{t("node.usage24h")}</p>
               <NodeUsageChart data={nodeUsageChartData} recharts={recharts} />
             </div>
@@ -987,9 +987,9 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
           <button
             onClick={() => loadData(true)}
             disabled={refreshing}
-            className="p-2 rounded-lg border border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+            className="p-2 border border-border bg-secondary/30 text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
           >
-            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+            <RefreshCw className={cn("h-4 w-4", refreshing && "rounded-full animate-spin")} />
           </button>
         </div>
       </div>
@@ -1051,7 +1051,7 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
                   key={tab.value}
                   onClick={() => setActiveChart(tab.value)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors",
+                    "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium whitespace-nowrap transition-colors",
                     activeChart === tab.value
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary/50 text-muted-foreground"

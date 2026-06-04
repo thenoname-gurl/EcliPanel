@@ -65,24 +65,24 @@ export default function SubuserInvitesPage() {
       />
 
       {error ? (
-        <div className="rounded-lg border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="border border-destructive/20 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
       ) : null}
 
       {loading ? (
-        <div className="flex items-center justify-center rounded-xl border border-border bg-secondary/10 p-10 text-sm text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        <div className="flex items-center justify-center border border-border bg-secondary/10 p-10 text-sm text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 rounded-full animate-spin" />
           {t("subusers.invitesLoading")}
         </div>
       ) : invites.length === 0 ? (
-        <div className="rounded-xl border border-border bg-secondary/10 p-10 text-sm text-muted-foreground">
+        <div className="border border-border bg-secondary/10 p-10 text-sm text-muted-foreground">
           {t("subusers.invitesEmpty")}
         </div>
       ) : (
         <div className="space-y-4">
           {invites.map((invite) => (
-            <div key={invite.id} className="rounded-3xl border border-border bg-background/90 p-5 shadow-sm">
+            <div key={invite.id} className="border border-border bg-background/90 p-5 shadow-sm">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="space-y-2">
                   <p className="text-sm font-semibold text-foreground">

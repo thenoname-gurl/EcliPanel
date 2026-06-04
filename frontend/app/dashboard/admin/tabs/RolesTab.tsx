@@ -105,10 +105,10 @@ export default function RolesTab({ ctx }: { ctx: any }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+            <div className="h-9 w-9 bg-amber-500/10 flex items-center justify-center shrink-0">
               <Shield className="h-4 w-4 text-amber-400" />
             </div>
             <div>
@@ -130,7 +130,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
             </Button>
             <button
               onClick={() => forceRefreshTab("roles")}
-              className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               title={t("actions.refresh")}
             >
               <RefreshCw className="h-4 w-4" />
@@ -141,7 +141,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
 
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Roles List */}
-        <div className="lg:col-span-2 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+        <div className="lg:col-span-2 border border-border bg-card overflow-hidden flex flex-col">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <List className="h-3.5 w-3.5 text-primary" />
             <p className="text-xs font-medium text-foreground">{t("roles.title")}</p>
@@ -150,7 +150,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
 
           {roles.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
-              <div className="h-10 w-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <div className="h-10 w-10 bg-amber-500/10 flex items-center justify-center">
                 <Shield className="h-5 w-5 text-amber-400/60" />
               </div>
               <div className="text-center">
@@ -213,7 +213,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                           setRoles((prev: any[]) => prev.filter((r: any) => r.id !== role.id))
                           if (selectedRole?.id === role.id) setSelectedRole(null)
                         }}
-                        className="rounded-md p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
+                        className="p-1.5 text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -233,7 +233,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                     <div
                       key={role.id}
                       onClick={() => setSelectedRole(role)}
-                      className={`rounded-lg border p-3 cursor-pointer transition-all ${
+                      className={`border p-3 cursor-pointer transition-all ${
                         isSelected
                           ? "border-primary/40 bg-primary/5"
                           : "border-border hover:border-primary/20 hover:bg-secondary/20"
@@ -269,7 +269,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                             setRoles((prev: any[]) => prev.filter((r: any) => r.id !== role.id))
                             if (selectedRole?.id === role.id) setSelectedRole(null)
                           }}
-                          className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
+                          className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -283,7 +283,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
         </div>
 
         {/* Permissions Panel */}
-        <div className="lg:col-span-3 rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+        <div className="lg:col-span-3 border border-border bg-card overflow-hidden flex flex-col">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <Key className="h-3.5 w-3.5 text-primary" />
             <p className="text-xs font-medium text-foreground">
@@ -312,7 +312,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
 
           {!selectedRole ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
-              <div className="h-10 w-10 rounded-lg bg-secondary/80 flex items-center justify-center">
+              <div className="h-10 w-10 bg-secondary/80 flex items-center justify-center">
                 <MousePointerClick className="h-5 w-5 text-muted-foreground/60" />
               </div>
               <div className="text-center">
@@ -330,14 +330,14 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                   {t("permissions.addPermission")}
                 </p>
                 <div className="grid gap-2 sm:grid-cols-2 text-[11px] text-muted-foreground mb-3">
-                  <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                  <div className="border border-border bg-secondary/50 p-3">
                     <p className="font-medium text-foreground">User-level access</p>
                     <p className="mt-1 text-xs leading-5">
                       Permissions like <code>servers:*</code>, <code>files:*</code>, <code>tickets:*</code> and{" "}
                       <code>databases:*</code> allow normal users to manage servers, tickets, and data.
                     </p>
                   </div>
-                  <div className="rounded-lg border border-border bg-secondary/50 p-3">
+                  <div className="border border-border bg-secondary/50 p-3">
                     <p className="font-medium text-foreground">Admin-level access</p>
                     <p className="mt-1 text-xs leading-5">
                       These labels are driven from backend metadata, so only permissions actually classified as admin-level by the server are tagged here.
@@ -348,7 +348,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                   <select
                     value={newPermValue}
                     onChange={(e) => setNewPermValue(e.target.value)}
-                    className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 cursor-pointer"
+                    className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50 cursor-pointer"
                   >
                     <option value="">{t("permissions.selectPermission")}</option>
                     {orderedPermissionCategories.map((category) => (
@@ -386,7 +386,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                     className="bg-primary text-primary-foreground gap-1.5 h-9 px-3 text-xs shrink-0"
                   >
                     {permLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
                     ) : (
                       <>
                         <Plus className="h-3 w-3" />
@@ -446,7 +446,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
                                   return (
                                     <div
                                       key={p.id}
-                                      className={`group/perm inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                                      className={`group/perm inline-flex items-center gap-2 border px-2.5 py-1.5 transition-colors ${
                                         isWildcard
                                           ? "border-destructive/20 bg-destructive/5 hover:bg-destructive/10"
                                           : admin

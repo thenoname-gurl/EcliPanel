@@ -33,7 +33,7 @@ export default function OrganisationsPage() {
             {(user?.role === 'admin' || user?.role === 'rootAdmin' || user?.tier === 'enterprise') && (
               <button
                 onClick={() => router.push('/dashboard/organisations/create')}
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                className="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >
                 {t("actions.newOrganisation")}
               </button>
@@ -53,7 +53,7 @@ export default function OrganisationsPage() {
                 return (
                   <div
                     key={org.id}
-                    className="rounded-xl border border-border bg-card p-5 hover:border-primary/30 transition-colors"
+                    className="border border-border bg-card p-5 hover:border-primary/30 transition-colors"
                   >
                     <Link href={`/dashboard/organisations/${org.id}`}>
                     <div className="mb-3 flex items-center gap-3">

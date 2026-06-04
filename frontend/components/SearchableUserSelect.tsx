@@ -135,7 +135,7 @@ export default function SearchableUserSelect({ value, onChange, placeholder = "S
 
   return (
     <div className="relative">
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+      <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
         <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <input
           value={open ? query : selectedLabel}
@@ -165,7 +165,7 @@ export default function SearchableUserSelect({ value, onChange, placeholder = "S
         )}
       </div>
       {open && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 rounded-lg border border-border bg-card shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 border border-border bg-card shadow-xl overflow-hidden max-h-64 overflow-y-auto">
           {loading && <div className="px-3 py-2 text-xs text-muted-foreground">Searching users…</div>}
           {!loading && error && <div className="px-3 py-2 text-xs text-warning">{error}</div>}
           {!loading && shownResults.length === 0 && (
@@ -187,7 +187,7 @@ export default function SearchableUserSelect({ value, onChange, placeholder = "S
               }}
               className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/60 transition-colors border-b border-border/40 last:border-0"
             >
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
+              <div className="h-8 w-8 bg-primary/10 flex items-center justify-center text-xs font-semibold text-primary shrink-0">
                 {(u.firstName || u.email || "?")[0]?.toUpperCase() || "?"}
               </div>
               <div className="min-w-0 flex-1">

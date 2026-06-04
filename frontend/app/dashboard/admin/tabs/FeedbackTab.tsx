@@ -95,7 +95,7 @@ export default function FeedbackTab() {
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4 text-primary" />
@@ -111,7 +111,7 @@ export default function FeedbackTab() {
             <select
               value={filterRating ?? ""}
               onChange={(e) => { setFilterRating(e.target.value ? Number(e.target.value) : undefined); setPage(1) }}
-              className="rounded-lg border border-border bg-background/80 px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/50"
+              className="border border-border bg-background/80 px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/50"
             >
               <option value="">All ratings</option>
               {[5, 4, 3, 2, 1, 0].map((r) => (
@@ -119,7 +119,7 @@ export default function FeedbackTab() {
               ))}
             </select>
             <Button size="sm" variant="outline" onClick={load} disabled={loading}>
-              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? "rounded-full animate-spin" : ""}`} />
               Refresh
             </Button>
           </div>
@@ -127,7 +127,7 @@ export default function FeedbackTab() {
 
         {loading ? (
           <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> Loading feedback...
+            <Loader2 className="h-4 w-4 rounded-full animate-spin" /> Loading feedback...
           </div>
         ) : data && data.data.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-16 px-4">
@@ -210,7 +210,7 @@ export default function FeedbackTab() {
               From {viewMessage?.user ? `${viewMessage.user.firstName} ${viewMessage.user.lastName}` : "Unknown"} · {viewMessage?.createdAt ? new Date(viewMessage.createdAt).toLocaleString() : ""}
             </DialogDescription>
           </DialogHeader>
-          <div className="rounded-lg border border-border bg-secondary/20 p-4">
+          <div className="border border-border bg-secondary/20 p-4">
             <p className="text-sm text-foreground whitespace-pre-wrap">{viewMessage?.message || "(no message)"}</p>
           </div>
           <DialogFooter>

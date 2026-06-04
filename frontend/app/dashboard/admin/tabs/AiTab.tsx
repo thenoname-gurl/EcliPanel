@@ -61,11 +61,11 @@ export default function AiTab({ ctx }: { ctx: any }) {
   return (
     <>
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col gap-3 p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <div className="h-9 w-9 bg-violet-500/10 flex items-center justify-center shrink-0">
                 <Brain className="h-4 w-4 text-violet-400" />
               </div>
               <div>
@@ -87,7 +87,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
               </Button>
               <button
                 onClick={() => loadTab("ai")}
-                className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
                 title={t("actions.refresh")}
               >
                 <RefreshCw className="h-4 w-4" />
@@ -98,8 +98,8 @@ export default function AiTab({ ctx }: { ctx: any }) {
       </div>
 
       {aiModels.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-violet-500/10 flex items-center justify-center">
+        <div className="border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
+          <div className="h-12 w-12 bg-violet-500/10 flex items-center justify-center">
             <Brain className="h-6 w-6 text-violet-400/60" />
           </div>
           <div>
@@ -112,7 +112,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
         </div>
       ) : (
         <>
-          <div className="rounded-xl border border-border bg-card hidden lg:block">
+          <div className="border border-border bg-card hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -148,7 +148,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                       <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                            <div className="h-8 w-8 bg-violet-500/10 flex items-center justify-center shrink-0">
                               <Brain className="h-3.5 w-3.5 text-violet-400" />
                             </div>
                             <div className="min-w-0">
@@ -195,15 +195,15 @@ export default function AiTab({ ctx }: { ctx: any }) {
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => openAssignAiModel(m)} title={t("actions.assignToUsers")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                              className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                               <UserPlus className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => openEditAIModel(m)} title={t("actions.editModel")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                              className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                               <Edit className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => deleteAIModel(m)} title={t("actions.deleteModel")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                              className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -216,7 +216,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
             </div>
           </div>
 
-          <div className="rounded-xl border border-border bg-card hidden md:block lg:hidden">
+          <div className="border border-border bg-card hidden md:block lg:hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -240,7 +240,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                       <tr key={m.id ?? i} className="border-b border-border/50 last:border-0 hover:bg-secondary/20 group">
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                            <div className="h-8 w-8 bg-violet-500/10 flex items-center justify-center shrink-0">
                               <Brain className="h-3.5 w-3.5 text-violet-400" />
                             </div>
                             <div className="min-w-0">
@@ -262,15 +262,15 @@ export default function AiTab({ ctx }: { ctx: any }) {
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-end gap-0.5">
                             <button onClick={() => openAssignAiModel(m)} title={t("actions.assign")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
+                              className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors">
                               <UserPlus className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => openEditAIModel(m)} title={t("actions.edit")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                              className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                               <Edit className="h-3.5 w-3.5" />
                             </button>
                             <button onClick={() => deleteAIModel(m)} title={t("actions.delete")}
-                              className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                              className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -294,9 +294,9 @@ export default function AiTab({ ctx }: { ctx: any }) {
               const endpointCount = Array.isArray(m.endpoints) ? m.endpoints.length : m.endpoint ? 1 : 0
 
               return (
-                <div key={m.id ?? i} className="rounded-xl border border-border bg-card overflow-hidden">
+                <div key={m.id ?? i} className="border border-border bg-card overflow-hidden">
                   <div className="flex items-start gap-3 p-4 pb-3">
-                    <div className="relative h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                    <div className="relative h-10 w-10 bg-violet-500/10 flex items-center justify-center shrink-0">
                       <Brain className="h-4 w-4 text-violet-400" />
                       <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
                     </div>
@@ -375,10 +375,10 @@ export default function AiTab({ ctx }: { ctx: any }) {
         </>
       )}
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="border border-border bg-card overflow-hidden">
         <div className="flex items-center justify-between gap-3 p-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+            <div className="h-9 w-9 bg-orange-500/10 flex items-center justify-center shrink-0">
               <Timer className="h-4 w-4 text-orange-400" />
             </div>
             <div>
@@ -388,7 +388,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
           </div>
           <button
             onClick={() => loadTab("ai")}
-            className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             title={t("actions.refresh")}
           >
             <RefreshCw className="h-4 w-4" />
@@ -409,7 +409,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
 
                 return (
                   <div key={i} className="flex items-center gap-4 px-4 py-3 hover:bg-secondary/20 transition-colors">
-                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${isLong ? "bg-destructive/10" : "bg-orange-500/10"
+                    <div className={`h-8 w-8 flex items-center justify-center shrink-0 ${isLong ? "bg-destructive/10" : "bg-orange-500/10"
                       }`}>
                       <Timer className={`h-3.5 w-3.5 ${isLong ? "text-destructive" : "text-orange-400"}`} />
                     </div>
@@ -494,7 +494,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 placeholder={t("assignDialog.tokenPlaceholder")}
                 value={assignAiLimitTokens}
                 onChange={(e) => setAssignAiLimitTokens(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -504,7 +504,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 placeholder={t("assignDialog.requestPlaceholder")}
                 value={assignAiLimitRequests}
                 onChange={(e) => setAssignAiLimitRequests(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
           </div>
@@ -535,13 +535,13 @@ export default function AiTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.name")}</label>
               <input value={aiModelName} onChange={(e) => setAiModelName(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder={t("modelDialog.fields.namePlaceholder")} />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.type")}</label>
               <select value={aiModelType} onChange={(e) => setAiModelType(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="text">Text</option>
                 <option value="code">Code</option>
                 <option value="vision">Vision</option>
@@ -553,7 +553,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.status")}</label>
               <select value={aiModelStatus} onChange={(e) => setAiModelStatus(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="active">Active</option>
                 <option value="beta">Beta</option>
                 <option value="disabled">Disabled</option>
@@ -562,33 +562,33 @@ export default function AiTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.maxTokens")}</label>
               <input value={aiModelMaxTokens} onChange={(e) => setAiModelMaxTokens(e.target.value)} type="number"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder={t("modelDialog.fields.maxTokensPlaceholder")} />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.description")}</label>
             <input value={aiModelDescription} onChange={(e) => setAiModelDescription(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               placeholder={t("modelDialog.fields.descriptionPlaceholder")} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.tags")}</label>
             <input value={aiModelTags} onChange={(e) => setAiModelTags(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               placeholder={t("modelDialog.fields.tagsPlaceholder")} />
             <p className="text-xs text-muted-foreground">{t("modelDialog.fields.tagsHint")}</p>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.endpointUrl")}</label>
             <input value={aiModelEndpoint} onChange={(e) => setAiModelEndpoint(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
               placeholder={t("modelDialog.fields.endpointPlaceholder")} />
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("modelDialog.fields.apiKey")}</label>
             <input value={aiModelApiKey} onChange={(e) => setAiModelApiKey(e.target.value)} type="password"
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
               placeholder={t("modelDialog.fields.apiKeyPlaceholder")} />
           </div>
           <div className="mt-2">
@@ -604,7 +604,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                       next[index] = { ...next[index], endpoint: e.target.value }
                       setAiModelExtraEndpoints(next)
                     }}
-                    className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
+                    className="w-full border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
                   />
                 </div>
                 <div className="col-span-4">
@@ -616,7 +616,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                       next[index] = { ...next[index], apiKey: e.target.value }
                       setAiModelExtraEndpoints(next)
                     }}
-                    className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
+                    className="w-full border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
                   />
                 </div>
                 <div className="col-span-3">
@@ -628,14 +628,14 @@ export default function AiTab({ ctx }: { ctx: any }) {
                       next[index] = { ...next[index], id: e.target.value }
                       setAiModelExtraEndpoints(next)
                     }}
-                    className="w-full rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
+                    className="w-full border border-border bg-secondary/50 px-2 py-1 text-xs text-foreground outline-none"
                   />
                 </div>
                 <div className="col-span-1">
                   <button
                     type="button"
                     onClick={() => setAiModelExtraEndpoints(aiModelExtraEndpoints.filter((_: any, i: number) => i !== index))}
-                    className="rounded-lg border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive"
+                    className="border border-destructive/30 bg-destructive/10 px-2 py-1 text-xs text-destructive"
                   >{t("actions.remove")}</button>
                 </div>
               </div>
@@ -643,7 +643,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
             <button
               type="button"
               onClick={() => setAiModelExtraEndpoints([...aiModelExtraEndpoints, { endpoint: "", apiKey: "" }])}
-              className="mt-2 rounded-lg border border-border bg-secondary/60 px-3 py-1 text-xs"
+              className="mt-2 border border-border bg-secondary/60 px-3 py-1 text-xs"
             >{t("actions.addEndpoint")}</button>
             <p className="text-xs text-muted-foreground mt-1">{t("modelDialog.fields.fallbackHint")}</p>
           </div>

@@ -27,10 +27,10 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+            <div className="h-9 w-9 bg-blue-500/10 flex items-center justify-center shrink-0">
               <Megaphone className="h-4 w-4 text-blue-400" />
             </div>
             <div>
@@ -43,7 +43,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setAnnPreview((p: boolean) => !p)}
-              className={`rounded-lg p-2 transition-colors ${annPreview
+              className={`p-2 transition-colors ${annPreview
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
@@ -73,7 +73,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
               disabled={annSending || !annSubject.trim() || !annMessage.trim()}
               className="h-8 gap-1.5 border-border"
             >
-              {annSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              {annSending ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <Send className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">{t("actions.sendTest")}</span>
               <span className="sm:hidden">{t("actions.test")}</span>
             </Button>
@@ -82,7 +82,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="border border-border bg-card overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border px-4 py-3">
             <Edit className="h-3.5 w-3.5 text-primary" />
             <p className="text-xs font-medium text-foreground">{t("compose.title")}</p>
@@ -97,7 +97,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                 placeholder={t("compose.subjectPlaceholder")}
                 value={annSubject}
                 onChange={(e) => setAnnSubject(e.target.value)}
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors"
+                className="w-full border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors"
               />
             </div>
 
@@ -112,7 +112,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                 placeholder={t("compose.messagePlaceholder")}
                 value={annMessage}
                 onChange={(e) => setAnnMessage(e.target.value)}
-                className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors min-h-[280px] resize-y font-mono whitespace-pre-wrap"
+                className="w-full border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 transition-colors min-h-[280px] resize-y font-mono whitespace-pre-wrap"
               />
               <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
                 <span>{t("compose.characters", { count: annMessage.length })}</span>
@@ -126,12 +126,12 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
             </div>
 
             <div className="flex flex-col gap-3 pt-1">
-              <label className="flex items-center gap-2.5 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors">
+              <label className="flex items-center gap-2.5 border border-border bg-secondary/30 px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors">
                 <input
                   type="checkbox"
                   checked={annForce}
                   onChange={(e) => setAnnForce(e.target.checked)}
-                  className="rounded border-border"
+                  className="border-border"
                 />
                 <div>
                   <p className="text-xs font-medium text-foreground">{t("compose.forceTitle")}</p>
@@ -140,7 +140,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
               </label>
 
               {annForce && (
-                <div className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5">
+                <div className="flex items-start gap-2.5 border border-warning/30 bg-warning/5 px-3 py-2.5">
                   <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
                   <p className="text-[11px] text-warning">
                     {t("compose.forceWarning")}
@@ -181,7 +181,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                   className="gap-1.5"
                 >
                   {annSending ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
                   ) : (
                     <Send className="h-3.5 w-3.5" />
                   )}
@@ -193,7 +193,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
           </div>
         </div>
 
-        <div className="rounded-xl border border-border bg-card overflow-hidden flex flex-col">
+        <div className="border border-border bg-card overflow-hidden flex flex-col">
           <div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
             <div className="flex items-center gap-2">
               <Eye className="h-3.5 w-3.5 text-primary" />
@@ -242,7 +242,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
               </div>
             </div>
 
-            <div className="flex items-start gap-2 mt-3 rounded-lg border border-border/50 bg-secondary/20 px-3 py-2">
+            <div className="flex items-start gap-2 mt-3 border border-border/50 bg-secondary/20 px-3 py-2">
               <Info className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
               <p className="text-[10px] text-muted-foreground">
                 {t("preview.note")}
@@ -256,7 +256,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
         {!annPreview && annMessage.trim() && (
           <button
             onClick={() => setAnnPreview(true)}
-            className="w-full rounded-xl border border-dashed border-border bg-card/50 py-4 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition-colors"
+            className="w-full border border-dashed border-border bg-card/50 py-4 flex flex-col items-center gap-2 text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition-colors"
           >
             <Eye className="h-5 w-5" />
             <span className="text-xs font-medium">{t("actions.tapToPreview")}</span>

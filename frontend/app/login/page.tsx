@@ -329,7 +329,7 @@ export default function LoginPage() {
                       )}
                     >
                       {backendChecking ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                       ) : (
                         t("retry")
                       )}
@@ -452,7 +452,7 @@ export default function LoginPage() {
                           )}
                         >
                           {sendingEmail ? (
-                            <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                            <Loader2 className="h-4 w-4 rounded-full animate-spin mx-auto" />
                           ) : emailSent ? (
                             t("resend")
                           ) : (
@@ -475,7 +475,7 @@ export default function LoginPage() {
                         )}
                       >
                         {loading ? (
-                          <Loader2 className="h-4 w-4 animate-spin mx-auto" />
+                          <Loader2 className="h-4 w-4 rounded-full animate-spin mx-auto" />
                         ) : (
                           t("verify")
                         )}
@@ -573,7 +573,7 @@ export default function LoginPage() {
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                       {t("signingIn")}
                     </>
                   ) : (
@@ -599,7 +599,7 @@ export default function LoginPage() {
                 >
                   {passkeyLoading ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                       {t("waitingPasskey")}
                     </>
                   ) : (

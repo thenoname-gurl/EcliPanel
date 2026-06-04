@@ -484,11 +484,11 @@ export default function OrganisationDetail() {
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
           {/* Org Header / Logo */}
-          <div className="rounded-xl border border-border bg-card p-4 flex items-center gap-4 min-w-0 box-border overflow-hidden">
+          <div className="border border-border bg-card p-4 flex items-center gap-4 min-w-0 box-border overflow-hidden">
             {org.avatarUrl ? (
-              <img src={getAvatarUrl(org.avatarUrl)} alt={t('labels.orgLogoAlt')} className="h-16 w-16 rounded-xl object-cover border border-border" />
+              <img src={getAvatarUrl(org.avatarUrl)} alt={t('labels.orgLogoAlt')} className="h-16 w-16 object-cover border border-border" />
             ) : (
-              <div className="h-16 w-16 rounded-xl bg-secondary/50 border border-border flex items-center justify-center text-2xl text-muted-foreground font-bold">
+              <div className="h-16 w-16 bg-secondary/50 border border-border flex items-center justify-center text-2xl text-muted-foreground font-bold">
                 {org.name?.[0]?.toUpperCase()}
               </div>
             )}
@@ -516,14 +516,14 @@ export default function OrganisationDetail() {
                         alert(t('alerts.failedUpdateTier', { reason: err.message }))
                       }
                     }}
-                    className="rounded-lg border border-border bg-input px-2 py-1.5 text-sm text-foreground"
+                    className="border border-border bg-input px-2 py-1.5 text-sm text-foreground"
                   >
                     <option value="free">{t('tiers.free')}</option>
                     <option value="paid">{t('tiers.pro')}</option>
                     <option value="enterprise">{t('tiers.enterprise')}</option>
                   </select>
                   <label className="cursor-pointer">
-                    <span className="rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors">
+                    <span className="border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-secondary/80 transition-colors">
                       {logoUploading ? t('actions.uploading') : t('actions.uploadLogo')}
                     </span>
                     <input
@@ -581,7 +581,7 @@ export default function OrganisationDetail() {
 
             {/* Members Tab */}
             <TabsContent value="members" className="mt-4">
-              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
+              <div className="border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{t('members.count', { count: members.length })}</p>
                 </div>
@@ -623,7 +623,7 @@ export default function OrganisationDetail() {
                                   alert(t('alerts.failedChangeRole'))
                                 }
                               }}
-                              className="rounded-lg border border-border bg-input px-2 py-1 text-xs text-foreground"
+                              className="border border-border bg-input px-2 py-1 text-xs text-foreground"
                             >
                               <option value="member">{t('roles.member')}</option>
                               <option value="admin">{t('roles.admin')}</option>
@@ -633,7 +633,7 @@ export default function OrganisationDetail() {
                             {isManager && (
                               <button
                                 onClick={() => removeMember(m.id)}
-                                className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                                className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
@@ -678,7 +678,7 @@ export default function OrganisationDetail() {
                     <div className="flex gap-2 mb-2">
                       <Input placeholder={t('members.userIdOptional')} value={addUserId} onChange={(e) => setAddUserId(e.target.value)} className="w-28" />
                       <Input placeholder={t('members.orEmail')} value={addUserEmail} onChange={(e) => setAddUserEmail(e.target.value)} className="flex-1" />
-                      <select value={addUserRole} onChange={(e) => setAddUserRole(e.target.value)} className="rounded-lg border border-border bg-input px-2 py-1 text-xs">
+                      <select value={addUserRole} onChange={(e) => setAddUserRole(e.target.value)} className="border border-border bg-input px-2 py-1 text-xs">
                         <option value="member">{t('roles.member')}</option>
                         <option value="admin">{t('roles.admin')}</option>
                         <option value="owner">{t('roles.owner')}</option>
@@ -711,7 +711,7 @@ export default function OrganisationDetail() {
 
             {/* Orders Tab */}
             <TabsContent value="orders" className="mt-4">
-              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
+              <div className="border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{t('orders.title')}</p>
                 </div>
@@ -763,11 +763,11 @@ export default function OrganisationDetail() {
 
             {/* Servers Tab */}
             <TabsContent value="servers" className="mt-4">
-              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
+              <div className="border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{t('servers.title')}</p>
                   <Button size="sm" variant="outline" onClick={loadServers} disabled={serversLoading}>
-                    {serversLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
+                    {serversLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : t('actions.refresh')}
                   </Button>
                 </div>
                 {serversLoading ? (
@@ -794,7 +794,7 @@ export default function OrganisationDetail() {
                             ? "border-red-500/30 bg-red-500/10 text-red-400"
                             : "border-yellow-500/30 bg-yellow-500/10 text-yellow-400"
                       return (
-                        <div key={uuid} className="rounded-lg border border-border bg-secondary/20 p-4">
+                        <div key={uuid} className="border border-border bg-secondary/20 p-4">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2 min-w-0">
                               <Server className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -839,11 +839,11 @@ export default function OrganisationDetail() {
 
             {/* Nodes Tab */}
             <TabsContent value="nodes" className="mt-4">
-              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
+              <div className="border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{t('nodes.title')}</p>
                   <Button size="sm" variant="outline" onClick={loadNodes} disabled={nodesLoading}>
-                    {nodesLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
+                    {nodesLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : t('actions.refresh')}
                   </Button>
                 </div>
                 {nodesLoading ? (
@@ -853,7 +853,7 @@ export default function OrganisationDetail() {
                 ) : (
                   <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 max-w-[100vw] w-full box-border">
                     {nodes.map((n: any) => (
-                      <div key={n.id} className="rounded-lg border border-border bg-secondary/20 p-4">
+                      <div key={n.id} className="border border-border bg-secondary/20 p-4">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
                             <Network className="h-3.5 w-3.5 text-muted-foreground" />
@@ -920,7 +920,7 @@ export default function OrganisationDetail() {
 
             {/* DNS Tab */}
             <TabsContent value="dns" className="mt-4">
-              <div className="rounded-xl border border-border bg-card min-w-0 box-border overflow-hidden">
+              <div className="border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{t('dns.title')}</p>
                   <div className="flex items-center gap-2">
@@ -930,13 +930,13 @@ export default function OrganisationDetail() {
                           value={subdomainNewName}
                           onChange={(e) => setSubdomainNewName(e.target.value)}
                           placeholder={t('dns.subdomainPlaceholder')}
-                          className="rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground"
+                          className="border border-border bg-input px-3 py-2 text-sm text-foreground"
                         />
                         <Button size="sm" onClick={createSubdomain} disabled={!org?.handle || subdomainNewName.trim() !== (org?.handle || '').replace(/\.$/, '')}>{t('actions.create')}</Button>
                       </>
                     )}
                     <Button size="sm" variant="outline" onClick={() => loadSubdomains()} disabled={subdomainsLoading}>
-                      {subdomainsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t('actions.refresh')}
+                      {subdomainsLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : t('actions.refresh')}
                     </Button>
                   </div>
                 </div>
@@ -951,7 +951,7 @@ export default function OrganisationDetail() {
                       <div key={sub.id} className="flex items-center gap-2">
                         <button
                           onClick={() => loadSubdomainRecords(sub)}
-                          className={`flex-1 text-left rounded-lg border border-border bg-card p-3 ${subdomainSelection?.id === sub.id ? 'ring-2 ring-primary' : ''}`}
+                          className={`flex-1 text-left border border-border bg-card p-3 ${subdomainSelection?.id === sub.id ? 'ring-2 ring-primary' : ''}`}
                         >
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-sm text-foreground">{sub.name}</span>
@@ -993,7 +993,7 @@ export default function OrganisationDetail() {
                       ) : (
                         <div className="space-y-2">
                           {subdomainRecords.map((r) => (
-                            <div key={r.id} className="flex items-center justify-between rounded-lg border border-border p-3">
+                            <div key={r.id} className="flex items-center justify-between border border-border p-3">
                               <div className="min-w-0">
                                 <p className="font-mono text-sm text-foreground truncate">{r.name}</p>
                                 <p className="text-xs text-muted-foreground truncate">{r.type} • {t('dns.ttl', { ttl: r.ttl })} • <Badge variant="outline" className="text-[10px]">{r.proxied ? t('dns.proxied') : t('dns.dns')}</Badge></p>
@@ -1017,13 +1017,13 @@ export default function OrganisationDetail() {
                     </div>
 
                     {subdomainEditId && subdomainEditingRecord && (
-                      <div className="mt-4 p-3 rounded-lg border border-border bg-secondary/10">
+                      <div className="mt-4 p-3 border border-border bg-secondary/10">
                         <p className="text-sm font-medium mb-2">{t('dns.editRecord')}</p>
                         <div className="grid grid-cols-1 gap-2 sm:grid-cols-5">
                           <Input placeholder={t('dns.name')} value={subdomainEditingRecord.name}
                             onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, name: e.target.value }))}
                           />
-                          <select className="rounded-lg border border-border bg-input px-3 py-2 text-sm" value={subdomainEditingRecord.type}
+                          <select className="border border-border bg-input px-3 py-2 text-sm" value={subdomainEditingRecord.type}
                             onChange={(e) => setSubdomainEditingRecord((f: any) => ({ ...f, type: e.target.value }))}>
                             <option>A</option> <option>AAAA</option> <option>CNAME</option> <option>TXT</option>
                           </select>
@@ -1057,7 +1057,7 @@ export default function OrganisationDetail() {
                         <Input placeholder={t('dns.nameExample')} value={subdomainRecordForm.name}
                           onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, name: e.target.value }))}
                         />
-                        <select className="rounded-lg border border-border bg-input px-3 py-2 text-sm" value={subdomainRecordForm.type}
+                        <select className="border border-border bg-input px-3 py-2 text-sm" value={subdomainRecordForm.type}
                           onChange={(e) => setSubdomainRecordForm((f) => ({ ...f, type: e.target.value }))}>
                           <option>A</option>
                           <option>AAAA</option>

@@ -105,7 +105,7 @@ export function FeedbackDialog() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex justify-center py-6">
-              <div className="rounded-full bg-primary/10 p-4">
+              <div className="bg-primary/10 p-4">
                 <svg className="h-10 w-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -162,7 +162,7 @@ export function FeedbackDialog() {
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Tell us more (optional, up to 250 words)..."
                   rows={3}
-                  className="w-full resize-none rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
+                  className="w-full resize-none border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
                 />
                 <div className="flex justify-between items-center">
                   {error ? (

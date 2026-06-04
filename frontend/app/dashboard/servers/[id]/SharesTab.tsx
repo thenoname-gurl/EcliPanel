@@ -133,7 +133,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
               <div
                 key={share.id}
                 className={cn(
-                  "rounded-lg border bg-card p-4 transition-colors",
+                  "border bg-card p-4 transition-colors",
                   !share.active || expired ? "border-dashed border-border/40 opacity-60" : "border-border"
                 )}
               >
@@ -171,7 +171,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
                   <div className="flex items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => copyLink(share)}
-                      className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       title={t("copyLink")}
                     >
                       {copiedId === share.id ? (
@@ -184,7 +184,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
                       href={share.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                      className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       title={t("openSharePage")}
                     >
                       <ExternalLink className="h-4 w-4" />
@@ -192,11 +192,11 @@ export function SharesTab({ serverId }: { serverId: string }) {
                     <button
                       onClick={() => setConfirmDelete(share)}
                       disabled={deleting === share.id}
-                      className="p-2 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
+                      className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
                       title={t("deleteShareLink")}
                     >
                       {deleting === share.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                       ) : (
                         <Trash2 className="h-4 w-4" />
                       )}
@@ -219,7 +219,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
             </DialogDescription>
           </DialogHeader>
           {confirmDelete && (
-            <div className="rounded-lg bg-secondary/20 border border-border/60 px-3.5 py-2.5 text-sm font-mono text-foreground truncate">
+            <div className="bg-secondary/20 border border-border/60 px-3.5 py-2.5 text-sm font-mono text-foreground truncate">
               {confirmDelete.filePath}
             </div>
           )}
@@ -234,7 +234,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
               disabled={deleting === confirmDelete?.id}
               className="gap-1.5"
             >
-              {deleting === confirmDelete?.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {deleting === confirmDelete?.id && <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />}
               {t("deleteLink")}
             </Button>
           </div>

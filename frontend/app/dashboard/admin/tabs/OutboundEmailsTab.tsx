@@ -46,11 +46,11 @@ export default function OutboundEmailsTab() {
 
   return (
     <div>
-      <div className="rounded-lg border border-border bg-secondary/50 p-4 mb-4">
+      <div className="border border-border bg-secondary/50 p-4 mb-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-2 min-w-0">
             <input
-              className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
+              className="w-full border border-border bg-background px-3 py-2 text-sm"
               placeholder={t("adminOutboundEmails.searchPlaceholder")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -63,7 +63,7 @@ export default function OutboundEmailsTab() {
               />
             </div>
             <select
-              className="rounded border border-border bg-background px-3 py-2 text-sm"
+              className="border border-border bg-background px-3 py-2 text-sm"
               value={status}
               onChange={(e) => setStatus(e.target.value)}
             >
@@ -77,7 +77,7 @@ export default function OutboundEmailsTab() {
         </div>
       </div>
 
-      <div className="overflow-auto rounded border border-border bg-background">
+      <div className="overflow-auto border border-border bg-background">
         <table className="min-w-full text-left text-sm">
           <thead>
             <tr className="bg-muted text-muted-foreground">
@@ -134,7 +134,7 @@ export default function OutboundEmailsTab() {
             <p><strong>{t("adminOutboundEmails.viewFrom")}</strong> {view?.fromAddress}</p>
             <p><strong>{t("adminOutboundEmails.viewTo")}</strong> {view?.toAddress}</p>
             <p><strong>{t("adminOutboundEmails.viewSubject")}</strong> {view?.subject}</p>
-            <div className="rounded border border-border bg-secondary/50 p-3 whitespace-pre-wrap break-words">
+            <div className="border border-border bg-secondary/50 p-3 whitespace-pre-wrap break-words">
               {view?.html ? (
                 <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(view?.html || '') }} />
               ) : (
@@ -148,7 +148,7 @@ export default function OutboundEmailsTab() {
               <p className="text-xs text-muted-foreground"><strong>{t("adminOutboundEmails.createdAt")}</strong> {new Date(view.createdAt).toLocaleString()}</p>
             ) : null}
             {view?.failureReason ? (
-              <div className="rounded border border-red-300 bg-red-50 p-3 text-red-700">
+              <div className="border border-red-300 bg-red-50 p-3 text-red-700">
                 <strong>{t("adminOutboundEmails.viewFailure")}</strong> {view.failureReason}
               </div>
             ) : null}

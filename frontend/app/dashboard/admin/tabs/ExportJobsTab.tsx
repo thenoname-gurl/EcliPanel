@@ -18,7 +18,7 @@ export default function ExportJobsTab({ ctx }: { ctx: any }) {
   } = ctx
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="border border-border bg-card">
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">{t("title")}</h3>
@@ -27,7 +27,7 @@ export default function ExportJobsTab({ ctx }: { ctx: any }) {
           </p>
         </div>
         <Button className="w-full sm:w-auto" size="sm" variant="outline" onClick={() => fetchExportJobs(150, "")} disabled={exportJobsLoading}>
-          <RefreshCw className={`h-3.5 w-3.5 mr-2 ${exportJobsLoading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`h-3.5 w-3.5 mr-2 ${exportJobsLoading ? "rounded-full animate-spin" : ""}`} />
           {t("actions.refresh")}
         </Button>
       </div>

@@ -123,7 +123,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
             <RefreshCw className="h-3 w-3" /> {t("actions.refresh")}
           </Button>
           <Button size="sm" variant="outline" onClick={syncToWings} disabled={syncingToWings} className="border-border h-8 gap-1">
-            {syncingToWings ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} {t("actions.syncToWings")}
+            {syncingToWings ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <RefreshCw className="h-3 w-3" />} {t("actions.syncToWings")}
           </Button>
           <Button size="sm" onClick={openAddNode} className="bg-primary text-primary-foreground h-8 gap-1">
             <Plus className="h-3 w-3" /> {t("actions.addNode")}
@@ -132,7 +132,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
       </div>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {nodes.length === 0 ? (
-          <div className="col-span-2 rounded-xl border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
+          <div className="col-span-2 border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
             <HardDrive className="h-8 w-8 text-muted-foreground/40" />
             <p className="text-sm font-medium text-foreground">{t("states.noNodes")}</p>
             <p className="text-xs text-muted-foreground">{t("states.noNodesSubtitle")}</p>
@@ -156,14 +156,14 @@ export default function NodesTab({ ctx }: { ctx: any }) {
               proxmox: "border-amber-500/30 bg-amber-500/10 text-amber-400",
             }
             return (
-              <div key={node.id} className="rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30">
+              <div key={node.id} className="border border-border bg-card p-5 transition-all hover:border-primary/30">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="font-medium text-foreground">{node.name}</h3>
                     <p className="mt-0.5 font-mono text-xs text-muted-foreground">{redact(node.url)}</p>
                     {node.organisation && <p className="mt-1 text-xs text-muted-foreground">{t("fields.org")}: {redact(node.organisation.name)}</p>}
                     {node.deploymentsDisabled && (
-                      <div className="mt-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                      <div className="mt-2 border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
                         <p className="font-medium uppercase tracking-wide">Deployments paused</p>
                         <p className="mt-1 text-amber-200/90">{node.deploymentNotice || "This node is temporarily unavailable for new deployments."}</p>
                       </div>
@@ -214,7 +214,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                 {["wings", "proxmox"].map((p) => (
                   <button key={p} type="button"
                     onClick={() => setAddNodeProvider(p)}
-                    className={`rounded-md px-4 py-2 text-xs border transition-colors ${addNodeProvider === p
+                    className={`px-4 py-2 text-xs border transition-colors ${addNodeProvider === p
                       ? "border-primary/50 bg-primary/20 text-primary"
                       : "border-border bg-secondary/50 text-muted-foreground"
                     }`}>
@@ -227,14 +227,14 @@ export default function NodesTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.nodeName")}</label>
               <input value={addNodeName} onChange={(e) => setAddNodeName(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder={t("addDialog.fields.nodeNamePlaceholder")} />
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.nodeType")}</label>
               <select value={addNodeType} onChange={(e) => setAddNodeType(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="free">{t("types.free")}</option>
                 <option value="paid">{t("types.paid")}</option>
                 <option value="free_and_paid">{t("types.freeAndPaid")}</option>
@@ -247,20 +247,20 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proxmox Host</label>
                   <input value={addNodeProxmoxHost} onChange={(e) => setAddNodeProxmoxHost(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder="pve.example.com" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Token ID</label>
                     <input value={addNodeProxmoxTokenId} onChange={(e) => setAddNodeProxmoxTokenId(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="root@pam!mytoken" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">API Secret</label>
                     <input type="password" value={addNodeProxmoxSecret} onChange={(e) => setAddNodeProxmoxSecret(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="••••••••" />
                   </div>
                 </div>
@@ -268,13 +268,13 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Realm</label>
                     <input value={addNodeProxmoxRealm} onChange={(e) => setAddNodeProxmoxRealm(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="pam" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proxmox Node</label>
                     <input value={addNodeProxmoxNode} onChange={(e) => setAddNodeProxmoxNode(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="pve" />
                   </div>
                 </div>
@@ -282,13 +282,13 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Storage</label>
                     <input value={addNodeProxmoxStorage} onChange={(e) => setAddNodeProxmoxStorage(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="local" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Bridge</label>
                     <input value={addNodeProxmoxBridge} onChange={(e) => setAddNodeProxmoxBridge(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="vmbr0" />
                   </div>
                 </div>
@@ -298,20 +298,20 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.fqdn")}</label>
                   <input value={addNodeFqdn} onChange={(e) => setAddNodeFqdn(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder={t("addDialog.fields.fqdnPlaceholder")} />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.wingsPort")}</label>
                     <input value={addNodePort} onChange={(e) => setAddNodePort(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder={t("addDialog.fields.wingsPortPlaceholder")} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.sftpPort")}</label>
                     <input value={addNodeSftpPort} onChange={(e) => setAddNodeSftpPort(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder={t("addDialog.fields.sftpPortPlaceholder")} />
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -320,7 +320,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                       {["https", "http"].map((s) => (
                         <button key={s} type="button"
                           onClick={() => setAddNodeSsl(s === "https")}
-                          className={`rounded-md px-3 py-1.5 text-xs border transition-colors ${(s === "https") === addNodeSsl
+                          className={`px-3 py-1.5 text-xs border transition-colors ${(s === "https") === addNodeSsl
                             ? "border-primary/50 bg-primary/20 text-primary"
                             : "border-border bg-secondary/50 text-muted-foreground"
                           }`}>
@@ -333,32 +333,32 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.wingsDataDirectory")}</label>
                   <input value={addNodeDataPath} onChange={(e) => setAddNodeDataPath(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50" />
                 </div>
                 <div className="grid grid-cols-1 gap-3">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Subnet</label>
                     <input value={addNodeIpv6Subnet} onChange={(e) => setAddNodeIpv6Subnet(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                       placeholder="e.g. 2001:db8:100::/64" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Excluded Ports</label>
                     <input value={addNodeIpv6ExcludedPorts} onChange={(e) => setAddNodeIpv6ExcludedPorts(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                       placeholder="e.g. 25,465,587" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
                     <input type="number" min="0" value={addNodeIpv6ReservedCount} onChange={(e) => setAddNodeIpv6ReservedCount(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.authToken")}</label>
                   <div className="flex gap-2">
                     <input value={addNodeToken} onChange={(e) => setAddNodeToken(e.target.value)}
-                      className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder={t("addDialog.fields.authTokenPlaceholder")} />
                     <Button type="button" size="sm" variant="outline" onClick={generateAddNodeToken}
                       disabled={addNodeTokenLoading} className="border-border shrink-0 h-9 px-3 text-xs">
@@ -366,7 +366,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                     </Button>
                   </div>
                   {addNodeToken && (
-                    <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-1.5">
+                    <div className="flex items-center gap-2 border border-green-500/30 bg-green-500/10 px-3 py-1.5">
                       <span className="flex-1 font-mono text-xs text-green-400 break-all truncate">{addNodeToken}</span>
                       <button onClick={() => navigator.clipboard.writeText(addNodeToken)} className="text-green-400 hover:text-green-300 shrink-0">
                         {t("actions.copy")}
@@ -381,17 +381,17 @@ export default function NodesTab({ ctx }: { ctx: any }) {
 
         {addNodeStep === "config" && (
           <div className="flex flex-col gap-3 py-1">
-            <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs text-green-400">
+            <div className="border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs text-green-400">
               ✓ {t("addDialog.configReady", { name: addNodeCreated?.name })}
               <code className="font-mono">/etc/eclipanel/config.yml</code> on your Wings server.
             </div>
             <div className="relative">
-              <pre className="rounded-lg border border-border bg-black/40 p-4 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-relaxed">
+              <pre className="border border-border bg-black/40 p-4 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-relaxed">
                 {buildWingsConfig()}
               </pre>
               <button
                 onClick={() => navigator.clipboard.writeText(buildWingsConfig())}
-                className="absolute top-2 right-2 rounded-md border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="absolute top-2 right-2 border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
                 {t("actions.copy")}
               </button>
@@ -405,7 +405,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
 
         {addNodeStep === "done" && (
           <div className="flex flex-col gap-3 py-3 text-center">
-            <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-xs text-green-400">
+            <div className="border border-green-500/30 bg-green-500/10 px-4 py-3 text-xs text-green-400">
               ✓ Proxmox node <strong>{addNodeCreated?.name}</strong> created successfully.
             </div>
             <p className="text-xs text-muted-foreground">
@@ -447,7 +447,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.nodeType")}</label>
             <select value={editNodeType} onChange={(e) => setEditNodeType(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
               <option value="free">{t("types.free")}</option>
               <option value="paid">{t("types.paid")}</option>
               <option value="free_and_paid">{t("types.freeAndPaid")}</option>
@@ -459,41 +459,41 @@ export default function NodesTab({ ctx }: { ctx: any }) {
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.portRangeStart")}</label>
               <input type="number" placeholder={t("editDialog.fields.portRangeStartPlaceholder")} value={editNodePortStart}
                 onChange={(e) => setEditNodePortStart(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.portRangeEnd")}</label>
               <input type="number" placeholder={t("editDialog.fields.portRangeEndPlaceholder")} value={editNodePortEnd}
                 onChange={(e) => setEditNodePortEnd(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.defaultBindIp")}</label>
             <input type="text" placeholder="0.0.0.0" value={editNodeDefaultIp}
               onChange={(e) => setEditNodeDefaultIp(e.target.value)}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             <p className="text-xs text-muted-foreground">{t("editDialog.fields.defaultBindIpHint")}</p>
           </div>
           <div className="grid grid-cols-1 gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Subnet</label>
               <input type="text" value={editNodeIpv6Subnet} onChange={(e) => setEditNodeIpv6Subnet(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder="e.g. 2001:db8:100::/64" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Excluded Ports</label>
               <input type="text" value={editNodeIpv6ExcludedPorts} onChange={(e) => setEditNodeIpv6ExcludedPorts(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder="e.g. 25,465,587" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
               <input type="number" min="0" value={editNodeIpv6ReservedCount} onChange={(e) => setEditNodeIpv6ReservedCount(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
-            <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-secondary/20 p-3">
+            <div className="flex flex-col gap-1.5 border border-border bg-secondary/20 p-3">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Deployments</label>
               <div className="flex items-center gap-2">
                 <input
@@ -501,7 +501,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                   type="checkbox"
                   checked={editNodeDeploymentsDisabled}
                   onChange={(e) => setEditNodeDeploymentsDisabled(e.target.checked)}
-                  className="h-4 w-4 rounded border-border bg-secondary/50 text-primary focus:ring-primary"
+                  className="h-4 w-4 border-border bg-secondary/50 text-primary focus:ring-primary"
                 />
                 <label htmlFor="node-deployments-disabled" className="text-sm text-foreground">
                   Temporarily disable deployments on this node
@@ -512,7 +512,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                 value={editNodeDeploymentNotice}
                 onChange={(e) => setEditNodeDeploymentNotice(e.target.value)}
                 placeholder="e.g. Maintenance or out of stock"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
               <p className="text-xs text-muted-foreground">
                 Shown to users when the node is unavailable for new deployments.
@@ -555,12 +555,12 @@ export default function NodesTab({ ctx }: { ctx: any }) {
         </div>
         {heartbeatDialogLoading ? (
           <div className="flex items-center justify-center py-12 gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> {t("states.loading")}
+            <Loader2 className="h-4 w-4 rounded-full animate-spin" /> {t("states.loading")}
           </div>
         ) : heartbeatDialogData ? (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+              <div className="border border-border bg-secondary/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">{t("heartbeatDialog.cards.uptime")}</p>
                 <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
                   : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
@@ -569,13 +569,13 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                   {heartbeatDialogData.summary.uptime_pct}%
                 </p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+              <div className="border border-border bg-secondary/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">{t("heartbeatDialog.cards.avgResponse")}</p>
                 <p className="text-xl font-bold text-foreground">
                   {heartbeatDialogData.summary.avg_ms != null ? `${heartbeatDialogData.summary.avg_ms}ms` : "—"}
                 </p>
               </div>
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+              <div className="border border-border bg-secondary/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">{t("heartbeatDialog.cards.checks")}</p>
                 <p className="text-xl font-bold text-foreground">{heartbeatDialogData.summary.total_checks}</p>
               </div>
@@ -613,7 +613,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
         </DialogHeader>
         {viewConfigLoading ? (
           <div className="flex items-center justify-center py-8 gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" /> {t("configDialog.loadingToken")}
+            <Loader2 className="h-4 w-4 rounded-full animate-spin" /> {t("configDialog.loadingToken")}
           </div>
         ) : viewConfigToken ? (
           <div className="flex flex-col gap-3 py-1">
@@ -622,12 +622,12 @@ export default function NodesTab({ ctx }: { ctx: any }) {
               <code className="font-mono text-foreground">systemctl restart wings</code>.
             </p>
             <div className="relative">
-              <pre className="rounded-lg border border-border bg-black/40 p-4 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-relaxed">
+              <pre className="border border-border bg-black/40 p-4 text-xs font-mono text-green-300 overflow-x-auto whitespace-pre leading-relaxed">
                 {buildNodeConfigYaml(viewConfigNode, viewConfigToken)}
               </pre>
               <button
                 onClick={() => navigator.clipboard.writeText(buildNodeConfigYaml(viewConfigNode, viewConfigToken))}
-                className="absolute top-2 right-2 rounded-md border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                className="absolute top-2 right-2 border border-border bg-secondary/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
                 {t("actions.copy")}
               </button>
             </div>

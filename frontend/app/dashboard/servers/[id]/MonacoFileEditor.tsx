@@ -203,7 +203,7 @@ function EditorLoadingFallback() {
   const t = useTranslations("serverMonacoEditor")
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[300px] bg-[#1e1e1e]">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-3" />
+      <Loader2 className="h-6 w-6 rounded-full animate-spin text-muted-foreground mb-3" />
       <p className="text-sm text-muted-foreground">{t("states.loadingEditor")}</p>
     </div>
   )

@@ -388,11 +388,11 @@ export default function InfraNodesPage() {
 
           {/* Node grid */}
           {loading ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center text-sm text-muted-foreground">
+            <div className="border border-border bg-card p-12 text-center text-sm text-muted-foreground">
               {t("states.loadingNodes")}
             </div>
           ) : nodes.length === 0 ? (
-            <div className="rounded-xl border border-border bg-card p-12 text-center">
+            <div className="border border-border bg-card p-12 text-center">
               <HardDrive className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
               <p className="text-sm font-medium text-foreground">{t("states.noNodesTitle")}</p>
               <p className="text-xs text-muted-foreground mt-1">{t("states.noNodesDescription")}</p>
@@ -407,7 +407,7 @@ export default function InfraNodesPage() {
                 return (
                   <div
                     key={node.id}
-                    className="rounded-xl border border-border bg-card p-5 transition-all hover:border-primary/30 flex flex-col gap-3"
+                    className="border border-border bg-card p-5 transition-all hover:border-primary/30 flex flex-col gap-3"
                   >
                     {/* Title row */}
                     <div className="flex items-start justify-between gap-2">
@@ -500,7 +500,7 @@ export default function InfraNodesPage() {
               <input
                 value={nodeName}
                 onChange={(e) => setNodeName(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder={t("form.namePlaceholder")}
               />
             </div>
@@ -511,7 +511,7 @@ export default function InfraNodesPage() {
               <input
                 value={nodeIdValue}
                 onChange={(e) => setNodeIdValue(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 placeholder={t("form.nodeIdPlaceholder")}
               />
               <p className="text-[10px] text-muted-foreground">{t("form.nodeIdHint")}</p>
@@ -524,7 +524,7 @@ export default function InfraNodesPage() {
               <input
                 value={nodeFqdn}
                 onChange={(e) => setNodeFqdn(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 placeholder={t("form.fqdnPlaceholder")}
               />
             </div>
@@ -534,7 +534,7 @@ export default function InfraNodesPage() {
               <input
                 value={nodeUrl}
                 onChange={(e) => setNodeUrl(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 placeholder={t("form.wingsUrlPlaceholder")}
               />
             </div>
@@ -545,7 +545,7 @@ export default function InfraNodesPage() {
               <input
                 value={nodeBackendWingsUrl}
                 onChange={(e) => setNodeBackendWingsUrl(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 placeholder={t("form.backendWingsUrlPlaceholder")}
               />
             </div>
@@ -558,7 +558,7 @@ export default function InfraNodesPage() {
                   <input
                     value={nodeToken}
                     onChange={(e) => setNodeToken(e.target.value)}
-                    className="flex-1 rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder={t("form.authTokenPlaceholder")}
                   />
                   <Button
@@ -571,7 +571,7 @@ export default function InfraNodesPage() {
                   </Button>
                 </div>
                 {generatedToken && (
-                  <div className="flex items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/10 px-3 py-2">
+                  <div className="flex items-center gap-2 border border-green-500/30 bg-green-500/10 px-3 py-2">
                     <span className="flex-1 font-mono text-xs text-green-400 break-all">{generatedToken}</span>
                     <button
                       onClick={() => navigator.clipboard.writeText(generatedToken)}
@@ -590,7 +590,7 @@ export default function InfraNodesPage() {
               <select
                 value={nodeType}
                 onChange={(e) => setNodeType(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               >
                 <option value="free">{t("nodeTypeOptions.free")}</option>
                 <option value="paid">{t("nodeTypeOptions.paid")}</option>
@@ -606,7 +606,7 @@ export default function InfraNodesPage() {
                 <select
                   value={nodeOrgId}
                   onChange={(e) => setNodeOrgId(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 >
                   <option value="">{t("form.noneOption")}</option>
                   {(Array.isArray(orgs) ? orgs : []).map((o) => (
@@ -617,7 +617,7 @@ export default function InfraNodesPage() {
             )}
 
             {/* SSL toggle */}
-            <div className="flex items-center justify-between rounded-lg border border-border bg-secondary/50 px-3 py-2">
+            <div className="flex items-center justify-between border border-border bg-secondary/50 px-3 py-2">
               <div>
                 <p className="text-xs font-medium text-foreground">{t("form.sslHttps")}</p>
                 <p className="text-[10px] text-muted-foreground">{t("form.sslHint")}</p>
@@ -642,7 +642,7 @@ export default function InfraNodesPage() {
                 <input
                   value={nodeAllowedOrigin}
                   onChange={(e) => setNodeAllowedOrigin(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                  className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                   placeholder={t("form.allowedOriginPlaceholder")}
                 />
                 <p className="text-[10px] text-muted-foreground">{t("form.allowedOriginHint")}</p>
@@ -659,7 +659,7 @@ export default function InfraNodesPage() {
                     value={nodeSftpPort}
                     onChange={(e) => setNodeSftpPort(e.target.value)}
                     type="number"
-                    className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder={t("form.sftpPortPlaceholder")}
                   />
                 </div>
@@ -670,7 +670,7 @@ export default function InfraNodesPage() {
                       value={nodeSftpProxyPort}
                       onChange={(e) => setNodeSftpProxyPort(e.target.value)}
                       type="number"
-                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder={t("form.sftpProxyPortPlaceholder")}
                     />
                     <p className="text-[10px] text-muted-foreground">{t("form.sftpProxyPortHint")}</p>
@@ -689,7 +689,7 @@ export default function InfraNodesPage() {
                     value={nodeMemory}
                     onChange={(e) => setNodeMemory(e.target.value)}
                     type="number"
-                    className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder={t("form.memoryMbPlaceholder")}
                   />
                 </div>
@@ -699,7 +699,7 @@ export default function InfraNodesPage() {
                     value={nodeDisk}
                     onChange={(e) => setNodeDisk(e.target.value)}
                     type="number"
-                    className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder={t("form.diskMbPlaceholder")}
                   />
                 </div>
@@ -709,7 +709,7 @@ export default function InfraNodesPage() {
                     value={nodeCpu}
                     onChange={(e) => setNodeCpu(e.target.value)}
                     type="number"
-                    className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder={t("form.cpuPercentPlaceholder")}
                   />
                 </div>
@@ -719,7 +719,7 @@ export default function InfraNodesPage() {
                     value={nodeServerLimit}
                     onChange={(e) => setNodeServerLimit(e.target.value)}
                     type="number"
-                    className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder={t("form.serverLimitPlaceholder")}
                   />
                 </div>
@@ -735,7 +735,7 @@ export default function InfraNodesPage() {
                   <input
                     value={nodeDefaultIp}
                     onChange={(e) => setNodeDefaultIp(e.target.value)}
-                    className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     placeholder="0.0.0.0"
                   />
                 </div>
@@ -746,7 +746,7 @@ export default function InfraNodesPage() {
                       value={nodePortStart}
                       onChange={(e) => setNodePortStart(e.target.value)}
                       type="number"
-                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="25000"
                     />
                   </div>
@@ -756,7 +756,7 @@ export default function InfraNodesPage() {
                       value={nodePortEnd}
                       onChange={(e) => setNodePortEnd(e.target.value)}
                       type="number"
-                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="30000"
                     />
                   </div>
@@ -773,7 +773,7 @@ export default function InfraNodesPage() {
                     <input
                       value={nodeIpv6Subnet}
                       onChange={(e) => setNodeIpv6Subnet(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="e.g. 2001:db8:100::/64"
                     />
                   </div>
@@ -782,7 +782,7 @@ export default function InfraNodesPage() {
                     <input
                       value={nodeIpv6ExcludedPorts}
                       onChange={(e) => setNodeIpv6ExcludedPorts(e.target.value)}
-                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                       placeholder="e.g. 25,465,587"
                     />
                   </div>
@@ -793,7 +793,7 @@ export default function InfraNodesPage() {
                       onChange={(e) => setNodeIpv6ReservedCount(e.target.value)}
                       type="number"
                       min="0"
-                      className="rounded-lg border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      className="border border-border bg-secondary/50 px-2 py-1.5 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                     />
                   </div>
                 </div>
@@ -807,7 +807,7 @@ export default function InfraNodesPage() {
                 onChange={(e) => setNodeCost(e.target.value)}
                 type="number"
                 step="0.01"
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                 placeholder="0.00"
               />
             </div>
@@ -858,7 +858,7 @@ export default function InfraNodesPage() {
                 <input
                   value={massAllocOldIp}
                   onChange={(e) => setMassAllocOldIp(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                   placeholder="0.0.0.0"
                 />
               </div>
@@ -868,12 +868,12 @@ export default function InfraNodesPage() {
                 <input
                   value={massAllocNewIp}
                   onChange={(e) => setMassAllocNewIp(e.target.value)}
-                  className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
                   placeholder="192.168.100.10"
                 />
               </div>
 
-              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
+              <div className="border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
                 <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-yellow-300">
                   This will immediately update and sync all affected servers with Wings.
@@ -885,20 +885,20 @@ export default function InfraNodesPage() {
             <div className="flex flex-col gap-3 py-2">
 
               {massAllocResult.error ? (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                <div className="border border-destructive/30 bg-destructive/10 p-3">
                   <p className="text-xs font-medium text-destructive">Error: {massAllocResult.error}</p>
                 </div>
               ) : (
                 <>
-                  <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+                  <div className="border border-green-500/30 bg-green-500/10 p-3">
                     <p className="text-sm font-medium text-green-400">Completed successfully</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+                    <div className="border border-border bg-secondary/30 p-3 text-center">
                       <p className="text-xs text-muted-foreground mb-1">Updated</p>
                       <p className="text-xl font-bold text-foreground">{massAllocResult.updatedCount || 0}</p>
                     </div>
-                    <div className="rounded-lg border border-border bg-secondary/30 p-3 text-center">
+                    <div className="border border-border bg-secondary/30 p-3 text-center">
                       <p className="text-xs text-muted-foreground mb-1">Errors</p>
                       <p className="text-xl font-bold text-foreground">{massAllocResult.errorCount || 0}</p>
                     </div>
@@ -906,7 +906,7 @@ export default function InfraNodesPage() {
                   {massAllocResult.updatedServers?.length > 0 && (
                     <div className="flex flex-col gap-1">
                       <p className="text-xs font-medium text-muted-foreground">Updated servers:</p>
-                      <div className="max-h-32 overflow-y-auto rounded-lg border border-border bg-secondary/20 p-2">
+                      <div className="max-h-32 overflow-y-auto border border-border bg-secondary/20 p-2">
                         {massAllocResult.updatedServers.map((s: any) => (
                           <p key={s.uuid} className="text-xs font-mono text-foreground truncate">
                             {s.name || s.uuid}
@@ -918,7 +918,7 @@ export default function InfraNodesPage() {
                   {massAllocResult.errors?.length > 0 && (
                     <div className="flex flex-col gap-1">
                       <p className="text-xs font-medium text-destructive">Errors:</p>
-                      <div className="max-h-24 overflow-y-auto rounded-lg border border-destructive/30 bg-destructive/5 p-2">
+                      <div className="max-h-24 overflow-y-auto border border-destructive/30 bg-destructive/5 p-2">
                         {massAllocResult.errors.map((e: any) => (
                           <p key={e.uuid} className="text-xs font-mono text-destructive truncate">
                             {e.uuid}: {e.error}
@@ -973,7 +973,7 @@ export default function InfraNodesPage() {
                 <li>Send <strong>kill</strong> to any server still running</li>
                 <li>Send <strong>start</strong> to all servers (in parallel)</li>
               </ol>
-              <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
+              <div className="border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
                 <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
                 <p className="text-xs text-yellow-300">
                   All servers on this node will briefly go offline. This operation
@@ -983,7 +983,7 @@ export default function InfraNodesPage() {
             </div>
           ) : rebootResult.status === "running" || rebootResult.status === "starting" ? (
             <div className="flex flex-col gap-4 py-4 items-center">
-              <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+              <RefreshCw className="h-8 w-8 text-primary rounded-full animate-spin" />
               <div className="text-center">
                 <p className="text-sm font-medium text-foreground">{rebootResult.message || "Rebooting..."}</p>
                 <p className="text-xs text-muted-foreground mt-1">Progress: {rebootResult.progress || 0}%</p>
@@ -1001,14 +1001,14 @@ export default function InfraNodesPage() {
           ) : (
             <div className="flex flex-col gap-3 py-2">
               {rebootResult.status === "failed" ? (
-                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                <div className="border border-destructive/30 bg-destructive/10 p-3">
                   <p className="text-xs font-medium text-destructive">
                     {rebootResult.error || rebootResult.message || "Failed"}
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+                  <div className="border border-green-500/30 bg-green-500/10 p-3">
                     <p className="text-sm font-medium text-green-400">
                       Rebooted {rebootResult.servers?.length || 0} server{(rebootResult.servers?.length || 0) !== 1 ? "s" : ""}
                     </p>
@@ -1022,7 +1022,7 @@ export default function InfraNodesPage() {
                   {rebootResult.servers?.length > 0 && (
                     <div className="flex flex-col gap-1">
                       <p className="text-xs font-medium text-muted-foreground">Per-server results:</p>
-                      <div className="max-h-48 overflow-y-auto rounded-lg border border-border bg-secondary/20 p-2 space-y-1">
+                      <div className="max-h-48 overflow-y-auto border border-border bg-secondary/20 p-2 space-y-1">
                         {rebootResult.servers.map((s: any) => (
                           <div key={s.uuid} className="flex items-center gap-2 text-xs">
                             <span className="font-mono text-foreground truncate flex-1">
@@ -1058,7 +1058,7 @@ export default function InfraNodesPage() {
                 className="bg-warning text-warning-foreground hover:bg-warning/90 gap-1.5"
               >
                 {rebootLoading ? (
-                  <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Starting...</>
+                  <><RefreshCw className="h-3.5 w-3.5 rounded-full animate-spin" /> Starting...</>
                 ) : (
                   "Reboot All Servers"
                 )}

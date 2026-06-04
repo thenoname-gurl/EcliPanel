@@ -205,7 +205,7 @@ function NotificationDropdown({
         <div className="flex-1 overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="h-5 w-5 border-2 border-primary/30 border-t-primary animate-spin" />
+              <div className="h-5 w-5 rounded-full border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 gap-2">
@@ -536,7 +536,7 @@ export function PanelHeader({
 
           <Badge
             variant="outline"
-            className="hidden sm:flex border-primary/30 bg-primary/10 text-primary text-[10px] sm:text-xs px-2 py-0.5"
+            className="hidden sm:flex border-primary/30 bg-primary/10 text-primary text-[10px] sm:text-xs rounded-full px-2 py-0.5"
             style={{
               borderColor: portal?.color ? `${portal.color}40` : undefined,
               backgroundColor: portal?.color

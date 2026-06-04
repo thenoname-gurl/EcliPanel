@@ -92,7 +92,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
         <div className="flex items-center gap-2">
           {canManagePlans && (
             <Button size="sm" variant="outline" onClick={ensurePortalPlans} disabled={ensureLoading}>
-              {ensureLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
+              {ensureLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" /> : <RefreshCw className="h-3.5 w-3.5 mr-1.5" />}
               {t("actions.syncPortal")}
             </Button>
           )}
@@ -106,7 +106,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
       </div>
 
       {plans.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card">
+        <div className="border border-dashed border-border bg-card">
           <div className="flex flex-col items-center justify-center py-16 gap-3">
             <div className="rounded-full bg-secondary/50 p-4">
               <Zap className="h-8 w-8 text-muted-foreground/30" />
@@ -139,7 +139,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
             return (
               <div
                 key={plan.id}
-                className={`group rounded-xl border bg-card transition-all hover:shadow-md hover:border-primary/20 ${plan.isDefault ? "border-green-500/30 ring-1 ring-green-500/10" : "border-border"
+                className={`group border bg-card transition-all hover:shadow-md hover:border-primary/20 ${plan.isDefault ? "border-green-500/30 ring-1 ring-green-500/10" : "border-border"
                   }`}
               >
                 <div className="flex items-start justify-between p-4 pb-3">
@@ -186,7 +186,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
                     {resources.map((res) => (
                       <div
                         key={res.label}
-                        className="rounded-lg bg-secondary/30 border border-border/50 px-2.5 py-2 text-center"
+                        className="bg-secondary/30 border border-border/50 px-2.5 py-2 text-center"
                       >
                         <p className="text-[10px] text-muted-foreground">{res.label}</p>
                         <p className={`text-xs font-semibold mt-0.5 tabular-nums ${res.value === "∞" ? "text-muted-foreground" : "text-foreground"
@@ -209,7 +209,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
                         onClick={() => reapplyPlanLimits(plan.id)}
                       >
                         {isReapplying ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <Loader2 className="h-3 w-3 rounded-full animate-spin" />
                         ) : (
                           <RefreshCw className="h-3 w-3" />
                         )}
@@ -225,7 +225,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
                         onClick={() => reapplyPlanLimits(plan.id, true)}
                       >
                         {isReapplying ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <Loader2 className="h-3 w-3 rounded-full animate-spin" />
                         ) : (
                           <AlertTriangle className="h-3 w-3" />
                         )}
@@ -275,12 +275,12 @@ export default function PlansTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5 col-span-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.planName")}</label>
               <input value={planName} onChange={(e) => setPlanName(e.target.value)} placeholder={t("dialog.fields.planNamePlaceholder")}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.type")}</label>
               <select value={planType} onChange={(e) => setPlanType(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 <option value="free">{t("types.free")}</option>
                 <option value="paid">{t("types.paid")}</option>
                 <option value="educational">{t("types.educational")}</option>
@@ -290,12 +290,12 @@ export default function PlansTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.price", { currency: currencyCode })}</label>
               <input type="number" min="0" step="0.01" value={planPrice} onChange={(e) => setPlanPrice(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5 col-span-2">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.description")}</label>
               <input value={planDesc} onChange={(e) => setPlanDesc(e.target.value)} placeholder={t("dialog.fields.descriptionPlaceholder")}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
           </div>
           <p className="text-xs text-muted-foreground font-medium">{t("dialog.resourceLimits")}</p>
@@ -303,62 +303,62 @@ export default function PlansTab({ ctx }: { ctx: any }) {
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.memoryMb")}</label>
               <input type="number" min="0" placeholder={t("dialog.fields.memoryPlaceholder")} value={planMemory} onChange={(e) => setPlanMemory(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.diskMb")}</label>
               <input type="number" min="0" placeholder={t("dialog.fields.diskPlaceholder")} value={planDisk} onChange={(e) => setPlanDisk(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.cpuPercent")}</label>
               <input type="number" min="0" placeholder={t("dialog.fields.cpuPlaceholder")} value={planCpu} onChange={(e) => setPlanCpu(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.serverLimit")}</label>
               <input type="number" min="0" placeholder={t("dialog.fields.serverLimitPlaceholder")} value={planServerLimit} onChange={(e) => setPlanServerLimit(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.databases")}</label>
               <input type="number" min="0" placeholder={t("dialog.fields.databasesPlaceholder")} value={planDatabases} onChange={(e) => setPlanDatabases(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.backups")}</label>
               <input type="number" min="0" placeholder={t("dialog.fields.backupsPlaceholder")} value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email send per day</label>
               <input type="number" min="0" placeholder="e.g. 50" value={planEmailSendDailyLimit} onChange={(e) => setPlanEmailSendDailyLimit(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Email queue limit</label>
               <input type="number" min="0" placeholder="e.g. 10" value={planEmailSendQueueLimit} onChange={(e) => setPlanEmailSendQueueLimit(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.portsPerServer")}</label>
               <input type="number" min="1" placeholder="1" value={planPortCount} onChange={(e) => setPlanPortCount(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.tunnelPortCount")}</label>
               <input type="number" min="1" placeholder="10" value={planTunnelPortCount} onChange={(e) => setPlanTunnelPortCount(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.accountDatabasesLimit")}</label>
               <input type="number" min="0" placeholder="0" value={planDatabases} onChange={(e) => setPlanDatabases(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("dialog.fields.accountBackupsLimit")}</label>
               <input type="number" min="0" placeholder="0" value={planBackups} onChange={(e) => setPlanBackups(e.target.value)}
-                className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5 justify-end">
               <label className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
@@ -382,7 +382,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
               value={planFeatures}
               onChange={(e) => setPlanFeatures(e.target.value)}
               placeholder={t("dialog.fields.billingPageFeaturesPlaceholder")}
-              className="rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none font-mono"
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 resize-none font-mono"
             />
             <p className="text-xs text-muted-foreground">{t("dialog.fields.billingPageFeaturesHint")}</p>
           </div>
@@ -391,7 +391,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
         <DialogFooter>
           <Button variant="outline" onClick={() => setPlanDialogOpen(false)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={savePlan} disabled={planLoading} className="bg-primary text-primary-foreground">
-            {planLoading ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />{t("actions.saving")}</> : (planEditTarget ? t("actions.saveChanges") : t("actions.createPlan"))}
+            {planLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.saving")}</> : (planEditTarget ? t("actions.saveChanges") : t("actions.createPlan"))}
           </Button>
         </DialogFooter>
       </DialogContent>

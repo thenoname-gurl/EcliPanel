@@ -50,14 +50,14 @@ function StatusBadge({ connected, connectionState, t }: StatusBadgeProps) {
     }
     if (state === "connecting" || state === "starting") {
       return {
-        icon: <Loader2 className="h-3 w-3 animate-spin" />,
+        icon: <Loader2 className="h-3 w-3 rounded-full animate-spin" />,
         label: state.charAt(0).toUpperCase() + state.slice(1),
         className: "border-yellow-500/50 text-yellow-400 bg-black/60"
       }
     }
     if (state === "stopping") {
       return {
-        icon: <Loader2 className="h-3 w-3 animate-spin" />,
+        icon: <Loader2 className="h-3 w-3 rounded-full animate-spin" />,
         label: t("status.stopping"),
         className: "border-orange-500/50 text-orange-400 bg-black/60"
       }
@@ -95,7 +95,7 @@ interface HistoryPanelProps {
 function HistoryPanel({ history, onSelect, onClose, t }: HistoryPanelProps) {
   if (history.length === 0) {
     return (
-      <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 p-4 rounded-md border border-border bg-background shadow-xl text-center">
+      <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 p-4 border border-border bg-background shadow-xl text-center">
         <p className="text-sm text-muted-foreground">{t("history.empty")}</p>
         <button
           onClick={onClose}
@@ -108,7 +108,7 @@ function HistoryPanel({ history, onSelect, onClose, t }: HistoryPanelProps) {
   }
 
   return (
-    <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 rounded-md border border-border bg-background shadow-xl max-h-48 overflow-y-auto">
+    <div className="absolute bottom-full left-0 right-0 mb-1 mx-2 border border-border bg-background shadow-xl max-h-48 overflow-y-auto">
       <div className="flex items-center justify-between px-3 py-2 border-b border-border sticky top-0 bg-secondary/50">
         <span className="text-xs font-medium text-muted-foreground">{t("history.recent")}</span>
         <button 
@@ -152,7 +152,7 @@ function MobileCommandInput({
       <button
         onClick={onHistoryToggle}
         className={cn(
-          "flex items-center justify-center rounded-md p-2 transition-colors flex-shrink-0",
+          "flex items-center justify-center p-2 transition-colors flex-shrink-0",
           historyOpen 
             ? "bg-primary text-primary-foreground" 
             : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -161,7 +161,7 @@ function MobileCommandInput({
         <History className="h-4 w-4" />
       </button>
       
-      <div className="flex-1 flex items-center gap-2 rounded-md border border-border bg-input px-3 py-1.5">
+      <div className="flex-1 flex items-center gap-2 border border-border bg-input px-3 py-1.5">
         <Terminal className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
         <input
           type="text"
@@ -182,7 +182,7 @@ function MobileCommandInput({
         onClick={onSend}
         disabled={!value.trim() || disabled}
         className={cn(
-          "flex items-center justify-center rounded-md p-2 transition-colors flex-shrink-0",
+          "flex items-center justify-center p-2 transition-colors flex-shrink-0",
           value.trim() && !disabled
             ? "bg-primary text-primary-foreground hover:bg-primary/90"
             : "bg-secondary text-muted-foreground"
@@ -220,7 +220,7 @@ function ConsoleToolbar({
         <StatusBadge connected={connected} connectionState={connectionState} t={t} />
         {installing && (
           <Badge variant="outline" className="text-[10px] gap-1.5 px-2 py-0.5 font-medium border-yellow-500/50 text-yellow-400 bg-black/60">
-            <Loader2 className="h-3 w-3 animate-spin" />
+            <Loader2 className="h-3 w-3 rounded-full animate-spin" />
             {t("status.installing")}
           </Badge>
         )}
@@ -229,7 +229,7 @@ function ConsoleToolbar({
       <div className="flex items-center gap-2">
         <button
           onClick={onCopy}
-          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           title={t("toolbar.copyOutput")}
         >
           {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
@@ -238,7 +238,7 @@ function ConsoleToolbar({
         
         <button
           onClick={onClear}
-          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           title={t("toolbar.clearConsole")}
         >
           <Trash2 className="h-3 w-3" />
@@ -248,15 +248,15 @@ function ConsoleToolbar({
         <button
           onClick={onReconnect}
           disabled={reconnecting}
-          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
+          className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           title={t("actions.reconnect")}
         >
-          <RefreshCw className={cn("h-3 w-3", reconnecting && "animate-spin")} />
+          <RefreshCw className={cn("h-3 w-3", reconnecting && "rounded-full animate-spin")} />
         </button>
         
         <button
           onClick={onFullscreenToggle}
-          className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
+          className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           title={isFullscreen ? t("actions.exitFullscreen") : t("actions.fullscreen")}
         >
           {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
@@ -1292,7 +1292,7 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
         {!terminalReady && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
             <div className="flex flex-col items-center gap-3 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 rounded-full animate-spin" />
               <span className="text-sm">{t("states.loadingConsole")}</span>
             </div>
           </div>

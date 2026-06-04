@@ -392,14 +392,14 @@ export default function RolloutsTab() {
   if (loading) {
     return (
       <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-        <RefreshCw className="h-4 w-4 animate-spin" /> Loading rollouts...
+        <RefreshCw className="h-4 w-4 rounded-full animate-spin" /> Loading rollouts...
       </div>
     )
   }
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="flex items-center gap-2">
             <Beaker className="h-4 w-4 text-primary" />
@@ -550,7 +550,7 @@ export default function RolloutsTab() {
                         ) : (
                           <div className="max-h-48 overflow-y-auto space-y-1.5">
                             {(r.overrides || []).map((o) => (
-                              <div key={o.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/20 px-3 py-2">
+                              <div key={o.id} className="flex items-center justify-between border border-border bg-secondary/20 px-3 py-2">
                                 <div className="flex items-center gap-3 min-w-0">
                                   <span className="text-sm font-mono text-foreground shrink-0">User #{o.userId}</span>
                                   <div className="flex items-center gap-1.5">
@@ -673,7 +673,7 @@ export default function RolloutsTab() {
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
                   placeholder="New Dashboard"
-                  className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                  className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
                 />
               </div>
               <div className="space-y-1.5">
@@ -683,7 +683,7 @@ export default function RolloutsTab() {
                   value={form.key}
                   onChange={(e) => setForm({ ...form, key: e.target.value })}
                   placeholder="new_dashboard_v2"
-                  className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
+                  className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
                 />
               </div>
             </div>
@@ -695,7 +695,7 @@ export default function RolloutsTab() {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="Optional description of the feature"
-                className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+                className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
               />
             </div>
 
@@ -708,7 +708,7 @@ export default function RolloutsTab() {
                   max={9999}
                   value={form.hashRangeStart}
                   onChange={(e) => setForm({ ...form, hashRangeStart: Number(e.target.value) })}
-                  className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
+                  className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
                 />
               </div>
               <div className="space-y-1.5">
@@ -719,7 +719,7 @@ export default function RolloutsTab() {
                   max={9999}
                   value={form.hashRangeEnd}
                   onChange={(e) => setForm({ ...form, hashRangeEnd: Number(e.target.value) })}
-                  className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
+                  className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
                 />
               </div>
             </div>
@@ -747,7 +747,7 @@ export default function RolloutsTab() {
                   value={form.treatment}
                   onChange={(e) => setForm({ ...form, treatment: e.target.value })}
                   placeholder="treatment"
-                  className="w-full rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
+                  className="w-full border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
                 />
               </div>
               <div className="flex items-end space-y-1.5">
@@ -756,7 +756,7 @@ export default function RolloutsTab() {
                     type="checkbox"
                     checked={form.active}
                     onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                    className="rounded border-border"
+                    className="border-border"
                   />
                   Active
                 </label>
@@ -764,14 +764,14 @@ export default function RolloutsTab() {
             </div>
 
             {/* Test bucket in dialog */}
-            <div className="rounded-lg border border-border bg-secondary/20 p-3 space-y-2">
+            <div className="border border-border bg-secondary/20 p-3 space-y-2">
               <p className="text-xs font-medium text-foreground">Test Bucket Assignment</p>
               <div className="flex gap-2">
                 <input
                   type="text"
                   id="dialog-test-user"
                   placeholder="Enter user ID to test"
-                  className="flex-1 rounded-lg border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
+                  className="flex-1 border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 font-mono"
                   onChange={() => {}}
                 />
                 <Button

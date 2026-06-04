@@ -80,7 +80,7 @@ function ToggleCard({
   return (
     <div
       className={cn(
-        "rounded-xl border p-4 transition-all hover:shadow-md",
+        "border p-4 transition-all hover:shadow-md",
         enabled ? variantConfig.active : variantConfig.inactive
       )}
     >
@@ -88,7 +88,7 @@ function ToggleCard({
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div
             className={cn(
-              "mt-0.5 rounded-lg p-2 transition-colors",
+              "mt-0.5 p-2 transition-colors",
               enabled ? variantConfig.iconActive.replace("text-", "bg-") + "/10" : "bg-secondary/50"
             )}
           >
@@ -139,14 +139,14 @@ function StatCard({
   trend?: { value: number; positive: boolean }
 }) {
   return (
-    <div className="rounded-xl border border-border bg-gradient-to-br from-card to-card/50 p-4 hover:shadow-md transition-all">
+    <div className="border border-border bg-gradient-to-br from-card to-card/50 p-4 hover:shadow-md transition-all">
       <div className="flex items-start justify-between mb-2">
         <div className="flex-1 min-w-0">
           <p className="text-xs text-muted-foreground font-medium">{label}</p>
           {sublabel && <p className="text-[10px] text-muted-foreground/60 font-mono mt-0.5">{sublabel}</p>}
         </div>
         {Icon && (
-          <div className={cn("rounded-lg p-1.5", color.replace("text-", "bg-") + "/10")}>
+          <div className={cn("p-1.5", color.replace("text-", "bg-") + "/10")}>
             <Icon className={cn("h-4 w-4", color)} />
           </div>
         )}
@@ -156,7 +156,7 @@ function StatCard({
         {trend && (
           <div
             className={cn(
-              "flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-md mb-0.5",
+              "flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 mb-0.5",
               trend.positive ? "text-green-400 bg-green-500/10" : "text-red-400 bg-red-500/10"
             )}
           >
@@ -253,7 +253,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
           <Button disabled={settingsSaving} onClick={handleSave} className="bg-primary text-primary-foreground shadow-sm" size="sm">
             {settingsSaving ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 rounded-full animate-spin" />
                 {t("actions.saving")}
               </>
             ) : (
@@ -375,7 +375,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       </div>
 
       {/* Feature Toggles Grid */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <Activity className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">{t("sections.featureFlags")}</h3>
@@ -397,7 +397,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               <div
                 key={feature.key}
                 className={cn(
-                  "rounded-lg border p-3 transition-all hover:shadow-sm",
+                  "border p-3 transition-all hover:shadow-sm",
                   panelSettings.featureToggles[feature.key]
                     ? "border-primary/30 bg-primary/5"
                     : "border-border bg-secondary/20"
@@ -441,7 +441,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
 
       {/* Gambling Chances */}
       {panelSettings.gamblingEnabled && (
-        <div className="rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+        <div className="border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2 border-b border-amber-500/20 px-5 py-4">
             <BarChart3 className="h-4 w-4 text-amber-400" />
             <h3 className="text-sm font-semibold text-foreground">{t("gambling.title")}</h3>
@@ -450,7 +450,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
             </span>
           </div>
           <div className="p-5">
-            <div className="flex items-start gap-2 mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-2 mb-4 p-3 bg-amber-500/10 border border-amber-500/20">
               <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-200/90 leading-relaxed">
                 {t("gambling.info")}
@@ -474,7 +474,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       gamblingResourceLuckyChance: Number(e.target.value),
                     }))
                   }
-                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  className="w-full h-2 bg-secondary appearance-none cursor-pointer accent-amber-500"
                 />
                 <p className="text-[11px] text-muted-foreground">{t("gambling.luckyRollHint")}</p>
               </div>
@@ -495,7 +495,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       gamblingPowerDenyChance: Number(e.target.value),
                     }))
                   }
-                  className="w-full h-2 bg-secondary rounded-lg appearance-none cursor-pointer accent-red-500"
+                  className="w-full h-2 bg-secondary appearance-none cursor-pointer accent-red-500"
                 />
                 <p className="text-[11px] text-muted-foreground">{t("gambling.powerDenyHint")}</p>
               </div>
@@ -505,7 +505,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       )}
 
       {/* Registration Notice */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <MessageSquare className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">
@@ -528,7 +528,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                   ? t("registration.placeholderEnabled")
                   : t("registration.placeholderDisabled")
               }
-              className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
+              className="w-full border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
             />
             <p className="text-xs text-muted-foreground leading-relaxed">
               {panelSettings.registrationEnabled
@@ -545,7 +545,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest">Live Preview</p>
               </div>
               {!panelSettings.registrationEnabled ? (
-                <div className="flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 animate-in fade-in slide-in-from-bottom-1">
+                <div className="flex items-start gap-3 border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 animate-in fade-in slide-in-from-bottom-1">
                   <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-400 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-yellow-300">{t("registration.unavailableTitle")}</p>
@@ -555,7 +555,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                   </div>
                 </div>
               ) : panelSettings.registrationNotice ? (
-                <div className="flex items-start gap-3 rounded-lg border border-blue-500/30 bg-blue-500/10 px-4 py-3 animate-in fade-in slide-in-from-bottom-1">
+                <div className="flex items-start gap-3 border border-blue-500/30 bg-blue-500/10 px-4 py-3 animate-in fade-in slide-in-from-bottom-1">
                   <Info className="h-5 w-5 shrink-0 text-blue-400 mt-0.5" />
                   <p className="text-sm text-blue-300 leading-relaxed">{panelSettings.registrationNotice}</p>
                 </div>
@@ -566,7 +566,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       </div>
 
       {/* Billing & Tax */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <Globe className="h-4 w-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">{t("billing.title")}</h3>
@@ -585,13 +585,13 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 }
                 placeholder="USD"
                 maxLength={3}
-                className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all uppercase"
+                className="w-full border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all uppercase"
               />
               <p className="text-xs text-muted-foreground">{t("billing.currencyExamples")}</p>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("billing.quickExamples")}</label>
-              <div className="rounded-lg border border-border bg-secondary/30 p-3 space-y-1.5 text-xs text-muted-foreground leading-relaxed">
+              <div className="border border-border bg-secondary/30 p-3 space-y-1.5 text-xs text-muted-foreground leading-relaxed">
                 <p>
                   <code className="px-1.5 py-0.5 rounded bg-secondary/80 text-foreground font-mono text-[11px]">eu:20</code> → 20% for
                   all EU countries
@@ -617,7 +617,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               value={panelSettings.billingTaxRules || ""}
               onChange={(e) => setPanelSettings((s: any) => ({ ...s, billingTaxRules: e.target.value }))}
               placeholder={"eu:20\nde:19\nfr:20\ndefault:0"}
-              className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-y transition-all"
+              className="w-full border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-y transition-all"
             />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Supported keys: country code (e.g. <code className="text-foreground">DE</code>), country name,{" "}
@@ -635,7 +635,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               value={panelSettings.countryAgeRules || ""}
               onChange={(e) => setPanelSettings((s: any) => ({ ...s, countryAgeRules: e.target.value }))}
               placeholder={"us:13\ngb:14\neu:14\ndefault:13"}
-              className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-y transition-all"
+              className="w-full border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-y transition-all"
             />
             <p className="text-xs text-muted-foreground leading-relaxed">
               {t("billing.ageRulesHint")}
@@ -645,7 +645,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       </div>
 
       {/* Geo-Block Rules */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="border border-border bg-card shadow-sm overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-primary" />
@@ -775,7 +775,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       <div
                         key={lvl}
                         className={cn(
-                          "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium border transition-all hover:shadow-sm cursor-help",
+                          "inline-flex items-center gap-2 px-3 py-2 text-xs font-medium border transition-all hover:shadow-sm cursor-help",
                           config.bgColor,
                           config.borderColor,
                           config.color
@@ -800,13 +800,13 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                         onChange={(e) => setNewCountry(e.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase())}
                         onKeyDown={(e) => e.key === "Enter" && addEntry()}
                         placeholder="CC"
-                        className="w-full sm:w-20 rounded-lg border border-border bg-secondary/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 uppercase font-mono text-center transition-all"
+                        className="w-full sm:w-20 border border-border bg-secondary/50 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 uppercase font-mono text-center transition-all"
                       />
                     </div>
                     <select
                       value={newLevel}
                       onChange={(e) => setNewLevel(e.target.value)}
-                      className="flex-1 min-w-0 rounded-lg border border-border bg-secondary/50 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 cursor-pointer transition-all"
+                      className="flex-1 min-w-0 border border-border bg-secondary/50 px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 cursor-pointer transition-all"
                     >
                       {Object.entries(levelConfig).map(([lvl, config]) => (
                         <option key={lvl} value={lvl}>
@@ -825,7 +825,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                     </Button>
                   </div>
                   {newCountry.length === 2 && entries.some((e) => e.country === newCountry.toUpperCase()) && (
-                    <div className="flex items-center gap-2 mt-3 p-2.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                    <div className="flex items-center gap-2 mt-3 p-2.5 bg-yellow-500/10 border border-yellow-500/20">
                       <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
                       <p className="text-xs text-yellow-300">
                         {t("geoRules.updateExisting", { country: newCountry.toUpperCase() })}
@@ -847,13 +847,13 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                             value={searchFilter}
                             onChange={(e) => setSearchFilter(e.target.value.replace(/[^a-zA-Z]/g, ""))}
                             placeholder="Filter by country code…"
-                            className="w-full rounded-lg border border-border bg-secondary/50 pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
+                            className="w-full border border-border bg-secondary/50 pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
                           />
                         </div>
                       )}
 
                       {/* Rules grid */}
-                      <div className="rounded-xl border border-border overflow-hidden shadow-sm">
+                      <div className="border border-border overflow-hidden shadow-sm">
                         <div className="max-h-80 overflow-y-auto">
                           {filteredEntries.length === 0 ? (
                             <div className="py-12 text-center">
@@ -872,7 +872,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                                       className="flex items-center gap-4 px-4 py-3 hover:bg-secondary/30 transition-colors group"
                                     >
                                       {/* Country Badge */}
-                                      <div className="flex items-center justify-center w-12 h-10 rounded-lg bg-gradient-to-br from-secondary/80 to-secondary/50 border border-border shadow-sm">
+                                      <div className="flex items-center justify-center w-12 h-10 bg-gradient-to-br from-secondary/80 to-secondary/50 border border-border shadow-sm">
                                         <span className="text-sm font-mono font-bold text-foreground tracking-wider">
                                           {entry.country}
                                         </span>
@@ -882,7 +882,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                                       <div className="flex-1 min-w-0">
                                         <span
                                           className={cn(
-                                            "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold border",
+                                            "inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold border",
                                             config.bgColor,
                                             config.borderColor,
                                             config.color
@@ -897,7 +897,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                                       <select
                                         value={entry.level}
                                         onChange={(e) => updateLevel(entry.country, e.target.value)}
-                                        className="rounded-lg border border-border bg-secondary/50 text-sm text-foreground outline-none cursor-pointer hover:border-primary/40 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 px-3 py-1.5 transition-all"
+                                        className="border border-border bg-secondary/50 text-sm text-foreground outline-none cursor-pointer hover:border-primary/40 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 px-3 py-1.5 transition-all"
                                       >
                                         {Object.entries(levelConfig).map(([lvl, c]) => (
                                           <option key={lvl} value={lvl}>
@@ -909,7 +909,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                                       {/* Remove Button */}
                                       <button
                                         onClick={() => removeEntry(entry.country)}
-                                        className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                                        className="p-2 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
                                         title={`Remove ${entry.country}`}
                                       >
                                         <X className="h-4 w-4" />
@@ -942,7 +942,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-12 gap-3">
+                    <div className="flex flex-col items-center justify-center border-2 border-dashed border-border py-12 gap-3">
                       <Globe className="h-12 w-12 text-muted-foreground/30" />
                       <div className="text-center">
                         <p className="text-sm font-medium text-foreground">{t("geoRules.noneConfigured")}</p>
@@ -964,7 +964,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       rows={3}
                       value={panelSettings.geoBlockCountries}
                       onChange={(e) => setPanelSettings((s: any) => ({ ...s, geoBlockCountries: e.target.value }))}
-                      className="w-full rounded-lg border border-border bg-secondary/50 px-4 py-3 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
+                      className="w-full border border-border bg-secondary/50 px-4 py-3 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 resize-none transition-all"
                       placeholder="de:2,fr:3,ru:5"
                     />
                     <p className="text-[11px] text-muted-foreground mt-2">
@@ -979,7 +979,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       </div>
 
       {/* Geo-Block Metrics */}
-      <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <div className="border border-border bg-card shadow-sm overflow-hidden">
         <button
           onClick={() => toggleSection("geoMetrics")}
           className="flex items-center justify-between gap-3 w-full px-5 py-4 hover:bg-secondary/20 transition-colors"
@@ -997,11 +997,11 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
             <div className="p-5">
               {geoBlockMetricsLoading ? (
                 <div className="flex flex-col items-center justify-center gap-3 py-12">
-                  <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                  <Loader2 className="h-8 w-8 text-primary rounded-full animate-spin" />
                   <p className="text-sm text-muted-foreground">{t("geoMetrics.loading")}</p>
                 </div>
               ) : geoBlockMetricsError ? (
-                <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+                <div className="flex items-start gap-3 border border-destructive/30 bg-destructive/10 px-4 py-3">
                   <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
                   <div>
                     <p className="text-sm font-medium text-destructive">{t("geoMetrics.failedToLoad")}</p>
@@ -1044,7 +1044,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                   {geoBlockMetrics.byCountry && Object.keys(geoBlockMetrics.byCountry).length > 0 && (
                     <div className="space-y-3">
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Users by Country</h4>
-                      <div className="rounded-xl border border-border overflow-hidden shadow-sm">
+                      <div className="border border-border overflow-hidden shadow-sm">
                         <div className="grid grid-cols-[auto_1fr_auto] gap-4 px-4 py-3 bg-secondary/40 border-b border-border">
                           <p className="text-xs font-semibold text-muted-foreground uppercase">Code</p>
                           <p className="text-xs font-semibold text-muted-foreground uppercase">Distribution</p>
@@ -1058,7 +1058,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                                 key={country}
                                 className="grid grid-cols-[auto_1fr_auto] gap-4 items-center px-4 py-3 hover:bg-secondary/20 transition-colors"
                               >
-                                <div className="flex items-center justify-center w-10 h-7 rounded-lg bg-gradient-to-br from-secondary/80 to-secondary/50 border border-border">
+                                <div className="flex items-center justify-center w-10 h-7 bg-gradient-to-br from-secondary/80 to-secondary/50 border border-border">
                                   <span className="text-xs font-mono font-bold text-foreground">{country.toUpperCase()}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -1098,7 +1098,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       </div>
 
       {/* KYC-Required Countries */}
-      <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+      <div className="border border-border bg-card p-5 sm:p-6">
         <h3 className="text-sm font-semibold text-foreground mb-4">KYC-Required Countries</h3>
         <p className="text-xs text-muted-foreground mb-3">
           Users from these countries must complete identity verification (KYC) before they can own servers or become subusers. Enter comma-separated <strong>ISO 3166-1 alpha-2</strong> codes (e.g. <code>ru, cn, ir</code>).
@@ -1106,14 +1106,14 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         <textarea
           value={panelSettings.kycRequiredCountries || ""}
           onChange={(e) => setPanelSettings((s: any) => ({ ...s, kycRequiredCountries: e.target.value }))}
-          className="w-full min-h-[80px] rounded-xl border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-y"
+          className="w-full min-h-[80px] border border-border bg-secondary/50 px-4 py-3 text-sm font-mono text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-y"
           placeholder="ru, cn, ir, kp"
         />
       </div>
 
       {/* Mobile Sticky Save Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-2xl pointer-events-auto">
+        <div className="flex items-center justify-between border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-2xl pointer-events-auto">
           {settingsSaved && (
             <div className="flex items-center gap-2 text-sm text-green-400 animate-in fade-in slide-in-from-bottom-2">
               <CheckCircle2 className="h-4 w-4" />
@@ -1124,7 +1124,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
           <Button disabled={settingsSaving} onClick={handleSave} className="bg-primary text-primary-foreground shadow-lg" size="sm">
             {settingsSaving ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <Loader2 className="h-4 w-4 mr-2 rounded-full animate-spin" />
                 {t("actions.saving")}
               </>
             ) : (

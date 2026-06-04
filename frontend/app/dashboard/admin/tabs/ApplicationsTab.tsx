@@ -172,11 +172,11 @@ function parseSubmissionContent(sub: Submission) {
 // ─── Shared primitives ────────────────────────────────────────────────────────
 
 const inputCls =
-  "h-10 w-full min-w-0 rounded-lg border border-border bg-secondary/30 px-3 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15 transition-all"
+  "h-10 w-full min-w-0 border border-border bg-secondary/30 px-3 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15 transition-all"
 const selectCls =
-  "h-10 w-full min-w-0 rounded-lg border border-border bg-secondary/30 px-3 text-sm text-foreground outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15 transition-all cursor-pointer"
+  "h-10 w-full min-w-0 border border-border bg-secondary/30 px-3 text-sm text-foreground outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15 transition-all cursor-pointer"
 const textareaCls =
-  "w-full min-w-0 rounded-lg border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15 transition-all resize-none"
+  "w-full min-w-0 border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15 transition-all resize-none"
 
 function StatusDot({ status, config, label }: {
   status: string
@@ -225,7 +225,7 @@ function SectionHeader({ icon: Icon, title, badge, action }: {
     <div className="flex items-center justify-between gap-2 px-4 py-3.5 border-b border-border min-w-0">
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {Icon && (
-          <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+          <div className="h-7 w-7 bg-primary/10 flex items-center justify-center shrink-0">
             <Icon className="h-3.5 w-3.5 text-primary" />
           </div>
         )}
@@ -262,7 +262,7 @@ function EmptyRow({ icon: Icon, text, colSpan = 6 }: {
 
 function EmptyCard({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
   return (
-    <div className="rounded-xl border border-border bg-card px-4 py-12">
+    <div className="border border-border bg-card px-4 py-12">
       <div className="flex flex-col items-center gap-2">
         <Icon className="h-8 w-8 text-muted-foreground/40" />
         <p className="text-sm text-muted-foreground text-center">{text}</p>
@@ -287,7 +287,7 @@ function QuestionCard({
   const hasOptions = question.type === "select" || question.type === "multi_select" || question.type === "checkbox"
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden w-full min-w-0">
+    <div className="border border-border bg-card overflow-hidden w-full min-w-0">
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 bg-secondary/20 border-b border-border/60 min-w-0">
         <GripVertical className="h-4 w-4 text-muted-foreground/30 shrink-0" />
@@ -299,7 +299,7 @@ function QuestionCard({
         </span>
         <button
           onClick={onRemove} disabled={total === 1}
-          className="shrink-0 p-1.5 rounded-lg text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          className="shrink-0 p-1.5 text-muted-foreground/40 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
@@ -326,7 +326,7 @@ function QuestionCard({
         </Field>
         <button type="button" onClick={() => onUpdate({ required: !question.required })}
           className={cn(
-            "flex items-center gap-3 w-full h-10 px-3 rounded-lg border transition-all text-sm font-medium",
+            "flex items-center gap-3 w-full h-10 px-3 border transition-all text-sm font-medium",
             question.required
               ? "border-primary/40 bg-primary/8 text-primary"
               : "border-border bg-secondary/30 text-muted-foreground hover:text-foreground"
@@ -353,7 +353,7 @@ function QuestionCard({
           {(question.options || []).length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {(question.options || []).map((opt, oi) => (
-                <span key={oi} className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/50 px-2 py-1 text-xs font-medium text-foreground">
+                <span key={oi} className="inline-flex items-center gap-1 border border-border bg-secondary/50 px-2 py-1 text-xs font-medium text-foreground">
                   <span className="truncate max-w-[120px]">{opt}</span>
                   <button onClick={() => onRemoveOption(oi)} className="text-muted-foreground/60 hover:text-red-400 transition-colors shrink-0">
                     <X className="h-2.5 w-2.5" />
@@ -370,7 +370,7 @@ function QuestionCard({
               placeholder={t("builder.questionFields.optionInputPlaceholder")}
               className={cn(inputCls, "flex-1 min-w-0 h-9 text-xs")} />
             <button onClick={onAddOption}
-              className="shrink-0 h-9 px-3 rounded-lg border border-border bg-secondary text-xs font-medium hover:bg-secondary/80 transition-colors whitespace-nowrap">
+              className="shrink-0 h-9 px-3 border border-border bg-secondary text-xs font-medium hover:bg-secondary/80 transition-colors whitespace-nowrap">
               {t("actions.add")}
             </button>
           </div>
@@ -670,7 +670,7 @@ export default function ApplicationsTab() {
 
       {/* Error banner */}
       {error && (
-        <div className="flex items-start gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
+        <div className="flex items-start gap-3 border border-destructive/30 bg-destructive/10 p-3">
           <span className="text-sm text-destructive flex-1 min-w-0 break-words">{error}</span>
           <button onClick={() => setError(null)} className="shrink-0 text-destructive/60 hover:text-destructive transition-colors">
             <X className="h-4 w-4" />
@@ -682,10 +682,10 @@ export default function ApplicationsTab() {
           SECTION 1 — FORMS HEADER BAR
       ══════════════════════════════════════════════════════════════════ */}
 
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col gap-3 p-3 sm:p-4">
           {/* Search */}
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+          <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
             <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <input type="text" placeholder={t("forms.searchPlaceholder")} value={formSearch}
               onChange={(e) => setFormSearch(e.target.value)}
@@ -700,11 +700,11 @@ export default function ApplicationsTab() {
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-muted-foreground">{forms.length} {t("forms.formsCount")}</span>
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={loadAll} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+              <button onClick={loadAll} className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                 <RefreshCw className="h-4 w-4" />
               </button>
               <button onClick={openNewForm}
-                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors whitespace-nowrap">
+                className="flex items-center gap-1.5 h-8 px-3 bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors whitespace-nowrap">
                 <Plus className="h-3.5 w-3.5" />{t("actions.newForm")}
               </button>
             </div>
@@ -713,7 +713,7 @@ export default function ApplicationsTab() {
       </div>
 
       {/* ── Forms desktop table ── */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden hidden lg:block">
+      <div className="border border-border bg-card overflow-hidden hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead>
@@ -776,10 +776,10 @@ export default function ApplicationsTab() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                          <button onClick={() => openEditForm(form)} title={t("actions.edit")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Edit3 className="h-3.5 w-3.5" /></button>
-                          <button onClick={() => duplicateForm(form)} title={t("actions.template")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Layers className="h-3.5 w-3.5" /></button>
-                          <button onClick={() => { setSelectedFormId(form.id); setShowBuilder(false); setSubFilter("all") }} title={t("actions.viewSubmissions")} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Inbox className="h-3.5 w-3.5" /></button>
-                          <button onClick={() => deleteForm(form.id)} title={t("actions.deleteForm")} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => openEditForm(form)} title={t("actions.edit")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Edit3 className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => duplicateForm(form)} title={t("actions.template")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Layers className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setSelectedFormId(form.id); setShowBuilder(false); setSubFilter("all") }} title={t("actions.viewSubmissions")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"><Inbox className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => deleteForm(form.id)} title={t("actions.deleteForm")} className="p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
                         </div>
                       </td>
                     </tr>
@@ -795,7 +795,7 @@ export default function ApplicationsTab() {
       <div className="flex flex-col gap-3 lg:hidden">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse">
+            <div key={i} className="border border-border bg-card overflow-hidden animate-pulse">
               <div className="flex items-start gap-3 p-4 pb-3">
                 <div className="h-4 w-36 rounded bg-secondary" />
                 <div className="h-5 w-14 rounded-full bg-secondary ml-auto" />
@@ -818,7 +818,7 @@ export default function ApplicationsTab() {
             const pending = formSubs.filter((s) => s.status === "pending").length
 
             return (
-              <div key={form.id} className="rounded-xl border border-border bg-card overflow-hidden">
+              <div key={form.id} className="border border-border bg-card overflow-hidden">
 
                 {/* Top: title + status — mirrors AntiAbuse top section */}
                 <div className="flex items-start gap-3 p-4 pb-3">
@@ -898,13 +898,13 @@ export default function ApplicationsTab() {
       ══════════════════════════════════════════════════════════════════ */}
 
       {showBuilder && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden w-full">
+        <div className="border border-border bg-card overflow-hidden w-full">
           <SectionHeader
             icon={selectedFormId ? Edit3 : Plus}
             title={selectedFormId ? t("builder.editForm") : t("builder.createForm")}
             badge={<CountBadge count={bQuestions.length} />}
             action={
-              <button onClick={() => setShowBuilder(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+              <button onClick={() => setShowBuilder(false)} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 <X className="h-4 w-4" />
               </button>
             }
@@ -953,7 +953,7 @@ export default function ApplicationsTab() {
                   <CountBadge count={bQuestions.length} />
                 </div>
                 <button onClick={() => setBQuestions((p) => [...p, makeQuestion(p.length + 1)])}
-                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary transition-colors shrink-0 whitespace-nowrap">
+                  className="flex items-center gap-1.5 h-8 px-3 border border-border bg-secondary/50 text-xs font-medium text-foreground hover:bg-secondary transition-colors shrink-0 whitespace-nowrap">
                   <Plus className="h-3.5 w-3.5" />{t("actions.add")}
                 </button>
               </div>
@@ -982,13 +982,13 @@ export default function ApplicationsTab() {
             {/* Save row */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-border">
               <button onClick={saveForm} disabled={saving || !bTitle.trim()}
-                className="flex items-center justify-center gap-2 h-10 px-5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                className="flex items-center justify-center gap-2 h-10 px-5 bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                 {saving
-                  ? <><RefreshCw className="h-4 w-4 animate-spin" />{t("actions.saving")}</>
+                  ? <><RefreshCw className="h-4 w-4 rounded-full animate-spin" />{t("actions.saving")}</>
                   : <><Send className="h-4 w-4" />{selectedFormId ? t("actions.updateForm") : t("actions.createForm")}</>}
               </button>
               <button onClick={() => setShowBuilder(false)}
-                className="flex items-center justify-center h-10 px-4 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+                className="flex items-center justify-center h-10 px-4 border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
                 {t("actions.cancel")}
               </button>
             </div>
@@ -1001,7 +1001,7 @@ export default function ApplicationsTab() {
       ══════════════════════════════════════════════════════════════════ */}
 
       {selectedForm?.visibility === "private_invite" && !showBuilder && (
-        <div className="rounded-xl border border-border bg-card overflow-hidden w-full">
+        <div className="border border-border bg-card overflow-hidden w-full">
           <SectionHeader
             icon={Link2}
             title={`${t("invites.title")} — ${selectedForm.title}`}
@@ -1009,7 +1009,7 @@ export default function ApplicationsTab() {
           />
           <div className="p-3 sm:p-4 space-y-4">
             {/* Create invite */}
-            <div className="rounded-xl border border-border bg-secondary/10 p-3 space-y-3">
+            <div className="border border-border bg-secondary/10 p-3 space-y-3">
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("invites.createNewInvite")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label={t("invites.fields.label")}>
@@ -1026,14 +1026,14 @@ export default function ApplicationsTab() {
                 </Field>
               </div>
               <button onClick={createInvite}
-                className="flex items-center justify-center gap-2 h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors w-full sm:w-auto">
+                className="flex items-center justify-center gap-2 h-9 px-4 bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors w-full sm:w-auto">
                 <Plus className="h-4 w-4" />{t("actions.createInviteLink")}
               </button>
             </div>
 
             {/* Invite desktop table */}
             {invites.length > 0 && (
-              <div className="rounded-xl border border-border overflow-hidden hidden lg:block">
+              <div className="border border-border overflow-hidden hidden lg:block">
                 <table className="w-full min-w-[560px]">
                   <thead>
                     <tr className="border-b border-border text-xs text-muted-foreground bg-secondary/10">
@@ -1079,7 +1079,7 @@ export default function ApplicationsTab() {
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end">
                               {!inv.revoked && (
-                                <button onClick={() => revokeInvite(inv.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                                <button onClick={() => revokeInvite(inv.id)} className="p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
                                   <X className="h-3.5 w-3.5" />
                                 </button>
                               )}
@@ -1102,7 +1102,7 @@ export default function ApplicationsTab() {
                   const link = `${getOrigin()}/forms/${selectedForm.slug}?invite=${inv.token}`
                   const usagePct = inv.maxUses ? Math.min(100, (inv.uses / inv.maxUses) * 100) : 0
                   return (
-                    <div key={inv.id} className={cn("rounded-xl border border-border bg-card overflow-hidden", inv.revoked && "opacity-50")}>
+                    <div key={inv.id} className={cn("border border-border bg-card overflow-hidden", inv.revoked && "opacity-50")}>
 
                       {/* Top */}
                       <div className="flex items-start gap-3 p-4 pb-3">
@@ -1114,7 +1114,7 @@ export default function ApplicationsTab() {
                             {inv.revoked && <StatusDot status="archived" config={FORM_STATUS_CONFIG} label={t("statusBadge.archived")} />}
                           </div>
                           {/* Link pill */}
-                          <div className="flex items-center gap-1.5 min-w-0 overflow-hidden rounded-lg bg-secondary/40 border border-border/60 px-2 py-1">
+                          <div className="flex items-center gap-1.5 min-w-0 overflow-hidden bg-secondary/40 border border-border/60 px-2 py-1">
                             <Link2 className="h-3 w-3 text-muted-foreground/60 shrink-0" />
                             <span className="text-[10px] font-mono text-muted-foreground truncate min-w-0 flex-1">{link}</span>
                             <button onClick={() => copy(link, `inv-${inv.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
@@ -1173,10 +1173,10 @@ export default function ApplicationsTab() {
       ══════════════════════════════════════════════════════════════════ */}
 
       {/* Submissions header */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex flex-col gap-3 p-3 sm:p-4">
           {/* Search */}
-          <div className="flex items-center gap-2 rounded-lg border border-border bg-secondary/50 px-3 py-2">
+          <div className="flex items-center gap-2 border border-border bg-secondary/50 px-3 py-2">
             <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <input type="text"
               placeholder={selectedForm ? `${t("submissions.searchIn")} ${selectedForm.title}…` : t("submissions.searchAll")}
@@ -1194,7 +1194,7 @@ export default function ApplicationsTab() {
               {(["all", "pending", "accepted", "rejected", "archived"] as const).map((f) => (
                 <button key={f} onClick={() => { setSubFilter(f); setSubPage(1) }}
                   className={cn(
-                    "shrink-0 flex items-center gap-1 h-7 px-2 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all",
+                    "shrink-0 flex items-center gap-1 h-7 px-2 text-[11px] font-semibold whitespace-nowrap transition-all",
                     subFilter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   )}>
                   {t(`submissions.filters.${f}`)}
@@ -1205,7 +1205,7 @@ export default function ApplicationsTab() {
                 </button>
               ))}
             </div>
-            <button onClick={loadAll} className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+            <button onClick={loadAll} className="shrink-0 p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
               <RefreshCw className="h-4 w-4" />
             </button>
           </div>
@@ -1216,7 +1216,7 @@ export default function ApplicationsTab() {
           <div className="flex items-center gap-2 flex-wrap px-3 sm:px-4 py-3 border-t border-border">
             <span className="text-xs font-semibold text-foreground shrink-0">{selectedSubIds.length} {t("bulk.selected")}</span>
             <button onClick={bulkDeleteSubs}
-              className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors">
+              className="flex items-center gap-1.5 h-7 px-3 border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors">
               <Trash2 className="h-3.5 w-3.5" />{t("actions.bulkDeleteSubmissions", { count: selectedSubIds.length })}
             </button>
             <button onClick={() => setSelectedSubIds([])} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0">
@@ -1227,7 +1227,7 @@ export default function ApplicationsTab() {
       </div>
 
       {/* ── Submissions desktop table ── */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden hidden lg:block">
+      <div className="border border-border bg-card overflow-hidden hidden lg:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px]">
             <thead>
@@ -1242,7 +1242,7 @@ export default function ApplicationsTab() {
                         setSelectedSubIds((p) => Array.from(new Set([...p, ...pagedSubs.map((s) => s.id)])))
                       }
                     }}
-                    className="h-4 w-4 rounded border-border accent-primary" />
+                    className="h-4 w-4 border-border accent-primary" />
                 </th>
                 <th className="px-4 py-3 text-left font-medium">{t("table.submitter")}</th>
                 <th className="px-4 py-3 text-left font-medium">{t("table.form")}</th>
@@ -1277,7 +1277,7 @@ export default function ApplicationsTab() {
                         <td className="px-4 py-3">
                           <input type="checkbox" checked={selectedSubIds.includes(sub.id)}
                             onChange={() => setSelectedSubIds((p) => p.includes(sub.id) ? p.filter((v) => v !== sub.id) : [...p, sub.id])}
-                            className="h-4 w-4 rounded border-border accent-primary" />
+                            className="h-4 w-4 border-border accent-primary" />
                         </td>
                         <td className="px-4 py-3 max-w-[160px]">
                           <div className="flex items-center gap-2 min-w-0">
@@ -1298,19 +1298,19 @@ export default function ApplicationsTab() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => toggleExpand(sub.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                            <button onClick={() => toggleExpand(sub.id)} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                               <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
                             </button>
-                            <button onClick={() => updateSubStatus(sub.id, "accepted")} disabled={sub.status === "accepted"} className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-30 transition-colors">
+                            <button onClick={() => updateSubStatus(sub.id, "accepted")} disabled={sub.status === "accepted"} className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 disabled:opacity-30 transition-colors">
                               <CheckCircle2 className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => updateSubStatus(sub.id, "rejected")} disabled={sub.status === "rejected"} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 transition-colors">
+                            <button onClick={() => updateSubStatus(sub.id, "rejected")} disabled={sub.status === "rejected"} className="p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30 transition-colors">
                               <XCircle className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => updateSubStatus(sub.id, "archived")} disabled={sub.status === "archived"} className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 transition-colors">
+                            <button onClick={() => updateSubStatus(sub.id, "archived")} disabled={sub.status === "archived"} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-30 transition-colors">
                               <Archive className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => deleteSub(sub.id)} className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
+                            <button onClick={() => deleteSub(sub.id)} className="p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 transition-colors">
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
                           </div>
@@ -1325,14 +1325,14 @@ export default function ApplicationsTab() {
                                 {submissionEntries.map(({ key, label, value }) => (
                                   <div key={key} className="space-y-1 min-w-0">
                                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
-                                    <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-sm text-foreground break-words overflow-hidden">
+                                    <div className="px-3 py-2 bg-secondary/40 border border-border/60 text-sm text-foreground break-words overflow-hidden">
                                       {Array.isArray(value) ? value.join(", ") : String(value ?? "—")}
                                     </div>
                                   </div>
                                 ))}
                               </div>
                             ) : (
-                              <pre className="whitespace-pre-wrap break-all text-xs bg-secondary/40 rounded-lg p-4 border border-border text-foreground overflow-x-auto max-w-full">{sub.content}</pre>
+                              <pre className="whitespace-pre-wrap break-all text-xs bg-secondary/40 p-4 border border-border text-foreground overflow-x-auto max-w-full">{sub.content}</pre>
                             )}
                           </td>
                         </tr>
@@ -1350,7 +1350,7 @@ export default function ApplicationsTab() {
       <div className="flex flex-col gap-3 lg:hidden">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="rounded-xl border border-border bg-card overflow-hidden animate-pulse">
+            <div key={i} className="border border-border bg-card overflow-hidden animate-pulse">
               <div className="flex items-start gap-3 p-4 pb-3">
                 <div className="h-4 w-4 rounded bg-secondary shrink-0" />
                 <div className="h-8 w-8 rounded-full bg-secondary shrink-0" />
@@ -1376,13 +1376,13 @@ export default function ApplicationsTab() {
             const submissionEntries = parseSubmissionContent(sub)
 
             return (
-              <div key={sub.id} className="rounded-xl border border-border bg-card overflow-hidden">
+              <div key={sub.id} className="border border-border bg-card overflow-hidden">
 
                 {/* Top: checkbox + avatar + name + status — AntiAbuse top section */}
                 <div className="flex items-start gap-3 p-4 pb-3">
                   <input type="checkbox" checked={selectedSubIds.includes(sub.id)}
                     onChange={() => setSelectedSubIds((p) => p.includes(sub.id) ? p.filter((v) => v !== sub.id) : [...p, sub.id])}
-                    className="mt-0.5 h-4 w-4 rounded border-border accent-primary shrink-0" />
+                    className="mt-0.5 h-4 w-4 border-border accent-primary shrink-0" />
                   <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary shrink-0">
                     {(sub.user?.firstName?.[0] || sub.user?.email?.[0] || "?").toUpperCase()}
                   </div>
@@ -1418,13 +1418,13 @@ export default function ApplicationsTab() {
                       submissionEntries.map(({ key, label, value }) => (
                         <div key={key} className="space-y-1 min-w-0">
                           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">{label}</p>
-                          <div className="px-3 py-2 rounded-lg bg-secondary/40 border border-border/60 text-xs text-foreground break-words overflow-hidden">
+                          <div className="px-3 py-2 bg-secondary/40 border border-border/60 text-xs text-foreground break-words overflow-hidden">
                             {Array.isArray(value) ? value.join(", ") : String(value ?? "—")}
                           </div>
                         </div>
                       ))
                     ) : (
-                      <pre className="whitespace-pre-wrap break-all text-xs bg-secondary/40 rounded-lg p-3 border border-border text-foreground overflow-x-auto max-w-full">{sub.content}</pre>
+                      <pre className="whitespace-pre-wrap break-all text-xs bg-secondary/40 p-3 border border-border text-foreground overflow-x-auto max-w-full">{sub.content}</pre>
                     )}
                   </div>
                 )}
@@ -1459,7 +1459,7 @@ export default function ApplicationsTab() {
       </div>
 
       {/* ── Pagination ── */}
-      <div className="rounded-xl border border-border bg-card">
+      <div className="border border-border bg-card">
         <div className="flex items-center justify-between gap-3 p-3 sm:p-4">
           <p className="text-xs text-muted-foreground">
             {t("pagination.page")}{" "}

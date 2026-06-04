@@ -190,7 +190,7 @@ function Banner({
   return (
     <div
       className={cn(
-        "flex gap-3 rounded-xl border p-3.5 text-sm",
+        "flex gap-3 border p-3.5 text-sm",
         styles[variant]
       )}
     >
@@ -210,7 +210,7 @@ function SectionCard({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card shadow-sm overflow-hidden",
+        "border border-border bg-card shadow-sm overflow-hidden",
         className
       )}
     >
@@ -234,7 +234,7 @@ function SectionHeader({
     <div className="flex items-start justify-between gap-3 p-4 border-b border-border bg-secondary/5">
       <div className="flex items-start gap-3 min-w-0">
         {Icon && (
-          <div className="rounded-lg bg-secondary/60 p-2 shrink-0 mt-0.5">
+          <div className="bg-secondary/60 p-2 shrink-0 mt-0.5">
             <Icon className="h-4 w-4 text-muted-foreground" />
           </div>
         )}
@@ -268,14 +268,14 @@ function ProtocolSelector({
   ]
 
   return (
-    <div className="flex rounded-lg border border-border bg-secondary/20 p-0.5 gap-0.5">
+    <div className="flex border border-border bg-secondary/20 p-0.5 gap-0.5">
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onChange(opt.value)}
           className={cn(
-            "flex-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all",
+            "flex-1 px-2.5 py-1.5 text-xs font-medium transition-all",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
             value === opt.value
               ? "bg-card text-foreground shadow-sm border border-border"
@@ -321,7 +321,7 @@ function PortInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         className={cn(
-          "w-full rounded-lg border bg-input px-3 py-2.5 text-sm font-mono",
+          "w-full border bg-input px-3 py-2.5 text-sm font-mono",
           "h-11 sm:h-10 outline-none transition-all",
           "placeholder:text-muted-foreground/40",
           "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
@@ -362,7 +362,7 @@ function PortRuleRow({
   return (
     <div
       className={cn(
-        "rounded-xl border p-3 sm:p-4 space-y-3 transition-colors",
+        "border p-3 sm:p-4 space-y-3 transition-colors",
         hasError
           ? "border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-950/10"
           : "border-border bg-secondary/5 hover:bg-secondary/10"
@@ -396,7 +396,7 @@ function PortRuleRow({
           onClick={onRemove}
           aria-label={t("firewall.removeRule")}
           className={cn(
-            "h-7 w-7 rounded-lg flex items-center justify-center",
+            "h-7 w-7 flex items-center justify-center",
             "text-muted-foreground hover:text-red-500 hover:bg-red-50",
             "dark:hover:bg-red-950/40 transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
@@ -447,7 +447,7 @@ function PortRuleRow({
 
       {/* Conflict warning */}
       {errors.conflict && (
-        <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30 px-3 py-2">
+        <div className="flex items-start gap-2 border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30 px-3 py-2">
           <AlertTriangle className="h-3.5 w-3.5 text-red-500 mt-0.5 shrink-0" />
           <p className="text-xs text-red-600 dark:text-red-400">
             {errors.conflict}
@@ -457,7 +457,7 @@ function PortRuleRow({
 
       {/* Preview serialized output */}
       {isValidPort(rule.vmPort) && isValidPort(rule.globalPort) && !hasError && (
-        <div className="flex items-center gap-2 rounded-lg bg-secondary/30 px-3 py-1.5">
+        <div className="flex items-center gap-2 bg-secondary/30 px-3 py-1.5">
           <span className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">
             {t("firewall.outputLabel")}
           </span>
@@ -674,7 +674,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
     <div className="p-3 sm:p-5 md:p-6 space-y-4 min-w-0">
       {/* Page header */}
       <div className="flex items-center gap-3 pb-1">
-        <div className="rounded-xl bg-secondary/60 p-2.5">
+        <div className="bg-secondary/60 p-2.5">
           <Shield className="h-5 w-5 text-muted-foreground" />
         </div>
         <div>
@@ -700,7 +700,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
           {defaultSshPort ? (
             <SectionCard>
               <div className="p-4 flex items-center gap-3">
-                <div className="rounded-lg bg-secondary/60 p-2 shrink-0">
+                <div className="bg-secondary/60 p-2 shrink-0">
                   <Hash className="h-4 w-4 text-muted-foreground" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -765,7 +765,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
 
               {/* Empty state */}
               {rules.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border bg-secondary/10 py-10 px-4 text-center">
+                <div className="border border-dashed border-border bg-secondary/10 py-10 px-4 text-center">
                   <Network className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-sm font-medium text-foreground mb-1">
                     {t("firewall.noPortRules")}
@@ -822,7 +822,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
                       setSaveSuccess(false)
                     }}
                     className={cn(
-                      "rounded-lg border px-3 py-2 text-xs font-medium transition-all text-left",
+                      "border px-3 py-2 text-xs font-medium transition-all text-left",
                       hostAddrMode === opt.value
                         ? "border-primary bg-primary/10 text-primary"
                         : "border-border bg-secondary/5 text-muted-foreground hover:text-foreground"
@@ -844,7 +844,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
                   }}
                   placeholder="0.0.0.0"
                   className={cn(
-                    "w-full rounded-lg border border-border bg-input px-3 py-2.5",
+                    "w-full border border-border bg-input px-3 py-2.5",
                     "text-sm font-mono h-11 sm:h-10 outline-none transition-all",
                     "focus:ring-2 focus:ring-primary/20 focus:border-primary",
                     "placeholder:text-muted-foreground/40"
@@ -884,7 +884,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
               className="w-full sm:w-auto h-11 sm:h-10 gap-2 font-medium"
             >
               {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 rounded-full animate-spin" />
               ) : (
                 <CheckCircle2 className="h-4 w-4" />
               )}
@@ -900,7 +900,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
             <SectionHeader icon={Info} title={t("firewall.howItWorksTitle")} />
             <div className="p-4 space-y-3">
               {/* Traffic flow diagram */}
-              <div className="rounded-lg bg-secondary/30 p-3 space-y-2">
+              <div className="bg-secondary/30 p-3 space-y-2">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
                   {t("firewall.trafficFlow")}
                 </p>
