@@ -257,59 +257,13 @@ export default function IdentityPage() {
               </div>
             </div>
           )}
+          {/* Selfie age verification disabled
           {!selfieVerified && status?.status !== 'verified' && (
             <div className="border border-border bg-card p-6">
-              <SectionHeader title={t('start.selfieOptionalTitle')} description={t('start.selfieOptionalDescription')} />
-              <div className="mt-4 grid grid-cols-1 gap-4">
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-foreground">{t('start.selfieLabel')}</label>
-                  <p className="text-xs text-muted-foreground">{t('start.selfieHint')}</p>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    disabled={selfieOnlyLoading}
-                    onChange={(e) => setSelfieOnlyFile(e.target.files?.[0] ?? null)}
-                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
-                  />
-                  {selfieOnlyFile && <p className="text-xs text-success">{t('start.selected')}: {selfieOnlyFile.name}</p>}
-                  {!user?.dateOfBirth && (
-                    <p className="text-xs text-destructive">{t('start.selfieDateOfBirthRequired')}</p>
-                  )}
-                </div>
-                <button
-                  disabled={selfieOnlyLoading || !selfieOnlyFile || !user?.dateOfBirth}
-                  onClick={async () => {
-                    if (!selfieOnlyFile) return;
-                    if (!user?.dateOfBirth) {
-                      setSelfieOnlyMessage(t('start.selfieDateOfBirthRequired'));
-                      return;
-                    }
-                    setSelfieOnlyLoading(true);
-                    setSelfieOnlyMessage(null);
-                    try {
-                      const formData = new FormData();
-                      formData.append('selfie', selfieOnlyFile);
-                      formData.append('dateOfBirth', user.dateOfBirth);
-                      await apiFetch(API_ENDPOINTS.ageVerificationSelfie, { method: 'POST', body: formData });
-                      setSelfieVerified(true);
-                      setSelfieOnlyMessage(t('start.selfieVerified'));
-                      setSelfieOnlyFile(null);
-                    } catch (e: any) {
-                      setSelfieOnlyMessage(e?.message || t('errors.failed'));
-                    } finally {
-                      setSelfieOnlyLoading(false);
-                    }
-                  }}
-                  className="bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {selfieOnlyLoading ? t('actions.uploading') : t('actions.verifySelfieAge')}
-                </button>
-                {selfieOnlyMessage && (
-                  <p className="text-sm text-foreground">{selfieOnlyMessage}</p>
-                )}
-              </div>
+              ...
             </div>
           )}
+          */}
           <div className="border border-border bg-card p-6">
             <SectionHeader title={t("stepsSection.title")} description={t("stepsSection.description")} />
             <div className="mt-6 flex flex-col gap-4">
