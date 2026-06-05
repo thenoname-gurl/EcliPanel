@@ -181,7 +181,12 @@ const RolesTab = dynamic(() => import("./tabs/RolesTab"), {
 
 const LogsTab = dynamic(() => import("./tabs/LogsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading logs tab...</div>,
+  loading: () => null,
+})
+
+const AuditLogsTab = dynamic(() => import("./tabs/AuditLogsTab"), {
+  ssr: false,
+  loading: () => null,
 })
 
 const OauthTab = dynamic(() => import("./tabs/OauthTab"), {
@@ -931,6 +936,7 @@ export default function AdminPanel() {
     { value: 'fraud', label: t('tabs.fraud'), permissions: ['admin:fraud'] },
     { value: 'roles', label: t('tabs.roles'), permissions: ['roles:read'] },
     { value: 'logs', label: t('tabs.logs'), permissions: ['logs:read'] },
+    { value: 'audit', label: t('tabs.audit') || 'Audit', permissions: ['logs:read'] },
     { value: 'oauth', label: t('tabs.oauth'), feature: 'oauth', permissions: ['oauth:manage', 'admin:oauth'] },
     { value: 'databases', label: t('tabs.databases'), permissions: ['databases:read'] },
     { value: 'plans', label: t('tabs.plans'), permissions: ['admin:plans:view', 'admin:plans:manage', 'admin:plans:delete', 'admin:plans:reapply', 'admin:plans:forcereapply'] },
@@ -5981,6 +5987,10 @@ remote: ${panelUrl}`
                   }}
                 />
               ) : null}
+            </TabsContent>
+            {/* ═══════════════ AUDIT LOGS ═══════════════════════════════════ */}
+            <TabsContent value="audit" className="mt-4">
+              {activeTab === "audit" ? <AuditLogsTab /> : null}
             </TabsContent>
             {/* ═════════════════ OAUTH ═══════════════════════════════════ */}
             <TabsContent value="oauth" className="mt-4">

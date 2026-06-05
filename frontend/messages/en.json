@@ -1181,6 +1181,7 @@
       "settings": "Settings",
       "tunnels": "Tunnels",
       "rollouts": "Rollouts",
+      "audit": "Audit",
       "feedback": "Feedback"
     },
     "shortUrls": {
@@ -3010,6 +3011,12 @@
       "previous": "Previous",
       "next": "Next"
     }
+  },
+  "adminAuditLogs": {
+    "searchPlaceholder": "Enter server UUID to view all linked activity...",
+    "search": "Search",
+    "entriesFound": "entries found",
+    "noResults": "No activity logs found for this UUID. The server may have been deleted before any activity was recorded."
   },
   "adminRolesTab": {
     "header": {
