@@ -3084,6 +3084,10 @@ export async function adminRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: ctx.t('user.cannotDeleteOwn') };
       }
+      if (user.role === '*' || user.role === 'rootAdmin') {
+        ctx.set.status = 403;
+        return { error: ctx.t('user.cannotDeleteSuperAdmin') };
+      }
       await userRepo.remove(user);
       void auditLog({ userId: ctx.user?.id, action: 'admin:user:delete', targetId: String(user.id), targetType: 'user', ipAddress: ctx.ip });
       return { success: true };
@@ -3553,6 +3557,10 @@ export async function adminRoutes(app: any, prefix = '') {
 
       if (status === 'approved') {
         if (targetUser) {
+          if (targetUser.role === '*' || targetUser.role === 'rootAdmin') {
+            ctx.set.status = 403;
+            return { error: ctx.t('user.cannotDeleteSuperAdmin') };
+          }
           targetUser.deletionRequested = true;
           targetUser.deletionApproved = false;
           targetUser.pendingDeletionUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
@@ -3631,6 +3639,14 @@ export async function adminRoutes(app: any, prefix = '') {
       if (rec.status !== 'pending_deletion' && rec.status !== 'approved') {
         ctx.set.status = 400;
         return { error: ctx.t('deletion.notPending') };
+      }
+      {
+        const userRepo = AppDataSource.getRepository(User);
+        const targetUser = await userRepo.findOneBy({ id: rec.userId });
+        if (targetUser && (targetUser.role === '*' || targetUser.role === 'rootAdmin')) {
+          ctx.set.status = 403;
+          return { error: ctx.t('user.cannotDeleteSuperAdmin') };
+        }
       }
       if (rec.status === 'approved') {
         rec.status = 'pending_deletion';

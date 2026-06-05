@@ -16,6 +16,10 @@ export async function deletionRoutes(app: any, prefix = '') {
     prefix + '/deletion-requests',
     async (ctx: any) => {
       const user = ctx.user;
+      if (user.role === '*' || user.role === 'rootAdmin') {
+        ctx.set.status = 403;
+        return { error: ctx.t('user.cannotDeleteSuperAdmin') };
+      }
       const repo = AppDataSource.getRepository(DeletionRequest);
       const existing = await repo.findOne({
         where: [
@@ -41,6 +45,7 @@ export async function deletionRoutes(app: any, prefix = '') {
       response: {
         200: t.Object({ success: t.Boolean(), record: t.Any() }),
         400: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
       },
       detail: {
         summary: 'Create deletion request',
@@ -79,6 +84,10 @@ export async function deletionRoutes(app: any, prefix = '') {
 
       if (status === 'approved') {
         if (targetUser) {
+          if (targetUser.role === '*' || targetUser.role === 'rootAdmin') {
+            ctx.set.status = 403;
+            return { error: ctx.t('user.cannotDeleteSuperAdmin') };
+          }
           targetUser.deletionRequested = true;
           targetUser.deletionApproved = false;
           targetUser.pendingDeletionUntil = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000);
