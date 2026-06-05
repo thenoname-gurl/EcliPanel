@@ -7,6 +7,7 @@ import { Order } from '../models/order.entity';
 import { getMailboxAccountForUser, removeMailboxAccount } from '../services/mailcowService';
 import { sendMail } from '../services/mailService';
 import { resolveLocale } from '../i18n/resolve';
+import { auditLog } from '../utils/auditLog';
 
 export async function executeDeletionRequest(req: DeletionRequest, now = new Date()) {
   const reqRepo = AppDataSource.getRepository(DeletionRequest);
@@ -97,6 +98,7 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
   req.status = 'deleted';
   req.deletedAt = now;
   await reqRepo.save(req);
+  void auditLog({ userId: req.userId, action: 'system:user:deleted', targetId: String(req.userId), targetType: 'user', metadata: { deletionRequestId: req.id, hasBillingHistory, retentionYears } });
   return req;
 }
 

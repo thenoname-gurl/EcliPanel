@@ -1241,6 +1241,7 @@
       "shortUrls": "Короткие URL",
       "tunnels": "Туннели",
       "rollouts": "Роллауты",
+      "audit": "Аудит",
       "feedback": "Отзывы"
     },
     "tunnelsTab": {
@@ -3070,6 +3071,12 @@
       "previous": "Назад",
       "next": "Далее"
     }
+  },
+  "adminAuditLogs": {
+    "searchPlaceholder": "Введите UUID сервера для просмотра всей связанной активности...",
+    "search": "Поиск",
+    "entriesFound": "записей найдено",
+    "noResults": "Записи активности для этого UUID не найдены. Возможно, сервер был удалён до записи активности."
   },
   "adminRolesTab": {
     "header": {

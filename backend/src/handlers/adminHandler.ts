@@ -43,6 +43,7 @@ import {
   clearKycCache,
   getMinimumAgeForCountry,
 } from '../utils/eu';
+import { auditLog } from '../utils/auditLog';
 import { getPanelFeatureToggles } from '../utils/featureToggles';
 import { encryptBufferWithWorker } from '../workers/cryptoWorker';
 import { redisDel } from '../config/redis';
@@ -430,6 +431,14 @@ async function attemptAutoSuspendServer(
         action: dmca ? 'dmca' : 'suspend',
         notifiedBy: 'anti-abuse system',
         details: `The anti-abuse system has automatically enforced ${dmca ? 'DMCA takedown' : 'suspension'} for this server.`,
+      });
+
+      void auditLog({
+        userId: 0,
+        action: dmca ? 'antiabuse:dmca_enforced' : 'antiabuse:suspend_enforced',
+        targetId: serverId,
+        targetType: 'server',
+        metadata: { reason, actor, nodeName: n.name, serverName: existingCfg?.name, emailSent: adminNotification.sent },
       });
 
       return {
@@ -3075,6 +3084,7 @@ export async function adminRoutes(app: any, prefix = '') {
         return { error: ctx.t('user.cannotDeleteOwn') };
       }
       await userRepo.remove(user);
+      void auditLog({ userId: ctx.user?.id, action: 'admin:user:delete', targetId: String(user.id), targetType: 'user', ipAddress: ctx.ip });
       return { success: true };
     },
     {
@@ -5273,6 +5283,8 @@ export async function adminRoutes(app: any, prefix = '') {
             notice.reason = 'server already marked DMCA';
           }
 
+          void auditLog({ userId: ctx.user?.id, action: dmcaMark ? 'admin:server:dmca' : 'admin:server:suspend', targetId: serverId, targetType: 'server', ipAddress: ctx.ip, metadata: { dmca: dmcaMark, emailSent: notice.sent } });
+
           return {
             success: true,
             emailSent: notice.sent,
@@ -5345,6 +5357,7 @@ export async function adminRoutes(app: any, prefix = '') {
               unsuspendedAt: new Date(),
             });
           }
+          void auditLog({ userId: ctx.user?.id, action: 'admin:server:unsuspend', targetId: serverId, targetType: 'server', ipAddress: ctx.ip });
           return { success: true };
         } catch {}
       }
@@ -7271,6 +7284,61 @@ export async function adminRoutes(app: any, prefix = '') {
       },
       detail: { summary: 'Get admin logs', tags: ['Admin'] },
     }
+  );
+
+  // ── Server Audit Log Viewer ────────────────────────────────────────────
+
+  app.get(
+    prefix + '/admin/audit/:uuid',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'logs:read');
+      if (adminErr !== true) return adminErr;
+      const uuid = String(ctx.params.uuid).trim();
+      if (!uuid) { ctx.set.status = 400; return { error: 'Server UUID is required' }; }
+      const perNum = Math.min(500, Math.max(1, Number(ctx.query.per || '100')));
+      const p = Math.max(1, Number(ctx.query.page || '1'));
+      const logRepo = AppDataSource.getRepository(UserLog);
+
+      const qb = logRepo.createQueryBuilder('l')
+        .where('(l.targetId = :uuid AND l.targetType = :type) OR l.metadata LIKE :ms', { uuid, type: 'server', ms: `%"${uuid}"%` })
+        .orderBy('l.timestamp', 'DESC');
+      const total = await qb.getCount();
+      const entries = await qb.skip((p - 1) * perNum).take(perNum).getMany();
+
+      const userIds = [...new Set(entries.map(e => e.userId).filter(Boolean))] as number[];
+      const userMap: Record<number, any> = {};
+      if (userIds.length) {
+        const users = await AppDataSource.getRepository(User).createQueryBuilder('u')
+          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email']).where('u.id IN (:...ids)', { ids: userIds }).getMany();
+        users.forEach(u => { userMap[u.id] = { username: [`${u.firstName||''}`.trim(),`${u.lastName||''}`.trim()].filter(Boolean).join(' ')||u.email||`#${u.id}`, email: u.email }; });
+      }
+
+      const logs = entries.map(e => ({
+        id: e.id, timestamp: e.timestamp, userId: e.userId || 0,
+        username: e.userId ? (userMap[e.userId]?.username ?? `#${e.userId}`) : 'System',
+        email: e.userId ? (userMap[e.userId]?.email ?? null) : null,
+        action: e.action, targetId: e.targetId, targetType: e.targetType,
+        ipAddress: e.ipAddress || null, metadata: e.metadata || null, source: 'userlog',
+      }));
+
+      // Also search form submissions (anti-abuse incidents)
+      const subRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const abuseForm = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } as any });
+      let subTotal = 0; let subEntries: any[] = [];
+      if (abuseForm) {
+        const sqb = subRepo.createQueryBuilder('s').where('s.formId = :fid', { fid: abuseForm.id }).andWhere('s.content LIKE :us', { us: `%${uuid}%` }).orderBy('s.createdAt', 'DESC');
+        subTotal = await sqb.getCount();
+        subEntries = await sqb.skip((p - 1) * perNum).take(perNum).getMany();
+      }
+      const subLogs = subEntries.map(s => { let parsed:any={}; try{parsed=JSON.parse(s.content||'{}');}catch{} return { id:`abuse-${s.id}`, timestamp:s.createdAt, userId:s.userId||0, username:s.userId?`User #${s.userId}`:'System', email:null, action:`antiabuse:${parsed.detectionType||s.status||'incident'}`, targetId:uuid, targetType:'antiabuse', ipAddress:s.ipAddress||null, metadata:parsed, source:'antiabuse' }; });
+      const all = [...logs, ...subLogs].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return { logs: all, total: total + subTotal, page: p, per: perNum };
+    },
+    { beforeHandle: [authenticate, authorize('logs:read')],
+      response: { 200: t.Object({ logs: t.Array(t.Any()), total: t.Number(), page: t.Number(), per: t.Number() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Get audit logs for a server UUID', tags: ['Admin'] } }
   );
 
   app.post(
