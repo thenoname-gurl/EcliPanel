@@ -119,3 +119,4 @@ export function setupMiddleware(app: {
 }
 
 export { authenticate };
+export { checkKycStatus } from './kycCheck';
