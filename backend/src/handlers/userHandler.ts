@@ -7,7 +7,7 @@ import { User } from '../models/user.entity';
 import { validateUserRegistration } from '../middleware/validation';
 import { hashPassword, comparePassword, isLegacyPasswordHash } from '../utils/password';
 import { validatePassword } from '../utils/passwordValidation';
-import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry } from '../utils/eu';
+import { canRegister, getGeoBlockLevel, getMinimumAgeForCountry, requiresKyc, isKycVerified } from '../utils/eu';
 import { createActivityLog } from './logHandler';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync, authorize } from '../middleware/authorize';
@@ -2837,6 +2837,27 @@ export async function userRoutes(app: any, prefix = '') {
 
        const payload = safeBody(ctx.body);
        const isAdmin = hasPermissionSync(ctx, 'users:write');
+       if (!isAdmin && 'billingCountry' in payload && typeof payload.billingCountry === 'string') {
+         const newCountry = payload.billingCountry.trim();
+         if (newCountry && newCountry !== user.billingCountry) {
+           try {
+             const kycRequired = await requiresKyc(user.billingCountry);
+             if (kycRequired) {
+               const verified = await isKycVerified(user.id);
+               if (!verified) {
+                 ctx.set.status = 403;
+                 return {
+                   error: 'KYC verification required. You cannot change your country until your identity is verified.',
+                   kycRequired: true,
+                   kycVerified: false,
+                 };
+               }
+             }
+           } catch {
+             /* allow through on DB error */
+           }
+         }
+       }
        const passwordValue = typeof payload.password === 'string' ? payload.password : undefined;
        if (passwordValue) {
          const pwResult = validatePassword(passwordValue);

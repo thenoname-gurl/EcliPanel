@@ -3,6 +3,7 @@ import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { ApiKey } from '../models/apiKey.entity';
 import { OAuthToken } from '../models/oauthToken.entity';
+import { checkKycStatus } from './kycCheck';
 
 export type AuthContext = {
   user?: User;
@@ -131,6 +132,10 @@ export async function authenticate(ctx: any) {
         addRolePermissions((ur as any).role);
       }
     }
+
+    const kycBlock = await checkKycStatus(ctx);
+    if (kycBlock) return kycBlock;
+
     return;
   } catch (e: any) {
     const apiKeyRepo = AppDataSource.getRepository(ApiKey);
@@ -158,4 +163,7 @@ export async function authenticate(ctx: any) {
   }
   ctx.oauthToken = oauthToken;
   if (oauthToken.user) ctx.user = oauthToken.user;
+
+  const kycBlockOAuth = await checkKycStatus(ctx);
+  if (kycBlockOAuth) return kycBlockOAuth;
 }

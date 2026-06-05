@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
@@ -20,6 +20,10 @@ export function KycBanner() {
   const [kycNeeded, setKycNeeded] = useState(false)
   const [kycVerified, setKycVerified] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [forceShow, setForceShow] = useState(false)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  const observerRef = useRef<MutationObserver | null>(null)
+  const remountKey = useRef(0)
 
   useEffect(() => {
     if (!user) { setChecking(false); return }
@@ -32,6 +36,85 @@ export function KycBanner() {
     setChecking(false)
   }, [user])
 
+  useEffect(() => {
+    if (!kycNeeded || kycVerified) return
+    if (pathname && ALLOWED_PATHS.some(p => pathname.startsWith(p))) {
+      setForceShow(false)
+      return
+    }
+    setForceShow(true)
+  }, [kycNeeded, kycVerified, pathname])
+
+  useEffect(() => {
+    if (!forceShow) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+    return () => { document.body.style.overflow = prev }
+  }, [forceShow])
+
+  const reattachOverlay = useCallback(() => {
+    remountKey.current++
+    setForceShow(false)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (kycNeeded && !kycVerified) {
+          setForceShow(true)
+        }
+      })
+    })
+  }, [kycNeeded, kycVerified])
+
+  useEffect(() => {
+    if (!forceShow) return
+    const obs = new MutationObserver((mutations) => {
+      for (const m of mutations) {
+        for (const node of m.removedNodes) {
+          if (node instanceof HTMLElement) {
+            if (node.contains(overlayRef.current) || node === overlayRef.current) {
+              reattachOverlay()
+              return
+            }
+          }
+        }
+        if (m.type === "childList" && m.target === document.body) {
+          for (const node of m.removedNodes) {
+            if (node instanceof HTMLElement && node.querySelector('[data-kyc-overlay]')) {
+              reattachOverlay()
+              return
+            }
+          }
+        }
+      }
+    })
+    obs.observe(document.body, { childList: true, subtree: true })
+    observerRef.current = obs
+    return () => { obs.disconnect() }
+  }, [forceShow, reattachOverlay])
+
+  useEffect(() => {
+    if (!forceShow) return
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault()
+        e.stopPropagation()
+      }
+    }
+    document.addEventListener("keydown", onKeyDown, true)
+    return () => document.removeEventListener("keydown", onKeyDown, true)
+  }, [forceShow])
+
+  useEffect(() => {
+    if (!kycNeeded || kycVerified) return
+    const interval = setInterval(() => {
+      if ((user as any)?.kycVerified) {
+        setKycVerified(true)
+        setKycNeeded(false)
+        setForceShow(false)
+      }
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [kycNeeded, kycVerified, user])
+
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
@@ -39,6 +122,7 @@ export function KycBanner() {
       if ((session as any)?.user?.kycVerified) {
         setKycVerified(true)
         setKycNeeded(false)
+        setForceShow(false)
       }
     } catch {} finally {
       setRefreshing(false)
@@ -46,12 +130,16 @@ export function KycBanner() {
   }
 
   if (checking || !kycNeeded || kycVerified) return null
-  if (pathname && ALLOWED_PATHS.some(p => pathname.startsWith(p))) return null
+  if (!forceShow) return null
 
   return (
     <AnimatePresence>
       <motion.div
+        ref={overlayRef}
+        key={remountKey.current}
+        data-kyc-overlay
         className="fixed inset-0 z-[9998] flex items-center justify-center bg-background/95 backdrop-blur-md"
+        style={{ pointerEvents: "auto" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
