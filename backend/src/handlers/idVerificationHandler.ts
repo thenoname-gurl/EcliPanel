@@ -164,6 +164,9 @@ export async function idVerificationRoutes(app: any, prefix = '') {
   app.post(
     prefix + '/id-verification/age-selfie',
     async (ctx: any) => {
+      ctx.set.status = 410;
+      return { error: 'age_verification_disabled', message: 'Age verification via selfie is currently disabled.' };
+      /*
       const user = ctx.user as User;
       if (!user) {
         ctx.set.status = 401;
@@ -307,6 +310,7 @@ export async function idVerificationRoutes(app: any, prefix = '') {
           details: String(err?.message || err || 'unknown error'),
         };
       }
+      */
     },
     {
       beforeHandle: authenticate,
