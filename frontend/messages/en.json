@@ -973,70 +973,57 @@
   "publicFormPage": {
     "brand": "Eclipse Systems",
     "nav": {
-      "home": "[home]",
-      "dashboard": "[dashboard]",
-      "login": "[login]"
+      "home": "Home",
+      "dashboard": "Dashboard",
+      "login": "Login"
     },
     "badges": {
-      "active": "ACTIVE",
-      "closed": "CLOSED",
-      "archived": "ARCHIVED",
-      "publicAnonymous": "PUBLIC_ANON",
-      "publicUsers": "USERS_ONLY",
-      "privateInvite": "INVITE_ONLY"
+      "active": "Active",
+      "closed": "Closed",
+      "archived": "Archived",
+      "publicAnonymous": "Public",
+      "publicUsers": "Users",
+      "privateInvite": "Invite Only"
     },
     "loading": {
-      "title": "LOADING...",
-      "subtitle": "// fetching form data from server...",
-      "terminal": "Retrieving form schema..."
+      "title": "Loading form...",
+      "subtitle": "Fetching form data from server..."
     },
     "errorState": {
-      "title": "ERROR",
-      "faultLabel": "FAULT:",
-      "faultValue": "Form unavailable",
-      "subtitle": "The requested form could not be located in this dimension.",
-      "terminalError": "ERROR:",
-      "terminalSlug": "SLUG:",
-      "terminalStatus": "STATUS:",
-      "notFound": "NOT_FOUND",
-      "recoveryTitle": "# Recovery Options",
-      "returnHome": "→ Return to Home",
-      "goDashboard": "→ Go to Dashboard"
+      "title": "Form Not Found",
+      "subtitle": "The requested form could not be located. It may have been removed or the link may be incorrect.",
+      "returnHome": "Return Home",
+      "goDashboard": "Go to Dashboard"
     },
     "success": {
-      "title": "SENT",
-      "label": "SUCCESS:",
-      "value": "Transmission complete",
-      "terminalLine": "Submission received and queued for review.",
-      "statusLabel": "STATUS:",
-      "statusValue": "TRANSMITTED",
-      "formLabel": "FORM:",
-      "submitAgain": "./submit --again",
-      "navigateHome": "navigate_home()"
+      "title": "Submitted",
+      "value": "Your submission has been received and queued for review.",
+      "submitAgain": "Submit Again",
+      "navigateHome": "Return Home"
     },
     "warnings": {
       "authRequired": "This form requires a panel account.",
-      "login": "→ login",
+      "login": "Log in to continue",
       "anonymousInfo": "Anonymous submissions are rate-limited to once per hour per IP. Provide your email below to receive follow-ups.",
-      "formClosed": "FORM_CLOSED",
+      "formClosed": "Form Closed",
       "formClosedDetail": "This form is no longer accepting submissions."
     },
     "contactEmail": {
-      "label": "// contact_email (optional)",
-      "placeholder": "// you@example.com",
+      "label": "Contact Email (optional)",
+      "placeholder": "you@example.com",
       "help": "Provide an email to receive updates on your submission."
     },
     "progress": {
-      "label": "// completion_progress"
+      "label": "Completion"
     },
     "questions": {
       "none": "No questions configured for this form."
     },
     "actions": {
-      "transmitting": "transmitting...",
-      "submit": "./submit --form",
-      "navigateHome": "navigate_home()",
-      "loginRequired": "// login required to submit"
+      "transmitting": "Submitting...",
+      "submit": "Submit",
+      "navigateHome": "Return Home",
+      "loginRequired": "Login required to submit"
     },
     "messages": {
       "transmitted": "Submission transmitted successfully."
@@ -1045,7 +1032,7 @@
       "formUnavailable": "Form not found or not accessible",
       "questionRequired": "Question \"{question}\" is required",
       "submitFailed": "Failed to submit",
-      "validationTitle": "VALIDATION_ERROR"
+      "validationTitle": "Validation Error"
     },
     "footer": {
       "questions": "Questions? Email",
