@@ -100,6 +100,7 @@
     "dateOfBirthLocked": "Date of birth is locked after identity or selfie verification and can only be updated by an administrator.",
     "invalidDateOfBirth": "dateOfBirth must be a valid date string in YYYY-MM-DD format.",
     "cannotDeleteOwn": "Cannot delete your own account",
+    "cannotDeleteSuperAdmin": "Super administrator accounts cannot be deleted",
     "maxSelfieAttempts": "Maximum selfie verification attempts reached.",
     "noFaceDetected": "Could not detect a face in the selfie. Please try again.",
     "selfieRequired": "selfie_required",

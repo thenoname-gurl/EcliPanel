@@ -16,6 +16,13 @@ export async function executeDeletionRequest(req: DeletionRequest, now = new Dat
   const orderRepo = AppDataSource.getRepository(Order);
 
   const user = await userRepo.findOne({ where: { id: req.userId } });
+  if (user && (user.role === '*' || user.role === 'rootAdmin')) {
+    req.status = 'cancelled';
+    req.scheduledDeletionAt = undefined;
+    await reqRepo.save(req);
+    console.warn('[deletionExecutionJob] skipping super admin account', user.id);
+    return req;
+  }
   if (!user) {
     req.status = 'deleted';
     req.deletedAt = now;
