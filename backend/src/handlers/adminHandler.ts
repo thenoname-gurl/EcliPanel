@@ -2520,6 +2520,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const nodeRepo = AppDataSource.getRepository(Node);
       const asTrimmedString = (value: any) => {
         if (value === undefined || value === null) return null;
+        if (typeof value === 'object') return null;
         const text = String(value).trim();
         return text.length ? text : null;
       };

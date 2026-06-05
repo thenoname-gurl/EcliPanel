@@ -33,30 +33,37 @@ export async function getConfiguredFraudModels(): Promise<AIModel[]> {
 }
 
 function buildBillingInfo(user: User) {
+  const str = (v: any): string | null => {
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'object') return null;
+    const s = String(v).trim();
+    return s || null;
+  };
+
   const fullName =
-    `${user.firstName || ''} ${user.middleName ? `${user.middleName} ` : ''}${user.lastName || ''}`.trim();
+    `${str(user.firstName) || ''} ${user.middleName ? `${str(user.middleName)} ` : ''}${str(user.lastName) || ''}`.trim();
 
   return {
     identity: {
       fullName,
-      firstName: user.firstName || null,
-      middleName: user.middleName || null,
-      lastName: user.lastName || null,
-      email: user.email || null,
+      firstName: str(user.firstName),
+      middleName: str(user.middleName),
+      lastName: str(user.lastName),
+      email: str(user.email),
     },
     contact: {
-      phone: user.phone || null,
+      phone: str(user.phone),
     },
     address: {
-      line1: user.address || null,
-      line2: user.address2 || null,
-      city: user.billingCity || null,
-      state: user.billingState || null,
-      zip: user.billingZip || null,
-      country: user.billingCountry || null,
+      line1: str(user.address),
+      line2: str(user.address2),
+      city: str(user.billingCity),
+      state: str(user.billingState),
+      zip: str(user.billingZip),
+      country: str(user.billingCountry),
     },
     business: {
-      company: user.billingCompany || null,
+      company: str(user.billingCompany),
     },
     meta: {
       accountCreatedAt: user.createdAt || null,
