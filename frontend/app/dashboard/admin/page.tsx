@@ -245,31 +245,54 @@ const FeedbackTab = dynamic(() => import("./tabs/FeedbackTab"), {
 })
 
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
-  const style = `.email-preview-root { font-family: Arial, sans-serif; background-color: transparent; color: var(--foreground); margin: 0; padding: 0; }
-    .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 32px; background: var(--card); border-radius: 12px; border: 1px solid var(--border); }
-    .email-preview-root .header { text-align: center; margin-bottom: 24px; }
-    .email-preview-root .header h1 { color: var(--accent-foreground); font-size: 20px; margin: 0; }
-    .email-preview-root .details { font-family: monospace; font-size: 13px; color: var(--card-foreground); background: var(--popover); border-radius: 8px; padding: 12px; border: 1px solid var(--border); margin-top: 12px; white-space: pre-wrap; }
-    .email-preview-root .footer { font-size: 12px; color: var(--muted-foreground); margin-top: 24px; text-align: center; }
-    .email-preview-root .message { word-wrap: break-word; }
-    .email-preview-root p { line-height: 1.6; color: var(--foreground); margin: 0 0 1em 0; }
-    .email-preview-root code { background: var(--input); padding: .2em .3em; border-radius: .25rem; }
-    .email-preview-root pre { background: var(--input); border-radius: .5rem; overflow-x: auto; padding: .8rem; }
-    .email-preview-root a { color: var(--primary); text-decoration: underline; }`;
+  const style = `\
+    .email-preview-root { background: #0a0a12; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; color: #e0e0e0; margin: 0; padding: 0; width: 100%; line-height: 1.6; }
+    .email-preview-root .container { max-width: 600px; margin: 0 auto; padding: 40px 32px; background: #1a1a1a; }
+    .email-preview-root .heading { color: #fff; font-size: 30px; font-weight: bold; text-align: center; margin: 0 0 32px 0; letter-spacing: -0.5px; }
+    .email-preview-root .msg-section { margin-bottom: 24px; }
+    .email-preview-root .msg { color: rgba(255,255,255,0.7); font-size: 16px; line-height: 1.7; word-wrap: break-word; }
+    .email-preview-root .msg h1,.email-preview-root .msg h2,.email-preview-root .msg h3 { color: #fff; font-weight: bold; }
+    .email-preview-root .msg h1 { font-size: 22px; margin: 24px 0 12px; } .email-preview-root .msg h2 { font-size: 18px; margin: 20px 0 10px; } .email-preview-root .msg h3 { font-size: 16px; margin: 16px 0 8px; }
+    .email-preview-root .msg p { margin: 0 0 16px 0; }
+    .email-preview-root .msg strong { color: #fff; }
+    .email-preview-root .msg a { color: #8b5cf6; text-decoration: underline; }
+    .email-preview-root .msg code { background: #2a2a2a; padding: 2px 6px; border-radius: 3px; font-family: "Courier New",monospace; font-size: 14px; color: #e0e0e0; }
+    .email-preview-root .msg pre { background: #161616; padding: 16px; border-radius: 6px; overflow-x: auto; }
+    .email-preview-root .msg pre code { background: none; padding: 0; border-radius: 0; }
+    .email-preview-root .msg img { max-width: 100%; height: auto; }
+    .email-preview-root .msg ul,.email-preview-root .msg ol { padding-left: 24px; margin: 0 0 16px 0; }
+    .email-preview-root .msg li { margin-bottom: 4px; }
+    .email-preview-root .msg blockquote { border-left: 3px solid #8b5cf6; margin: 8px 0; padding-left: 16px; color: #ccc; }
+    .email-preview-root .details { font-family: "Courier New",monospace; font-size: 13px; color: #fff; background: #161616; padding: 20px; margin: 20px 0; white-space: pre-wrap; word-wrap: break-word; overflow-x: auto; }
+    .email-preview-root .divider { height: 1px; background: linear-gradient(to right,transparent,#2a2a4a 50%,transparent); border: none; margin: 24px 0; }
+    .email-preview-root .hr-solid { height: 1px; border: 1px solid #2a2a4a; margin: 32px 0 0; }
+    .email-preview-root .footer { color: #9ca3af; text-align: center; margin-top: 32px; padding-top: 24px; line-height: 1.5; font-size: 16px; }
+    .email-preview-root .footer a { display: inline-block; margin: 0 8px; color: #9ca3af; text-decoration: none; font-size: 14px; }
+    .email-preview-root .footer .brand { color: #e594c7; font-weight: 600; }`;
 
   return (
-    <div className="email-preview-root">
+    <div className="email-preview-root" style={{ width: "100%" }}>
       <style>{style}</style>
       <div className="container">
-        <div className="header">
-          <h1>{title}</h1>
-          <div className="text-xs text-muted-foreground">From: Eclipse Systems</div>
+        <h1 className="heading">{title}</h1>
+        <div className="msg-section">
+          <div className="msg">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message || ""}</ReactMarkdown>
+          </div>
         </div>
-        <div className="message text-sm text-foreground">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{message || ""}</ReactMarkdown>
+        {details && <div className="details">{details}</div>}
+        <div className="divider" />
+        <div className="hr-solid" />
+        <div className="footer">
+          <p style={{ margin: 0 }}>
+            &copy; 2026 <span className="brand">EclipseSystems</span> under Misiu LLC.
+          </p>
+          <div style={{ marginTop: 16 }}>
+            <a href="https://ecli.app/legal">Legal Documents</a>
+            <a href="https://ecli.app/legal/imprint">Impressum</a>
+            <a href="mailto:contact@ecli.app">Contact Us</a>
+          </div>
         </div>
-        <div className="details">{details || ""}</div>
-        <div className="footer">© 2026 EclipseSystems under Misiu LLC. All rights reserved.</div>
       </div>
     </div>
   );
