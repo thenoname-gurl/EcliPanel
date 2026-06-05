@@ -736,174 +736,162 @@ function buildChallengePage(
 <title>Verifying your browser...</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0a0a0a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow:hidden}
-body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,rgba(0,0,0,.1) 0px,rgba(0,0,0,.1) 1px,transparent 1px,transparent 2px);pointer-events:none;z-index:0}
-.grid-bg{position:fixed;inset:0;background:linear-gradient(rgba(168,85,247,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(168,85,247,.03) 1px,transparent 1px);background-size:50px 50px;z-index:0}
-.glow-top{position:fixed;inset:0;background:radial-gradient(ellipse at top,rgba(168,85,247,.15),transparent 50%);z-index:0}
-.glow-bottom{position:fixed;inset:0;background:radial-gradient(ellipse at bottom right,rgba(147,51,234,.1),transparent 50%);z-index:0}
-.wrap{position:relative;z-index:10;width:100%;max-width:480px;padding:1.5rem}
-.card{border-radius:.5rem;border:1px solid rgba(168,85,247,.2);background:rgba(0,0,0,.6);padding:1.25rem;backdrop-filter:blur(8px)}
-.titlebar{display:flex;align-items:center;gap:.5rem;margin-bottom:1rem}
-.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.dot-r{background:#ef4444}.dot-y{background:#eab308}.dot-g{background:#22c55e}
-.tlabel{margin-left:.5rem;font-size:.7rem;color:rgba(192,132,252,.5)}
-.prompt{color:#6b7280;font-size:.75rem;margin-bottom:.75rem}
-.line{font-size:.8rem;margin:.25rem 0;line-height:1.6}
-.key{color:#f472b6}
-.val{color:#a78bfa}
-.val-ok{color:#34d399}
-.val-err{color:#ef4444}
-.spinner-row{display:flex;align-items:center;gap:.75rem;margin:1rem 0 .5rem}
-.spinner{width:14px;height:14px;border:2px solid rgba(168,85,247,.2);border-top-color:#a78bfa;border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#000;color:#fff;font-family:system-ui,-apple-system,sans-serif}
+.wrap{width:100%;max-width:420px;padding:1.5rem}
+.card{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.02);padding:1.5rem}
+.heading{font-size:1.1rem;font-weight:600;color:rgba(255,255,255,.9);margin-bottom:.35rem}
+.subtext{font-size:.8rem;color:rgba(255,255,255,.4);margin-bottom:1.25rem;line-height:1.5}
+.spinner-row{display:flex;align-items:center;gap:.75rem;margin:1rem 0 .75rem}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.15);border-top-color:rgba(255,255,255,.5);border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
-.stext{font-size:.75rem;color:rgba(192,132,252,.7)}
-.cursor{display:inline-block;animation:blink 1s step-end infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-.bar-wrap{margin-top:.75rem;height:3px;background:rgba(168,85,247,.15);border-radius:2px;overflow:hidden}
-.bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#a78bfa,#f472b6);border-radius:2px;transition:width .3s}
-.binary{margin-top:1.25rem;font-size:.55rem;color:rgba(168,85,247,.25);word-break:break-all;user-select:none;line-height:1.4;letter-spacing:.05em}
-.retry-row{margin-top:1rem;font-size:.7rem;color:rgba(168,85,247,.5)}
-.retry-row a{color:#f472b6;text-decoration:underline;cursor:pointer}
-noscript div{background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:.375rem;padding:1rem;margin-top:1rem;font-size:.8rem;color:#fca5a5;text-align:center}
+.stext{font-size:.8rem;color:rgba(255,255,255,.5)}
+.bar-wrap{margin-top:.25rem;height:2px;background:rgba(255,255,255,.08);overflow:hidden}
+.bar-fill{height:100%;width:0%;background:rgba(255,255,255,.4);transition:width .4s ease-out}
+.status{font-size:.75rem;color:rgba(255,255,255,.35);margin-top:.5rem;min-height:1.2em}
+.retry{margin-top:1rem;font-size:.65rem;color:rgba(255,255,255,.25);text-align:center}
+.retry a{color:#818cf8;text-decoration:none;cursor:pointer;transition:color .2s}
+.retry a:hover{color:#a5b4fc}
+noscript div{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);padding:1rem;margin-top:1rem;font-size:.75rem;color:rgba(255,255,255,.45);text-align:center}
 </style>
 </head>
 <body>
-<div class="grid-bg"></div><div class="glow-top"></div><div class="glow-bottom"></div>
 <div class="wrap">
-  <div class="card">
-    <div class="titlebar">
-      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
-      <span class="tlabel">security</span>
-    </div>
-    <p class="prompt">eclipse@systems ~ % ./verify --browser --pow</p>
-    <div class="line"><span class="key">challenge </span> <span class="val">${challengeId.slice(0, 16)}...</span></div>
-    <div class="line"><span class="key">difficulty</span> <span class="val">${POW_DIFFICULTY} leading zeros</span></div>
-    <div class="line"><span class="key">hashing   </span> <span class="val" id="hc">0</span></div>
+  <div class="card" role="status" aria-live="polite">
+    <h1 class="heading">Verifying your browser</h1>
+    <p class="subtext">Please wait while we confirm you are human.</p>
     <div class="spinner-row">
       <div class="spinner" id="sp"></div>
-      <span class="stext" id="st">Solving proof-of-work<span class="cursor">_</span></span>
+      <span class="stext" id="st">Preparing challenge...</span>
     </div>
     <div class="bar-wrap"><div class="bar-fill" id="bar"></div></div>
-    <div class="line" style="margin-top:.5rem">
-      <span class="key">status </span>
-      <span id="sv" class="val"> COMPUTING</span>
-    </div>
-    <div class="binary" id="bin"></div>
+    <div class="status" id="sv"></div>
   </div>
-  <p class="retry-row">Stuck? <a onclick="location.reload()">Reload</a></p>
+  <p class="retry">Stuck? <a onclick="location.reload()">Reload</a></p>
   <noscript><div>JavaScript is required to verify your browser. Please enable it and reload.</div></noscript>
 </div>
 <script>
 (function(){
-  var b='';for(var i=0;i<200;i++)b+='01'[Math.random()>.5?1:0];
-  document.getElementById('bin').textContent=b;
+var CID='${challengeId}';
+var TOKEN='${challengeToken}';
+var DIFF=${POW_DIFFICULTY};
+var PAGE_URL=location.href;
+var VERIFY_ENDPOINT='/api/browser-verify';
+var PREFIX='';
+for(var i=0;i<DIFF;i++)PREFIX+='0';
 
-  var CID='${challengeId}';
-  var TOKEN='${challengeToken}';
-  var DIFF=${POW_DIFFICULTY};
-  var URL=location.href;
-  var PREFIX='';for(var i=0;i<DIFF;i++)PREFIX+='0';
-  var VERIFY_ENDPOINT='/api/browser-verify';
+var elSp=document.getElementById('sp');
+var elSt=document.getElementById('st');
+var elBar=document.getElementById('bar');
+var elSv=document.getElementById('sv');
 
-  var elHC=document.getElementById('hc');
-  var elSV=document.getElementById('sv');
-  var elST=document.getElementById('st');
-  var elBar=document.getElementById('bar');
-  var elSp=document.getElementById('sp');
-
-  var signals={
-    screen:screen.width+'x'+screen.height,
-    depth:screen.colorDepth,
-    tz:Intl.DateTimeFormat().resolvedOptions().timeZone,
-    lang:navigator.language,
-    platform:navigator.platform,
-    cores:navigator.hardwareConcurrency||0,
-    touch:'ontouchstart' in window,
-    webgl:(function(){
-      try{
-        var c=document.createElement('canvas');
-        var gl=c.getContext('webgl')||c.getContext('experimental-webgl');
-        if(!gl)return'none';
-        var ext=gl.getExtension('WEBGL_debug_renderer_info');
-        return ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'generic';
-      }catch(e){return'error';}
-    })(),
-    canvas:(function(){
-      try{
-        var c=document.createElement('canvas');c.width=200;c.height=50;
-        var ctx=c.getContext('2d');
-        ctx.textBaseline='top';ctx.font='14px Arial';
-        ctx.fillText('browser-check-fp',2,2);
-        return c.toDataURL().slice(-32);
-      }catch(e){return'error';}
-    })()
-  };
-
-  async function sha256(str){
-    var buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));
-    var arr=new Uint8Array(buf);
-    var hex='';for(var i=0;i<arr.length;i++)hex+=arr[i].toString(16).padStart(2,'0');
-    return hex;
-  }
-
-  async function solve(){
-    var nonce=0;
-    var batch=5000;
-    var max=50000000;
-
-    while(nonce<max){
-      for(var i=0;i<batch;i++){
-        var h=await sha256(CID+':'+nonce);
-        if(h.startsWith(PREFIX)){
-          elBar.style.width='100%';
-          elSV.textContent=' SOLVED';
-          elSV.className='val-ok';
-          elST.innerHTML='Verifying with server<span class="cursor">_</span>';
-          await submit(String(nonce));
-          return;
-        }
-        nonce++;
-      }
-      elHC.textContent=nonce.toLocaleString();
-      elBar.style.width=Math.min((nonce/200000)*100,95)+'%';
-      await new Promise(function(r){setTimeout(r,0);});
-    }
-
-    elSV.textContent=' FAILED';
-    elSV.className='val-err';
-    elST.textContent='Challenge failed - please reload.';
-    elSp.style.display='none';
-  }
-
-  async function submit(nonce){
+var signals={
+  screen:screen.width+'x'+screen.height,
+  depth:screen.colorDepth,
+  tz:Intl.DateTimeFormat().resolvedOptions().timeZone,
+  lang:navigator.language,
+  platform:navigator.platform,
+  cores:navigator.hardwareConcurrency||0,
+  touch:'ontouchstart' in window,
+  webgl:(function(){
     try{
-      var res=await fetch(VERIFY_ENDPOINT,{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({token:TOKEN,nonce:nonce,signals:signals})
-      });
-      var data=await res.json();
-      if(data.success){
-        elSV.textContent=' VERIFIED';
-        elSV.className='val-ok';
-        elST.innerHTML='Redirecting<span class="cursor">_</span>';
-        elSp.style.display='none';
-        setTimeout(function(){window.location.replace(URL);},350);
-      }else{
-        elSV.textContent=' REJECTED';
-        elSV.className='val-err';
-        elST.textContent='Failed: '+(data.error||'unknown');
-        elSp.style.display='none';
-      }
-    }catch(e){
-      elSV.textContent=' ERROR';
-      elSV.className='val-err';
-      elST.textContent='Network error - please reload.';
-      elSp.style.display='none';
-    }
-  }
+      var c=document.createElement('canvas');
+      var gl=c.getContext('webgl')||c.getContext('experimental-webgl');
+      if(!gl)return'none';
+      var ext=gl.getExtension('WEBGL_debug_renderer_info');
+      return ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):'generic';
+    }catch(e){return'error';}
+  })(),
+  canvas:(function(){
+    try{
+      var c=document.createElement('canvas');c.width=200;c.height=50;
+      var ctx=c.getContext('2d');
+      ctx.textBaseline='top';ctx.font='14px Arial';
+      ctx.fillText('browser-check-fp',2,2);
+      return c.toDataURL().slice(-32);
+    }catch(e){return'error';}
+  })()
+};
 
-  solve();
+function setStatus(text){
+  elSv.textContent=text;
+}
+
+function fail(msg){
+  elSp.style.display='none';
+  elSt.textContent=msg;
+}
+
+async function submit(nonce){
+  elSt.textContent='Verifying with server...';
+  try{
+    var res=await fetch(VERIFY_ENDPOINT,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({token:TOKEN,nonce:String(nonce),signals:signals})
+    });
+    var data=await res.json();
+    if(data.success){
+      elBar.style.width='100%';
+      elSt.textContent='Redirecting...';
+      elSv.textContent='';
+      setTimeout(function(){window.location.replace(PAGE_URL);},350);
+    }else{
+      fail('Failed: '+(data.error||'unknown'));
+    }
+  }catch(e){
+    fail('Network error \\u2014 please reload.');
+  }
+}
+
+var workerScript=[
+  'self.onmessage=function(e){',
+  'var cid=e.data.cid,pre=e.data.pre;',
+  'async function sha256(s){',
+  'var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));',
+  'var a=new Uint8Array(b),h="";',
+  'for(var i=0;i<a.length;i++)h+=a[i].toString(16).padStart(2,"0");',
+  'return h;',
+  '}',
+  'async function solve(){',
+  'var n=0,B=10000,M=500000000;',
+  'while(n<M){',
+  'for(var i=0;i<B;i++){',
+  'var h=await sha256(cid+":"+n);',
+  'if(h.startsWith(pre)){self.postMessage({type:"solved",nonce:n});return;}',
+  'n++;',
+  '}',
+  'self.postMessage({type:"progress",nonce:n});',
+  '}',
+  'self.postMessage({type:"failed"});',
+  '}',
+  'solve();',
+  '};'
+].join('\\n');
+
+var blob=new Blob([workerScript],{type:'application/javascript'});
+var worker=new Worker(URL.createObjectURL(blob));
+
+worker.onmessage=function(e){
+  var d=e.data;
+  if(d.type==='progress'){
+    var pct=Math.min((d.nonce/300000)*100,90);
+    elBar.style.width=pct+'%';
+    setStatus('Working \\u2026 '+(d.nonce/1000).toFixed(0)+'k attempts');
+  }else if(d.type==='solved'){
+    elBar.style.width='100%';
+    setStatus('');
+    submit(d.nonce);
+  }else if(d.type==='failed'){
+    fail('Challenge failed \\u2014 please reload.');
+  }
+};
+
+worker.onerror=function(){
+  fail('Verification error \\u2014 please reload.');
+};
+
+elSt.textContent='Solving challenge...';
+worker.postMessage({cid:CID,pre:PREFIX});
 })();
 </script>
 </body>

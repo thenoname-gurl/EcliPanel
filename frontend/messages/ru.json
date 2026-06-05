@@ -1033,70 +1033,57 @@
   "publicFormPage": {
     "brand": "Eclipse Systems",
     "nav": {
-      "home": "[главная]",
-      "dashboard": "[панель]",
-      "login": "[вход]"
+      "home": "Главная",
+      "dashboard": "Панель",
+      "login": "Вход"
     },
     "badges": {
-      "active": "АКТИВНА",
-      "closed": "ЗАКРЫТА",
-      "archived": "В_АРХИВЕ",
-      "publicAnonymous": "ПУБЛИЧНАЯ_АНОН",
-      "publicUsers": "ТОЛЬКО_ПОЛЬЗОВАТЕЛИ",
-      "privateInvite": "ПО_ПРИГЛАШЕНИЮ"
+      "active": "Активна",
+      "closed": "Закрыта",
+      "archived": "В архиве",
+      "publicAnonymous": "Публичная",
+      "publicUsers": "Пользователи",
+      "privateInvite": "По приглашению"
     },
     "loading": {
-      "title": "ЗАГРУЗКА...",
-      "subtitle": "// получение данных формы с сервера...",
-      "terminal": "Получение схемы формы..."
+      "title": "Загрузка формы...",
+      "subtitle": "Получение данных формы с сервера..."
     },
     "errorState": {
-      "title": "ОШИБКА",
-      "faultLabel": "СБОЙ:",
-      "faultValue": "Форма недоступна",
-      "subtitle": "Запрошенная форма не найдена в этом измерении.",
-      "terminalError": "ОШИБКА:",
-      "terminalSlug": "SLUG:",
-      "terminalStatus": "СТАТУС:",
-      "notFound": "НЕ_НАЙДЕНО",
-      "recoveryTitle": "# Варианты восстановления",
-      "returnHome": "→ Вернуться на главную",
-      "goDashboard": "→ Перейти в панель управления"
+      "title": "Форма не найдена",
+      "subtitle": "Запрошенная форма не найдена. Возможно, она была удалена или ссылка некорректна.",
+      "returnHome": "Вернуться на главную",
+      "goDashboard": "Перейти в панель"
     },
     "success": {
-      "title": "ОТПРАВЛЕНО",
-      "label": "УСПЕХ:",
-      "value": "Передача завершена",
-      "terminalLine": "Отправка получена и поставлена в очередь на рассмотрение.",
-      "statusLabel": "СТАТУС:",
-      "statusValue": "ПЕРЕДАНО",
-      "formLabel": "ФОРМА:",
-      "submitAgain": "./отправить --снова",
-      "navigateHome": "на_главную()"
+      "title": "Отправлено",
+      "value": "Ваша заявка получена и поставлена в очередь на рассмотрение.",
+      "submitAgain": "Отправить ещё",
+      "navigateHome": "На главную"
     },
     "warnings": {
       "authRequired": "Для этой формы требуется аккаунт в панели.",
-      "login": "→ войти",
+      "login": "Войти для продолжения",
       "anonymousInfo": "Анонимные отправки ограничены до одного раза в час с одного IP. Укажите email ниже для получения ответов.",
-      "formClosed": "ФОРМА_ЗАКРЫТА",
+      "formClosed": "Форма закрыта",
       "formClosedDetail": "Эта форма больше не принимает отправки."
     },
     "contactEmail": {
-      "label": "// контактный_email (необязательно)",
-      "placeholder": "// you@example.com",
+      "label": "Email для связи (необязательно)",
+      "placeholder": "you@example.com",
       "help": "Укажите email для получения обновлений по вашей отправке."
     },
     "progress": {
-      "label": "// прогресс_заполнения"
+      "label": "Заполнено"
     },
     "questions": {
       "none": "Для этой формы не настроены вопросы."
     },
     "actions": {
-      "transmitting": "передача...",
-      "submit": "./отправить --форму",
-      "navigateHome": "на_главную()",
-      "loginRequired": "// требуется вход для отправки"
+      "transmitting": "Отправка...",
+      "submit": "Отправить",
+      "navigateHome": "На главную",
+      "loginRequired": "Требуется вход для отправки"
     },
     "messages": {
       "transmitted": "Отправка успешно передана."
@@ -1105,7 +1092,7 @@
       "formUnavailable": "Форма не найдена или недоступна",
       "questionRequired": "Вопрос «{question}» обязателен",
       "submitFailed": "Не удалось отправить",
-      "validationTitle": "ОШИБКА_ВАЛИДАЦИИ"
+      "validationTitle": "Ошибка валидации"
     },
     "footer": {
       "questions": "Вопросы? Напишите на",
