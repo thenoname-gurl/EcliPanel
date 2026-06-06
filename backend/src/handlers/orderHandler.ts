@@ -34,6 +34,10 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       name: process.env.INVOICE_ISSUED_FROM_NAME || process.env.COMPANY_NAME || 'EclipseSystems',
       address: process.env.INVOICE_ISSUED_FROM_ADDRESS || process.env.COMPANY_ADDRESS || '',
       city: process.env.INVOICE_ISSUED_FROM_CITY || '',
+      state: process.env.INVOICE_ISSUED_FROM_STATE || '',
+      zip: process.env.INVOICE_ISSUED_FROM_ZIP || '',
+      country: process.env.INVOICE_ISSUED_FROM_COUNTRY || '',
+      taxId: process.env.INVOICE_ISSUED_FROM_TAX_ID || '',
       email: process.env.INVOICE_ISSUED_FROM_EMAIL || '',
     };
     try {
@@ -64,113 +68,137 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
         ? path.resolve(process.env.INVOICE_LOGO_PATH)
         : defaultLogo;
       if (Bun.file(logoPath).size !== -1) {
-        try {
-          doc.image(logoPath, 50, 45, { width: 90 });
-        } catch (e) {
-          /* skip */
-        }
+        try { doc.image(logoPath, 50, 45, { height: 40 }); } catch {}
       }
-      const companyName = process.env.COMPANY_NAME || 'EclipseSystems';
-      doc.fontSize(16).text(companyName, 150, 50);
-      doc.fontSize(10).fillColor('gray').text('Hosting Provider Services', 150, 68);
+
+      const brand = process.env.COMPANY_NAME || 'EclipseSystems';
+      doc.font('Helvetica-Bold').fontSize(18).fillColor('#111827').text(brand, 50, 45);
+      doc.font('Helvetica').fontSize(8).fillColor('#6b7280').text('Hosting & Cloud Infrastructure', 50, 66);
+
+      const issuedAt = order.createdAt ? new Date(order.createdAt) : new Date();
+      const dueAt = order.expiresAt ? new Date(order.expiresAt) : null;
+      doc.font('Helvetica-Bold').fontSize(22).fillColor('#111827').text('INVOICE', 50, 45, { align: 'right' });
+      doc.font('Helvetica').fontSize(9).fillColor('#374151').text(`Invoice #${order.id}`, 50, 68, { align: 'right' });
+      doc.fontSize(9).fillColor('#6b7280').text(`Date: ${issuedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 50, 79, { align: 'right' });
+      if (dueAt) doc.text(`Due: ${dueAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, 50, 90, { align: 'right' });
+
+      let curY = dueAt ? 115 : 100;
+      doc.moveTo(50, curY).lineTo(545, curY).strokeColor('#e5e7eb').lineWidth(0.8).stroke();
+      curY += 16;
 
       const issuedFromEnv = {
         name: process.env.INVOICE_ISSUED_FROM_NAME || process.env.COMPANY_NAME || '',
         address: process.env.INVOICE_ISSUED_FROM_ADDRESS || process.env.COMPANY_ADDRESS || '',
         city: process.env.INVOICE_ISSUED_FROM_CITY || '',
+        state: process.env.INVOICE_ISSUED_FROM_STATE || '',
+        zip: process.env.INVOICE_ISSUED_FROM_ZIP || '',
+        country: process.env.INVOICE_ISSUED_FROM_COUNTRY || '',
+        taxId: process.env.INVOICE_ISSUED_FROM_TAX_ID || '',
         email: process.env.INVOICE_ISSUED_FROM_EMAIL || '',
       };
-      const issuedLines: string[] = [];
-      if (issuedFromEnv.name) issuedLines.push(issuedFromEnv.name);
-      if (issuedFromEnv.address) issuedLines.push(issuedFromEnv.address);
-      if (issuedFromEnv.city) issuedLines.push(issuedFromEnv.city);
-      if (issuedFromEnv.email) issuedLines.push(issuedFromEnv.email);
-      if (issuedLines.length > 0) {
-        doc.fontSize(10).fillColor('black').text('Issued From:', 50, 100);
-        doc.fontSize(10).fillColor('black').text(issuedLines.join('\n'), 50, 115);
-      }
+      const fromLines: string[] = [issuedFromEnv.name, issuedFromEnv.address,
+        [issuedFromEnv.city, issuedFromEnv.state, issuedFromEnv.zip, issuedFromEnv.country].filter(Boolean).join(', '),
+        issuedFromEnv.taxId ? `Tax ID: ${issuedFromEnv.taxId}` : '',
+      ].filter(Boolean);
 
-      const issuedAt = order.createdAt ? new Date(order.createdAt) : new Date();
-      doc.fontSize(20).fillColor('black').text('INVOICE', 400, 50, { align: 'right' });
-      doc.fontSize(10).fillColor('black').text(`Invoice #: ${order.id}`, { align: 'right' });
-      doc.text(`Date: ${issuedAt.toLocaleDateString()}`, { align: 'right' });
+      doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280').text('FROM', 50, curY);
+      doc.font('Helvetica').fontSize(10).fillColor('#111827');
+      let fY = curY + 13;
+      for (const line of fromLines) { doc.text(line, 50, fY); fY += 13; }
 
-      doc.moveDown(2);
+      const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
+      userRepo
+        .findOneBy({ id: order.userId })
+        .then((u: any) => {
+          const fullNameParts = [u?.firstName, u?.middleName, u?.lastName].filter(Boolean as any);
+          const name = fullNameParts.length ? fullNameParts.join(' ') : u?.email || 'Customer';
+          const billLines: string[] = [name];
+          if (u?.billingCompany) billLines.push(u.billingCompany);
+          if (u?.address) billLines.push(u.address);
+          if (u?.address2) billLines.push(u.address2);
+          const city = [u?.billingCity, u?.billingState, u?.billingZip, u?.billingCountry].filter(Boolean).join(', ');
+          if (city) billLines.push(city);
 
-      doc.fontSize(12).fillColor('black').text('Bill To:', 50, 140);
-      try {
-        const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
-        userRepo
-          .findOneBy({ id: order.userId })
-          .then((u: any) => {
-            const fullNameParts = [u?.firstName, u?.middleName, u?.lastName].filter(Boolean as any);
-            const name = fullNameParts.length ? fullNameParts.join(' ') : u?.email || 'Customer';
-            const lines = [name];
-            if (u?.billingCompany) lines.push(u.billingCompany);
-            if (u?.address) lines.push(u.address);
-            if (u?.address2) lines.push(u.address2);
-            const city = [u?.billingCity, u?.billingState, u?.billingZip]
-              .filter(Boolean)
-              .join(', ');
-            if (city) lines.push(city);
-            if (u?.billingCountry) lines.push(u.billingCountry);
-            doc.fontSize(10).fillColor('black').text(lines.join('\n'), 50, 155);
+          doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280').text('BILL TO', 280, curY);
+          doc.font('Helvetica').fontSize(10).fillColor('#111827');
+          let bY = curY + 13;
+          for (const line of billLines) { doc.text(line, 280, bY); bY += 13; }
 
-            doc.moveDown(4);
-            doc.fontSize(12).text('Items', 50);
-            doc.moveDown(0.5);
+          let items: any[] = [];
+          try { items = JSON.parse(order.items); } catch { items = []; }
+          if (!Array.isArray(items) || items.length === 0) {
+            const desc = order.description || order.items || 'Order';
+            items = [{ description: desc, quantity: 1, price: Number(order.amount ?? 0) }];
+          }
 
-            let items: any[] = [];
-            try {
-              items = JSON.parse(order.items);
-            } catch {
-              items = [];
-            }
-            if (!Array.isArray(items) || items.length === 0) {
-              const desc = order.description || order.items || 'Order';
-              doc.fontSize(10).text(desc, { continued: false });
-            } else {
-              const startY = doc.y;
-              const tableX = 50;
-              doc.fontSize(10);
-              items.forEach((it: any, i: number) => {
-                const desc = it.description || it.name || JSON.stringify(it);
-                const qty = it.quantity ?? it.qty ?? 1;
-                const price = Number(it.price ?? it.unit_price ?? 0);
-                const lineTotal = qty * price;
-                const y = startY + i * 18;
-                doc.text(desc, tableX, y, { width: 300 });
-                doc.text(String(qty), tableX + 320, y);
-                doc.text(price.toFixed(2), tableX + 360, y, { width: 60, align: 'right' });
-                doc.text(lineTotal.toFixed(2), tableX + 430, y, { width: 60, align: 'right' });
-              });
-              doc.moveDown(items.length * 0.8 + 1);
-            }
+          curY = Math.max(fY, bY) + 24;
+          doc.moveTo(50, curY).lineTo(545, curY).strokeColor('#e5e7eb').lineWidth(0.8).stroke();
+          curY += 12;
 
-            const amount = Number(order.amount ?? 0);
-            doc.moveDown();
-            const totX = 400;
-            doc.fontSize(10).text('Subtotal:', totX, doc.y, { align: 'right' });
-            doc.text(amount.toFixed(2), totX + 80, doc.y, { align: 'right' });
-            doc.moveDown();
-            doc.fontSize(12).text('Total:', totX, doc.y, { align: 'right' });
-            doc.text(amount.toFixed(2), totX + 80, doc.y, { align: 'right' });
+          const amount = Number(order.amount ?? 0);
+          doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280').text('DESCRIPTION', 50, curY);
+          doc.text('QTY', 280, curY, { width: 40, align: 'center' });
+          doc.text('PRICE', 340, curY, { width: 70, align: 'right' });
+          doc.text('AMOUNT (USD)', 420, curY, { width: 125, align: 'right' });
+          curY += 14;
 
-            doc.moveDown(2);
-            doc.fontSize(9).fillColor('gray').text('Thank you for your business.', 50, doc.y);
+          doc.moveTo(50, curY).lineTo(545, curY).strokeColor('#d1d5db').lineWidth(0.4).stroke();
+          curY += 8;
 
-            doc.end();
-          })
-          .catch(() => {
-            doc
-              .fontSize(10)
-              .text(order.description || order.items || 'Order details not available');
-            doc.end();
+          let itemsSubtotal = 0;
+          doc.font('Helvetica').fontSize(9).fillColor('#1f2937');
+          items.forEach((it: any) => {
+            const desc = it.description || it.name || JSON.stringify(it);
+            const qty = Number(it.quantity ?? it.qty ?? 1);
+            const price = Number(it.price ?? it.unit_price ?? 0);
+            const lineTotal = qty * price;
+            itemsSubtotal += lineTotal;
+            doc.text(desc, 50, curY, { width: 225 });
+            doc.text(String(qty), 280, curY, { width: 40, align: 'center' });
+            doc.text(`$${price.toFixed(2)}`, 340, curY, { width: 70, align: 'right' });
+            doc.text(`$${lineTotal.toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
+            curY += 16;
           });
-      } catch (e) {
-        doc.fontSize(10).text(order.description || order.items || 'Order details not available');
-        doc.end();
-      }
+
+          curY += 8;
+          doc.moveTo(50, curY).lineTo(545, curY).strokeColor('#d1d5db').lineWidth(0.4).stroke();
+          curY += 12;
+
+          doc.font('Helvetica').fontSize(9).fillColor('#6b7280').text('Subtotal', 340, curY, { width: 70, align: 'right' });
+          doc.fillColor('#1f2937').text(`$${itemsSubtotal.toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
+          curY += 18;
+
+          if ((order as any).tax > 0) {
+            doc.fillColor('#6b7280').text('Tax', 340, curY, { width: 70, align: 'right' });
+            doc.fillColor('#1f2937').text(`$${Number((order as any).tax).toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
+            curY += 18;
+          }
+
+          doc.moveTo(340, curY).lineTo(545, curY).strokeColor('#111827').lineWidth(1.2).stroke();
+          curY += 8;
+
+          doc.font('Helvetica-Bold').fontSize(12).fillColor('#111827').text('TOTAL USD', 340, curY, { width: 70, align: 'right' });
+          doc.text(`$${amount.toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
+          curY += 32;
+
+          if ((order as any).paymentMethod) {
+            doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280').text('Method', 50, curY);
+            doc.font('Helvetica').fontSize(9).fillColor('#1f2937').text((order as any).paymentMethod, 50, curY + 12);
+            curY += 28;
+          }
+
+          doc.moveTo(50, 785).lineTo(545, 785).strokeColor('#e5e7eb').lineWidth(0.5).stroke();
+          doc.font('Helvetica').fontSize(7).fillColor('#9ca3af')
+            .text([issuedFromEnv.name, issuedFromEnv.taxId ? `Tax ID: ${issuedFromEnv.taxId}` : '', issuedFromEnv.email].filter(Boolean).join('  •  '), 50, 793, { width: 495, align: 'center' });
+          doc.fontSize(6).fillColor('#d1d5db')
+            .text(`Generated ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}  |  Powered by EcliPanel`, 50, 805, { width: 495, align: 'center' });
+
+          doc.end();
+        })
+        .catch(() => {
+          doc.font('Helvetica').fontSize(10).fillColor('#374151').text(order.description || order.items || 'Order details not available', 50, curY);
+          doc.end();
+        });
     } catch (e) {
       reject(e);
     }
