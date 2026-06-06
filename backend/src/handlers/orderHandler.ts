@@ -168,9 +168,9 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
           doc.fillColor('#1f2937').text(`$${itemsSubtotal.toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
           curY += 18;
 
-          if ((order as any).tax > 0) {
+          if ((order as any).taxAmount > 0) {
             doc.fillColor('#6b7280').text('Tax', 340, curY, { width: 70, align: 'right' });
-            doc.fillColor('#1f2937').text(`$${Number((order as any).tax).toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
+            doc.fillColor('#1f2937').text(`$${Number((order as any).taxAmount).toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
             curY += 18;
           }
 

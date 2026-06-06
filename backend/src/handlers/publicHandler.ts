@@ -12,6 +12,8 @@ import { SocData } from '../models/socData.entity';
 import { TunnelAllocation } from '../models/tunnelAllocation.entity';
 import { TunnelDevice } from '../models/tunnelDevice.entity';
 import { withRedisCache } from '../config/redis';
+import { Plan } from '../models/plan.entity';
+import { PanelSetting } from '../models/panelSetting.entity';
 const { getGithubContributorsSnapshot } = require('../services/githubContributorsService');
 
 const readNumber = (source: any, paths: string[]): number => {
@@ -548,6 +550,70 @@ export async function publicRoutes(app: any, prefix = '') {
         summary: 'Public GitHub contributors list',
         description:
           'Returns GitHub-synced contributors plus linked EcliPanel contributor profiles, sorted by contribution count with recent activity.',
+      },
+    }
+  );
+  app.get(
+    prefix + '/public/geo',
+    async (ctx: any) => {
+      const getHeader = (name: string): string | null => {
+        try {
+          return ctx.request?.headers?.get?.(name) ?? null;
+        } catch {
+          return null;
+        }
+      };
+      const country = getHeader('cf-ipcountry')?.trim() || null;
+      return { country };
+    },
+    {
+      response: {
+        200: t.Object({
+          country: t.Union([t.String(), t.Null()]),
+        }),
+      },
+      detail: {
+        tags: ['Public'],
+        summary: 'Detect user country from Cloudflare headers',
+        description: 'Returns the ISO country code from the cf-ipcountry header, or null if unavailable.',
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/public/pricing',
+    async () => {
+      return withRedisCache('public:pricing:v1', 60, async () => {
+        const planRepo = AppDataSource.getRepository(Plan);
+        const settingRepo = AppDataSource.getRepository(PanelSetting);
+
+        const plans = await planRepo.find({
+          where: { hiddenFromBilling: false },
+          order: { price: 'ASC' },
+        });
+
+        const taxRulesSetting = await settingRepo.findOneBy({ key: 'billingTaxRules' });
+        const currencySetting = await settingRepo.findOneBy({ key: 'billingCurrency' });
+
+        return {
+          plans,
+          taxRules: taxRulesSetting?.value || null,
+          currency: currencySetting?.value || 'USD',
+        };
+      });
+    },
+    {
+      response: {
+        200: t.Object({
+          plans: t.Array(t.Any()),
+          taxRules: t.Union([t.String(), t.Null()]),
+          currency: t.String(),
+        }),
+      },
+      detail: {
+        tags: ['Public'],
+        summary: 'Public pricing data',
+        description: 'Returns visible plans, tax rules, and billing currency for pricing display.',
       },
     }
   );

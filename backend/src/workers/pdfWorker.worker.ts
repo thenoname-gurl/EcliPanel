@@ -228,8 +228,9 @@ self.addEventListener('message', async (ev: any) => {
     curY += 12;
 
     const amount = Number(order.amount ?? subtotal);
-    const tax = Number(order.tax ?? 0);
+    const tax = Number(order.taxAmount ?? order.tax ?? 0);
     const discount = Number(order.discount ?? 0);
+    const total = subtotal + tax - discount;
 
     doc.save();
     doc.moveTo(ML, curY).lineTo(ML + CW, curY).strokeColor('#e5e7eb').lineWidth(1).stroke();
@@ -262,7 +263,7 @@ self.addEventListener('message', async (ev: any) => {
     doc.restore();
     curY += 8;
 
-    drawTotalLine('TOTAL USD', `$${amount.toFixed(2)}`, { bold: true, color: '#111827', size: 12 });
+    drawTotalLine('TOTAL USD', `$${total.toFixed(2)}`, { bold: true, color: '#111827', size: 12 });
 
     curY += 28;
 

@@ -92,6 +92,7 @@ import {
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
+import { applyTax, resolveTaxRate } from "@/lib/billing-display"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -3146,12 +3147,24 @@ export default function AdminPanel() {
     if (!ioUserId) { setIoError("User ID is required"); return }
     setIoLoading(true); setIoError("")
     try {
+      let taxAmount = 0
+      let taxRate = 0
+      try {
+        const userData = await apiFetch(API_ENDPOINTS.userDetail.replace(":id", String(ioUserId)))
+        const country = userData?.billingCountry || ""
+        taxRate = resolveTaxRate(panelSettings.billingTaxRules || "", country)
+        const tax = applyTax(Number(ioAmount) || 0, taxRate)
+        taxAmount = tax.tax
+      } catch { /* keep defaults */ }
+
       const created = await apiFetch(API_ENDPOINTS.adminOrders, {
         method: "POST",
         body: JSON.stringify({
           userId: Number(ioUserId), description: ioDesc || undefined,
           planId: ioPlanId ? Number(ioPlanId) : undefined,
           amount: Number(ioAmount) || 0,
+          taxAmount,
+          taxRate,
           notes: ioNotes || undefined,
           expiresAt: ioExpiresAt || undefined,
         }),
@@ -3238,6 +3251,18 @@ export default function AdminPanel() {
     if (!applyPlanId) { setApplyPlanError("Select a plan"); return }
     setApplyPlanLoading(true); setApplyPlanError("")
     try {
+      const plan = plans.find((p) => p.id === Number(applyPlanId))
+      let taxAmount = 0
+      let taxRate = 0
+      try {
+        const userData = await apiFetch(API_ENDPOINTS.userDetail.replace(":id", String(applyPlanUserId)))
+        const country = userData?.billingCountry || ""
+        taxRate = resolveTaxRate(panelSettings.billingTaxRules || "", country)
+        const effectiveAmount = plan?.price ?? 0
+        const tax = applyTax(Number(effectiveAmount) || 0, taxRate)
+        taxAmount = tax.tax
+      } catch { /* keep defaults */ }
+
       await apiFetch(API_ENDPOINTS.adminApplyPlan.replace(":id", String(applyPlanUserId)), {
         method: "POST",
         body: JSON.stringify({
@@ -3245,9 +3270,10 @@ export default function AdminPanel() {
           notes: applyPlanNotes || undefined,
           expiresAt: applyPlanExpiry || undefined,
           orgId: applyPlanOrgId ? Number(applyPlanOrgId) : undefined,
+          taxAmount,
+          taxRate,
         }),
       })
-      const plan = plans.find((p) => p.id === Number(applyPlanId))
       if (plan) {
         const limits: any = {}
         if (plan.memory) limits.memory = plan.memory

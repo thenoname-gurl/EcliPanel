@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { applyTax, formatMoney, resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display";
 
 type FeatureIconKind =
   | "servers"
@@ -289,14 +290,59 @@ export function Pricing() {
   const ctaHref = `/register?redirect=${encodeURIComponent(billingTarget)}`;
   const shouldShowPerMonthLabel = (priceLabel: string) => !priceLabel.includes("/");
 
+  const [dbPlans, setDbPlans] = useState<any[]>([]);
+  const [taxRules, setTaxRules] = useState<string | null>(null);
+  const [currency, setCurrency] = useState("USD");
+  const [userCountry, setUserCountry] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/public/pricing")
+      .then((r) => r.json())
+      .then((data) => {
+        setDbPlans(data.plans || []);
+        setTaxRules(data.taxRules || null);
+        setCurrency(sanitizeCurrencyCode(data.currency));
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/public/geo")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.country) setUserCountry(data.country);
+      })
+      .catch(() => {});
+  }, []);
+
+  const taxRate = resolveTaxRate(taxRules, userCountry);
+
+  const planByType = useMemo(() => {
+    const map: Record<string, any> = {};
+    for (const p of dbPlans) {
+      if (p.type && !map[p.type]) map[p.type] = p;
+    }
+    return map;
+  }, [dbPlans]);
+
+  function getPriceLabel(planType: string): string {
+    if (planType === "enterprise") return t("pricing.plans.enterprise.price");
+    const dbPlan = planByType[planType];
+    const basePrice = dbPlan?.price ?? (planType === "paid" ? 12 : 0);
+    const { total } = applyTax(basePrice, taxRate);
+    const formatted = formatMoney(total, currency);
+    if (taxRate > 0) return formatted;
+    return formatted + " " + t("pricing.perMonth");
+  }
+
   const plans = useMemo(
     () => [
       {
         iconKey: "free",
         name: t("pricing.plans.free.name"),
-        priceLabel: t("pricing.plans.free.price"),
+        priceLabel: getPriceLabel("free"),
         perMonthLabel: t("pricing.perMonth"),
-        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.free.price")),
+        showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("free")),
         desc: t("pricing.plans.free.desc"),
         features: [
           t("pricing.plans.free.features.0"),
@@ -316,9 +362,9 @@ export function Pricing() {
       {
         iconKey: "paid",
         name: t("pricing.plans.paid.name"),
-        priceLabel: t("pricing.plans.paid.price"),
+        priceLabel: getPriceLabel("paid"),
         perMonthLabel: t("pricing.perMonth"),
-        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.paid.price")),
+        showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("paid")),
         desc: t("pricing.plans.paid.desc"),
         features: [
           t("pricing.plans.paid.features.0"),
@@ -340,9 +386,9 @@ export function Pricing() {
       {
         iconKey: "educational",
         name: t("pricing.plans.educational.name"),
-        priceLabel: t("pricing.plans.educational.price"),
+        priceLabel: getPriceLabel("educational"),
         perMonthLabel: t("pricing.perMonth"),
-        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.educational.price")),
+        showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("educational")),
         desc: t("pricing.plans.educational.desc"),
         features: [
           t("pricing.plans.educational.features.0"),
@@ -363,9 +409,9 @@ export function Pricing() {
       {
         iconKey: "enterprise",
         name: t("pricing.plans.enterprise.name"),
-        priceLabel: t("pricing.plans.enterprise.price"),
+        priceLabel: getPriceLabel("enterprise"),
         perMonthLabel: t("pricing.perMonth"),
-        showPerMonthLabel: shouldShowPerMonthLabel(t("pricing.plans.enterprise.price")),
+        showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("enterprise")),
         desc: t("pricing.plans.enterprise.desc"),
         features: [
           t("pricing.plans.enterprise.features.0"),
@@ -388,7 +434,7 @@ export function Pricing() {
         highlight: false,
       },
     ],
-    [t],
+    [t, ctaHref, taxRate, currency, planByType],
   );
 
   return (
