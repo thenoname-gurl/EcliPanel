@@ -2096,6 +2096,68 @@ export async function adminRoutes(app: any, prefix = '') {
   );
 
   app.get(
+    prefix + '/admin/outbound-emails',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:outbound-emails');
+      if (adminErr !== true) return adminErr;
+
+      const { page = '1', per: perRaw = '50', q = '', userId = '', status = '' } = ctx.query as any;
+      const per = Math.min(200, Math.max(1, Number(perRaw) || 50));
+      const p = Math.max(1, Number(page) || 1);
+
+      let qb = AppDataSource.getRepository(OutboundEmail)
+        .createQueryBuilder('email')
+        .leftJoinAndSelect('email.user', 'user')
+        .orderBy('email.id', 'DESC');
+
+      if (q && String(q).trim() !== '') {
+        const qstr = String(q).trim();
+        qb = qb.andWhere(
+          '(email.toAddress LIKE :q OR email.subject LIKE :q OR email.body LIKE :q OR email.fromAddress LIKE :q)',
+          { q: `%${qstr}%` }
+        );
+      }
+
+      if (userId && String(userId).trim() !== '') {
+        qb = qb.andWhere('email.userId = :uid', { uid: Number(userId) });
+      }
+
+      if (status && String(status).trim() !== '') {
+        qb = qb.andWhere('email.status = :status', { status: String(status).trim() });
+      }
+
+      const total = await qb.getCount();
+      const items = await qb
+        .skip((p - 1) * per)
+        .take(per)
+        .getMany();
+
+      return { items, total };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        query: t.Object({
+          page: t.Optional(t.Number()),
+          per: t.Optional(t.Number()),
+          q: t.Optional(t.String()),
+          userId: t.Optional(t.Any()),
+          status: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({
+            items: t.Array(t.Any()),
+            total: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'List all outbound emails with pagination and search (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
     prefix + '/admin/users',
     async ctx => {
       const adminErr = requireAdminPermission(ctx, 'users:read');
