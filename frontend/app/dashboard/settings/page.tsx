@@ -2114,7 +2114,7 @@ export default function SettingsPage() {
                         {capturedSelfie && (
                           <div className="space-y-3">
                             <img
-                              src={capturedSelfieUrl ?? undefined}
+                              src={capturedSelfieUrl && capturedSelfieUrl.startsWith("blob:") ? capturedSelfieUrl : undefined}
                               alt="Captured selfie preview"
                               className="h-64 w-full object-cover"
                             />
