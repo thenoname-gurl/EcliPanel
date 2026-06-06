@@ -695,7 +695,10 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
                     let local_target = (open.local_host.as_str(), open.local_port);
 
                     let local_stream = match TcpStream::connect(local_target).await {
-                      Ok(stream) => stream,
+                      Ok(stream) => {
+                        stream.set_nodelay(true).ok();
+                        stream
+                      },
                       Err(err) => {
                         error!(%err, connection_id = %open.connection_id, local_host = %open.local_host, local_port = open.local_port, "failed to connect local target");
                         let close = OutgoingMessage {
@@ -737,25 +740,25 @@ async fn try_connect_and_serve(config: &ClientConfig, ws_url: &str) -> anyhow::R
                             }
                             info!(connection_id = %conn_id, size = data.len(), "wrote data to local target");
                           }
-                          result = read_half.read(&mut buf) => {
-                            match result {
-                              Ok(0) => break,
-                              Ok(n) => {
-                                info!(connection_id = %conn_id, size = n, "read from local target");
-                                let data_b64 = BASE64.encode(&buf[..n]);
-                                let msg = OutgoingMessage {
-                                  type_name: "connection.data",
-                                  allocation_id: None,
-                                  connection_id: Some(conn_id.clone()),
-                                  data: Some(data_b64),
-                                };
-                                if let Ok(payload) = serde_json::to_string(&msg) {
-                                  if write.lock().await.send(Message::Text(payload)).await.is_err() {
-                                    break;
+                            result = read_half.read(&mut buf) => {
+                              match result {
+                                Ok(0) => break,
+                                Ok(n) => {
+                                  info!(connection_id = %conn_id, size = n, "read from local target");
+                                  let data_b64 = BASE64.encode(&buf[..n]);
+                                  let msg = OutgoingMessage {
+                                    type_name: "connection.data",
+                                    allocation_id: None,
+                                    connection_id: Some(conn_id.clone()),
+                                    data: Some(data_b64),
+                                  };
+                                  if let Ok(payload) = serde_json::to_string(&msg) {
+                                    if write.lock().await.send(Message::Text(payload)).await.is_err() {
+                                      break;
+                                    }
+                                    info!(connection_id = %conn_id, size = n, "forwarded local data to backend");
                                   }
-                                  info!(connection_id = %conn_id, size = n, "forwarded local data to backend");
                                 }
-                              }
                               Err(err) => {
                                 error!(%err, connection_id = %conn_id, "local read error");
                                 break;
@@ -887,7 +890,10 @@ async fn handle_client_udp(open: ConnectionOpenMessage, write: Arc<Mutex<WsSink>
   let direct_port = open.direct_port.unwrap_or(open.public_port);
   let server_addr = format!("{}:{}", open.public_host, direct_port);
   let server_stream = match TcpStream::connect(&server_addr).await {
-    Ok(stream) => stream,
+    Ok(stream) => {
+      stream.set_nodelay(true).ok();
+      stream
+    },
     Err(err) => {
       error!(%err, "failed to connect server UDP tunnel");
       return;

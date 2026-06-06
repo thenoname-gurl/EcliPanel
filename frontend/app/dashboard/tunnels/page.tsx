@@ -142,7 +142,7 @@ export default function TunnelsPage() {
   }
 
   const backendUrl = "https://backend.ecli.app"
-  const deployScriptUrlBase = typeof window !== "undefined" ? window.location.origin + API_ENDPOINTS.tunnelDeployScript : "https://backend.ecli.app/api/tunnel/deploy.sh"
+  const deployScriptUrlBase = typeof window !== "undefined" ? window.location.origin + API_ENDPOINTS.tunnelDeployScript : "https://ecli.app/api/tunnel/deploy.sh"
 
   const [devices, setDevices] = useState<any[]>([])
   const [allocations, setAllocations] = useState<any[]>([])
