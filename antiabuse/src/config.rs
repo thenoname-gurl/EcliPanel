@@ -16,6 +16,7 @@ pub struct Config {
     pub window: Duration,
     pub suspend_cooldown: Duration,
     pub strike_decay_window: Duration,
+    pub strike_decay_half_life: Duration,
     pub slow_big_hit_threshold: usize,
     pub slow_ip_threshold: usize,
     pub fast_big_hit_threshold: usize,
@@ -26,6 +27,7 @@ pub struct Config {
     pub unique_ports_threshold: usize,
     pub mining_port_hit_threshold: usize,
     pub mining_ip_threshold: usize,
+    pub mining_require_outbound: bool,
     pub udp_flood_hit_threshold: usize,
     pub udp_flood_ip_threshold: usize,
     pub amplification_hit_threshold: usize,
@@ -35,11 +37,14 @@ pub struct Config {
     pub suspend_strikes: u32,
     pub auto_suspend_enabled: bool,
     pub safe_ports: HashSet<u16>,
+    pub safe_dest_ips: HashSet<String>,
+    pub safe_dest_ports: HashSet<u16>,
     pub mining_ports: HashSet<u16>,
     pub throttle_cpu_limit_percent: u16,
     pub throttle_duration_seconds: u64,
     pub heartbeat_interval: Duration,
     pub use_server_network_map: bool,
+    pub fetch_safe_servers: bool,
     pub wings_volume_path: String,
     pub file_scan_interval: u64,
     pub unmapped_log_every: u64,
@@ -48,6 +53,9 @@ pub struct Config {
     pub use_docker_network_map: bool,
     pub port_scan_auto_suspend_unique_ports: usize,
     pub port_scan_auto_suspend_min_unique_ips: usize,
+    pub game_server_multiplier: f64,
+    pub game_server_max_unique_ips: usize,
+    pub game_server_max_unique_ports: usize,
     pub yara_enabled: bool,
     pub yara_rules_path: Option<String>,
     pub yara_binary: String,
@@ -57,6 +65,7 @@ pub struct Config {
     pub malware_report_cap_per_server: u32,
     pub malware_skip_path_patterns: Vec<String>,
     pub malware_skip_extensions: HashSet<String>,
+    pub malware_min_file_size: u64,
 }
 
 fn env_req<T>(name: &str) -> Result<T>
@@ -179,6 +188,7 @@ pub fn from_env() -> Result<Config> {
         window: Duration::from_millis(env_req("WINDOW_MS")?),
         suspend_cooldown: Duration::from_millis(env_req("SUSPEND_COOLDOWN_MS")?),
         strike_decay_window: Duration::from_millis(env_req("STRIKE_DECAY_MS")?),
+        strike_decay_half_life: Duration::from_millis(env_or("STRIKE_DECAY_HALF_LIFE_MS", 1_800_000u64)?),
 
         slow_big_hit_threshold: env_req("SLOW_BIG_HIT_THRESHOLD")?,
         slow_ip_threshold: env_req("SLOW_IP_THRESHOLD")?,
@@ -199,11 +209,20 @@ pub fn from_env() -> Result<Config> {
         suspend_strikes: env_req("SUSPEND_STRIKES")?,
         auto_suspend_enabled: env_bool_or("AUTO_SUSPEND_ENABLED", true),
         safe_ports: port_set("SAFE_PORTS", "80,443"),
+        safe_dest_ips: env::var("SAFE_DEST_IPS")
+            .unwrap_or_default()
+            .split(',')
+            .map(|s| s.trim().to_ascii_lowercase())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        safe_dest_ports: port_set("SAFE_DEST_PORTS", ""),
         mining_ports: port_set("MINING_PORTS", "3333,4444,5555,6666,7777,14444"),
+        mining_require_outbound: env_bool_or("MINING_REQUIRE_OUTBOUND", true),
         throttle_cpu_limit_percent: env_req("THROTTLE_CPU_LIMIT_PERCENT")?,
         throttle_duration_seconds: env_req("THROTTLE_DURATION_SECONDS")?,
         heartbeat_interval: Duration::from_millis(env_req("HEARTBEAT_MS")?),
         use_server_network_map: env_bool_or("USE_SERVER_NETWORK_MAP", true),
+        fetch_safe_servers: env_bool_or("FETCH_SAFE_SERVERS", true),
         wings_volume_path: env_str_req("WINGS_VOLUME_PATH")?,
         file_scan_interval: env_req("FILE_SCAN_INTERVAL_SECONDS")?,
         signature_reload_interval: Some(env_req("SIGNATURE_RELOAD_INTERVAL_SECONDS")?),
@@ -213,6 +232,9 @@ pub fn from_env() -> Result<Config> {
         use_docker_network_map: env_bool_req("USE_DOCKER_NETWORK_MAP")?,
         port_scan_auto_suspend_unique_ports: env_or("PORT_SCAN_AUTO_SUSPEND_UNIQUE_PORTS", 100usize)?,
         port_scan_auto_suspend_min_unique_ips: env_or("PORT_SCAN_AUTO_SUSPEND_MIN_UNIQUE_IPS", 2usize)?,
+        game_server_multiplier: env_or("GAME_SERVER_MULTIPLIER", 3.0f64)?,
+        game_server_max_unique_ips: env_or("GAME_SERVER_MAX_UNIQUE_IPS", 12usize)?,
+        game_server_max_unique_ports: env_or("GAME_SERVER_MAX_UNIQUE_PORTS", 4usize)?,
         yara_enabled: env_bool_or("YARA_ENABLED", false),
 
         malware_suspend_signature_severity: env_req("MALWARE_SUSPEND_SIGNATURE_SEVERITY")?,
@@ -220,6 +242,7 @@ pub fn from_env() -> Result<Config> {
         malware_report_cap_per_server: env_req("MALWARE_REPORT_CAP_PER_SERVER")?,
         malware_skip_path_patterns: env_csv_req("MALWARE_SKIP_PATH_PATTERNS")?,
         malware_skip_extensions: env_csv_set_req("MALWARE_SKIP_EXTENSIONS")?,
+        malware_min_file_size: env_or("MALWARE_MIN_FILE_SIZE_BYTES", 4096u64)?,
 
         yara_rules_path: env::var("YARA_RULES_PATH")
             .ok()

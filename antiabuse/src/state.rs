@@ -108,7 +108,7 @@ pub struct DetectionTrigger {
 
 #[derive(Debug, Clone)]
 pub struct StrikeState {
-    pub count: u32,
+    pub counts: HashMap<String, u32>,
     pub last_at: Instant,
 }
 
@@ -126,6 +126,7 @@ pub struct SharedState {
     pub source_port_to_servers: RwLock<HashMap<u16, Vec<String>>>,
     pub server_name: RwLock<HashMap<String, String>>,
     pub server_status: RwLock<HashMap<String, String>>,
+    pub safe_servers: RwLock<HashSet<String>>,
     pub containers: RwLock<HashMap<String, ServerState>>,
     pub last_suspended: RwLock<HashMap<String, Instant>>,
     pub strikes: RwLock<HashMap<String, StrikeState>>,
@@ -141,6 +142,7 @@ impl SharedState {
             source_port_to_servers: RwLock::new(HashMap::new()),
             server_name: RwLock::new(HashMap::new()),
             server_status: RwLock::new(HashMap::new()),
+            safe_servers: RwLock::new(HashSet::new()),
             containers: RwLock::new(HashMap::new()),
             last_suspended: RwLock::new(HashMap::new()),
             strikes: RwLock::new(HashMap::new()),

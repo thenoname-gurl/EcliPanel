@@ -12,7 +12,7 @@ use crate::state::{
 };
 use chrono::Utc;
 use serde_json::json;
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque, HashMap};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -24,6 +24,48 @@ fn is_ephemeral_port(port: u16) -> bool {
 
 fn is_scannable_port(port: u16) -> bool {
     port < 32768
+}
+
+fn strike_category(trigger_type: &str) -> &str {
+    if trigger_type.starts_with("ddos_") {
+        "ddos"
+    } else if trigger_type.starts_with("port_scan_") {
+        "port_scan"
+    } else if trigger_type.starts_with("udp_flood") || trigger_type.starts_with("udp_amplification") {
+        "udp_attack"
+    } else if trigger_type.starts_with("crypto_mining") {
+        "crypto_mining"
+    } else {
+        trigger_type
+    }
+}
+
+fn decay_strikes(counts: &mut HashMap<String, u32>, elapsed: Duration, half_life: Duration) {
+    if half_life.is_zero() {
+        counts.clear();
+        return;
+    }
+
+    let elapsed_ms = elapsed.as_millis() as f64;
+    let half_life_ms = half_life.as_millis() as f64;
+    let decay = 0.5f64.powf(elapsed_ms / half_life_ms);
+
+    for count in counts.values_mut() {
+        let new_count = (*count as f64 * decay).round() as u32;
+        *count = new_count;
+    }
+
+    counts.retain(|_, &mut v| v > 0);
+}
+
+fn is_safe_destination(dest_ip: &str, dest_port: u16, config: &Config) -> bool {
+    if config.safe_dest_ips.contains(&dest_ip.to_ascii_lowercase()) {
+        return true;
+    }
+    if config.safe_dest_ports.contains(&dest_port) {
+        return true;
+    }
+    false
 }
 
 // EcliPolice when???????
@@ -226,6 +268,10 @@ pub async fn process_connection(
         };
         let is_public_remote = !is_private_or_local_ip(&remote_ip);
         let ddos_eligible = is_outbound && is_public_remote;
+
+        if is_safe_destination(&event.dest_ip, event.dest_port, config) {
+            return;
+        }
 
         match protocol {
             Protocol::Tcp => {
@@ -523,6 +569,7 @@ pub async fn process_connection(
             })
         } else if state.mining_hits >= config.mining_port_hit_threshold
             && state.mining_unique_ips.len() >= config.mining_ip_threshold
+            && (!config.mining_require_outbound || is_outbound)
         {
             Some(DetectionTrigger {
                 detection_type: "crypto_mining_pool_ports".to_string(),
@@ -564,20 +611,46 @@ pub async fn process_connection(
     let strike_count = {
         let mut strikes = shared.strikes.write().await;
         let entry = strikes.entry(event.server_id.clone()).or_insert(StrikeState {
-            count: 0,
+            counts: HashMap::new(),
             last_at: now,
         });
 
+        let elapsed = now.duration_since(entry.last_at);
+        decay_strikes(&mut entry.counts, elapsed, config.strike_decay_half_life);
+
         if now.duration_since(entry.last_at) > config.strike_decay_window {
-            entry.count = 0;
+            entry.counts.clear();
         }
 
-        entry.count += 1;
+        let cat = strike_category(&trigger.detection_type);
+        let cat_count = entry.counts.entry(cat.to_string()).or_insert(0);
+        *cat_count += 1;
         entry.last_at = now;
-        entry.count
+        *cat_count
     };
 
     let is_amplification_attack = trigger.detection_type == "udp_amplification_attack";
+
+    let is_game_server = {
+        let unique_ips = trigger
+            .metrics
+            .get("uniqueIps")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        let unique_ports = trigger
+            .metrics
+            .get("uniquePortsCombined")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as usize;
+        unique_ips <= config.game_server_max_unique_ips
+            && unique_ports <= config.game_server_max_unique_ports
+    };
+
+    let mult = if is_game_server {
+        config.game_server_multiplier
+    } else {
+        1.0
+    };
 
     let action = if is_node_fallback_id(&event.server_id) {
         EnforcementAction::Alert
@@ -586,7 +659,7 @@ pub async fn process_connection(
     } else if should_force_suspend(&trigger, config) {
         EnforcementAction::Suspend
     } else {
-        pick_action(strike_count, config)
+        pick_action((strike_count as f64 / mult).ceil() as u32, config)
     };
 
     let server_name = {
@@ -617,6 +690,16 @@ pub async fn process_connection(
     let mut suspend_success = false;
     let mut enforcement_note: Option<String> = None;
     let mut effective_action = action;
+
+    let is_safe_server = {
+        let safe = shared.safe_servers.read().await;
+        safe.contains(&event.server_id)
+    };
+
+    if is_safe_server && effective_action != EnforcementAction::Alert {
+        enforcement_note = Some("server is on the anti-abuse ignore list".to_string());
+        effective_action = EnforcementAction::Alert;
+    }
 
     let server_status = {
         let statuses = shared.server_status.read().await;
