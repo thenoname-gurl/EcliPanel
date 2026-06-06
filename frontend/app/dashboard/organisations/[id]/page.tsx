@@ -105,13 +105,19 @@ export default function OrganisationDetail() {
   const getAvatarUrl = (url?: string) => {
     if (!url) return undefined
     if (url.startsWith("http://") || url.startsWith("https://")) return url
-    const base = process.env.NEXT_PUBLIC_API_BASE || ""
-    if (!base) return url
-    try {
-      return new URL(url, base).toString()
-    } catch {
-      return url
+    if (url.startsWith("/")) {
+      const base = process.env.NEXT_PUBLIC_API_BASE || ""
+      if (!base) return url
+      try {
+        const resolved = new URL(url, base).toString()
+        if (resolved.startsWith("http://") || resolved.startsWith("https://")) {
+          return resolved
+        }
+      } catch {
+        // blah blah blah
+      }
     }
+    return undefined
   }
 
   const getMemberAvatarUrl = (member: any) => {

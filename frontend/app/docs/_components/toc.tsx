@@ -59,7 +59,7 @@ export function TableOfContents() {
             style={{ paddingLeft: h.level === 3 ? "0.75rem" : "0" }}
           >
             <a
-              href={`#${h.id}`}
+              href={`#${encodeURIComponent(h.id)}`}
               className={`text-sm block py-0.5 transition-colors ${
                 active === h.id
                   ? "text-white"
