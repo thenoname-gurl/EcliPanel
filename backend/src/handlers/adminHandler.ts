@@ -8256,7 +8256,7 @@ export async function adminRoutes(app: any, prefix = '') {
     async ctx => {
       const adminErr = requireAdminPermission(ctx, 'orders:issue');
       if (adminErr !== true) return adminErr;
-      const { userId, description, planId, amount, items, expiresAt, notes } = ctx.body as any;
+      const { userId, description, planId, amount, taxAmount, taxRate, items, expiresAt, notes } = ctx.body as any;
       if (!userId) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.userIdRequired') };
@@ -8275,6 +8275,8 @@ export async function adminRoutes(app: any, prefix = '') {
         description: description || undefined,
         planId: planId ? Number(planId) : undefined,
         amount: amount != null ? Number(amount) : 0,
+        taxAmount: taxAmount != null ? Number(taxAmount) : 0,
+        taxRate: taxRate != null ? Number(taxRate) : 0,
         items: items || (planId ? `plan:${planId}` : 'admin:manual'),
         status: 'pending',
         notes: notes || undefined,
@@ -8293,6 +8295,8 @@ export async function adminRoutes(app: any, prefix = '') {
           description: t.Optional(t.String()),
           planId: t.Optional(t.Any()),
           amount: t.Optional(t.Number()),
+          taxAmount: t.Optional(t.Number()),
+          taxRate: t.Optional(t.Number()),
           items: t.Optional(t.String()),
           expiresAt: t.Optional(t.String()),
           notes: t.Optional(t.String()),
@@ -8626,7 +8630,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const adminErr = requireAdminPermission(ctx, 'users:write');
       if (adminErr !== true) return adminErr;
       const userId = Number(ctx.params.id);
-      const { planId, temporary, expiresAt, notes, orgId } = ctx.body as any;
+      const { planId, temporary, expiresAt, notes, orgId, taxAmount, taxRate } = ctx.body as any;
       if (!planId) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.planIdRequired') };
@@ -8696,6 +8700,8 @@ export async function adminRoutes(app: any, prefix = '') {
         description: `${plan.name}${temporary ? ' (temporary)' : ''}`,
         planId: plan.id,
         amount: effectiveAmount,
+        taxAmount: taxAmount != null ? Number(taxAmount) : 0,
+        taxRate: taxRate != null ? Number(taxRate) : 0,
         items: `plan:${plan.id}`,
         status: 'active',
         notes: notes || undefined,
@@ -8720,6 +8726,8 @@ export async function adminRoutes(app: any, prefix = '') {
           expiresAt: t.Optional(t.String()),
           notes: t.Optional(t.String()),
           orgId: t.Optional(t.Any()),
+          taxAmount: t.Optional(t.Number()),
+          taxRate: t.Optional(t.Number()),
         }),
         response: {
           200: t.Object({ success: t.Boolean(), user: t.Any(), order: t.Any() }),

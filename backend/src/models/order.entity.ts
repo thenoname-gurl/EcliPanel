@@ -18,6 +18,12 @@ export class Order {
   @Column('float', { default: 0 })
   amount: number;
 
+  @Column('float', { default: 0 })
+  taxAmount: number;
+
+  @Column('float', { default: 0 })
+  taxRate: number;
+
   @Column()
   @Index()
   status: string;
