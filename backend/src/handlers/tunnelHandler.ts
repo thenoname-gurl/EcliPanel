@@ -174,9 +174,6 @@ function getTunnelFrontendUrl(ctx: TunnelRequestContext | undefined): string {
   const appUrl = normalize(process.env.APP_URL);
   if (appUrl) return appUrl;
 
-  const backendUrl = normalize(process.env.BACKEND_URL);
-  if (backendUrl) return backendUrl;
-
   const requestUrl = normalize(getRequestBaseUrl(ctx));
   if (requestUrl) return requestUrl;
 
@@ -1543,9 +1540,27 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         }
       };
 
+      function parseSemver(v: string | null | undefined): [number, number, number] {
+        if (!v) return [0, 0, 0];
+        const parts = v.split('.').map(n => parseInt(n, 10));
+        return [
+          Number.isFinite(parts[0]) ? parts[0] : 0,
+          Number.isFinite(parts[1]) ? parts[1] : 0,
+          Number.isFinite(parts[2]) ? parts[2] : 0,
+        ];
+      }
+
+      function isOlder(current: string, latest: string): boolean {
+        const [c0, c1, c2] = parseSemver(current);
+        const [l0, l1, l2] = parseSemver(latest);
+        if (c0 !== l0) return c0 < l0;
+        if (c1 !== l1) return c1 < l1;
+        return c2 < l2;
+      }
+
       const expectedVersion =
-        device.kind === 'server' ? readVersion('server', '0.2.0') : readVersion('client', '0.2.0');
-      const updateAvailable = reportedVersion ? reportedVersion !== expectedVersion : true;
+        device.kind === 'server' ? readVersion('server', '0.2.5') : readVersion('client', '0.2.5');
+      const updateAvailable = reportedVersion ? isOlder(reportedVersion, expectedVersion) : false;
 
       ws.data = ws.data || {};
       ws.data._ecliDeviceCode = device.deviceCode;

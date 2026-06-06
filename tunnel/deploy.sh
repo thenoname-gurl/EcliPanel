@@ -13,7 +13,7 @@ set -euo pipefail
 #   curl -fsSL https://ecli.app/api/tunnel/deploy.sh | bash -s -- open --port 8080
 # ---------------------------------------------------------------------------
 
-SCRIPT_VERSION="0.2.0"
+SCRIPT_VERSION="0.2.5"
 BIN_DIR="${ECLI_TUNNEL_HOME:-$HOME/.ecli/tunnel}"
 
 usage() {

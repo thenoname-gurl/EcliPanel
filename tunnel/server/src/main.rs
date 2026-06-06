@@ -11,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
     pin::Pin,
     sync::Arc,
+    sync::atomic::{AtomicBool, Ordering},
     task::{Context, Poll},
     time::Duration,
 };
@@ -638,6 +639,7 @@ async fn try_connect_and_serve(
     let udp_direct_tokens: UdpDirectTokens = Arc::new(Mutex::new(HashMap::new()));
     let fatal_error = Arc::new(Mutex::new(false));
     let update_triggered = Arc::new(Mutex::new(false));
+    let session_alive = Arc::new(AtomicBool::new(true));
     while let Some(msg) = read.next().await {
         match msg? {
             Message::Text(txt) => {
@@ -652,6 +654,7 @@ async fn try_connect_and_serve(
                     update_triggered.clone(),
                     backend,
                     udp_direct_tokens.clone(),
+                    session_alive.clone(),
                 )
                 .await;
             }
@@ -665,6 +668,18 @@ async fn try_connect_and_serve(
             _ => {}
         }
     }
+
+    session_alive.store(false, Ordering::Relaxed);
+
+    // Shut down all listeners so they don't accept connections on a dead websocket
+    {
+        let mut guard = listeners.lock().await;
+        for (allocation_id, _) in guard.drain() {
+            info!(allocation_id, "shutting down listener (session ended)");
+        }
+    }
+    // Wait briefly for spawned accept tasks to notice and exit
+    tokio::time::sleep(Duration::from_millis(100)).await;
 
     if *fatal_error.lock().await {
         Ok(SessionEndReason::FatalError)
@@ -691,6 +706,7 @@ async fn handle_text_message(
     update_triggered: Arc<Mutex<bool>>,
     backend: &str,
     udp_direct_tokens: UdpDirectTokens,
+    session_alive: Arc<AtomicBool>,
 ) {
     let msg: serde_json::Value = match serde_json::from_str(txt) {
         Ok(v) => v,
@@ -718,6 +734,7 @@ async fn handle_text_message(
                     connection_allocations,
                     tls_acceptor.clone(),
                     udp_direct_tokens.clone(),
+                    session_alive.clone(),
                 ));
             }
             Err(err) => error!(%err, "failed to parse bind message"),
@@ -840,6 +857,8 @@ async fn handle_text_message(
 
         Some("pong") => {}
 
+        Some("client.reconnected") => {}
+
         other => warn!(type_ = ?other, "unknown message type"),
     }
 }
@@ -856,6 +875,7 @@ async fn bind_listener(
     connection_allocations: ConnectionAllocationMap,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
     udp_direct_tokens: UdpDirectTokens,
+    session_alive: Arc<AtomicBool>,
 ) {
     if bind.protocol == "udp" {
         bind_udp_listener(bind, write, listeners, udp_direct_tokens).await;
@@ -887,12 +907,17 @@ async fn bind_listener(
             result = listener.accept() => {
                 match result {
                     Ok((stream, peer)) => {
+                        stream.set_nodelay(true).ok();
+                        if !session_alive.load(Ordering::Relaxed) {
+                            continue;
+                        }
                         // spawn directly so the accept loop is not blocked while we wait for TLS
                         let write = write.clone();
                         let tunnels = tunnels.clone();
                         let connection_allocations = connection_allocations.clone();
                         let allocation_id = bind.allocation_id;
                         let tls_acceptor = tls_acceptor.clone();
+                        let session_alive = session_alive.clone();
 
                         tokio::spawn(async move {
                             let (mut read_half, write_half) = stream.into_split();
@@ -931,6 +956,7 @@ async fn bind_listener(
                                                 write,
                                                 tunnels,
                                                 connection_allocations,
+                                                session_alive.clone(),
                                             ).await;
                                         }
                                         Err(err) => {
@@ -956,6 +982,7 @@ async fn bind_listener(
                                         write,
                                         tunnels,
                                         connection_allocations,
+                                        session_alive.clone(),
                                     ).await;
                                 }
                             } else {
@@ -976,6 +1003,7 @@ async fn bind_listener(
                                     write,
                                     tunnels,
                                     connection_allocations,
+                                    session_alive,
                                 ).await;
                             }
                         });
@@ -1048,9 +1076,14 @@ async fn handle_incoming_connection<R>(
     write: Arc<Mutex<WsSink>>,
     tunnels: SharedConnections,
     connection_allocations: ConnectionAllocationMap,
+    session_alive: Arc<AtomicBool>,
 ) where
     R: AsyncRead + Unpin + Send + 'static,
 {
+    if !session_alive.load(Ordering::Relaxed) {
+        return;
+    }
+
     connection_allocations
         .lock()
         .await
@@ -1069,8 +1102,7 @@ async fn handle_incoming_connection<R>(
 
     info!(%connection_id, %peer, "WebSocket relay started");
 
-    // Forward TCP → WebSocket.  Read data from the incoming connection
-    // and send it to the client via the backend's WebSocket channel.
+    // Forward TCP → WebSocket.
     let mut buf = vec![0u8; MAX_FRAME_SIZE];
     loop {
         let n = match reader.read(&mut buf).await {
@@ -1085,14 +1117,11 @@ async fn handle_incoming_connection<R>(
             }
         };
 
-        // If the tunnel was removed (connection.close from client) while we
-        // were blocked on read, discard the data and stop reading.
         if tunnels.lock().await.get(&connection_id).is_none() {
             info!(%connection_id, size = n, "tunnel gone, discarding data");
             break;
         }
 
-        info!(%connection_id, size = n, "read from TCP, forwarding as connection.data");
         let data_b64 = BASE64.encode(&buf[..n]);
         if let Err(err) = send_ws(
             &write,
@@ -1103,7 +1132,7 @@ async fn handle_incoming_connection<R>(
             error!(%err, %connection_id, "failed to forward data");
             break;
         }
-        info!(%connection_id, size = n, "forwarded connection.data to backend");
+        info!(%connection_id, size = n, "forwarded connection.data");
     }
 
     if tunnels.lock().await.get(&connection_id).is_some() {

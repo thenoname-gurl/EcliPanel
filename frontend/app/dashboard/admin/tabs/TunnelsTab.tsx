@@ -193,7 +193,7 @@ export default function TunnelsTab() {
   }
 
   const backendUrl = "https://backend.ecli.app"
-  const deployUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/tunnel/deploy.sh` : 'https://backend.ecli.app/api/tunnel/deploy.sh'
+  const deployUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/tunnel/deploy.sh` : 'https://ecli.app/api/tunnel/deploy.sh'
 
   return (
     <div className="flex flex-col gap-6 max-w-full">
