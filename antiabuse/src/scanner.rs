@@ -600,7 +600,16 @@ fn should_skip_path(path: &Path, config: &Config) -> bool {
     false
 }
 
-fn scan_file(path: &Path, _config: &Config, state: &ScannerState) -> Option<FileDetection> {
+fn scan_file(path: &Path, config: &Config, state: &ScannerState) -> Option<FileDetection> {
+    let metadata = match path.metadata() {
+        Ok(m) => m,
+        Err(_) => return None,
+    };
+
+    if metadata.len() < config.malware_min_file_size {
+        return None;
+    }
+
     let content = match fs::read(path) {
         Ok(c) => c,
         Err(_) => return None,

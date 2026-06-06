@@ -396,6 +396,31 @@ pub async fn refresh_ip_map(client: &BackendClient, shared: Arc<SharedState>, cf
                 port_mapped_count,
                 ambiguous_ports
             );
+
+            if cfg.fetch_safe_servers {
+                let safe_ids: HashSet<String> = servers
+                    .iter()
+                    .filter(|s| {
+                        s.get("ignoreAntiAbuse")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false)
+                    })
+                    .filter_map(|s| {
+                        s.get("uuid")
+                            .and_then(|v| v.as_str())
+                            .map(ToString::to_string)
+                    })
+                    .collect();
+                let count = safe_ids.len();
+                {
+                    let mut safe_guard = shared.safe_servers.write().await;
+                    *safe_guard = safe_ids;
+                }
+                println!(
+                    "[antiabuse] safe server list refreshed: {} servers excluded from auto-enforcement",
+                    count
+                );
+            }
         }
         Err(err) => {
             eprintln!("[antiabuse] failed to refresh IP map: {err:#}");
