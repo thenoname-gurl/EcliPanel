@@ -320,12 +320,57 @@ export function Pricing() {
   const planByType = useMemo(() => {
     const map: Record<string, any> = {};
     for (const p of dbPlans) {
-      if (p.type && !map[p.type]) map[p.type] = p;
+      if (p.type) {
+        const existing = map[p.type];
+        if (!existing || (p.price ?? 0) > (existing.price ?? 0)) {
+          map[p.type] = p;
+        }
+      }
     }
     return map;
   }, [dbPlans]);
 
-  function getPriceLabel(planType: string): string {
+  const FIELD_BY_KIND: Partial<Record<FeatureIconKind, string>> = {
+  servers: "serverLimit",
+  ports: "portCount",
+  cpu: "cpu",
+  ram: "memory",
+  storage: "disk",
+  emailsPerDay: "emailSendDailyLimit",
+  emailQueue: "emailSendQueueLimit",
+  db: "databases",
+  backup: "backups",
+};
+
+const LABEL_BY_KIND: Partial<Record<FeatureIconKind, string>> = {
+  servers: "Servers",
+  ports: "Ports per server",
+  cpu: "vCores",
+  ram: "MB ram",
+  storage: "MB storage",
+  emailsPerDay: "E-Mails per day (send)",
+  emailQueue: "E-Mails queue (send)",
+  db: "DB Limit",
+  backup: "Backup Limit",
+};
+
+function formatResourceNumber(n: number): string {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(n);
+}
+
+function buildPlanFeatures(planType: string, iconKinds: FeatureIconKind[]): string[] {
+  const dbPlan = planByType[planType];
+
+  return iconKinds.map((kind, i) => {
+    const field = FIELD_BY_KIND[kind];
+    if (field && dbPlan != null && dbPlan[field] != null && typeof dbPlan[field] === "number") {
+      return `${formatResourceNumber(dbPlan[field])} ${LABEL_BY_KIND[kind] || ""}`;
+    }
+    return t(`pricing.plans.${planType}.features.${i}`);
+  });
+}
+
+function getPriceLabel(planType: string): string {
     if (planType === "enterprise") return t("pricing.plans.enterprise.price");
     const dbPlan = planByType[planType];
     const basePrice = dbPlan?.price ?? (planType === "paid" ? 12 : 0);
@@ -344,16 +389,7 @@ export function Pricing() {
         perMonthLabel: t("pricing.perMonth"),
         showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("free")),
         desc: t("pricing.plans.free.desc"),
-        features: [
-          t("pricing.plans.free.features.0"),
-          t("pricing.plans.free.features.1"),
-          t("pricing.plans.free.features.2"),
-          t("pricing.plans.free.features.3"),
-          t("pricing.plans.free.features.4"),
-          t("pricing.plans.free.features.5"),
-          t("pricing.plans.free.features.6"),
-          t("pricing.plans.free.features.7"),
-        ],
+        features: buildPlanFeatures("free", planFeatureIconKinds.free),
         featureIconKinds: planFeatureIconKinds.free,
         cta: t("pricing.plans.free.cta"),
         ctaHref,
@@ -366,18 +402,7 @@ export function Pricing() {
         perMonthLabel: t("pricing.perMonth"),
         showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("paid")),
         desc: t("pricing.plans.paid.desc"),
-        features: [
-          t("pricing.plans.paid.features.0"),
-          t("pricing.plans.paid.features.1"),
-          t("pricing.plans.paid.features.2"),
-          t("pricing.plans.paid.features.3"),
-          t("pricing.plans.paid.features.4"),
-          t("pricing.plans.paid.features.5"),
-          t("pricing.plans.paid.features.6"),
-          t("pricing.plans.paid.features.7"),
-          t("pricing.plans.paid.features.8"),
-          t("pricing.plans.paid.features.9"),
-        ],
+        features: buildPlanFeatures("paid", planFeatureIconKinds.paid),
         featureIconKinds: planFeatureIconKinds.paid,
         cta: t("pricing.plans.paid.cta"),
         ctaHref,
@@ -390,17 +415,7 @@ export function Pricing() {
         perMonthLabel: t("pricing.perMonth"),
         showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("educational")),
         desc: t("pricing.plans.educational.desc"),
-        features: [
-          t("pricing.plans.educational.features.0"),
-          t("pricing.plans.educational.features.1"),
-          t("pricing.plans.educational.features.2"),
-          t("pricing.plans.educational.features.3"),
-          t("pricing.plans.educational.features.4"),
-          t("pricing.plans.educational.features.5"),
-          t("pricing.plans.educational.features.6"),
-          t("pricing.plans.educational.features.7"),
-          t("pricing.plans.educational.features.8"),
-        ],
+        features: buildPlanFeatures("educational", planFeatureIconKinds.educational),
         featureIconKinds: planFeatureIconKinds.educational,
         cta: t("pricing.plans.educational.cta"),
         ctaHref,
@@ -413,21 +428,7 @@ export function Pricing() {
         perMonthLabel: t("pricing.perMonth"),
         showPerMonthLabel: shouldShowPerMonthLabel(getPriceLabel("enterprise")),
         desc: t("pricing.plans.enterprise.desc"),
-        features: [
-          t("pricing.plans.enterprise.features.0"),
-          t("pricing.plans.enterprise.features.1"),
-          t("pricing.plans.enterprise.features.2"),
-          t("pricing.plans.enterprise.features.3"),
-          t("pricing.plans.enterprise.features.4"),
-          t("pricing.plans.enterprise.features.5"),
-          t("pricing.plans.enterprise.features.6"),
-          t("pricing.plans.enterprise.features.7"),
-          t("pricing.plans.enterprise.features.8"),
-          t("pricing.plans.enterprise.features.9"),
-          t("pricing.plans.enterprise.features.10"),
-          t("pricing.plans.enterprise.features.11"),
-          t("pricing.plans.enterprise.features.12"),
-        ],
+        features: buildPlanFeatures("enterprise", planFeatureIconKinds.enterprise),
         featureIconKinds: planFeatureIconKinds.enterprise,
         cta: t("pricing.plans.enterprise.cta"),
         ctaHref,
