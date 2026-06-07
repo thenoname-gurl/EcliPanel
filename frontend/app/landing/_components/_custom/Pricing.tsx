@@ -365,7 +365,7 @@ function buildPlanFeatures(planType: string, iconKinds: FeatureIconKind[]): stri
     const field = FIELD_BY_KIND[kind];
     if (field && dbPlan != null && dbPlan[field] != null && typeof dbPlan[field] === "number") {
       let value = dbPlan[field];
-      if (kind === "cpu" && value > 100) value = Math.round(value / 100);
+      if (kind === "cpu" && value >= 100) value = Math.round(value / 100);
       return `${formatResourceNumber(value)} ${LABEL_BY_KIND[kind] || ""}`;
     }
     return t(`pricing.plans.${planType}.features.${i}`);
