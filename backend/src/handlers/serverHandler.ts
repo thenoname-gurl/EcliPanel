@@ -4720,9 +4720,20 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             existingIpv6Allocations.push(normalized);
         }
       }
+      const portSet = new Set<string>();
+      for (const [ip, ports] of Object.entries(alloc.mappings || {}) as Array<[string, number[]]>) {
+        for (const port of ports) {
+          portSet.add(`${ip}:${port}`);
+        }
+      }
+
       let existingCount = 0;
       for (const [k, v] of Object.entries(owners)) {
-        if (v === user.id) existingCount++;
+        if (v === user.id) {
+          if (portSet.has(k)) {
+            existingCount++;
+          }
+        }
       }
       if (alloc.default) {
         const defKey = `${alloc.default.ip}:${alloc.default.port}`;
