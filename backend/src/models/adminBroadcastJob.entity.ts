@@ -28,6 +28,9 @@ export class AdminBroadcastJob {
   @Column({ default: false })
   force: boolean;
 
+  @Column({ default: false })
+  excludeSuspended: boolean;
+
   @Column({ default: 'queued' })
   status: 'queued' | 'running' | 'completed' | 'failed';
 
