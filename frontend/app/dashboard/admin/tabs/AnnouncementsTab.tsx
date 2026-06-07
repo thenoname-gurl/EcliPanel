@@ -18,6 +18,8 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
     setAnnMessage,
     annForce,
     setAnnForce,
+    annExcludeSuspended,
+    setAnnExcludeSuspended,
     annSending,
     setAnnSending,
     confirmAsync,
@@ -60,7 +62,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                 try {
                   const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, {
                     method: "POST",
-                    body: JSON.stringify({ subject: annSubject, message: annMessage, test: true }),
+                    body: JSON.stringify({ subject: annSubject, message: annMessage, test: true, excludeSuspended: annExcludeSuspended }),
                   })
                   if (res && res.success) alert(t("alerts.testSent", { recipients: res.recipients }))
                   else alert(t("alerts.testFailed"))
@@ -148,6 +150,19 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                 </div>
               )}
 
+              <label className="flex items-center gap-2.5 border border-border bg-secondary/30 px-3 py-2.5 cursor-pointer hover:bg-secondary/50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={annExcludeSuspended}
+                  onChange={(e) => setAnnExcludeSuspended(e.target.checked)}
+                  className="border-border"
+                />
+                <div>
+                  <p className="text-xs font-medium text-foreground">{t("compose.excludeSuspendedTitle")}</p>
+                  <p className="text-[11px] text-muted-foreground">{t("compose.excludeSuspendedSubtitle")}</p>
+                </div>
+              </label>
+
               <div className="flex items-center justify-end gap-2">
                 <Button
                   size="sm"
@@ -161,7 +176,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                     try {
                       const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, {
                         method: "POST",
-                        body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce }),
+                        body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce, excludeSuspended: annExcludeSuspended }),
                       })
                       if (res?.status === 'queued') {
                         alert(t("alerts.broadcastQueued"))

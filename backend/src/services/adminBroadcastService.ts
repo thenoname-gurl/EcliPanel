@@ -10,7 +10,8 @@ export async function createAdminBroadcastJob(
   adminId: number,
   subject: string,
   message: string,
-  force: boolean
+  force: boolean,
+  excludeSuspended: boolean = false
 ) {
   const repo = AppDataSource.getRepository(AdminBroadcastJob);
   const job = repo.create({
@@ -18,6 +19,7 @@ export async function createAdminBroadcastJob(
     subject,
     message,
     force,
+    excludeSuspended,
     status: 'queued',
     recipients: 0,
   });
@@ -59,6 +61,7 @@ export async function processPendingAdminBroadcastJobs() {
         const wants = user.settings?.notifications?.productUpdates;
         const enabled = job.force || (typeof wants === 'boolean' ? wants : false);
         if (!enabled) continue;
+        if (job.excludeSuspended && user.suspended) continue;
 
         try {
           await sendMail({

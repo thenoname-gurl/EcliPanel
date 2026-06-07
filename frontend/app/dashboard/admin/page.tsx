@@ -1666,6 +1666,7 @@ export default function AdminPanel() {
   const [annMessage, setAnnMessage] = useState("")
   const [annPreview, setAnnPreview] = useState(false)
   const [annForce, setAnnForce] = useState(false)
+  const [annExcludeSuspended, setAnnExcludeSuspended] = useState(false)
   const [annSending, setAnnSending] = useState(false)
 
   // ── OAuth app management ─────────────────────────────────────────────────
@@ -5954,6 +5955,8 @@ remote: ${panelUrl}`
                     setAnnMessage,
                     annForce,
                     setAnnForce,
+                    annExcludeSuspended,
+                    setAnnExcludeSuspended,
                     annSending,
                     setAnnSending,
                     confirmAsync,

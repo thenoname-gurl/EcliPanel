@@ -1768,7 +1768,9 @@
       "minRead": "~{minutes} min read",
       "forceTitle": "Force send to everyone",
       "forceSubtitle": "Override user email preferences",
-      "forceWarning": "This will send the email to all users regardless of their notification preferences."
+      "forceWarning": "This will send the email to all users regardless of their notification preferences.",
+      "excludeSuspendedTitle": "Don't send to suspended users",
+      "excludeSuspendedSubtitle": "Skip users whose accounts are suspended"
     },
     "preview": {
       "title": "Email Preview",

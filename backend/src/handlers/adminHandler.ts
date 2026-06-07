@@ -2008,8 +2008,9 @@ export async function adminRoutes(app: any, prefix = '') {
         message?: string;
         force?: boolean;
         test?: boolean;
+        excludeSuspended?: boolean;
       };
-      const { subject, message, force = false, test = false } = body;
+      const { subject, message, force = false, test = false, excludeSuspended = false } = body;
       if (!subject || !message) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.subjectAndMessageRequired') };
@@ -2061,7 +2062,7 @@ export async function adminRoutes(app: any, prefix = '') {
       }
 
       const adminUser = ctx.user as User | undefined;
-      await createAdminBroadcastJob(adminUser?.id ?? 0, subject, message, force);
+      await createAdminBroadcastJob(adminUser?.id ?? 0, subject, message, force, excludeSuspended);
 
       return {
         success: true,
@@ -2078,6 +2079,7 @@ export async function adminRoutes(app: any, prefix = '') {
           message: t.String(),
           force: t.Optional(t.Boolean()),
           test: t.Optional(t.Boolean()),
+          excludeSuspended: t.Optional(t.Boolean()),
         }),
         response: {
           200: t.Object({
