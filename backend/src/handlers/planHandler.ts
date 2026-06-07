@@ -214,7 +214,10 @@ export async function planRoutes(app: any, prefix = '') {
         planLimits.emailSendDailyLimit = Number(plan.emailSendDailyLimit);
       if (plan.emailSendQueueLimit != null)
         planLimits.emailSendQueueLimit = Number(plan.emailSendQueueLimit);
-      if (plan.portCount != null) planLimits.portCount = Number(plan.portCount);
+      if (plan.portCount != null) {
+        planLimits.portCount = Number(plan.portCount);
+        planLimits.portsPerServer = Number(plan.portCount);
+      }
       if (plan.tunnelPortCount != null) planLimits.tunnelPortCount = Number(plan.tunnelPortCount);
 
       const isCustomLimits = (
