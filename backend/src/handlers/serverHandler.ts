@@ -4700,7 +4700,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       const limit =
         user?.limits && typeof user.limits.portsPerServer === 'number'
           ? user.limits.portsPerServer
-          : 3;
+          : user?.limits && typeof user.limits.portCount === 'number'
+            ? user.limits.portCount
+            : 3;
 
       const alloc = (cfg.allocations) || {};
       const owners: ServerAllocationOwners = (alloc.owners as ServerAllocationOwners) || {};
