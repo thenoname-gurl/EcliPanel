@@ -4728,12 +4728,21 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
 
       let existingCount = 0;
+      const stales: string[] = [];
       for (const [k, v] of Object.entries(owners)) {
         if (v === user.id) {
           if (portSet.has(k)) {
             existingCount++;
+          } else {
+            stales.push(k);
           }
         }
+      }
+      if (stales.length > 0) {
+        for (const k of stales) delete owners[k];
+        alloc.owners = owners;
+        cfg.allocations = alloc;
+        await cfgRepo().save(cfg);
       }
       if (alloc.default) {
         const defKey = `${alloc.default.ip}:${alloc.default.port}`;
@@ -4780,14 +4789,6 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           for (const p of ports) {
             const pn = Number(p);
             if (pn >= 1 && pn <= 65535) takenPorts.add(pn);
-          }
-        }
-        if (a.owners) {
-          for (const k of Object.keys(a.owners || {})) {
-            const idx = k.lastIndexOf(':');
-            const pstr = idx >= 0 ? k.slice(idx + 1) : '';
-            const pnum = Number(pstr);
-            if (!Number.isNaN(pnum) && pnum >= 1 && pnum <= 65535) takenPorts.add(pnum);
           }
         }
       }
