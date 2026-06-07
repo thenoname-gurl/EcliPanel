@@ -1111,6 +1111,15 @@ export default function SettingsPage() {
     }
   }, [capturedSelfieUrl])
 
+  const safeSelfieSrc = useMemo(() => {
+    if (!capturedSelfieUrl) return undefined
+    try {
+      const parsed = new URL(capturedSelfieUrl)
+      if (parsed.protocol === "blob:") return capturedSelfieUrl
+    } catch (_) {}
+    return undefined
+  }, [capturedSelfieUrl])
+
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
@@ -2114,7 +2123,7 @@ export default function SettingsPage() {
                         {capturedSelfie && (
                           <div className="space-y-3">
                             <img
-                              src={capturedSelfieUrl && capturedSelfieUrl.startsWith("blob:") ? capturedSelfieUrl : undefined}
+                              src={safeSelfieSrc}
                               alt="Captured selfie preview"
                               className="h-64 w-full object-cover"
                             />
