@@ -43,5 +43,10 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true
     }
+  },
+  "pnpm": {
+    "overrides": {
+      "tmp": "^0.2.7"
+    }
   }
 }
