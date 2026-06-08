@@ -430,7 +430,6 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
 
       const totalPages = Math.max(1, Math.ceil(total / perPage));
 
-      // TODO: Check if moutns work
       const serverUuids = configs.map(c => c.uuid);
       const mountMap: Record<string, Mount[]> = {};
       if (serverUuids.length) {

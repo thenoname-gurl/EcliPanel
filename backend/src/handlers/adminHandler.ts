@@ -7982,7 +7982,6 @@ export async function adminRoutes(app: any, prefix = '') {
     }
   );
 
-  // TODO: Check if it works, still in todo
   app.get(
     prefix + '/admin/mounts',
     async ctx => {
