@@ -313,7 +313,6 @@ export async function requiresKyc(country?: string | null): Promise<boolean> {
   if (rules.has(c)) return true;
   const code2 = c.slice(0, 2);
   if (rules.has(code2)) return true;
-  if (code2.length === 2 && EU_COUNTRIES.has(code2) && process.env.EU_ID_DISABLED === 'true') return true;
   return false;
 }
 
