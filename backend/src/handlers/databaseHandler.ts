@@ -218,7 +218,6 @@ export async function databaseRoutes(app: any, prefix = '') {
     }
   );
 
-  // TODO: Recheck if they work as planned
   app.get(
     prefix + '/servers/:id/databases',
     async ctx => {
