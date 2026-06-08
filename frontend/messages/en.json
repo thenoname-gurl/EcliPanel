@@ -1165,6 +1165,7 @@
       "databases": "Databases",
       "plans": "Plans",
       "orders": "Orders",
+      "payments": "Payment Methods",
       "settings": "Settings",
       "tunnels": "Tunnels",
       "rollouts": "Rollouts",
@@ -1632,7 +1633,9 @@
       "active": "active",
       "pending": "pending",
       "cancelled": "cancelled",
-      "expired": "expired"
+      "expired": "expired",
+      "awaitingPayment": "awaiting payment",
+      "paymentSent": "payment sent"
     },
     "states": {
       "loading": "Loading orders…",
@@ -1691,6 +1694,8 @@
       "editOrder": "Edit order",
       "cancelOrder": "Cancel order",
       "deleteOrder": "Delete order",
+      "confirmPayment": "Confirm Payment",
+      "suspendUser": "Suspend User",
       "edit": "Edit",
       "cancel": "Cancel",
       "previous": "Previous",
@@ -5382,10 +5387,10 @@
       "taxAmount": "Tax Amount"
     },
     "activeSubscription": {
-      "title": "Your Active Subscription",
-      "descriptionFallback": "Plan applied by administrator",
-      "manage": "Manage Subscription",
-      "configuredLimits": "Configured limits:",
+      "title": "Active Subscription",
+      "descriptionFallback": "Your current plan details",
+      "manage": "Manage",
+      "configuredLimits": "Your configured limits",
       "memory": "Memory",
       "disk": "Disk",
       "cpu": "CPU",
@@ -5396,7 +5401,17 @@
       "emailQueueLimit": "Email queue limit",
       "databases": "Databases",
       "backups": "Backups",
-      "renews": "Renews"
+      "renews": "Renews",
+      "cancelRenewal": "Cancel Renewal",
+      "cancelConfirmTitle": "Cancel Plan Renewal",
+      "cancelConfirmDescription": "This will cancel your plan renewal. Your current plan will remain active until the end of your billing period. After that, your account will revert to the Free tier.",
+      "currentExpires": "Current plan expires",
+      "confirmCancel": "Yes, Cancel Renewal",
+      "keepPlan": "Keep My Plan",
+      "cancelled": "Plan renewal cancelled",
+      "cancelFailed": "Failed to cancel plan",
+      "activeBadge": "Active",
+      "created": "Created"
     },
     "currentSubscription": {
       "title": "Current Subscription",
@@ -5404,7 +5419,9 @@
       "requestChange": "Request Change",
       "active": "Active",
       "connect": "Connect",
+      "buyNow": "Buy Now",
       "contactSales": "Contact Sales",
+      "cancelFirst": "Cancel your current plan before purchasing a new one",
       "noPlansVisible": "No plans are currently visible in billing showcase."
     },
     "invoices": {
@@ -5423,12 +5440,52 @@
       "loading": "Loading orders...",
       "empty": "No orders found.",
       "tax": "tax",
-      "paid": "Paid"
+      "paid": "Paid",
+      "pending": "Pending",
+      "awaitingPayment": "Awaiting Payment",
+      "paymentSent": "Payment Sent",
+      "cancelled": "Cancelled",
+      "pay": "Pay"
     },
     "errors": {
       "failedStudentVerification": "Failed to start student verification flow",
       "failedFetchInvoice": "Failed to fetch invoice",
-      "unableDownloadInvoice": "Unable to download invoice"
+      "unableDownloadInvoice": "Unable to download invoice",
+      "orderCreateFailed": "Failed to create order"
+    }
+  },
+  "checkoutPage": {
+    "title": "Checkout",
+    "description": "Complete your payment",
+    "backToBilling": "Back to billing",
+    "orderSummary": "Order Summary",
+    "orderDescription": "Description",
+    "orderAmount": "Amount",
+    "selectMethod": {
+      "title": "Select Payment Method",
+      "description": "Choose how you'd like to pay",
+      "continue": "Continue to Payment"
+    },
+    "instructions": {
+      "title": "Payment Instructions",
+      "description": "Send your payment using the details below. Your plan will be activated once an administrator confirms receipt.",
+      "amountToSend": "Amount to Send",
+      "walletAddress": "Wallet Address",
+      "payTo": "Send Payment To",
+      "markSent": "I've Sent Payment",
+      "later": "I'll Do This Later",
+      "sentTitle": "Payment Marked as Sent",
+      "sentDescription": "Your payment has been marked as sent. An administrator will review and confirm your payment shortly.",
+      "backToBilling": "Back to Billing",
+      "processingTime": "Processing may take up to 24 hours after admin confirmation.",
+      "fraudWarning": "Only send the exact amount shown. Do not send from an exchange that delays withdrawals."
+    },
+    "error": {
+      "loadFailed": "Could not load checkout information.",
+      "missingOrder": "No order specified. Please go back and try again.",
+      "invalidStatus": "This order cannot be paid right now. It may already be active or cancelled.",
+      "noPaymentMethods": "No payment methods are currently available. Please contact support.",
+      "backToBilling": "Back to Billing"
     }
   },
   "serverSharesTab": {
@@ -5620,6 +5677,78 @@
     "common": {
       "unknown": "Unknown",
       "na": "N/A"
+    }
+  },
+  "adminPaymentMethodsTab": {
+    "header": {
+      "title": "Payment Methods",
+      "subtitle": "Configure payment methods available to users"
+    },
+    "form": {
+      "label": "Label",
+      "labelPlaceholder": "e.g. Bitcoin Wallet",
+      "type": "Type",
+      "currency": "Currency",
+      "network": "Network",
+      "address": "Address / Wallet / Email",
+      "addressPlaceholder": "Enter address or PayPal email",
+      "addressPlaceholderCrypto": "Enter wallet address",
+      "addressPlaceholderPaypal": "Enter PayPal email",
+      "instructions": "Instructions",
+      "instructionsPlaceholder": "Optional instructions for the user",
+      "optional": "optional",
+      "enabled": "Active",
+      "disabled": "Disabled",
+      "selectNetwork": "Select network"
+    },
+    "actions": {
+      "addMethod": "Add Method",
+      "saveAll": "Save All",
+      "save": "Save",
+      "cancel": "Cancel",
+      "refresh": "Refresh"
+    },
+    "footer": {
+      "changesCount": "{count} method(s) configured"
+    },
+    "states": {
+      "emptyTitle": "No Payment Methods",
+      "emptySubtitle": "Add a payment method so users can pay for orders."
+    },
+    "toasts": {
+      "saved": "Payment methods saved successfully",
+      "saveFailed": "Failed to save payment methods"
+    }
+  },
+  "checkoutPage": {
+    "title": "Checkout",
+    "description": "Complete your order payment",
+    "backToBilling": "Back to Billing",
+    "orderSummary": "Order Summary",
+    "orderDescription": "Description",
+    "orderAmount": "Amount",
+    "selectMethod": {
+      "title": "Choose Payment Method",
+      "description": "Select how you would like to pay for this order.",
+      "continue": "Continue to Payment"
+    },
+    "instructions": {
+      "title": "Payment Instructions",
+      "description": "Send the payment using the details below, then mark it as sent.",
+      "amountToSend": "Amount to Send",
+      "walletAddress": "Wallet Address",
+      "payTo": "Pay to",
+      "markSent": "I've Sent the Payment",
+      "later": "Do Later",
+      "sentTitle": "Payment Marked as Sent",
+      "sentDescription": "An administrator will review your payment and confirm it shortly.",
+      "backToBilling": "Back to Billing",
+      "processingTime": "Manual payment processing may take up to 24-48 hours.",
+      "fraudWarning": "Falsely claiming payment was sent may result in account suspension for fraud."
+    },
+    "error": {
+      "loadFailed": "Could not load checkout information.",
+      "backToBilling": "Back to Billing"
     }
   }
 }

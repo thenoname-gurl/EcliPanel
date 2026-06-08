@@ -9,6 +9,7 @@ import { PORTALS, API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
+import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { applyTax, formatMoney, resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
@@ -20,6 +21,10 @@ import {
   Download,
   Check,
   ArrowRight,
+  Wallet,
+  XCircle,
+  Loader2,
+  AlertTriangle,
 } from "lucide-react"
 
 const HACKCLUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED === 'true'
@@ -28,6 +33,7 @@ const GITHUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_GITHUB_STUDENT_ENABLED ==
 export default function BillingPage() {
   const t = useTranslations("billingPage")
   const { user } = useAuth()
+  const router = useRouter()
   const currentUser = user as any
   const [orders, setOrders] = useState<any[]>([])
   const [plans, setPlans] = useState<any[]>([])
@@ -36,6 +42,8 @@ export default function BillingPage() {
   const [latestOrder, setLatestOrder] = useState<any | null>(null)
   const [billingCurrency, setBillingCurrency] = useState("USD")
   const [billingTaxRules, setBillingTaxRules] = useState("")
+  const [cancellingOrderId, setCancellingOrderId] = useState<number | null>(null)
+  const [showCancelConfirm, setShowCancelConfirm] = useState<{ plan: any; order: any } | null>(null)
 
   const portalMarkerByTier: Record<string, string> = {
     free: t("portal.free"),
@@ -89,6 +97,64 @@ export default function BillingPage() {
 
   const activePlanExpires = primaryPlan?.order?.expiresAt || null
 
+  function getStatusBadge(status: string) {
+    const statusMap: Record<string, { variant: "outline" | "default" | "destructive" | "secondary"; className: string; label: string }> = {
+      active: {
+        variant: "outline",
+        className: "border-success/30 bg-success/10 text-success text-xs",
+        label: t("invoices.paid"),
+      },
+      pending: {
+        variant: "outline",
+        className: "border-warning/30 bg-warning/10 text-warning text-xs",
+        label: t("invoices.pending"),
+      },
+      awaiting_payment: {
+        variant: "outline",
+        className: "border-info/30 bg-info/10 text-info text-xs",
+        label: t("invoices.awaitingPayment"),
+      },
+      payment_sent: {
+        variant: "outline",
+        className: "border-info/30 bg-info/10 text-info text-xs",
+        label: t("invoices.paymentSent"),
+      },
+      cancelled: {
+        variant: "outline",
+        className: "border-destructive/30 bg-destructive/10 text-destructive text-xs",
+        label: t("invoices.cancelled"),
+      },
+    }
+    const cfg = statusMap[status] || statusMap.pending
+    if (!cfg) return null
+    return <Badge variant={cfg.variant} className={cfg.className}>{cfg.label}</Badge>
+  }
+
+  async function handleCancelPlan(planOrder: { plan: any; order: any }) {
+    setCancellingOrderId(planOrder.order.id)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.orderCancel.replace(":id", String(planOrder.order.id)),
+        { method: "POST", body: JSON.stringify({}) }
+      )
+      setActivePlans(prev => prev.filter(ap => ap.order.id !== planOrder.order.id))
+      setOrders(prev => prev.map((o: any) =>
+        o.id === planOrder.order.id ? { ...o, status: "cancelled" } : o
+      ))
+      toast({ title: t("activeSubscription.cancelled") })
+    } catch (e: any) {
+      toast({ title: t("activeSubscription.cancelFailed"), description: e?.message, variant: "destructive" })
+    } finally {
+      setCancellingOrderId(null)
+      setShowCancelConfirm(null)
+    }
+  }
+
+  const hasActivePaidPlan = activePlans.some((ap: any) => {
+    const planType = String(ap.plan?.type || "").toLowerCase()
+    return planType === "paid" || planType === "enterprise"
+  })
+
   useEffect(() => {
     apiFetch(API_ENDPOINTS.panelSettings)
       .then((data) => {
@@ -106,13 +172,15 @@ export default function BillingPage() {
 
     apiFetch(API_ENDPOINTS.orders)
       .then(async (data) => {
-        setOrders(data)
-        if (Array.isArray(data) && data.length > 0) {
-          const sortedOrders = [...data].sort((a: any, b: any) => {
-            const aDate = new Date(a.updatedAt || a.createdAt || 0).getTime()
-            const bDate = new Date(b.updatedAt || b.createdAt || 0).getTime()
-            return bDate - aDate
-          })
+        const sortedOrders = Array.isArray(data)
+          ? [...data].sort((a: any, b: any) => {
+              const aDate = new Date(a.createdAt || 0).getTime()
+              const bDate = new Date(b.createdAt || 0).getTime()
+              return bDate - aDate
+            })
+          : []
+        setOrders(sortedOrders)
+        if (sortedOrders.length > 0) {
           setLatestOrder(sortedOrders[0])
 
           const activeOrders = sortedOrders.filter((o: any) => o.status === 'active' && o.planId)
@@ -126,7 +194,16 @@ export default function BillingPage() {
               }
             })
           )
-          setActivePlans(resolved.filter(Boolean))
+          const valid = resolved.filter(Boolean)
+          valid.sort((a: any, b: any) =>
+            new Date(b.order.createdAt).getTime() - new Date(a.order.createdAt).getTime()
+          )
+          if (valid.length > 1) {
+            const newest = valid[0]
+            setActivePlans([newest])
+          } else {
+            setActivePlans(valid)
+          }
         } else {
           setLatestOrder(null)
         }
@@ -149,7 +226,7 @@ export default function BillingPage() {
 
     return {
       key: String(plan.id),
-      id: tier || String(plan.id),
+      id: plan.id,
       type: tier,
       effectiveType: tierEffective,
       name: plan.name || portalConfig?.name || t("pricing.customPlan"),
@@ -248,14 +325,15 @@ export default function BillingPage() {
             <div className="border border-primary/30 bg-card p-6 glow-border min-w-0 box-border overflow-hidden">
               <SectionHeader
                 title={activePlans.length === 1 ? t("activeSubscription.title") : t("activeSubscription.title") + ` (${activePlans.length})`}
-                description={activePlans.length === 1 ? (activePlans[0].plan.description || t("activeSubscription.descriptionFallback")) : t("activeSubscription.descriptionFallback")}
+                description={activePlans[0].order.description || (activePlans[0].plan.type ? getPortalMarker(activePlans[0].plan.type) + " " + t("common.plan") : t("activeSubscription.descriptionFallback"))}
                 action={
-                  <a
-                    href="mailto:sales@ecli.app"
-                    className="flex items-center gap-2 border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
+                  <button
+                    onClick={() => setShowCancelConfirm(activePlans[0])}
+                    className="flex items-center gap-2 border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive transition-colors hover:bg-destructive/20"
                   >
-                    {t("activeSubscription.manage")}
-                  </a>
+                    <XCircle className="h-4 w-4" />
+                    {t("activeSubscription.cancelRenewal")}
+                  </button>
                 }
               />
               <div className="mt-4 flex flex-col gap-6">
@@ -263,9 +341,19 @@ export default function BillingPage() {
                   <div key={plan.id} className="flex flex-col sm:flex-row sm:items-start gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xl font-semibold text-foreground">{plan.name}</h3>
-                        <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(plan.type)}</Badge>
+                        <h3 className="text-xl font-semibold text-foreground">
+                          {order.description && order.description !== plan.name
+                            ? order.description
+                            : plan.name}
+                        </h3>
+                        <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(currentUser?.portalType || plan.type)}</Badge>
+                        {order.status === "active" && (
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-0 text-xs">{t("activeSubscription.activeBadge")}</Badge>
+                        )}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        #{order.id} · {t("activeSubscription.created")} {new Date(order.createdAt).toLocaleDateString()}
+                      </p>
                       {plan.features?.list && Array.isArray(plan.features.list) && (
                         <ul className="mt-3 flex flex-col gap-1.5">
                           {plan.features.list.map((f: string) => (
@@ -307,6 +395,46 @@ export default function BillingPage() {
                   </ul>
                 </div>
               </div>
+
+              {/* Cancel Confirmation */}
+              {showCancelConfirm && (
+                <div className="border border-destructive/30 bg-destructive/5 p-4 mt-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">{t("activeSubscription.cancelConfirmTitle")}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {t("activeSubscription.cancelConfirmDescription")}
+                      </p>
+                      {showCancelConfirm.order.expiresAt && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {t("activeSubscription.currentExpires")}: {new Date(showCancelConfirm.order.expiresAt).toLocaleDateString()}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-3 mt-4">
+                        <button
+                          onClick={() => handleCancelPlan(showCancelConfirm)}
+                          disabled={cancellingOrderId === showCancelConfirm.order.id}
+                          className="flex items-center gap-2 bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:opacity-90 disabled:opacity-50"
+                        >
+                          {cancellingOrderId === showCancelConfirm.order.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <XCircle className="h-4 w-4" />
+                          )}
+                          {t("activeSubscription.confirmCancel")}
+                        </button>
+                        <button
+                          onClick={() => setShowCancelConfirm(null)}
+                          className="border border-border bg-secondary/50 px-4 py-2 text-sm text-foreground hover:bg-secondary"
+                        >
+                          {t("activeSubscription.keepPlan")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -381,7 +509,41 @@ export default function BillingPage() {
                         <ArrowRight className="h-3 w-3" />
                       </button>
                     )}
-                    {!planCard.isActive && planCard.type !== 'free' && planCard.type !== 'educational' && (
+                    {!planCard.isActive && planCard.type === 'paid' && !hasActivePaidPlan && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const livePlan = livePlanCards.find((lp: any) => lp.key === planCard.key)
+                            const planId = livePlan?.id ?? planCard.id
+                            const amount = Number(livePlan?.price ?? planCard.price ?? 0)
+                            const res = await apiFetch(API_ENDPOINTS.orders, {
+                              method: "POST",
+                              body: JSON.stringify({
+                                planId: Number(planId),
+                                amount,
+                                description: planCard.name,
+                                items: JSON.stringify([{ description: planCard.name, quantity: 1, price: amount }]),
+                              }),
+                            })
+                            if (res?.order?.id) {
+                              router.push(`/dashboard/billing/checkout?order=${res.order.id}`)
+                            }
+                          } catch (e: any) {
+                            toast({ title: t("errors.orderCreateFailed"), description: e?.message, variant: "destructive" })
+                          }
+                        }}
+                        className="mt-4 flex w-full items-center justify-center gap-2 bg-primary py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                      >
+                        {t("currentSubscription.buyNow")}
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
+                    )}
+                    {!planCard.isActive && planCard.type === 'paid' && hasActivePaidPlan && (
+                      <div className="mt-4 border border-warning/20 bg-warning/5 p-2 text-center">
+                        <p className="text-xs text-muted-foreground">{t("currentSubscription.cancelFirst")}</p>
+                      </div>
+                    )}
+                    {!planCard.isActive && planCard.type === 'enterprise' && (
                       <a
                         href="mailto:sales@ecli.app"
                         className="mt-4 flex w-full items-center justify-center gap-2 border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
@@ -431,7 +593,31 @@ export default function BillingPage() {
                     return (
                     <tr key={invoice.id} className="border-b border-border/50 transition-colors hover:bg-secondary/30">
                       <td className="px-5 py-3 font-mono text-sm text-foreground">{invoice.id}</td>
-                      <td className="px-5 py-3 text-sm text-muted-foreground">{invoice.description}</td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground">
+                        <p className="font-medium text-foreground">{invoice.planName || invoice.description}</p>
+                        {invoice.planSpecs && (
+                          <p className="text-xs mt-0.5">
+                            {[
+                              invoice.planSpecs.cpu && `${invoice.planSpecs.cpu} vCPU`,
+                              invoice.planSpecs.memory && `${invoice.planSpecs.memory}MB RAM`,
+                              invoice.planSpecs.disk && `${invoice.planSpecs.disk}MB Disk`,
+                              invoice.planSpecs.serverLimit && `${invoice.planSpecs.serverLimit} servers`,
+                            ].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                        {invoice.servicePeriod?.months && invoice.servicePeriod.months <= 24 && (
+                          <p className="text-xs text-muted-foreground/60 mt-0.5">
+                            {invoice.servicePeriod.months} Month{invoice.servicePeriod.months > 1 ? 's' : ''}
+                            {invoice.servicePeriod.from && ` · ${new Date(invoice.servicePeriod.from).toLocaleDateString()}`}
+                            {invoice.servicePeriod.to && ` — ${new Date(invoice.servicePeriod.to).toLocaleDateString()}`}
+                          </p>
+                        )}
+                        {invoice.paymentMethodLabel && (
+                          <p className="text-xs text-muted-foreground/60 mt-0.5">
+                            {invoice.paymentMethodLabel}
+                          </p>
+                        )}
+                      </td>
                       <td className="px-5 py-3 text-sm text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</td>
                       <td className="px-5 py-3">
                         <div className="font-mono text-sm text-foreground">{formatMoney(invoiceBreakdown.total, normalizedCurrency)}</div>
@@ -440,34 +626,43 @@ export default function BillingPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3">
-                        <Badge variant="outline" className="border-success/30 bg-success/10 text-success text-xs">
-                          {t("invoices.paid")}
-                        </Badge>
+                        {getStatusBadge(invoice.status)}
                       </td>
                       <td className="px-5 py-3 text-right">
-                        <button
-                          onClick={async () => {
-                            try {
-                              const res = await fetch(`/api/orders/${invoice.id}/invoice`, { credentials: 'include' });
-                              if (!res.ok) throw new Error(t("errors.failedFetchInvoice"));
-                              const blob = await res.blob();
-                              const url = URL.createObjectURL(blob);
-                              const a = document.createElement('a');
-                              a.href = url;
-                              a.download = `invoice-${invoice.id}.pdf`;
-                              document.body.appendChild(a);
-                              a.click();
-                              a.remove();
-                              URL.revokeObjectURL(url);
-                            } catch (e) {
-                              console.error(e);
-                              alert(t("errors.unableDownloadInvoice"));
-                            }
-                          }}
-                          className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          {(invoice.status === "pending" || invoice.status === "awaiting_payment") && (
+                            <button
+                              onClick={() => router.push(`/dashboard/billing/checkout?order=${invoice.id}`)}
+                              className="flex items-center gap-1 border border-primary/30 bg-primary/10 px-2 py-1 text-xs text-primary transition-colors hover:bg-primary/20"
+                            >
+                              <Wallet className="h-3 w-3" />
+                              {t("invoices.pay")}
+                            </button>
+                          )}
+                          <button
+                            onClick={async () => {
+                              try {
+                                const res = await fetch(`/api/orders/${invoice.id}/invoice`, { credentials: 'include' });
+                                if (!res.ok) throw new Error(t("errors.failedFetchInvoice"));
+                                const blob = await res.blob();
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `invoice-${invoice.id}.pdf`;
+                                document.body.appendChild(a);
+                                a.click();
+                                a.remove();
+                                URL.revokeObjectURL(url);
+                              } catch (e) {
+                                console.error(e);
+                                alert(t("errors.unableDownloadInvoice"));
+                              }
+                            }}
+                            className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                          >
+                            <Download className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )})}

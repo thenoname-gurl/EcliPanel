@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import {
   Calendar,
+  CheckCircle,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -31,6 +32,7 @@ import {
   Trash2,
   X,
   XCircle,
+  Ban,
 } from "lucide-react"
 
 export default function OrdersTab({ ctx }: { ctx: any }) {
@@ -39,6 +41,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
   const canIssueOrders = !!user && hasPermission(user, 'orders:issue')
   const canUpdateOrders = !!user && hasPermission(user, 'orders:update')
   const canDeleteOrders = !!user && hasPermission(user, 'orders:delete')
+  const canSuspendUser = !!user && hasPermission(user, 'users:suspend')
   const {
     adminOrders,
     panelSettings,
@@ -149,6 +152,57 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     pending: t("status.pending"),
     cancelled: t("status.cancelled"),
     expired: t("status.expired"),
+    awaiting_payment: t("status.awaitingPayment"),
+    payment_sent: t("status.paymentSent"),
+  }
+
+  const [confirmingPaymentId, setConfirmingPaymentId] = useState<number | null>(null)
+  const [rejectingPaymentId, setRejectingPaymentId] = useState<number | null>(null)
+  const [suspendingUserId, setSuspendingUserId] = useState<number | null>(null)
+
+  async function handleConfirmPayment(order: any) {
+    setConfirmingPaymentId(order.id)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.adminConfirmPayment.replace(":id", String(order.id)),
+        { method: "POST", body: JSON.stringify({}) }
+      )
+      fetchOrders(ordersPage, ordersQuery)
+    } catch (e: any) {
+      console.error("confirm payment failed", e)
+    } finally {
+      setConfirmingPaymentId(null)
+    }
+  }
+
+  async function handleRejectPayment(order: any) {
+    setRejectingPaymentId(order.id)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.adminRejectPayment.replace(":id", String(order.id)),
+        { method: "POST", body: JSON.stringify({}) }
+      )
+      fetchOrders(ordersPage, ordersQuery)
+    } catch (e: any) {
+      console.error("reject payment failed", e)
+    } finally {
+      setRejectingPaymentId(null)
+    }
+  }
+
+  async function handleSuspendUser(order: any) {
+    if (!order.userId) return
+    setSuspendingUserId(order.userId)
+    try {
+      await apiFetch(`${API_ENDPOINTS.adminUsers}/${order.userId}`, {
+        method: "PUT",
+        body: JSON.stringify({ suspended: true }),
+      })
+    } catch (e: any) {
+      console.error("suspend user failed", e)
+    } finally {
+      setSuspendingUserId(null)
+    }
   }
 
   return (
@@ -266,6 +320,8 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                     const statusConfig: Record<string, { class: string; dot: string }> = {
                       active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
                       pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
+                      awaiting_payment: { class: "border-info/30 bg-info/10 text-info", dot: "bg-info" },
+                      payment_sent: { class: "border-info/30 bg-info/10 text-info", dot: "bg-info" },
                       cancelled: { class: "border-muted-foreground/30 bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" },
                       expired: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
                     }
@@ -322,6 +378,48 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                            {(order.status === "awaiting_payment" || order.status === "payment_sent") && canUpdateOrders && (
+                              <>
+                              <button
+                                onClick={() => handleConfirmPayment(order)}
+                                title={t("actions.confirmPayment")}
+                                disabled={confirmingPaymentId === order.id || rejectingPaymentId === order.id}
+                                className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"
+                              >
+                                {confirmingPaymentId === order.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              <button
+                                onClick={() => handleRejectPayment(order)}
+                                title={t("actions.rejectPayment")}
+                                disabled={confirmingPaymentId === order.id || rejectingPaymentId === order.id}
+                                className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              >
+                                {rejectingPaymentId === order.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <XCircle className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                              </>
+                            )}
+                            {(order.status === "awaiting_payment" || order.status === "payment_sent") && canSuspendUser && (
+                              <button
+                                onClick={() => handleSuspendUser(order)}
+                                title={t("actions.suspendUser")}
+                                disabled={suspendingUserId === order.userId}
+                                className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                              >
+                                {suspendingUserId === order.userId ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Ban className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            )}
                             {canUpdateOrders && (
                               <button
                                 onClick={() => openEditOrder(order)}
@@ -365,6 +463,8 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
               const statusConfig: Record<string, { class: string; dot: string; borderTint: string }> = {
                 active: { class: "text-emerald-400", dot: "bg-emerald-400", borderTint: "border-emerald-500/20" },
                 pending: { class: "text-warning", dot: "bg-warning", borderTint: "border-warning/20" },
+                awaiting_payment: { class: "text-info", dot: "bg-info", borderTint: "border-info/20" },
+                payment_sent: { class: "text-info", dot: "bg-info", borderTint: "border-info/20" },
                 cancelled: { class: "text-muted-foreground", dot: "bg-muted-foreground", borderTint: "border-border" },
                 expired: { class: "text-destructive", dot: "bg-destructive", borderTint: "border-destructive/20" },
               }
@@ -428,7 +528,49 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                   )}
 
                   {/* Card Actions */}
-                  <div className="flex items-center border-t border-border divide-x divide-border">
+                   <div className="flex items-center border-t border-border divide-x divide-border">
+                    {(order.status === "awaiting_payment" || order.status === "payment_sent") && canUpdateOrders && (
+                      <>
+                      <button
+                        onClick={() => handleConfirmPayment(order)}
+                        disabled={confirmingPaymentId === order.id || rejectingPaymentId === order.id}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                      >
+                        {confirmingPaymentId === order.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCircle className="h-3.5 w-3.5" />
+                        )}
+                        <span>{t("actions.confirm")}</span>
+                      </button>
+                      <button
+                        onClick={() => handleRejectPayment(order)}
+                        disabled={confirmingPaymentId === order.id || rejectingPaymentId === order.id}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        {rejectingPaymentId === order.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <XCircle className="h-3.5 w-3.5" />
+                        )}
+                        <span>{t("actions.reject")}</span>
+                      </button>
+                      </>
+                    )}
+                    {(order.status === "awaiting_payment" || order.status === "payment_sent") && canSuspendUser && (
+                      <button
+                        onClick={() => handleSuspendUser(order)}
+                        disabled={suspendingUserId === order.userId}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        {suspendingUserId === order.userId ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Ban className="h-3.5 w-3.5" />
+                        )}
+                        <span>{t("actions.suspendUser")}</span>
+                      </button>
+                    )}
                     {canUpdateOrders && (
                       <button
                         onClick={() => openEditOrder(order)}

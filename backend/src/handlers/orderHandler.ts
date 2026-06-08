@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { Order } from '../models/order.entity';
 import { User } from '../models/user.entity';
 import { Plan } from '../models/plan.entity';
+import { PanelSetting } from '../models/panelSetting.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
@@ -11,7 +12,52 @@ import stream from 'stream';
 import path from 'path';
 import { generateInvoicePdf } from '../workers/pdfWorker';
 
+async function resolvePaymentMethodLabel(methodId: string): Promise<string | null> {
+  if (!methodId) return null;
+  try {
+    const settingRepo = AppDataSource.getRepository(PanelSetting);
+    const row = await settingRepo.findOneBy({ key: 'paymentMethods' });
+    if (!row?.value) return null;
+    const methods = JSON.parse(row.value);
+    const found = methods.find((m: any) => m.id === methodId);
+    return found?.label || null;
+  } catch {
+    return null;
+  }
+}
+
 async function renderInvoicePdf(order: Order): Promise<Buffer> {
+  const enrichedOrder: any = { ...order };
+  if ((order as any).paymentMethod) {
+    enrichedOrder.paymentMethodLabel = await resolvePaymentMethodLabel((order as any).paymentMethod);
+  }
+  if ((order as any).planId) {
+    try {
+      const planRepo = AppDataSource.getRepository(Plan);
+      const plan = await planRepo.findOneBy({ id: Number((order as any).planId) });
+      if (plan) {
+        enrichedOrder.planName = plan.name;
+        enrichedOrder.planFeatures = Array.isArray((plan as any).features?.list)
+          ? (plan as any).features.list
+          : Array.isArray((plan as any).features)
+            ? (plan as any).features
+            : [];
+      }
+    } catch {}
+  }
+  const createdAt = order.createdAt ? new Date(order.createdAt) : new Date();
+  const dueDate = new Date(createdAt.getTime() + 7 * 24 * 3600 * 1000);
+  const expiresAt = order.expiresAt ? new Date(order.expiresAt) : null;
+  const monthDiff = expiresAt
+    ? Math.min(24, Math.max(1, (expiresAt.getFullYear() - createdAt.getFullYear()) * 12 + (expiresAt.getMonth() - createdAt.getMonth())))
+    : 1;
+  enrichedOrder.invoiceDueDate = dueDate.toISOString();
+  enrichedOrder.servicePeriod = {
+    from: createdAt.toISOString(),
+    to: expiresAt ? expiresAt.toISOString() : null,
+    months: monthDiff,
+  };
+
   try {
     const userRepo = AppDataSource.getRepository(User as any);
     const u = await userRepo.findOneBy({ id: order.userId }).catch(() => null);
@@ -41,9 +87,9 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       email: process.env.INVOICE_ISSUED_FROM_EMAIL || '',
     };
     try {
-      return await generateInvoicePdf({ order, user: u, logoPath, companyName, issuedFrom });
+      return await generateInvoicePdf({ order: enrichedOrder, user: u, logoPath, companyName, issuedFrom });
     } catch (err) {
-      // skip
+      // fallback below
     }
   } catch (e) {}
   return new Promise((resolve, reject) => {
@@ -109,7 +155,7 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
       const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
       userRepo
         .findOneBy({ id: order.userId })
-        .then((u: any) => {
+        .then(async (u: any) => {
           const fullNameParts = [u?.firstName, u?.middleName, u?.lastName].filter(Boolean as any);
           const name = fullNameParts.length ? fullNameParts.join(' ') : u?.email || 'Customer';
           const billLines: string[] = [name];
@@ -146,18 +192,27 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
           curY += 8;
 
           let itemsSubtotal = 0;
-          doc.font('Helvetica').fontSize(9).fillColor('#1f2937');
-          items.forEach((it: any) => {
-            const desc = it.description || it.name || JSON.stringify(it);
+          const BASE_ROW_H = 20;
+          items.forEach((it: any, idx: number) => {
+            let desc = it.description || it.name || JSON.stringify(it);
+            if ((order as any).planFeatures?.length > 0 && idx === 0) {
+              desc += '\n' + (order as any).planFeatures.map((f: string) => `• ${f}`).join('\n');
+            }
             const qty = Number(it.quantity ?? it.qty ?? 1);
             const price = Number(it.price ?? it.unit_price ?? 0);
             const lineTotal = qty * price;
             itemsSubtotal += lineTotal;
-            doc.text(desc, 50, curY, { width: 225 });
-            doc.text(String(qty), 280, curY, { width: 40, align: 'center' });
-            doc.text(`$${price.toFixed(2)}`, 340, curY, { width: 70, align: 'right' });
-            doc.text(`$${lineTotal.toFixed(2)}`, 420, curY, { width: 125, align: 'right' });
-            curY += 16;
+            doc.font('Helvetica').fontSize(9).fillColor('#1f2937');
+            const descH = doc.heightOfString(desc, { width: 225, lineGap: 2 });
+            const rowH = Math.max(BASE_ROW_H, descH + 10);
+            // Description with wrapping, top-padded
+            doc.text(desc, 50, curY + 4, { width: 225, lineGap: 2 });
+            // Qty / Price / Total top-aligned
+            const valY = curY + (BASE_ROW_H - 10) / 2;
+            doc.text(String(qty), 280, valY, { width: 40, align: 'center', lineBreak: false });
+            doc.text(`$${price.toFixed(2)}`, 340, valY, { width: 70, align: 'right', lineBreak: false });
+            doc.text(`$${lineTotal.toFixed(2)}`, 420, valY, { width: 125, align: 'right', lineBreak: false });
+            curY += rowH;
           });
 
           curY += 8;
@@ -182,9 +237,12 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
           curY += 32;
 
           if ((order as any).paymentMethod) {
-            doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280').text('Method', 50, curY);
-            doc.font('Helvetica').fontSize(9).fillColor('#1f2937').text((order as any).paymentMethod, 50, curY + 12);
-            curY += 28;
+            const methodLabel = await resolvePaymentMethodLabel((order as any).paymentMethod);
+            if (methodLabel) {
+              doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280').text('PAYMENT DETAILS', 50, curY);
+              doc.font('Helvetica').fontSize(9).fillColor('#1f2937').text(`Method: ${methodLabel}`, 50, curY + 12);
+              curY += 28;
+            }
           }
 
           doc.moveTo(50, 785).lineTo(545, 785).strokeColor('#e5e7eb').lineWidth(0.5).stroke();
@@ -234,6 +292,44 @@ function normalizeOrder(o: any) {
     date,
     description: desc,
   };
+}
+
+async function normalizeOrderWithPayment(o: any) {
+  const base = normalizeOrder(o);
+  if (o.paymentMethod) {
+    const label = await resolvePaymentMethodLabel(o.paymentMethod);
+    if (label) base.paymentMethodLabel = label;
+  }
+  const createdAt = o.createdAt ? new Date(o.createdAt) : new Date();
+  const dueDate = new Date(createdAt.getTime() + 7 * 24 * 3600 * 1000);
+  const expiresAt = o.expiresAt ? new Date(o.expiresAt) : null;
+  const monthDiff = expiresAt
+    ? Math.min(24, Math.max(1, (expiresAt.getFullYear() - createdAt.getFullYear()) * 12 + (expiresAt.getMonth() - createdAt.getMonth())))
+    : 1;
+  base.invoiceDueDate = dueDate.toISOString();
+  base.servicePeriod = {
+    from: createdAt.toISOString(),
+    to: expiresAt ? expiresAt.toISOString() : null,
+    months: monthDiff,
+  };
+  if (o.planId) {
+    try {
+      const planRepo = AppDataSource.getRepository(Plan);
+      const plan = await planRepo.findOneBy({ id: Number(o.planId) });
+      if (plan) {
+        base.planName = plan.name;
+        base.planSpecs = {
+          cpu: plan.cpu,
+          memory: plan.memory,
+          disk: plan.disk,
+          serverLimit: plan.serverLimit,
+          backups: plan.backups,
+          databases: plan.databases,
+        };
+      }
+    } catch {}
+  }
+  return base;
 }
 
 export async function orderRoutes(app: any, prefix = '') {
@@ -309,9 +405,34 @@ export async function orderRoutes(app: any, prefix = '') {
       }
 
       const { orgId, items, amount, description, planId, notes } = body as any;
+
+      let enrichedItems = items;
+      if (planId != null) {
+        try {
+          const planRepo = AppDataSource.getRepository(Plan);
+          const plan = await planRepo.findOneBy({ id: Number(planId) });
+          if (plan) {
+            const itemDesc = description || plan.name;
+            if (items) {
+              try {
+                const parsed = JSON.parse(items);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                  parsed[0].description = parsed[0].description || itemDesc;
+                  enrichedItems = JSON.stringify(parsed);
+                }
+              } catch {}
+            } else {
+              enrichedItems = JSON.stringify([
+                { description: itemDesc, quantity: 1, price: Number(amount ?? 0) }
+              ]);
+            }
+          }
+        } catch {}
+      }
+
       const order = orderRepo.create({
         orgId,
-        items,
+        items: enrichedItems,
         amount,
         description,
         planId,
@@ -319,7 +440,7 @@ export async function orderRoutes(app: any, prefix = '') {
         userId: user.id,
         status: 'pending',
         createdAt: new Date(),
-        expiresAt: new Date(new Date().setFullYear(new Date().getFullYear() + 10)),
+        expiresAt: new Date(new Date().setMonth(new Date().getMonth() + 1)),
       });
       await orderRepo.save(order);
       return { success: true, order: normalizeOrder(order) };
@@ -351,7 +472,25 @@ export async function orderRoutes(app: any, prefix = '') {
       } else {
         rows = await orderRepo.find({ where: { userId: user.id } });
       }
-      return rows.map(normalizeOrder);
+
+      const now = new Date();
+      for (const row of rows) {
+        if (
+          (row.status === 'awaiting_payment' || row.status === 'payment_sent') &&
+          row.createdAt
+        ) {
+          const due = new Date(row.createdAt.getTime() + 7 * 24 * 3600 * 1000);
+          if (now > due) {
+            row.status = 'expired';
+            row.notes = row.notes
+              ? `${row.notes}; Expired on ${now.toISOString()}`
+              : `Expired on ${now.toISOString()}`;
+          }
+        }
+      }
+      await orderRepo.save(rows.filter(r => r.status === 'expired'));
+
+      return Promise.all(rows.map(normalizeOrderWithPayment));
     },
     {
       beforeHandle: authenticate,
@@ -456,6 +595,84 @@ export async function orderRoutes(app: any, prefix = '') {
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Download invoice PDF', tags: ['Orders'] },
+    }
+  );
+
+  app.post(
+    prefix + '/orders/:id/cancel',
+    async (ctx: any) => {
+      const user = ctx.user as any;
+      const orderId = Number(ctx.params.id);
+      const order = await orderRepo.findOneBy({ id: orderId });
+      if (!order) {
+        ctx.set.status = 404;
+        return { error: ctx.t('order.notFound') };
+      }
+      if (order.userId !== user.id) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
+      if (order.status !== 'active') {
+        ctx.set.status = 400;
+        return { error: ctx.t('payment.onlyActiveCanCancel') };
+      }
+
+      order.status = 'cancelled';
+      order.notes = order.notes
+        ? `${order.notes}; Cancelled by user on ${new Date().toISOString()}`
+        : `Cancelled by user on ${new Date().toISOString()}`;
+      await orderRepo.save(order);
+
+      const remaining = await orderRepo.find({
+        where: { userId: user.id, status: 'active' },
+      });
+      if (remaining.length === 0) {
+        const planRepo = AppDataSource.getRepository(Plan);
+        const freePlan = await planRepo.findOneBy({ type: 'free', isDefault: true });
+        if (!freePlan) {
+          const fallback = await planRepo.findOneBy({ type: 'free' });
+          if (fallback) {
+            (ctx.user as any).portalType = 'free';
+            (ctx.user as any).limits = {
+              memory: fallback.memory ?? 1024,
+              disk: fallback.disk ?? 10240,
+              cpu: fallback.cpu ?? 1,
+              serverLimit: fallback.serverLimit ?? 1,
+              databases: fallback.databases ?? 1,
+              backups: fallback.backups ?? 1,
+              portCount: fallback.portCount ?? 1,
+              tunnelPortCount: fallback.tunnelPortCount ?? 1,
+              emailSendDailyLimit: fallback.emailSendDailyLimit ?? 3,
+              emailSendQueueLimit: fallback.emailSendQueueLimit ?? 3,
+            };
+          }
+        } else {
+          const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
+          const userEntity = await userRepo.findOneBy({ id: user.id });
+          if (userEntity) {
+            userEntity.portalType = 'free';
+            userEntity.limits = {
+              memory: freePlan.memory ?? 1024,
+              disk: freePlan.disk ?? 10240,
+              cpu: freePlan.cpu ?? 1,
+              serverLimit: freePlan.serverLimit ?? 1,
+              databases: freePlan.databases ?? 1,
+              backups: freePlan.backups ?? 1,
+              portCount: freePlan.portCount ?? 1,
+              tunnelPortCount: freePlan.tunnelPortCount ?? 1,
+              emailSendDailyLimit: freePlan.emailSendDailyLimit ?? 3,
+              emailSendQueueLimit: freePlan.emailSendQueueLimit ?? 3,
+            };
+            await userRepo.save(userEntity);
+          }
+        }
+      }
+
+      return { success: true, order: normalizeOrder(order) };
+    },
+    {
+      beforeHandle: [authenticate],
+      detail: { summary: 'Cancel own active plan', tags: ['Orders'] },
     }
   );
 }

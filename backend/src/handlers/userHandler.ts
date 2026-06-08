@@ -147,7 +147,9 @@ async function safeUser(user: User): Promise<Record<string, unknown>> {
     computedAge !== null &&
     computedAge < minimumAge &&
     result.suspended === false &&
-    result.parentId === null
+    result.parentId === null &&
+    user.role !== '*' &&
+    user.role !== 'rootAdmin'
   ) {
     const fraudReason =
       (result.fraudReason as string | undefined) || `Underage account (<${minimumAge} years)`;

@@ -421,7 +421,9 @@
     "invalidSession": "Недопустимая сессия",
     "missingCSRFToken": "Отсутствует CSRF-токен",
     "invalidCSRFToken": "Недопустимый CSRF-токен",
-    "ageVerificationRequired": "Для использования функций управления сервером требуется подтверждение возраста."
+    "ageVerificationRequired": "Для использования функций управления сервером требуется подтверждение возраста.",
+    "paymentMethodRequired": "ID способа оплаты обязателен",
+    "invalidPaymentMethods": "Неверные данные способов оплаты"
   },
   "admin": {
     "accessRequired": "Требуется доступ администратора.",
@@ -500,6 +502,17 @@
     "targetNodeFailed": "Узел не найден для этого сервера",
     "onlyOrgZone": "Может быть создана только зона организации"
   },
+  "payment": {
+    "methodNotFound": "Способ оплаты не найден",
+    "orderNotPending": "Заказ больше не ожидает оплаты",
+    "invalidStatus": "Заказ не в статусе ожидания оплаты",
+    "cannotConfirm": "Невозможно подтвердить этот заказ в текущем статусе",
+    "tooManyMethods": "Слишком много способов оплаты (макс. 20)",
+    "invalidMethod": "Неверные данные способа оплаты для метода {id}",
+    "methodSaved": "Способы оплаты сохранены",
+    "methodSaveFailed": "Не удалось сохранить способы оплаты",
+    "paymentConfirmed": "Платёж подтверждён и заказ активирован"
+  },
   "order": {
     "notFound": "Заказ не найден",
     "childFreeOrEduOnly": "Детские учётные записи могут создавать только бесплатные или образовательные заказы.",
@@ -513,6 +526,32 @@
     "freeOrEduOnly": "child_accounts_can_only_order_free_or_edu_plans",
     "childCannotCreateOrgOrders": "child_accounts_cannot_create_org_orders",
     "childCannotCreatePaidOrders": "child_accounts_cannot_create_paid_orders"
+  },
+  "paymentInstructions": {
+    "subject": "Заказ №{orderId} — Инструкции по оплате",
+    "heading": "Инструкции по оплате",
+    "hello": "Здравствуйте,",
+    "thankYou": "Спасибо за ваш заказ №{orderId}.",
+    "details": "Пожалуйста, отправьте {amount} через {method}.",
+    "method": "Способ оплаты: {method}",
+    "address": "Адрес оплаты:",
+    "walletAddress": "Адрес кошелька:",
+    "network": "Сеть: {network}",
+    "currency": "Валюта: {currency}",
+    "instructions": "Дополнительные инструкции:",
+    "afterSend": "После отправки платежа отметьте заказ как «Платёж отправлен» в панели биллинга.",
+    "fallback": "По вопросам обращайтесь в поддержку.",
+    "preview": "Инструкции по оплате вашего заказа",
+    "poweredBy": "Работает на EcliPanel"
+  },
+  "paymentConfirmedEmail": {
+    "subject": "Заказ №{orderId} — Платёж подтверждён",
+    "heading": "Платёж подтверждён",
+    "hello": "Здравствуйте,",
+    "body": "Ваш платёж за заказ №{orderId} на сумму {amount} был подтверждён.",
+    "activated": "Ваш заказ активен, и все связанные лимиты применены к вашей учётной записи.",
+    "preview": "Ваш платёж подтверждён",
+    "poweredBy": "Работает на EcliPanel"
   },
   "email": {
     "passwordReset": {

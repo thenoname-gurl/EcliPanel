@@ -610,6 +610,7 @@ const ADMIN_PAGE_PERMISSIONS = [
   'admin:plans:delete',
   'admin:plans:reapply',
   'admin:plans:forcereapply',
+  'admin:payment:manage',
   'orders:view',
   'orders:issue',
   'orders:update',
@@ -2581,6 +2582,12 @@ export async function adminRoutes(app: any, prefix = '') {
         fraudReason,
         guideShown,
       } = ctx.body as any;
+
+      if (suspended === true && (user.role === '*' || user.role === 'rootAdmin')) {
+        ctx.set.status = 403;
+        return { error: ctx.t('user.cannotSuspendAdmin', 'Cannot suspend admin accounts') };
+      }
+
       const nodeRepo = AppDataSource.getRepository(Node);
       const asTrimmedString = (value: any) => {
         if (value === undefined || value === null) return null;
@@ -2735,9 +2742,11 @@ export async function adminRoutes(app: any, prefix = '') {
           const updatedAge = getAgeFromDate(dob);
           const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
           if (updatedAge !== null && updatedAge < minimumAge) {
-            user.suspended = true;
-            user.fraudFlag = true;
-            user.fraudReason = `Underage account (<${minimumAge} years)`;
+            if (user.role !== '*' && user.role !== 'rootAdmin') {
+              user.suspended = true;
+              user.fraudFlag = true;
+              user.fraudReason = `Underage account (<${minimumAge} years)`;
+            }
           }
           user.dateOfBirth = dob;
         }
@@ -7605,6 +7614,10 @@ export async function adminRoutes(app: any, prefix = '') {
         user.fraudReason = undefined;
         user.fraudDetectedAt = undefined;
       } else if (action === 'suspend') {
+        if (user.role === '*' || user.role === 'rootAdmin') {
+          ctx.set.status = 403;
+          return { error: ctx.t('user.cannotSuspendAdmin', 'Cannot suspend admin accounts') };
+        }
         user.suspended = true;
       }
       await userRepo.save(user);
@@ -8207,7 +8220,9 @@ export async function adminRoutes(app: any, prefix = '') {
       const per = 50;
       const p = Math.max(1, Number(page) || 1);
 
-      let qb = orderRepo.createQueryBuilder('o').orderBy('o.createdAt', 'DESC');
+      let qb = orderRepo.createQueryBuilder('o')
+        .orderBy(`CASE WHEN o.status IN ('awaiting_payment','payment_sent') THEN 0 ELSE 1 END`, 'ASC')
+        .addOrderBy('o.createdAt', 'DESC');
 
       if (q && String(q).trim() !== '') {
         const qstr = String(q).trim();
@@ -8264,13 +8279,27 @@ export async function adminRoutes(app: any, prefix = '') {
       }
 
       const userRepo = AppDataSource.getRepository(User);
-      const user = await userRepo.findOneBy({ id: Number(userId) });
+      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
       if (!user) {
         ctx.set.status = 404;
         return { error: ctx.t('user.notFound') };
       }
 
       const orderRepo = AppDataSource.getRepository(Order);
+
+      let orderItems = items || (planId ? `plan:${planId}` : 'admin:manual');
+      if (planId) {
+        try {
+          const planRepo2 = AppDataSource.getRepository(Plan);
+          const plan = await planRepo2.findOneBy({ id: Number(planId) });
+          if (plan) {
+            orderItems = JSON.stringify([
+              { description: description || plan.name, quantity: 1, price: Number(amount ?? plan.price ?? 0) }
+            ]);
+          }
+        } catch {}
+      }
+
       const order = orderRepo.create({
         userId: Number(userId),
         description: description || undefined,
@@ -8278,12 +8307,12 @@ export async function adminRoutes(app: any, prefix = '') {
         amount: amount != null ? Number(amount) : 0,
         taxAmount: taxAmount != null ? Number(taxAmount) : 0,
         taxRate: taxRate != null ? Number(taxRate) : 0,
-        items: items || (planId ? `plan:${planId}` : 'admin:manual'),
+        items: orderItems,
         status: 'pending',
         notes: notes || undefined,
         createdAt: new Date(),
-        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 3600 * 1000),
-        // Fuck leap year atp.
+        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 3600 * 1000),
+        // Fuck leap month atp.
       });
       await orderRepo.save(order);
       return { success: true, order };
@@ -8608,6 +8637,31 @@ export async function adminRoutes(app: any, prefix = '') {
         await orderRepo.save(orders);
       }
 
+      const remaining = await orderRepo.find({ where: { userId, status: 'active' } });
+      if (remaining.length === 0) {
+        const userRepo = AppDataSource.getRepository(User);
+        const planRepo = AppDataSource.getRepository(Plan);
+        const user = await userRepo.findOneBy({ id: userId });
+        if (user) {
+          const freePlan = await planRepo.findOneBy({ type: 'free', isDefault: true });
+          const fp = freePlan || await planRepo.findOneBy({ type: 'free' });
+          user.portalType = 'free';
+          user.limits = {
+            memory: fp?.memory ?? 1024,
+            disk: fp?.disk ?? 10240,
+            cpu: fp?.cpu ?? 1,
+            serverLimit: fp?.serverLimit ?? 1,
+            databases: fp?.databases ?? 1,
+            backups: fp?.backups ?? 1,
+            portCount: fp?.portCount ?? 1,
+            tunnelPortCount: fp?.tunnelPortCount ?? 1,
+            emailSendDailyLimit: fp?.emailSendDailyLimit ?? 3,
+            emailSendQueueLimit: fp?.emailSendQueueLimit ?? 3,
+          };
+          await userRepo.save(user);
+        }
+      }
+
       return { success: true };
     },
     {
@@ -8696,6 +8750,20 @@ export async function adminRoutes(app: any, prefix = '') {
         if (node?.cost != null) effectiveAmount = Number(node.cost);
       }
       const orderRepo = AppDataSource.getRepository(Order);
+
+      const prevActive = await orderRepo.find({
+        where: { userId, status: 'active' },
+      });
+      if (prevActive.length > 0) {
+        for (const prev of prevActive) {
+          prev.status = 'cancelled';
+          prev.notes = prev.notes
+            ? `${prev.notes}; Replaced by plan "${plan.name}" on ${new Date().toISOString()}`
+            : `Replaced by plan "${plan.name}" on ${new Date().toISOString()}`;
+        }
+        await orderRepo.save(prevActive);
+      }
+
       const order = orderRepo.create({
         userId,
         description: `${plan.name}${temporary ? ' (temporary)' : ''}`,
@@ -8703,11 +8771,13 @@ export async function adminRoutes(app: any, prefix = '') {
         amount: effectiveAmount,
         taxAmount: taxAmount != null ? Number(taxAmount) : 0,
         taxRate: taxRate != null ? Number(taxRate) : 0,
-        items: `plan:${plan.id}`,
+        items: JSON.stringify([
+          { description: plan.name, quantity: 1, price: effectiveAmount }
+        ]),
         status: 'active',
         notes: notes || undefined,
         createdAt: new Date(),
-        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 365 * 24 * 3600 * 1000),
+        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 3600 * 1000),
       });
       await orderRepo.save(order);
 

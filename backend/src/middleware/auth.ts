@@ -101,15 +101,19 @@ export async function authenticate(ctx: any) {
     }
 
     if (user.suspended) {
-      ctx.set.status = 403;
-      return { error: t('user.accountSuspended', 'Account suspended') };
+      if (user.role !== '*' && user.role !== 'rootAdmin') {
+        ctx.set.status = 403;
+        return { error: t('user.accountSuspended', 'Account suspended') };
+      }
     }
 
     if (user.pendingDeletionUntil && new Date(user.pendingDeletionUntil) > new Date()) {
-      ctx.set.status = 403;
-      return {
-        error: t('user.accountIsPendingDeletionAndCurrentlyFrozen', 'Account pending deletion'),
-      };
+      if (user.role !== '*' && user.role !== 'rootAdmin') {
+        ctx.set.status = 403;
+        return {
+          error: t('user.accountIsPendingDeletionAndCurrentlyFrozen', 'Account pending deletion'),
+        };
+      }
     }
 
     ctx.user = user;
