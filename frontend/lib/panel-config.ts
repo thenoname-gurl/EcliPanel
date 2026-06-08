@@ -263,9 +263,18 @@ export const API_ENDPOINTS = {
   billing: "/api/billing",
   invoices: "/api/billing/invoices",
   subscribe: "/api/billing/subscribe",
+  // Payments
+  paymentMethods: "/api/payments/methods",
+  orderCheckout: "/api/orders/:id/checkout",
+  orderMarkSent: "/api/orders/:id/mark-sent",
+  orderPaymentStatus: "/api/orders/:id/payment-status",
+  adminPaymentMethods: "/api/admin/payment-methods",
+  adminConfirmPayment: "/api/admin/orders/:id/confirm-payment",
+  adminRejectPayment: "/api/admin/orders/:id/reject-payment",
   // Orders
   orders: "/api/orders",
   orderDetail: "/api/orders/:id",
+  orderCancel: "/api/orders/:id/cancel",
 
   // Plans
   plans: "/api/plans",

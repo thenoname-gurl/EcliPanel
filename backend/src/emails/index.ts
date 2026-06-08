@@ -9,6 +9,8 @@ import { DeletionApproved } from './DeletionApproved';
 import { DeletionDeleted } from './DeletionDeleted';
 import { DeletionRejected } from './DeletionRejected';
 import { SunsetPolicy } from './SunsetPolicy';
+import { PaymentInstructions } from './PaymentInstructions';
+import { PaymentConfirmed } from './PaymentConfirmed';
 
 export const emailTemplates = {
   'email-verify': EmailVerify,
@@ -22,6 +24,8 @@ export const emailTemplates = {
   'deletion-deleted': DeletionDeleted,
   'deletion-rejected': DeletionRejected,
   'sunset-policy': SunsetPolicy,
+  'payment-instructions': PaymentInstructions,
+  'payment-confirmed': PaymentConfirmed,
 } as const;
 
 export type TemplateName = keyof typeof emailTemplates;

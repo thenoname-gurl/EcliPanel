@@ -37,6 +37,27 @@ export class Order {
   @Column({ nullable: true, type: 'text' })
   notes?: string;
 
+  @Column({ nullable: true })
+  paymentMethod?: string;
+
+  @Column({ nullable: true })
+  paymentTxId?: string;
+
+  @Column({ nullable: true })
+  paymentProvider?: string;
+
+  @Column({ nullable: true })
+  cryptoAddress?: string;
+
+  @Column('float', { nullable: true })
+  cryptoAmount?: number;
+
+  @Column({ nullable: true })
+  cryptoCurrency?: string;
+
+  @Column({ nullable: true })
+  cryptoNetwork?: string;
+
   @Column('datetime')
   createdAt: Date;
 

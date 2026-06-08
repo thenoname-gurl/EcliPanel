@@ -20,17 +20,24 @@ function buildDefaultFromAddress() {
   return 'noreply@ecli.app';
 }
 
+function quoteName(name: string) {
+  if (!name) return name;
+  if (name.startsWith('"') && name.endsWith('"')) return name;
+  return `"${name}"`;
+}
+
 function normalizeFromHeader(from: nodemailer.SendMailOptions['from']) {
   const defaultName = process.env.SMTP_FROM_NAME || process.env.MAIL_FROM_NAME || 'EclipseSystems';
-  const fallback = `${defaultName} <${buildDefaultFromAddress()}>`;
+  const fallback = `${quoteName(defaultName)} <${buildDefaultFromAddress()}>`;
 
   if (!from) return fallback;
 
   if (typeof from === 'string') {
     const trimmed = from.trim();
     if (!trimmed) return fallback;
+    if (trimmed.startsWith('"') && trimmed.includes('<')) return trimmed;
     if (trimmed.includes('<') && trimmed.includes('>')) return trimmed;
-    if (trimmed.includes('@')) return `${defaultName} <${trimmed}>`;
+    if (trimmed.includes('@')) return `${quoteName(defaultName)} <${trimmed}>`;
     return fallback;
   }
 
@@ -43,7 +50,7 @@ function normalizeFromHeader(from: nodemailer.SendMailOptions['from']) {
     const addrObj = from as { address?: string; name?: string };
     const address = addrObj.address?.trim() || buildDefaultFromAddress();
     const name = addrObj.name?.trim() || defaultName;
-    return `${name} <${address}>`;
+    return `${quoteName(name)} <${address}>`;
   }
 
   return fallback;

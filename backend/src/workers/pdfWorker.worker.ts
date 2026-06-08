@@ -74,26 +74,30 @@ self.addEventListener('message', async (ev: any) => {
       .text('INVOICE', ML, MT, { width: CW, align: 'right' });
 
     const issuedAt = order.createdAt ? new Date(order.createdAt) : new Date();
-    const dueAt = order.expiresAt ? new Date(order.expiresAt) : null;
+    const dueAt = order.invoiceDueDate ? new Date(order.invoiceDueDate) : (order.expiresAt ? new Date(order.expiresAt) : new Date(issuedAt.getTime() + 7 * 24 * 3600 * 1000));
     doc.font('Helvetica').fontSize(9).fillColor('#374151');
     doc.text(`Invoice #${order.id}`, ML, MT + 30, { width: CW, align: 'right' });
     doc.text(
       `Date: ${issuedAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
       ML, MT + 42, { width: CW, align: 'right' }
     );
-    if (dueAt) {
-      doc.text(
-        `Due: ${dueAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
-        ML, MT + 54, { width: CW, align: 'right' }
-      );
-    }
+    doc.text(
+      `Due: ${dueAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+      ML, MT + 54, { width: CW, align: 'right' }
+    );
 
-    const statusText =
-      order.status === 'paid' || order.status === 'completed' || order.status === 'active'
-        ? order.status.toUpperCase()
-        : (order.status?.toUpperCase() || 'PENDING');
+    const statusMap: Record<string, string> = {
+      payment_sent: 'AWAITING VERIFICATION',
+      awaiting_payment: 'AWAITING PAYMENT',
+      pending: 'PENDING',
+    };
 
-    const isGoodStatus = order.status === 'paid' || order.status === 'completed' || order.status === 'active';
+    const rawStatus = order.status || 'pending';
+    const statusText = statusMap[rawStatus] || rawStatus.toUpperCase();
+
+    const isGoodStatus = rawStatus === 'paid' || rawStatus === 'completed' || rawStatus === 'active';
+    const isBadStatus = rawStatus === 'cancelled' || rawStatus === 'rejected' || rawStatus === 'expired';
+    const statusColor = isGoodStatus ? '#059669' : isBadStatus ? '#dc2626' : '#b45309';
 
     const statusLabel = 'Status ';
     doc.font('Helvetica').fontSize(8);
@@ -102,14 +106,14 @@ self.addEventListener('message', async (ev: any) => {
     const valueW = doc.widthOfString(statusText);
     const totalStatusW = labelW + valueW;
 
-    const statusLineY = dueAt ? MT + 68 : MT + 56;
+    const statusLineY = MT + 68;
 
     doc.font('Helvetica').fontSize(8).fillColor('#6b7280')
       .text(statusLabel, ML + CW - totalStatusW, statusLineY, { continued: true });
-    doc.font('Helvetica-Bold').fontSize(8).fillColor(isGoodStatus ? '#059669' : '#b45309')
+    doc.font('Helvetica-Bold').fontSize(8).fillColor(statusColor)
       .text(statusText);
 
-    let curY = dueAt ? MT + 95 : MT + 80;
+    let curY = MT + 95;
 
     doc.save();
     doc.moveTo(ML, curY).lineTo(ML + CW, curY).strokeColor('#e5e7eb').lineWidth(1).stroke();
@@ -174,7 +178,16 @@ self.addEventListener('message', async (ev: any) => {
     try { items = JSON.parse(order.items); } catch { items = []; }
     if (!Array.isArray(items)) items = [];
     if (items.length === 0 && order.description) {
-      items = [{ description: order.description || 'Service', quantity: 1, price: Number(order.amount ?? 0) }];
+      items = [{ description: order.description, quantity: 1, price: Number(order.amount ?? 0) }];
+    }
+
+    if (order.status === 'active' && order.servicePeriod?.months && order.servicePeriod.months <= 24) {
+      const sp = order.servicePeriod;
+      const fromStr = new Date(sp.from).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      const toStr = sp.to ? new Date(sp.to).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A';
+      doc.font('Helvetica').fontSize(8).fillColor('#6b7280')
+        .text(`Period: ${sp.months} Month${sp.months > 1 ? 's' : ''} (${fromStr} - ${toStr})`, ML, curY);
+      curY += 14;
     }
 
     const ROW_H = 24;
@@ -203,26 +216,30 @@ self.addEventListener('message', async (ev: any) => {
 
     let subtotal = 0;
     items.forEach((it: any, i: number) => {
-      const desc = it.description || it.name || JSON.stringify(it);
       const qty = Number(it.quantity ?? it.qty ?? 1);
       const price = Number(it.price ?? it.unit_price ?? 0);
       const lineTotal = qty * price;
       subtotal += lineTotal;
 
-      const cols = [
-        { x: TBL.desc.x, w: TBL.desc.w, text: desc, align: 'left' as const },
-        { x: TBL.qty.x, w: TBL.qty.w, text: String(qty), align: 'center' as const },
-      { x: TBL.price.x, w: TBL.price.w, text: `$${price.toFixed(2)}`, align: 'right' as const },
-      { x: TBL.total.x, w: TBL.total.w, text: `$${lineTotal.toFixed(2)}`, align: 'right' as const },
-      ];
-      drawTableRow(doc, curY, ROW_H, cols);
+      let desc = it.description || it.name || JSON.stringify(it);
+      if (order.planFeatures && order.planFeatures.length > 0 && i === 0) {
+        desc += '\n' + order.planFeatures.map((f: string) => `• ${f}`).join('\n');
+      }
 
-      doc.save();
-      doc.moveTo(ML, curY + ROW_H)
-        .lineTo(ML + CW, curY + ROW_H).strokeColor('#f3f4f6').lineWidth(0.3).stroke();
-      doc.restore();
+      doc.font('Helvetica').fontSize(9).fillColor('#1f2937');
+      const descH = doc.heightOfString(desc, { width: TBL.desc.w, lineGap: 2 });
+      const rowH = Math.max(ROW_H, descH + 12);
 
-      curY += ROW_H;
+      // Description with wrapping
+      doc.text(desc, TBL.desc.x, curY + 6, { width: TBL.desc.w, lineGap: 2 });
+
+      // Qty / Price / Total top-aligned
+      const valY = curY + (ROW_H - 10) / 2;
+      doc.text(String(qty), TBL.qty.x, valY, { width: TBL.qty.w, align: 'center', lineBreak: false });
+      doc.text(`$${price.toFixed(2)}`, TBL.price.x, valY, { width: TBL.price.w, align: 'right', lineBreak: false });
+      doc.text(`$${lineTotal.toFixed(2)}`, TBL.total.x, valY, { width: TBL.total.w, align: 'right', lineBreak: false });
+
+      curY += rowH;
     });
 
     curY += 12;
@@ -267,23 +284,23 @@ self.addEventListener('message', async (ev: any) => {
 
     curY += 28;
 
-    if (order.paymentMethod || order.transactionId || order.notes) {
+    if (order.paymentMethod || order.paymentMethodLabel || order.transactionId || order.notes) {
       doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280').text('PAYMENT DETAILS', ML, curY);
       curY += 14;
 
       doc.font('Helvetica').fontSize(9).fillColor('#374151');
-      if (order.paymentMethod) {
+      if (order.paymentMethodLabel || order.paymentMethod) {
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280')
           .text('Method:', ML, curY, { continued: true });
         doc.font('Helvetica').fontSize(9).fillColor('#1f2937')
-          .text(` ${order.paymentMethod}`);
+          .text(` ${order.paymentMethodLabel || order.paymentMethod}`);
         curY += 14;
       }
-      if (order.transactionId) {
+      if (order.transactionId || order.paymentTxId) {
         doc.font('Helvetica-Bold').fontSize(8).fillColor('#6b7280')
           .text('Transaction ID:', ML, curY, { continued: true });
         doc.font('Helvetica').fontSize(9).fillColor('#1f2937')
-          .text(` ${order.transactionId}`);
+          .text(` ${order.transactionId || order.paymentTxId}`);
         curY += 14;
       }
       if (order.notes) {

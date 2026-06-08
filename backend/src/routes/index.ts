@@ -31,6 +31,7 @@ import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
 import { visualEditorRoutes } from '../handlers/visualEditorHandler';
 import { sharedFileRoutes, publicSharedFileRoutes } from '../handlers/sharedFileHandler';
+import { paymentRoutes } from '../handlers/paymentHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 
@@ -53,6 +54,7 @@ export function registerRoutes(app: any) {
       { prefix: '/api/public/applications', feature: 'applications' },
       { prefix: '/api/orders', feature: 'billing' },
       { prefix: '/api/admin/orders', feature: 'billing' },
+      { prefix: '/api/payments', feature: 'billing' },
       { prefix: '/api/plans', feature: 'billing' },
       { prefix: '/api/oauth', feature: 'oauth' },
       { prefix: '/api/tunnel', feature: 'tunnels' },
@@ -120,4 +122,5 @@ export function registerRoutes(app: any) {
   publicSharedFileRoutes(app, '');
   applicationRoutes(app, '/api');
   visualEditorRoutes(app, '/api');
+  paymentRoutes(app, '/api');
 }

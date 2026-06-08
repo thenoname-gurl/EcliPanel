@@ -421,7 +421,9 @@
     "invalidSession": "Invalid session",
     "missingCSRFToken": "Missing CSRF token",
     "invalidCSRFToken": "Invalid CSRF token",
-    "ageVerificationRequired": "Age verification is required before using server management features."
+    "ageVerificationRequired": "Age verification is required before using server management features.",
+    "paymentMethodRequired": "Payment method ID is required",
+    "invalidPaymentMethods": "Invalid payment methods data"
   },
   "admin": {
     "accessRequired": "Admin access required.",
@@ -499,6 +501,17 @@
     "linkNotFound": "Link not found",
     "targetNodeFailed": "Node not found for this server",
     "onlyOrgZone": "Only organisation handle zone can be created"
+  },
+  "payment": {
+    "methodNotFound": "Payment method not found",
+    "orderNotPending": "Order is no longer pending",
+    "invalidStatus": "Order is not in awaiting_payment status",
+    "cannotConfirm": "Cannot confirm this order in its current state",
+    "tooManyMethods": "Too many payment methods (max 20)",
+    "invalidMethod": "Invalid payment method data for method {id}",
+    "methodSaved": "Payment methods saved",
+    "methodSaveFailed": "Failed to save payment methods",
+    "paymentConfirmed": "Payment confirmed and order activated"
   },
   "order": {
     "notFound": "Order not found",
@@ -660,8 +673,42 @@
   "orders": {
     "childCannotCreateOrg": "Child accounts may not create organisation orders.",
     "childCanOnlyFreeOrEdu": "Child accounts can only create free or education orders.",
+    "childCannotUpdateBilling": "Child accounts cannot update billing or address information.",
+    "childNoOrgOrders": "Child accounts may not create organisation orders.",
+    "childFreeOrEduPlanOnly": "Child accounts may only order free or education plans.",
+    "yourCountryRestricted": "Your country is restricted from free portal services.",
+    "yourCountryRestrictedEdu": "Your country is restricted from free and educational portal services.",
     "planNotFound": "Plan not found",
-    "childCanOnlyOrderFreeOrEdu": "Child accounts may only order free or education plans."
+    "invalidPlanId": "invalid_plan_id",
+    "freeOrEduOnly": "child_accounts_can_only_order_free_or_edu_plans",
+    "childCannotCreateOrgOrders": "child_accounts_cannot_create_org_orders",
+    "childCannotCreatePaidOrders": "child_accounts_cannot_create_paid_orders"
+  },
+  "paymentInstructions": {
+    "subject": "Order #{orderId} - Payment Instructions",
+    "heading": "Payment Instructions",
+    "hello": "Hello,",
+    "thankYou": "Thank you for your order #{orderId}.",
+    "details": "Please send {amount} via {method}.",
+    "method": "Payment Method: {method}",
+    "address": "Payment address:",
+    "walletAddress": "Wallet address:",
+    "network": "Network: {network}",
+    "currency": "Currency: {currency}",
+    "instructions": "Additional instructions:",
+    "afterSend": "After sending the payment, mark your order as 'Payment Sent' from your billing panel.",
+    "fallback": "For questions, contact support.",
+    "preview": "Payment instructions for your order",
+    "poweredBy": "Powered by EcliPanel"
+  },
+  "paymentConfirmedEmail": {
+    "subject": "Order #{orderId} - Payment Confirmed",
+    "heading": "Payment Confirmed",
+    "hello": "Hello,",
+    "body": "Your payment for order #{orderId} of {amount} has been confirmed.",
+    "activated": "Your order is now active and any associated limits have been applied to your account.",
+    "preview": "Your payment has been confirmed",
+    "poweredBy": "Powered by EcliPanel"
   },
   "parentLink": {
     "tokenInvalid": "Parent registration token is invalid or has already been used.",
