@@ -83,15 +83,6 @@ export default async function MinimumAgePage() {
               </p>
               <p className="mt-2 text-3xl font-semibold text-white">14 years</p>
             </div>
-            <div className="bg-white/10 p-5">
-              <p className="text-2xl font-semibold text-white/70">
-                Parent registration invite
-              </p>
-              <p className="mt-2 text-[16px] leading-10 text-white">
-                Parents may invite children below the standard minimum age to
-                register and link accounts with parental consent.
-              </p>
-            </div>
           </div>
         </section>
 

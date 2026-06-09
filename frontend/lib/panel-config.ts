@@ -85,16 +85,7 @@ export const API_ENDPOINTS = {
   userRegister: "/api/users/register",
   userDetail: "/api/users/:id",
   userGuide: "/api/users/:id/guide",
-  parentLinkRequests: "/api/users/me/parent-link-requests",
-  parentLinkRequestAccept: "/api/users/me/parent-link-requests/:id/accept",
-  parentRegistrationInvites: "/api/users/me/parent-registration-invites",
-  parentRegistrationInviteRevoke: "/api/users/me/parent-registration-invites/:inviteId",
-  usersMeChildren: "/api/users/me/children",
-  usersMeParent: "/api/users/me/parent",
-  childUpdate: "/api/users/me/children/:childId",
-  childServers: "/api/users/me/children/:childId/servers",
-  childOrders: "/api/users/me/children/:childId/orders",
-  childOrganisations: "/api/users/me/children/:childId/organisations",
+
   orderInvoice: "/api/orders/:id/invoice",
 
   // Organisations
@@ -571,7 +562,7 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   "Subuser Invites": "subuserInvites",
   Billing: "billing",
   Settings: "settings",  
-  "Family": "family",  
+
   Tunnels: "tunnels",
   "Admin Panel": "adminPanel",
 }
@@ -686,11 +677,7 @@ export const NAVIGATION: NavSection[] = [
         icon: CreditCard,
         feature: "billing",
       },
-      {
-        label: "Family",
-        href: "/dashboard/family",
-        icon: User,
-      },
+
       {
         label: "Settings",
         href: "/dashboard/settings",

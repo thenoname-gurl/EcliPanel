@@ -58,8 +58,6 @@ export { ApplicationForm } from '../models/applicationForm.entity';
 export { ApplicationFormInvite } from '../models/applicationFormInvite.entity';
 export { ApplicationSubmission } from '../models/applicationSubmission.entity';
 export { GithubContributor } from '../models/githubContributor.entity';
-export { ParentLinkRequest } from '../models/parentLinkRequest.entity';
-export { ParentRegistrationInvite } from '../models/parentRegistrationInvite.entity';
 export { Rollout } from '../models/rollout.entity';
 export { RolloutUserOverride } from '../models/rolloutUserOverride.entity';
 export { TunnelAllocation } from '../models/tunnelAllocation.entity';

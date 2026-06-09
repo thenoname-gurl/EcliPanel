@@ -12,8 +12,6 @@ import { createActivityLog } from './logHandler';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync, authorize } from '../middleware/authorize';
 import { UserLog } from '../models/userLog.entity';
-import { ParentLinkRequest } from '../models/parentLinkRequest.entity';
-import { ParentRegistrationInvite } from '../models/parentRegistrationInvite.entity';
 import {
   ensureMailboxAccountForUser,
   getMailboxAccountForUser,
@@ -102,9 +100,6 @@ const userSchema = t.Object({
   limits: t.Optional(t.Any()),
   settings: t.Optional(t.Any()),
   dateOfBirth: t.Optional(t.String()),
-  parentId: t.Optional(t.Number()),
-  age: t.Optional(t.Number()),
-  isChildAccount: t.Optional(t.Boolean()),
   ageVerificationRequired: t.Boolean(),
   emailVerified: t.Boolean(),
   studentVerified: t.Boolean(),
@@ -138,8 +133,6 @@ async function safeUser(user: User): Promise<Record<string, unknown>> {
 
   const computedAge = getAgeFromDate(result.dateOfBirth as string | Date | undefined | null);
   result.age = computedAge === null ? undefined : computedAge;
-  result.isChildAccount =
-    computedAge != null ? isMinorByCountry(computedAge, result.billingCountry as string) : undefined;
   result.ageVerificationRequired = !result.dateOfBirth;
 
   const minimumAge = await getMinimumAgeForCountry(result.billingCountry as string);
@@ -147,7 +140,6 @@ async function safeUser(user: User): Promise<Record<string, unknown>> {
     computedAge !== null &&
     computedAge < minimumAge &&
     result.suspended === false &&
-    result.parentId === null &&
     user.role !== '*' &&
     user.role !== 'rootAdmin'
   ) {
@@ -179,10 +171,6 @@ async function safeUser(user: User): Promise<Record<string, unknown>> {
   }
 
   return result;
-}
-
-function generateParentLinkCode(): string {
-  return randomHex(3).toUpperCase();
 }
 
 async function enforceUserMutationRateLimit(
@@ -296,64 +284,10 @@ export async function userRoutes(app: any, prefix = '') {
       } catch {}
 
        const body = ctx.body as Partial<User>;
-       const rawToken = getStringField(ctx.body, 'parentRegistrationToken', '').trim();
-       const parentRegistrationToken = rawToken || undefined;
+       const userRepo = AppDataSource.getRepository(User);
 
-      const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
-      const userRepo = AppDataSource.getRepository(User);
-      let parentRegistrationInvite: ParentRegistrationInvite | null = null;
-      if (parentRegistrationToken) {
-        parentRegistrationInvite = await inviteRepo.findOneBy({
-          token: parentRegistrationToken,
-          used: false,
-        });
-        if (!parentRegistrationInvite) {
-          ctx.set.status = 400;
-          return {
-            error: ctx.t('auth.invalidParentRegistrationToken'),
-            message: ctx.t('parentLink.tokenInvalid'),
-          };
-        }
-        const normalizedEmail = String(body.email || '')
-          .trim()
-          .toLowerCase();
-        if (
-          parentRegistrationInvite.childEmail &&
-          parentRegistrationInvite.childEmail !== normalizedEmail
-        ) {
-          ctx.set.status = 400;
-          return { error: 'email_mismatch', message: ctx.t('parentLink.emailMismatch') };
-        }
-        body.parentId = parentRegistrationInvite.parentId;
-
-        if (parentRegistrationInvite.inheritBilling) {
-          const parentUser = await userRepo.findOneBy({ id: parentRegistrationInvite.parentId });
-          if (parentUser) {
-            if (!body.phone && parentUser.phone) body.phone = parentUser.phone;
-            if (!body.address && parentUser.address) body.address = parentUser.address;
-            if (!body.address2 && parentUser.address2) body.address2 = parentUser.address2;
-            if (!body.billingCompany && parentUser.billingCompany)
-              body.billingCompany = parentUser.billingCompany;
-            if (!body.billingCity && parentUser.billingCity)
-              body.billingCity = parentUser.billingCity;
-            if (!body.billingState && parentUser.billingState)
-              body.billingState = parentUser.billingState;
-            if (!body.billingZip && parentUser.billingZip) body.billingZip = parentUser.billingZip;
-            if (!body.billingCountry && parentUser.billingCountry)
-              body.billingCountry = parentUser.billingCountry;
-          }
-        }
-
-        if (!body.address) {
-          body.address = '';
-        }
-      }
-
-      const valid = await validateUserRegistration(ctx, ctx, {
-        skipMinimumAge: !!parentRegistrationInvite,
-        skipAddressFields: !!parentRegistrationInvite,
-      });
-      if (!valid) {
+       const valid = await validateUserRegistration(ctx, ctx, {});
+       if (!valid) {
         const validation = ctx.body as unknown as ValidationErrorBody | undefined;
         const found = validation?.found || {};
         const errorMessage =
@@ -373,7 +307,7 @@ export async function userRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return {
           error: ctx.t('common.invalidDateOfBirth'),
-          message: ctx.t('parentLink.dobFormat'),
+          message: ctx.t('common.invalidDateOfBirth'),
         };
       }
       body.dateOfBirth = dateOfBirth;
@@ -385,53 +319,8 @@ export async function userRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return {
           error: ctx.t('auth.registrationEmailReserved'),
-          message: ctx.t('parentLink.emailReserved'),
+          message: ctx.t('auth.registrationEmailReserved'),
         };
-      }
-
-      if (body.parentId != null) {
-        const parentId = Number(body.parentId);
-        if (!Number.isInteger(parentId) || parentId <= 0) {
-          ctx.set.status = 400;
-          return {
-            error: ctx.t('user.invalidParentId'),
-            message: ctx.t('parentLink.parentIdRequired'),
-          };
-        }
-        const parent = await userRepo.findOneBy({ id: parentId });
-        if (!parent) {
-          ctx.set.status = 404;
-          return {
-            error: ctx.t('user.parentNotFound'),
-            message: ctx.t('parentLink.parentNotFound'),
-          };
-        }
-        const parentAge = getAgeFromDate(parent.dateOfBirth);
-        if (parentAge === null || !isAdultByCountry(parentAge, parent.billingCountry)) {
-          ctx.set.status = 403;
-          return {
-            error: ctx.t('user.parentMustBeAdult'),
-            message: ctx.t('parentLink.onlyAdultAsParent'),
-          };
-        }
-        if (!dateOfBirth) {
-          ctx.set.status = 400;
-          return {
-            error: ctx.t('common.dateOfBirthRequired'),
-            message: ctx.t('parentLink.childDobRequired'),
-          };
-        }
-        const childAge = getAgeFromDate(dateOfBirth);
-        if (childAge === null || !isMinorByCountry(childAge, body.billingCountry)) {
-          ctx.set.status = 400;
-          return {
-            error: 'child_must_be_under_18',
-            message: ctx.t('parentLink.childMustBeUnder', {
-              age: getAdultAgeForCountry(body.billingCountry),
-            }),
-          };
-        }
-        body.parentId = parentId;
       }
 
        const user = userRepo.create({
@@ -450,7 +339,6 @@ export async function userRoutes(app: any, prefix = '') {
          billingZip: body.billingZip,
          billingCountry: body.billingCountry,
          dateOfBirth,
-         parentId: body.parentId,
        });
        const password = getStringField(ctx.body, 'password', '');
        user.passwordHash = await hashPassword(password);
@@ -477,13 +365,6 @@ export async function userRoutes(app: any, prefix = '') {
           }
         } catch (e) {
           /* woof */
-        }
-
-        if (parentRegistrationInvite) {
-          parentRegistrationInvite.used = true;
-          parentRegistrationInvite.usedAt = new Date();
-          parentRegistrationInvite.updatedAt = new Date();
-          await inviteRepo.save(parentRegistrationInvite);
         }
       } catch (err: unknown) {
         const errObj = err as Record<string, unknown>;
@@ -605,8 +486,6 @@ export async function userRoutes(app: any, prefix = '') {
         billingCountry: t.Optional(t.String({ maxLength: 64 })),
         phone: t.Optional(t.String({ maxLength: 32 })),
         dateOfBirth: t.String(),
-        parentId: t.Optional(t.Number()),
-        parentRegistrationToken: t.Optional(t.String()),
         captchaAnswer: t.Optional(t.String()),
         captchaToken: t.Optional(t.String()),
         invisibleCaptchaToken: t.Optional(t.String()),
@@ -714,884 +593,6 @@ export async function userRoutes(app: any, prefix = '') {
     }
   );
 
-  async function serializeParentLinkRequest(request: ParentLinkRequest, requester: User) {
-    return {
-      id: request.id,
-      childId: request.childId,
-      parentId: request.parentId,
-      parentEmail: request.parentEmail,
-      code: request.parentId === requester.id ? undefined : request.code,
-      status: request.status,
-      createdAt: request.createdAt.toISOString(),
-      updatedAt: request.updatedAt.toISOString(),
-      acceptedAt: request.acceptedAt?.toISOString() || null,
-      child: request.child
-        ? {
-            id: request.child.id,
-            email: request.child.email,
-            firstName: request.child.firstName,
-            lastName: request.child.lastName,
-            dateOfBirth:
-              request.child.dateOfBirth instanceof Date
-                ? request.child.dateOfBirth.toISOString().split('T')[0]
-                : request.child.dateOfBirth,
-            age: getAgeFromDate(request.child.dateOfBirth),
-          }
-        : null,
-      parent: request.parent
-        ? {
-            id: request.parent.id,
-            email: request.parent.email,
-            firstName: request.parent.firstName,
-            lastName: request.parent.lastName,
-          }
-        : null,
-    };
-  }
-
-  app.post(
-    prefix + '/users/me/parent-link-requests',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      const childAge = getAgeFromDate(requester.dateOfBirth);
-      if (childAge === null || !isMinorByCountry(childAge, requester.billingCountry)) {
-        ctx.set.status = 403;
-        return {
-          error: 'child_access_required',
-          message: ctx.t('parentLink.onlyUnderageCanRequest'),
-        };
-      }
-      if (requester.parentId) {
-        ctx.set.status = 409;
-        return { error: 'already_linked', message: ctx.t('parentLink.alreadyLinked') };
-      }
-
-      const body = safeBody(ctx.body);
-      const parentEmail = getStringField(ctx.body, 'parentEmail', '').trim().toLowerCase();
-      const parentId = getNumberField(ctx.body, 'parentId');
-      if (!parentEmail && (parentId === undefined || parentId === null)) {
-        ctx.set.status = 400;
-        return { error: 'parent_required', message: ctx.t('parentLink.parentEmailOrIdRequired') };
-      }
-
-      const userRepo = AppDataSource.getRepository(User);
-      const parent =
-        parentId != null
-          ? await userRepo.findOneBy({ id: parentId })
-          : await userRepo.findOneBy({ email: parentEmail });
-
-      if (!parent) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.parentNotFound'), message: ctx.t('parentLink.parentNotFound') };
-      }
-      if (parent.id === requester.id) {
-        ctx.set.status = 400;
-        return { error: 'invalid_parent', message: ctx.t('parentLink.cannotSelfAssign') };
-      }
-      const parentAge = getAgeFromDate(parent.dateOfBirth);
-      if (parentAge === null || !isAdultByCountry(parentAge, parent.billingCountry)) {
-        ctx.set.status = 403;
-        return {
-          error: ctx.t('user.parentMustBeAdult'),
-          message: ctx.t('parentLink.onlyAdultAsParent2'),
-        };
-      }
-
-      const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
-      const existing = await requestRepo.findOne({
-        where: { childId: requester.id, parentId: parent.id, status: 'pending' },
-        relations: { child: true, parent: true },
-      });
-      if (existing) {
-        return { success: true, request: await serializeParentLinkRequest(existing, requester) };
-      }
-
-      const request = requestRepo.create({
-        childId: requester.id,
-        parentId: parent.id,
-        parentEmail: parent.email,
-        code: generateParentLinkCode(),
-        status: 'pending',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      await requestRepo.save(request);
-
-      return { success: true, request: await serializeParentLinkRequest(request, requester) };
-    },
-    {
-      beforeHandle: authenticate,
-      body: t.Optional(
-        t.Object({ parentEmail: t.Optional(t.String()), parentId: t.Optional(t.Number()) })
-      ),
-      response: {
-        200: t.Object({ success: t.Boolean(), request: t.Any() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-        409: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Request a parent link for the current child account', tags: ['Users'] },
-    }
-  );
-
-  app.post(
-    prefix + '/users/me/parent-registration-invites',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      const childEmail = getStringField(ctx.body, 'childEmail', '').trim().toLowerCase() || undefined;
-      const inheritBilling = getBooleanField(ctx.body, 'inheritBilling', false);
-      const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
-      const invite = inviteRepo.create({
-        parentId: requester.id,
-        childEmail: childEmail || null,
-        token: randomHex(10).toUpperCase(),
-        used: false,
-        inheritBilling,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-      await inviteRepo.save(invite);
-
-      const baseUrl =
-        process.env.PANEL_URL ||
-        process.env.FRONTEND_URL ||
-        ctx.headers?.origin ||
-        'https://ecli.app';
-      const inviteLink = `${String(baseUrl).replace(/\/$/, '')}/register?parentRegistrationToken=${encodeURIComponent(invite.token)}`;
-
-      return {
-        success: true,
-        invite: {
-          id: invite.id,
-          token: invite.token,
-          childEmail: invite.childEmail || null,
-          link: inviteLink,
-          createdAt: invite.createdAt.toISOString(),
-          used: invite.used,
-          inheritBilling: invite.inheritBilling,
-        },
-      };
-    },
-    {
-      beforeHandle: [authenticate, authorize('users:write')],
-      body: t.Optional(
-        t.Object({ childEmail: t.Optional(t.String()), inheritBilling: t.Optional(t.Boolean()) })
-      ),
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          invite: t.Object({
-            id: t.Number(),
-            token: t.String(),
-            childEmail: t.Union([t.String(), t.Null()]),
-            link: t.String(),
-            createdAt: t.String(),
-            used: t.Boolean(),
-            inheritBilling: t.Boolean(),
-          }),
-        }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-      detail: {
-        summary: 'Create a parent registration invite for a child account',
-        tags: ['Users'],
-      },
-    }
-  );
-
-  app.get(
-    prefix + '/users/me/parent-registration-invites',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
-      const invites = await inviteRepo.find({
-        where: { parentId: requester.id },
-        order: { createdAt: 'DESC' },
-      });
-      const baseUrl =
-        process.env.PANEL_URL ||
-        process.env.FRONTEND_URL ||
-        ctx.headers?.origin ||
-        'https://ecli.app';
-      const normalizedBase = String(baseUrl).replace(/\/$/, '');
-
-      return {
-        success: true,
-        invites: invites.map(invite => ({
-          id: invite.id,
-          token: invite.token,
-          childEmail: invite.childEmail || null,
-          link: `${normalizedBase}/register?parentRegistrationToken=${encodeURIComponent(invite.token)}`,
-          createdAt: invite.createdAt.toISOString(),
-          used: invite.used,
-          usedAt: invite.usedAt ? invite.usedAt.toISOString() : null,
-          expiresAt: invite.expiresAt ? invite.expiresAt.toISOString() : null,
-          inheritBilling: invite.inheritBilling,
-        })),
-      };
-    },
-    {
-      beforeHandle: [authenticate, authorize('users:write')],
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          invites: t.Array(
-            t.Object({
-              id: t.Number(),
-              token: t.String(),
-              childEmail: t.Union([t.String(), t.Null()]),
-              link: t.String(),
-              createdAt: t.String(),
-              used: t.Boolean(),
-              usedAt: t.Optional(t.Union([t.String(), t.Null()])),
-              expiresAt: t.Optional(t.Union([t.String(), t.Null()])),
-              inheritBilling: t.Boolean(),
-            })
-          ),
-        }),
-        401: t.Object({ error: t.String() }),
-      },
-      detail: {
-        summary: 'List parent registration invites for the current parent',
-        tags: ['Users'],
-      },
-    }
-  );
-
-  app.delete(
-    prefix + '/users/me/parent-registration-invites/:inviteId',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      const inviteId = Number(ctx.params['inviteId']);
-      if (!Number.isInteger(inviteId) || inviteId <= 0) {
-        ctx.set.status = 400;
-        return {
-          error: ctx.t('organisation.invalidInviteId'),
-          message: ctx.t('parentLink.invalidInviteId'),
-        };
-      }
-
-      const inviteRepo = AppDataSource.getRepository(ParentRegistrationInvite);
-      const invite = await inviteRepo.findOneBy({ id: inviteId });
-      if (!invite) {
-        ctx.set.status = 404;
-        return {
-          error: ctx.t('organisation.inviteNotFound_1'),
-          message: ctx.t('parentLink.inviteNotFound'),
-        };
-      }
-      if (invite.parentId !== requester.id) {
-        ctx.set.status = 403;
-        return { error: 'forbidden', message: ctx.t('parentLink.notYourInvite') };
-      }
-      if (invite.used) {
-        ctx.set.status = 409;
-        return {
-          error: ctx.t('organisation.inviteAlreadyUsed'),
-          message: ctx.t('parentLink.cannotRevokeUsed'),
-        };
-      }
-
-      await inviteRepo.delete({ id: inviteId });
-      return { success: true };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-        409: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Revoke a parent registration invite', tags: ['Users'] },
-    }
-  );
-
-  app.get(
-    prefix + '/users/me/parent-link-requests',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
-      const requesterAge = getAgeFromDate(requester.dateOfBirth);
-      const requesterIsMinor =
-        requesterAge === null
-          ? requester.parentId != null
-          : isMinorByCountry(requesterAge, requester.billingCountry);
-      const where = requesterIsMinor ? { childId: requester.id } : { parentId: requester.id };
-
-      const requests = await requestRepo.find({
-        where,
-        relations: { child: true, parent: true },
-        order: { createdAt: 'DESC' },
-      });
-      return {
-        success: true,
-        requests: await Promise.all(
-          requests.map(request => serializeParentLinkRequest(request, requester))
-        ),
-      };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({ success: t.Boolean(), requests: t.Array(t.Any()) }),
-        401: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'List parent link requests for the current user', tags: ['Users'] },
-    }
-  );
-
-  app.post(
-    prefix + '/users/me/parent-link-requests/:id/accept',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      const requestId = Number(ctx.params['id']);
-      if (!Number.isInteger(requestId) || requestId <= 0) {
-        ctx.set.status = 400;
-        return {
-          error: ctx.t('common.invalidRequestId'),
-          message: ctx.t('parentLink.invalidRequestId'),
-        };
-       }
-
-       const code = getStringField(ctx.body, 'code', '').trim();
-       if (!code) {
-         ctx.set.status = 400;
-         return { error: 'code_required', message: ctx.t('parentLink.codeRequired') };
-       }
-
-      const requestRepo = AppDataSource.getRepository(ParentLinkRequest);
-      const userRepo = AppDataSource.getRepository(User);
-      const request = await requestRepo.findOne({
-        where: { id: requestId },
-        relations: { child: true, parent: true },
-      });
-      if (!request) {
-        ctx.set.status = 404;
-        return { error: 'request_not_found', message: ctx.t('parentLink.requestNotFound') };
-      }
-      if (request.parentId !== requester.id) {
-        ctx.set.status = 403;
-        return { error: 'forbidden', message: ctx.t('parentLink.notYourRequest') };
-      }
-      if (request.status !== 'pending') {
-        ctx.set.status = 409;
-        return {
-          error: ctx.t('common.requestNotPending'),
-          message: ctx.t('parentLink.requestNotPending'),
-        };
-      }
-      if (request.code !== code) {
-        ctx.set.status = 403;
-        return { error: ctx.t('common.invalidCode'), message: ctx.t('parentLink.incorrectCode') };
-      }
-
-      const child = await userRepo.findOneBy({ id: request.childId });
-      if (!child) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
-      }
-      if (child.parentId && child.parentId !== requester.id) {
-        ctx.set.status = 409;
-        return {
-          error: ctx.t('user.childAlreadyAssigned'),
-          message: ctx.t('parentLink.childAlreadyHasParent'),
-        };
-      }
-
-      child.parentId = requester.id;
-      await userRepo.save(child);
-
-      request.status = 'accepted';
-      request.acceptedAt = new Date();
-      request.updatedAt = new Date();
-      await requestRepo.save(request);
-
-      const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(
-        logRepo.create({
-          userId: requester.id,
-          action: 'accept-parent-link',
-          targetId: String(child.id),
-          targetType: 'user',
-          timestamp: new Date(),
-          metadata: { requestId: request.id },
-        })
-      );
-
-      return {
-        success: true,
-        request: await serializeParentLinkRequest(request, requester),
-        child: await safeUser(child),
-      };
-    },
-    {
-      beforeHandle: authenticate,
-      body: t.Object({ code: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), request: t.Any(), child: userSchema }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-        409: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Accept a parent link request with linking code', tags: ['Users'] },
-    }
-  );
-
-  app.put(
-    prefix + '/users/me/children/:childId',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      const childId = Number(ctx.params['childId']);
-      if (!Number.isInteger(childId) || childId <= 0) {
-        ctx.set.status = 400;
-        return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
-       }
-
-       const dateOfBirth = parseDateOfBirth(safeBody(ctx.body).dateOfBirth);
-       if (!dateOfBirth) {
-         ctx.set.status = 400;
-         return {
-           error: ctx.t('common.invalidDateOfBirth'),
-           message: ctx.t('parentLink.dobFormat'),
-         };
-       }
-
-      const userRepo = AppDataSource.getRepository(User);
-      const child = await userRepo.findOneBy({ id: childId });
-      if (!child) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
-      }
-      if (child.parentId !== requester.id) {
-        ctx.set.status = 403;
-        return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
-      }
-
-      const childAge = getAgeFromDate(dateOfBirth);
-      const effectiveCountry = child.billingCountry || requester.billingCountry;
-      if (childAge === null || !isMinorByCountry(childAge, effectiveCountry)) {
-        ctx.set.status = 400;
-        return {
-          error: ctx.t('user.childMustBeUnderage'),
-          message: `Child date of birth must keep the account under the legal age for ${effectiveCountry || 'your country'}.`,
-        };
-      }
-
-      child.dateOfBirth = dateOfBirth;
-      await userRepo.save(child);
-
-      const logRepo = AppDataSource.getRepository(UserLog);
-      await logRepo.save(
-        logRepo.create({
-          userId: requester.id,
-          action: 'update-child-dob',
-          targetId: String(child.id),
-          targetType: 'user',
-          timestamp: new Date(),
-          metadata: { dateOfBirth: child.dateOfBirth?.toISOString().split('T')[0] },
-        })
-      );
-
-      return { success: true, child: await safeUser(child) };
-    },
-    {
-      beforeHandle: authenticate,
-      body: t.Object({ dateOfBirth: t.String() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), child: userSchema }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Update a managed child account', tags: ['Users'] },
-    }
-  );
-
-  app.get(
-    prefix + '/users/me/children',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-      const userRepo = AppDataSource.getRepository(User);
-      const children = await userRepo.find({
-        where: { parentId: requester.id },
-        order: { id: 'ASC' },
-      });
-      return { success: true, children: await Promise.all(children.map(child => safeUser(child))) };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({ success: t.Boolean(), children: t.Array(userSchema) }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'List child accounts for the current parent', tags: ['Users'] },
-    }
-  );
-
-  app.get(
-    prefix + '/users/me/parent',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-
-      if (!requester.parentId) {
-        return { success: true, parent: null };
-      }
-
-      const userRepo = AppDataSource.getRepository(User);
-      const parent = await userRepo.findOneBy({ id: requester.parentId });
-      if (!parent) {
-        return { success: true, parent: null };
-      }
-
-      return { success: true, parent: await safeUser(parent) };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({ success: t.Boolean(), parent: t.Optional(userSchema) }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Get parent account details for the current child', tags: ['Users'] },
-    }
-  );
-
-  app.get(
-    prefix + '/users/me/children/:childId/servers',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-      const childId = Number(ctx.params['childId']);
-      if (!Number.isInteger(childId) || childId <= 0) {
-        ctx.set.status = 400;
-        return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
-      }
-
-      const userRepo = AppDataSource.getRepository(User);
-      const child = await userRepo.findOneBy({ id: childId });
-      if (!child) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
-      }
-      if (child.parentId !== requester.id) {
-        ctx.set.status = 403;
-        return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
-      }
-
-      const serverRepo = AppDataSource.getRepository(
-        require('../models/serverConfig.entity').ServerConfig
-      );
-      const nodeRepo = AppDataSource.getRepository(Node);
-      const servers = await serverRepo.find({ where: { userId: childId }, order: { name: 'ASC' } });
-      const nodes = await nodeRepo.find();
-      const nodeMap = new Map(nodes.map(node => [node.id, node]));
-
-      return {
-        success: true,
-        servers: servers.map((server: any) => ({
-          uuid: server.uuid,
-          name: server.name || server.uuid,
-          status: server.dmca
-            ? 'dmca'
-            : server.hibernated
-              ? 'hibernated'
-              : server.suspended
-                ? 'suspended'
-                : 'active',
-          template: server.dockerImage || server.startup || 'Unknown',
-          nodeName: nodeMap.get(server.nodeId)?.name || null,
-        })),
-      };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          servers: t.Array(
-            t.Object({
-              uuid: t.String(),
-              name: t.String(),
-              status: t.String(),
-              template: t.String(),
-              nodeName: t.Optional(t.String()),
-            })
-          ),
-        }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'List servers for a managed child account', tags: ['Users'] },
-    }
-  );
-
-  app.get(
-    prefix + '/users/me/children/:childId/orders',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-      const childId = Number(ctx.params['childId']);
-      if (!Number.isInteger(childId) || childId <= 0) {
-        ctx.set.status = 400;
-        return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
-      }
-
-      const userRepo = AppDataSource.getRepository(User);
-      const child = await userRepo.findOneBy({ id: childId });
-      if (!child) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
-      }
-      if (child.parentId !== requester.id) {
-        ctx.set.status = 403;
-        return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
-      }
-
-      const orderRepo = AppDataSource.getRepository(Order);
-      const orders = await orderRepo.find({
-        where: { userId: childId },
-        order: { createdAt: 'DESC' },
-      });
-      return { success: true, orders };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({ success: t.Boolean(), orders: t.Array(t.Any()) }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'List orders for a managed child account', tags: ['Users'] },
-    }
-  );
-
-  app.get(
-    prefix + '/users/me/children/:childId/organisations',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-      const childId = Number(ctx.params['childId']);
-      if (!Number.isInteger(childId) || childId <= 0) {
-        ctx.set.status = 400;
-        return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
-      }
-
-      const userRepo = AppDataSource.getRepository(User);
-      const child = await userRepo.findOneBy({ id: childId });
-      if (!child) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
-      }
-      if (child.parentId !== requester.id) {
-        ctx.set.status = 403;
-        return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
-      }
-
-      const membershipRepo = AppDataSource.getRepository(
-        require('../models/organisationMember.entity').OrganisationMember
-      );
-      const memberships = await membershipRepo.find({
-        where: { userId: childId },
-        relations: { organisation: true },
-        order: { createdAt: 'ASC' },
-      });
-      return {
-        success: true,
-        organisations: memberships.map((membership: any) => ({
-          id: membership.organisation?.id,
-          name: membership.organisation?.name,
-          role: membership.orgRole,
-        })),
-      };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({
-          success: t.Boolean(),
-          organisations: t.Array(
-            t.Object({ id: t.Optional(t.Number()), name: t.Optional(t.String()), role: t.String() })
-          ),
-        }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'List organisations for a managed child account', tags: ['Users'] },
-    }
-  );
-
-  app.post(
-    prefix + '/users/me/children',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-       if (!requester) {
-         ctx.set.status = 401;
-         return { error: ctx.t('auth.notLoggedIn') };
-       }
-
-       const childUserId = getNumberField(ctx.body, 'childUserId', 0);
-       if (!Number.isInteger(childUserId) || childUserId <= 0) {
-        ctx.set.status = 400;
-        return { error: 'invalid_child_user_id', message: ctx.t('parentLink.childUserIdRequired') };
-      }
-      if (childUserId === requester.id) {
-        ctx.set.status = 400;
-        return { error: 'invalid_child_user_id', message: ctx.t('parentLink.cannotSelfChild') };
-      }
-
-      const userRepo = AppDataSource.getRepository(User);
-      const child = await userRepo.findOneBy({ id: childUserId });
-      if (!child) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
-      }
-      if (child.parentId) {
-        ctx.set.status = 409;
-        return {
-          error: ctx.t('user.childAlreadyAssigned'),
-          message: ctx.t('parentLink.alreadyHasParent'),
-        };
-      }
-      const childAge = getAgeFromDate(child.dateOfBirth);
-      if (childAge === null || !isMinorByCountry(childAge, child.billingCountry)) {
-        ctx.set.status = 400;
-        return {
-          error: 'child_must_be_under_18',
-          message: ctx.t('parentLink.onlyUnderAge', {
-            age: getAdultAgeForCountry(child.billingCountry),
-          }),
-        };
-      }
-      child.parentId = requester.id;
-      await userRepo.save(child);
-      return { success: true, child: await safeUser(child) };
-    },
-    {
-      beforeHandle: authenticate,
-      body: t.Object({ childUserId: t.Number() }),
-      response: {
-        200: t.Object({ success: t.Boolean(), child: userSchema }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-        409: t.Object({ error: t.String() }),
-      },
-      detail: {
-        summary: 'Assign an existing child account to the current parent',
-        tags: ['Users'],
-      },
-    }
-  );
-
-  app.delete(
-    prefix + '/users/me/children/:childId',
-    async (ctx: any) => {
-      const requester = ctx.user as User;
-      if (!requester) {
-        ctx.set.status = 401;
-        return { error: ctx.t('auth.notLoggedIn') };
-      }
-      const childId = Number(ctx.params['childId']);
-      if (!Number.isInteger(childId) || childId <= 0) {
-        ctx.set.status = 400;
-        return { error: 'invalid_child_user_id', message: ctx.t('parentLink.invalidChildId') };
-      }
-      const userRepo = AppDataSource.getRepository(User);
-      const child = await userRepo.findOneBy({ id: childId });
-      if (!child) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.childNotFound'), message: ctx.t('parentLink.childNotFound') };
-      }
-      if (child.parentId !== requester.id) {
-        ctx.set.status = 403;
-        return { error: 'forbidden', message: ctx.t('parentLink.notYourChild') };
-      }
-      child.parentId = null;
-      await userRepo.save(child);
-      return { success: true };
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Object({ success: t.Boolean() }),
-        400: t.Object({ error: t.String() }),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-        404: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'Remove a child assignment from the current parent', tags: ['Users'] },
-    }
-  );
 
   const mailboxDomain = String(
     process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'
@@ -2913,7 +1914,7 @@ export async function userRoutes(app: any, prefix = '') {
           ctx.set.status = 400;
           return {
             error: ctx.t('common.invalidDateOfBirth'),
-            message: ctx.t('parentLink.dobFormat'),
+            message: ctx.t('common.invalidDateOfBirth'),
           };
         }
         const existingDob = hasExistingDob ? parseDateOfBirth(user.dateOfBirth) : null;
@@ -2922,7 +1923,7 @@ export async function userRoutes(app: any, prefix = '') {
             ctx.set.status = 403;
             return {
               error: ctx.t('common.dateOfBirthLocked'),
-              message: ctx.t('parentLink.dobLocked'),
+              message: ctx.t('common.dateOfBirthLocked'),
             };
           }
         }
@@ -2935,7 +1936,7 @@ export async function userRoutes(app: any, prefix = '') {
             ctx.set.status = 400;
             return {
               error: 'minimum_age',
-              message: ctx.t('parentLink.minAge', { minAge: minimumAge }),
+              message: `Minimum age is ${minimumAge} years.`,
             };
           }
           user.suspended = true;
@@ -2944,28 +1945,6 @@ export async function userRoutes(app: any, prefix = '') {
         }
         user.dateOfBirth = dateOfBirth;
         delete payload.dateOfBirth;
-      }
-
-      const isChildWithParent = requester.id === user.id && user.parentId != null;
-      if (isChildWithParent) {
-        const forbiddenBillingFields = [
-          'address',
-          'address2',
-          'billingCompany',
-          'billingCity',
-          'billingState',
-          'billingZip',
-          'billingCountry',
-        ];
-        for (const field of forbiddenBillingFields) {
-          if (field in payload) {
-            ctx.set.status = 403;
-            return {
-              error: ctx.t('user.childCannotUpdateBilling'),
-              message: ctx.t('parentLink.childCannotUpdateBilling'),
-            };
-          }
-        }
       }
 
       const requiredProfileFieldLabels: Record<string, string> = {
@@ -2996,9 +1975,7 @@ export async function userRoutes(app: any, prefix = '') {
             ctx.set.status = 400;
             return {
               error: `${field}_required`,
-              message: ctx.t('parentLink.fieldRequired', {
-                field: requiredProfileFieldLabels[field] || field,
-              }),
+              message: `${requiredProfileFieldLabels[field] || field} is required.`,
             };
           }
         }
@@ -3081,7 +2058,6 @@ export async function userRoutes(app: any, prefix = '') {
         'suspended',
         'fraudFlag',
         'fraudReason',
-        'parentId',
       ];
       const allowed = isAdmin ? [...USER_FIELDS, ...ADMIN_ONLY_FIELDS] : USER_FIELDS;
 

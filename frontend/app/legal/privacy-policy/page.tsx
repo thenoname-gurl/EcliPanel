@@ -53,9 +53,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <p className="mt-4 text-[16px] leading-7 text-white/70">
             We do not knowingly collect personal information from children below
-            the applicable minimum age unless a valid parental registration
-            invite is provided. If you are a parent or guardian registering a
-            child, you may be asked to confirm parental consent.
+            the applicable minimum age.
           </p>
           <p className="mt-4 text-[16px] leading-7 text-white/70">
             Learn more about our age requirements on the{" "}

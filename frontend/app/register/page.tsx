@@ -64,7 +64,6 @@ interface FormData {
   gender: string;
   phone: string;
   dateOfBirth: string;
-  parentRegistrationToken?: string;
   captchaAnswer: string;
   captchaToken: string;
   invisibleCaptchaToken?: string;
@@ -102,7 +101,6 @@ export default function RegisterPage() {
     gender: "",
     phone: "",
     dateOfBirth: "",
-    parentRegistrationToken: "",
     captchaAnswer: "",
     captchaToken: "",
     invisibleCaptchaToken: "",
@@ -167,12 +165,6 @@ export default function RegisterPage() {
     loadCaptcha();
   }, []);
 
-  useEffect(() => {
-    const token = searchParams.get("parentRegistrationToken");
-    if (token) {
-      setForm((prev) => ({ ...prev, parentRegistrationToken: token }));
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     try {
@@ -360,8 +352,6 @@ export default function RegisterPage() {
     if (name === "password") setPasswordStrength(getPasswordStrength(value));
   };
 
-  const isParentInvite = Boolean(form.parentRegistrationToken);
-
   /* ─── Step validation ─── */
   const canProceedStep0 = Boolean(
     form.firstName &&
@@ -370,15 +360,14 @@ export default function RegisterPage() {
     form.password &&
     form.dateOfBirth &&
     passwordStrength >= 0.55 &&
-    (isParentInvite || form.phone),
+    form.phone,
   );
   const canProceedStep1 = Boolean(
-    isParentInvite ||
-    (form.address &&
+    form.address &&
       form.billingCity &&
       form.billingState &&
       form.billingZip &&
-      form.billingCountry),
+      form.billingCountry,
   );
 
   const nextStep = () => {
@@ -507,11 +496,6 @@ export default function RegisterPage() {
                 <div className="space-y-3">
                   {notice && !registrationDisabled && (
                     <AlertBanner variant="info">{notice}</AlertBanner>
-                  )}
-                  {form.parentRegistrationToken && (
-                    <AlertBanner variant="info">
-                      {t("parentInviteBanner")}
-                    </AlertBanner>
                   )}
                   {domainOk === false && !dismissedDomainWarning && (
                     <AlertBanner
@@ -826,12 +810,6 @@ export default function RegisterPage() {
                         autoComplete="address-line2"
                       />
 
-                      {isParentInvite && (
-                        <p className="text-sm text-muted-foreground">
-                          {t("parentInviteHint")}
-                        </p>
-                      )}
-
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <InputField
                           name="billingCity"
@@ -839,7 +817,7 @@ export default function RegisterPage() {
                           label={t("city")}
                           value={form.billingCity}
                           onChange={handleChange}
-                          required={!isParentInvite}
+                          required
                           maxLength={FIELD_MAX_LENGTHS.billingCity}
                           autoComplete="address-level2"
                         />
@@ -849,7 +827,7 @@ export default function RegisterPage() {
                           label={t("stateProvince")}
                           value={form.billingState}
                           onChange={handleChange}
-                          required={!isParentInvite}
+                          required
                           maxLength={FIELD_MAX_LENGTHS.billingState}
                           autoComplete="address-level1"
                         />
@@ -862,7 +840,7 @@ export default function RegisterPage() {
                           label={t("zipPostal")}
                           value={form.billingZip}
                           onChange={handleChange}
-                          required={!isParentInvite}
+                          required
                           maxLength={FIELD_MAX_LENGTHS.billingZip}
                           autoComplete="postal-code"
                         />
@@ -872,7 +850,7 @@ export default function RegisterPage() {
                           label={t("country")}
                           value={form.billingCountry}
                           onChange={handleChange}
-                          required={!isParentInvite}
+                          required
                         >
                           <option
                             value=""
