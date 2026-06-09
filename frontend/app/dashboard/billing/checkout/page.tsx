@@ -23,6 +23,7 @@ import {
   Loader2,
   AlertTriangle,
   Tag,
+  ExternalLink,
 } from "lucide-react"
 
 export default function CheckoutPage() {
@@ -211,7 +212,29 @@ export default function CheckoutPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const getMethodIcon = (type: string) => {
+  const NETWORK_URI_SCHEMES: Record<string, string> = {
+    bitcoin: "bitcoin",
+    ethereum: "ethereum",
+    litecoin: "litecoin",
+    monero: "monero",
+  }
+
+  const getWalletUri = (network: string, address: string): string | null => {
+    const scheme = NETWORK_URI_SCHEMES[network]
+    if (!scheme) return null
+    return `${scheme}:${address}`
+  }
+
+  const getMethodIcon = (type: string, network?: string) => {
+    if (type === "crypto" && network === "monero") {
+      return (
+        <svg className="h-4 w-4" viewBox="0 0 108 108" fill="none">
+          <path d="M54 99C78.8528 99 99 78.8528 99 54C99 29.1472 78.8528 9 54 9C29.1472 9 9 29.1472 9 54C9 78.8528 29.1472 99 54 99Z" fill="#fff"/>
+          <path d="M91.5086 78.1122H73.7488V54L54 73.486L34.2511 54V78.1122H16.4913H15.923C23.8794 90.5888 37.9451 99 54 99C70.0548 99 84.1205 90.729 92.0769 78.1122H91.5086Z" fill="#4C4C4C"/>
+          <path d="M24.8991 67.8462V30.7689L54 59.5599L83.1009 30.7689V67.8462H96.5867C98.1483 63.3519 99 58.5768 99 53.5208C99 28.9431 78.8423 9 54 9C29.1577 9 9 28.9431 9 53.5208C9 58.5768 9.85174 63.3519 11.4132 67.8462H24.8991V67.8462Z" fill="#FF6B01"/>
+        </svg>
+      )
+    }
     switch (type) {
       case "crypto": return <Wallet className="h-4 w-4" />
       case "paypal": return (
@@ -403,7 +426,7 @@ export default function CheckoutPage() {
                     }`}
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary">
-                      {getMethodIcon(method.type)}
+                      {getMethodIcon(method.type, method.network)}
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-foreground">{method.label}</p>
@@ -461,7 +484,7 @@ export default function CheckoutPage() {
                 {/* Method info */}
                 <div className="flex items-center gap-3 border-b border-border pb-4">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    {getMethodIcon(paymentDetails.type)}
+                    {getMethodIcon(paymentDetails.type, paymentDetails.network)}
                   </div>
                   <div>
                     <p className="font-medium text-foreground">{paymentDetails.label}</p>
@@ -502,6 +525,17 @@ export default function CheckoutPage() {
                     </button>
                   </div>
                 </div>
+
+                {/* Quick Action: Open in Wallet */}
+                {paymentDetails.type === "crypto" && paymentDetails.network && NETWORK_URI_SCHEMES[paymentDetails.network] && (
+                  <a
+                    href={getWalletUri(paymentDetails.network, paymentDetails.address) ?? "#"}
+                    className="flex items-center justify-center gap-2 border border-primary/30 bg-primary/5 py-3 text-sm font-medium text-primary transition-all hover:bg-primary/10 hover:border-primary/50"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Open in {paymentDetails.network.charAt(0).toUpperCase() + paymentDetails.network.slice(1)} Wallet
+                  </a>
+                )}
 
                 {/* Instructions */}
                 {paymentDetails.instructions && (
