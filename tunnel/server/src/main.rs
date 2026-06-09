@@ -49,6 +49,7 @@ type WsSink = futures_util::stream::SplitSink<WsStream, Message>;
 type SharedConnections =
     Arc<Mutex<HashMap<String, Arc<Mutex<Box<dyn AsyncWrite + Unpin + Send>>>>>>;
 type ListenerControl = Arc<Mutex<HashMap<u64, oneshot::Sender<()>>>>;
+type ListenerHandles = Arc<Mutex<HashMap<u64, tokio::task::JoinHandle<()>>>>;
 type ConnectionAllocationMap = Arc<Mutex<HashMap<String, u64>>>;
 type UdpDirectTokens = Arc<Mutex<HashMap<String, String>>>;
 
@@ -634,6 +635,7 @@ async fn try_connect_and_serve(
     let write: Arc<Mutex<WsSink>> = Arc::new(Mutex::new(write));
     let tunnels: SharedConnections = Arc::new(Mutex::new(HashMap::new()));
     let listeners: ListenerControl = Arc::new(Mutex::new(HashMap::new()));
+    let listener_handles: ListenerHandles = Arc::new(Mutex::new(HashMap::new()));
     let connection_allocations: ConnectionAllocationMap =
         Arc::new(Mutex::new(HashMap::new()));
     let udp_direct_tokens: UdpDirectTokens = Arc::new(Mutex::new(HashMap::new()));
@@ -648,6 +650,7 @@ async fn try_connect_and_serve(
                     write.clone(),
                     tunnels.clone(),
                     listeners.clone(),
+                    listener_handles.clone(),
                     connection_allocations.clone(),
                     tls_acceptor,
                     fatal_error.clone(),
@@ -678,8 +681,17 @@ async fn try_connect_and_serve(
             info!(allocation_id, "shutting down listener (session ended)");
         }
     }
-    // Wait briefly for spawned accept tasks to notice and exit
-    tokio::time::sleep(Duration::from_millis(100)).await;
+    // Await all listener tasks to ensure ports are fully released before reconnect
+    {
+        let mut handles = listener_handles.lock().await;
+        let entries: Vec<(u64, tokio::task::JoinHandle<()>)> = handles.drain().collect();
+        drop(handles);
+        for (allocation_id, handle) in entries {
+            let _ = tokio::time::timeout(Duration::from_secs(3), handle)
+                .await
+                .map_err(|_| warn!(allocation_id, "listener task did not exit within 3s"));
+        }
+    }
 
     if *fatal_error.lock().await {
         Ok(SessionEndReason::FatalError)
@@ -700,6 +712,7 @@ async fn handle_text_message(
     write: Arc<Mutex<WsSink>>,
     tunnels: SharedConnections,
     listeners: ListenerControl,
+    listener_handles: ListenerHandles,
     connection_allocations: ConnectionAllocationMap,
     tls_acceptor: &Option<tokio_rustls::TlsAcceptor>,
     fatal_error: Arc<Mutex<bool>>,
@@ -726,16 +739,19 @@ async fn handle_text_message(
                     protocol = %bind.protocol,
                     "received bind"
                 );
-                tokio::spawn(bind_listener(
+                let alloc_id = bind.allocation_id;
+                let handle = tokio::spawn(bind_listener(
                     bind,
                     write,
                     tunnels,
                     listeners,
+                    listener_handles.clone(),
                     connection_allocations,
                     tls_acceptor.clone(),
                     udp_direct_tokens.clone(),
                     session_alive.clone(),
                 ));
+                listener_handles.lock().await.insert(alloc_id, handle);
             }
             Err(err) => error!(%err, "failed to parse bind message"),
         },
@@ -749,6 +765,7 @@ async fn handle_text_message(
                     write,
                     tunnels,
                     listeners,
+                    listener_handles.clone(),
                     connection_allocations,
                 )
                 .await;
@@ -872,26 +889,49 @@ async fn bind_listener(
     write: Arc<Mutex<WsSink>>,
     tunnels: SharedConnections,
     listeners: ListenerControl,
+    listener_handles: ListenerHandles,
     connection_allocations: ConnectionAllocationMap,
     tls_acceptor: Option<tokio_rustls::TlsAcceptor>,
     udp_direct_tokens: UdpDirectTokens,
     session_alive: Arc<AtomicBool>,
 ) {
     if bind.protocol == "udp" {
-        bind_udp_listener(bind, write, listeners, udp_direct_tokens).await;
+        bind_udp_listener(bind, write, listeners, listener_handles, udp_direct_tokens).await;
         return;
+    }
+
+    if let Some(old_tx) = listeners.lock().await.remove(&bind.allocation_id) {
+        info!(allocation_id = bind.allocation_id, "killing existing listener before re-bind");
+        let _ = old_tx.send(());
+        if let Some(handle) = listener_handles.lock().await.remove(&bind.allocation_id) {
+            let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
+        }
     }
 
     let addr: SocketAddr = format!("0.0.0.0:{}", bind.port)
         .parse()
         .expect("invalid bind address");
 
-    let listener = match TcpListener::bind(addr).await {
-        Ok(l) => l,
-        Err(err) => {
-            error!(%err, port = bind.port, "failed to bind listener");
-            return;
+    let listener = {
+        let mut listener: Option<TcpListener> = None;
+        for attempt in 1..=5 {
+            match TcpListener::bind(addr).await {
+                Ok(l) => {
+                    listener = Some(l);
+                    break;
+                }
+                Err(err) => {
+                    if attempt < 5 {
+                        warn!(%err, port = bind.port, attempt, "bind failed, retrying in 1s");
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                    } else {
+                        error!(%err, port = bind.port, "failed to bind listener after 5 attempts");
+                        return;
+                    }
+                }
+            }
         }
+        listener.unwrap()
     };
 
     info!(port = bind.port, "listening for inbound tunnel connections");
@@ -1022,6 +1062,7 @@ async fn bind_listener(
     }
 
     listeners.lock().await.remove(&bind.allocation_id);
+    listener_handles.lock().await.remove(&bind.allocation_id);
 }
 
 // ---------------------------------------------------------------------------
@@ -1033,10 +1074,14 @@ async fn handle_unbind(
     write: Arc<Mutex<WsSink>>,
     tunnels: SharedConnections,
     listeners: ListenerControl,
+    listener_handles: ListenerHandles,
     connection_allocations: ConnectionAllocationMap,
 ) {
     if let Some(tx) = listeners.lock().await.remove(&allocation_id) {
         let _ = tx.send(());
+    }
+    if let Some(handle) = listener_handles.lock().await.remove(&allocation_id) {
+        let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
     }
 
     let removed: Vec<String> = {
@@ -1254,17 +1299,40 @@ async fn bind_udp_listener(
     bind: BindMessage,
     write: Arc<Mutex<WsSink>>,
     listeners: ListenerControl,
+    listener_handles: ListenerHandles,
     udp_direct_tokens: UdpDirectTokens,
 ) {
     let port = bind.port;
     let allocation_id = bind.allocation_id;
 
-    let udp_sock = match UdpSocket::bind(format!("0.0.0.0:{}", port)).await {
-        Ok(s) => Arc::new(s),
-        Err(err) => {
-            error!(%err, port, "failed to bind UDP socket");
-            return;
+    if let Some(old_tx) = listeners.lock().await.remove(&allocation_id) {
+        info!(allocation_id, "killing existing UDP listener before re-bind");
+        let _ = old_tx.send(());
+        if let Some(handle) = listener_handles.lock().await.remove(&allocation_id) {
+            let _ = tokio::time::timeout(Duration::from_secs(2), handle).await;
         }
+    }
+
+    let udp_sock = {
+        let mut sock: Option<Arc<UdpSocket>> = None;
+        for attempt in 1..=5 {
+            match UdpSocket::bind(format!("0.0.0.0:{}", port)).await {
+                Ok(s) => {
+                    sock = Some(Arc::new(s));
+                    break;
+                }
+                Err(err) => {
+                    if attempt < 5 {
+                        warn!(%err, port, attempt, "UDP bind failed, retrying in 1s");
+                        tokio::time::sleep(Duration::from_secs(1)).await;
+                    } else {
+                        error!(%err, port, "failed to bind UDP socket after 5 attempts");
+                        return;
+                    }
+                }
+            }
+        }
+        sock.unwrap()
     };
     info!(port, "UDP socket ready");
 
@@ -1353,6 +1421,7 @@ async fn bind_udp_listener(
     }
 
     listeners.lock().await.remove(&allocation_id);
+    listener_handles.lock().await.remove(&allocation_id);
 }
 
 async fn handle_direct_udp_connection(
