@@ -2210,11 +2210,18 @@ export default function AdminPanel() {
   // ── Actions ──────────────────────────────────────────────────────────────────
 
   async function toggleSuspend(user: AdminUser) {
+    const nextSuspended = !user.suspended
+    let body: any = { suspended: nextSuspended }
+    if (nextSuspended) {
+      const reason = prompt("Suspension reason (optional):", "")
+      if (reason === null) return
+      if (reason.trim()) body.fraudReason = reason.trim()
+    }
     await apiFetch(`${API_ENDPOINTS.adminUsers}/${user.id}`, {
       method: "PUT",
-      body: JSON.stringify({ suspended: !user.suspended }),
+      body: JSON.stringify(body),
     })
-    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, suspended: !u.suspended } : u)))
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, suspended: nextSuspended } : u)))
   }
 
   async function deleteUser(user: AdminUser) {

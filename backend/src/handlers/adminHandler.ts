@@ -2634,6 +2634,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
       if (role !== undefined) user.role = role;
       if (portalType !== undefined) user.portalType = portalType;
+      const wasSuspendedBefore = user.suspended === true;
       if (suspended !== undefined) user.suspended = suspended;
       if (nodeId !== undefined) user.nodeId = nodeId != null ? Number(nodeId) : (undefined as any);
       if (emailVerified !== undefined) user.emailVerified = !!emailVerified;
@@ -2745,9 +2746,28 @@ export async function adminRoutes(app: any, prefix = '') {
           const minimumAge = await getMinimumAgeForCountry(user.billingCountry);
           if (updatedAge !== null && updatedAge < minimumAge) {
             if (user.role !== '*' && user.role !== 'rootAdmin') {
+              const wasAlreadySuspended = user.suspended === true;
               user.suspended = true;
               user.fraudFlag = true;
               user.fraudReason = `Underage account (<${minimumAge} years)`;
+              if (!wasAlreadySuspended) {
+                try {
+                  await sendMail({
+                    to: user.email,
+                    from: process.env.SMTP_FROM || 'noreply@ecli.app',
+                    subject: 'Account Suspended - EcliPanel',
+                    template: 'account-suspended',
+                    vars: {
+                      title: 'Account Suspended',
+                      message: 'Your account has been suspended because your age does not meet the minimum requirements for your country.',
+                      reason: user.fraudReason,
+                    },
+                    locale: ctx.locale,
+                  });
+                } catch (e) {
+                  console.error('Failed to send suspension email:', e);
+                }
+              }
             }
           }
           user.dateOfBirth = dob;
@@ -2796,6 +2816,24 @@ export async function adminRoutes(app: any, prefix = '') {
       }
 
       await userRepo.save(user);
+      if (!wasSuspendedBefore && user.suspended) {
+        try {
+          await sendMail({
+            to: user.email,
+            from: process.env.SMTP_FROM || 'noreply@ecli.app',
+            subject: 'Account Suspended - EcliPanel',
+            template: 'account-suspended',
+            vars: {
+              title: 'Account Suspended',
+              message: 'Your account has been suspended by an administrator.',
+              reason: user.fraudReason || 'Suspended by administrator. Contact support for more information.',
+            },
+            locale: ctx.locale,
+          });
+        } catch (e) {
+          console.error('Failed to send suspension email:', e);
+        }
+      }
       try {
         await redisDel('public:contributors:v2');
       } catch {}
@@ -7564,7 +7602,7 @@ export async function adminRoutes(app: any, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('user.notFound') };
       }
-      const { action } = ctx.body as any;
+      const { action, reason } = ctx.body as any;
       if (action === 'dismiss') {
         user.fraudFlag = false;
         user.fraudReason = undefined;
@@ -7574,7 +7612,29 @@ export async function adminRoutes(app: any, prefix = '') {
           ctx.set.status = 403;
           return { error: ctx.t('user.cannotSuspendAdmin', 'Cannot suspend admin accounts') };
         }
+        const wasSuspended = user.suspended === true;
         user.suspended = true;
+        if (reason) {
+          user.fraudReason = reason;
+        }
+        if (!wasSuspended) {
+          try {
+            await sendMail({
+              to: user.email,
+              from: process.env.SMTP_FROM || 'noreply@ecli.app',
+              subject: 'Account Suspended - EcliPanel',
+              template: 'account-suspended',
+              vars: {
+                title: 'Account Suspended',
+                message: 'Your account has been suspended due to suspicious activity detected by our security system.',
+                reason: user.fraudReason || 'Security review - contact support for more information.',
+              },
+              locale: ctx.locale,
+            });
+          } catch (e) {
+            console.error('Failed to send suspension email:', e);
+          }
+        }
       }
       await userRepo.save(user);
       return { success: true };
@@ -7583,7 +7643,7 @@ export async function adminRoutes(app: any, prefix = '') {
       beforeHandle: [authenticate, authorize('admin:access')],
       schema: {
         params: t.Object({ id: t.String() }),
-        body: t.Object({ action: t.String() }),
+        body: t.Object({ action: t.String(), reason: t.Optional(t.String()) }),
         response: {
           200: t.Object({ success: t.Boolean() }),
           400: t.Object({ error: t.String() }),

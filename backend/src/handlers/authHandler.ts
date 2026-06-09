@@ -398,6 +398,14 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         await require('../config/redis').redisDel(lockoutKey);
       } catch { }
 
+      if (user.suspended && user.role !== '*' && user.role !== 'rootAdmin') {
+        ctx.set.status = 403;
+        return {
+          error: user.fraudReason || ctx.t('user.accountSuspended'),
+          suspended: true,
+        };
+      }
+
       if (user.twoFactorEnabled) {
         const tfaSession = crypto.randomUUID();
         await redisSet(`tfa:session:${tfaSession}`, String(user.id), 300);

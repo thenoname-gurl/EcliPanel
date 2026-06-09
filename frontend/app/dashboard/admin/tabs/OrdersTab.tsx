@@ -192,11 +192,13 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
 
   async function handleSuspendUser(order: any) {
     if (!order.userId) return
+    const reason = prompt("Suspension reason (optional):", "")
+    if (reason === null) return
     setSuspendingUserId(order.userId)
     try {
       await apiFetch(`${API_ENDPOINTS.adminUsers}/${order.userId}`, {
         method: "PUT",
-        body: JSON.stringify({ suspended: true }),
+        body: JSON.stringify({ suspended: true, fraudReason: reason.trim() || undefined }),
       })
     } catch (e: any) {
       console.error("suspend user failed", e)

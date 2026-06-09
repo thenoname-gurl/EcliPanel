@@ -11,6 +11,7 @@ import { DeletionRejected } from './DeletionRejected';
 import { SunsetPolicy } from './SunsetPolicy';
 import { PaymentInstructions } from './PaymentInstructions';
 import { PaymentConfirmed } from './PaymentConfirmed';
+import { AccountSuspended } from './AccountSuspended';
 
 export const emailTemplates = {
   'email-verify': EmailVerify,
@@ -26,6 +27,7 @@ export const emailTemplates = {
   'sunset-policy': SunsetPolicy,
   'payment-instructions': PaymentInstructions,
   'payment-confirmed': PaymentConfirmed,
+  'account-suspended': AccountSuspended,
 } as const;
 
 export type TemplateName = keyof typeof emailTemplates;
