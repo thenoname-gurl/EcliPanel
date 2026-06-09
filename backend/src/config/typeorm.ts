@@ -101,6 +101,8 @@ export const AppDataSource = new DataSource({
     require('../models/organisationMember.entity').OrganisationMember,
     require('../models/organisationInvite.entity').OrganisationInvite,
     require('../models/order.entity').Order,
+    require('../models/coupon.entity').Coupon,
+    require('../models/couponUse.entity').CouponUse,
     require('../models/userLog.entity').UserLog,
     require('../models/idVerification.entity').IDVerification,
     require('../models/legalDocument.entity').LegalDocument,

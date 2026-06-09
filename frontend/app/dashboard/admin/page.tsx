@@ -210,6 +210,11 @@ const PaymentMethodsTab = dynamic(() => import("./tabs/PaymentMethodsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading payment methods tab...</div>,
 })
 
+const CouponsTab = dynamic(() => import("./tabs/CouponsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading coupons tab...</div>,
+})
+
 const ShortUrlsTab = dynamic(() => import("./tabs/ShortUrlsTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading short URLs tab...</div>,
@@ -971,6 +976,7 @@ export default function AdminPanel() {
     { value: 'plans', label: t('tabs.plans'), permissions: ['admin:plans:view', 'admin:plans:manage', 'admin:plans:delete', 'admin:plans:reapply', 'admin:plans:forcereapply'] },
     { value: 'orders', label: t('tabs.orders'), permissions: ['orders:view', 'orders:issue', 'orders:update', 'orders:delete'] },
     { value: 'payments', label: t('tabs.payments'), permissions: ['admin:payment:manage'] },
+    { value: 'coupons', label: t('tabs.coupons') || 'Coupons', permissions: ['admin:access'] },
     { value: 'shorturls', label: t('tabs.shortUrls'), permissions: ['admin.shorturl.add', 'admin.shorturl.remove', 'admin.shorturl.edit.own', 'admin.shorturl.edit.any'] },
     { value: 'settings', label: t('tabs.settings'), permissions: ['admin:settings', 'admin:geoblock:view'] },
     { value: 'rollouts', label: t('tabs.rollouts'), permissions: ['admin:access'] },
@@ -6230,6 +6236,12 @@ remote: ${panelUrl}`
             {/* ═════════════════ PAYMENT METHODS ════════════════════════════ */}
             <TabsContent value="payments" className="mt-4">
               {activeTab === "payments" ? <PaymentMethodsTab /> : null}
+            </TabsContent>
+            {/* ═════════════════ COUPONS ═════════════════════════════════════ */}
+            <TabsContent value="coupons" className="mt-4">
+              {activeTab === "coupons" ? (
+                <CouponsTab ctx={{ panelSettings }} />
+              ) : null}
             </TabsContent>
             {/* ═════════════════ SHORT URLS ═════════════════════════════════════ */}
             <TabsContent value="shorturls" className="mt-4">

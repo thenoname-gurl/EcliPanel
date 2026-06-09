@@ -22,6 +22,7 @@ import { scheduleSunsetPolicyJob } from './jobs/sunsetPolicyJob';
 import { scheduleServerSunsetPolicyJob } from './jobs/serverSunsetPolicyJob';
 import { scheduleGithubContributorsJob } from './jobs/githubContributorsJob';
 import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
+import { scheduleRenewalJob } from './jobs/renewalJob';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
@@ -646,6 +647,11 @@ export async function initApp() {
     scheduleServerSunsetPolicyJob();
   } catch (e) {
     console.error('Failed to schedule server sunset policy job:', e);
+  }
+  try {
+    scheduleRenewalJob();
+  } catch (e) {
+    console.error('Failed to schedule renewal job:', e);
   }
   try {
     scheduleTunnelCleanupJob();

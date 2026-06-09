@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { toast } from "@/hooks/use-toast"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useEffect, useState } from "react"
@@ -21,6 +22,7 @@ import {
   Send,
   Loader2,
   AlertTriangle,
+  Tag,
 } from "lucide-react"
 
 export default function CheckoutPage() {
@@ -33,12 +35,21 @@ export default function CheckoutPage() {
   const [state, setState] = useState<"loading" | "select_method" | "instructions" | "sent" | "error">("loading")
   const [errorReason, setErrorReason] = useState<string>("")
   const [order, setOrder] = useState<any>(null)
+  const [planDetails, setPlanDetails] = useState<any>(null)
   const [methods, setMethods] = useState<any[]>([])
   const [selectedMethod, setSelectedMethod] = useState<string>("")
   const [paymentDetails, setPaymentDetails] = useState<any>(null)
   const [copied, setCopied] = useState(false)
   const [billingCurrency, setBillingCurrency] = useState("USD")
   const [markingSent, setMarkingSent] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
+  const [activateMode, setActivateMode] = useState<"now" | "renewal">("now")
+  const [couponCode, setCouponCode] = useState("")
+  const [couponApplying, setCouponApplying] = useState(false)
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null)
+  const [couponError, setCouponError] = useState("")
+  const currentUser = user as any
+  const hasNonFreePlan = currentUser?.portalType && currentUser.portalType !== 'free'
 
   const normalizedCurrency = sanitizeCurrencyCode(billingCurrency)
 
@@ -64,6 +75,9 @@ export default function CheckoutPage() {
 
         setOrder(orderData)
         setMethods(methodsData?.methods || [])
+        if (orderData?.plan) {
+          setPlanDetails(orderData.plan)
+        }
 
         if (orderData?.status === "awaiting_payment" || orderData?.status === "payment_sent") {
           try {
@@ -121,7 +135,7 @@ export default function CheckoutPage() {
         API_ENDPOINTS.orderCheckout.replace(":id", orderId),
         {
           method: "POST",
-          body: JSON.stringify({ paymentMethodId: selectedMethod }),
+          body: JSON.stringify({ paymentMethodId: selectedMethod, activateMode }),
         }
       )
       setPaymentDetails(res.payment)
@@ -145,6 +159,49 @@ export default function CheckoutPage() {
       console.error("failed to mark sent", e)
     } finally {
       setMarkingSent(false)
+    }
+  }
+
+  async function handleApplyCoupon() {
+    if (!couponCode.trim() || !orderId) return
+    setCouponApplying(true)
+    setCouponError("")
+    try {
+      const res = await apiFetch(API_ENDPOINTS.couponRedeem, {
+        method: "POST",
+        body: JSON.stringify({ code: couponCode.trim(), orderId: Number(orderId) }),
+      })
+      if (res?.success) {
+        setAppliedCoupon(res.order)
+        setCouponCode("")
+        if (res.order.autoActivated) {
+          router.push("/dashboard/billing")
+          return
+        }
+        setOrder({ ...order, amount: res.order.amount, discountAmount: res.order.discountAmount, couponCode: res.order.couponCode, status: res.order.status })
+      } else {
+        setCouponError(res?.error || "Failed to apply coupon")
+      }
+    } catch (e: any) {
+      setCouponError(e?.message || "Invalid coupon")
+    } finally {
+      setCouponApplying(false)
+    }
+  }
+
+  async function handleCancelOrder() {
+    if (!orderId) return
+    setCancelling(true)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.orderCancel.replace(":id", orderId),
+        { method: "POST", body: JSON.stringify({}) }
+      )
+      router.push("/dashboard/billing")
+    } catch (e: any) {
+      toast({ title: t("error.cancelFailed"), description: e?.message, variant: "destructive" })
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -218,16 +275,103 @@ export default function CheckoutPage() {
           {order && (
             <div className="border border-border bg-card p-5">
               <SectionHeader title={t("orderSummary")} description={`#${order.id}`} />
-              <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-xs text-muted-foreground">{t("orderDescription")}</p>
-                  <p className="text-foreground font-medium">{order.description}</p>
+              <div className="mt-3 flex flex-col gap-4 text-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground">{t("orderDescription")}</p>
+                    <p className="text-foreground font-medium">{order.description}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">{t("orderAmount")}</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {formatMoney(Number(order.amount ?? 0), normalizedCurrency)}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">{t("orderAmount")}</p>
-                  <p className="text-2xl font-bold text-primary">
-                    {formatMoney(Number(order.amount ?? 0), normalizedCurrency)}
-                  </p>
+
+                {/* Coupon */}
+                {!appliedCoupon && order.status === "pending" && (
+                  <div className="border-t border-border pt-4 mt-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 flex items-center gap-2 border border-border bg-secondary/10 px-3 h-9">
+                        <Tag className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <input
+                          type="text"
+                          value={couponCode}
+                          onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); setCouponError("") }}
+                          onKeyDown={(e) => e.key === "Enter" && handleApplyCoupon()}
+                          placeholder={t("coupon.placeholder") || "Coupon code"}
+                          className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none uppercase font-mono"
+                        />
+                      </div>
+                      <button
+                        onClick={handleApplyCoupon}
+                        disabled={!couponCode.trim() || couponApplying}
+                        className="h-9 px-4 bg-primary text-primary-foreground text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+                      >
+                        {couponApplying ? <Loader2 className="h-4 w-4 animate-spin" /> : t("coupon.apply") || "Apply"}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p className="text-xs text-destructive mt-1">{couponError}</p>
+                    )}
+                  </div>
+                )}
+                {appliedCoupon && (
+                  <div className="border-t border-border pt-4 mt-2">
+                    <div className="flex items-center gap-2 p-2 border border-success/30 bg-success/5 text-sm">
+                      <Check className="h-4 w-4 text-success" />
+                      <span className="text-success font-medium">{t("coupon.applied") || "Coupon applied"}: {appliedCoupon.couponCode}</span>
+                      <span className="text-muted-foreground">(-{formatMoney(Number(appliedCoupon.discountAmount ?? 0), normalizedCurrency)})</span>
+                    </div>
+                  </div>
+                )}
+                {/* Dates */}
+                <div className="border border-border bg-secondary/20 p-3">
+                  {(() => {
+                    const isQueued = (order.notes || '').includes('queue_for_renewal')
+                    const startDate = isQueued && order.expiresAt
+                      ? new Date(new Date(order.expiresAt).setMonth(new Date(order.expiresAt).getMonth() - 1))
+                      : order.createdAt
+                        ? new Date(order.createdAt)
+                        : new Date()
+                    return (
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-muted-foreground">{isQueued ? t("orderStarts") : t("orderCreated")}</p>
+                          <p className="text-foreground font-medium">{startDate.toLocaleDateString()}</p>
+                        </div>
+                        {order.expiresAt && (
+                          <div>
+                            <p className="text-muted-foreground">{t("orderExpiresAt")}</p>
+                            <p className="text-foreground font-medium">{new Date(order.expiresAt).toLocaleDateString()}</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Plan Specs */}
+                <div className="border border-border bg-secondary/20 p-3">
+                  <p className="text-xs text-muted-foreground mb-2">{order.description}</p>
+                  {planDetails && (() => {
+                    const features = Array.isArray(planDetails.features)
+                      ? planDetails.features
+                      : Array.isArray(planDetails.features?.list)
+                        ? planDetails.features.list
+                        : []
+                    return features.length > 0 ? (
+                      <ul className="flex flex-col gap-1">
+                        {features.map((f: string) => (
+                          <li key={f} className="flex items-center gap-2 text-xs text-foreground">
+                            <Check className="h-3 w-3 text-success shrink-0" />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null
+                  })()}
                 </div>
               </div>
             </div>
@@ -271,13 +415,38 @@ export default function CheckoutPage() {
                   </button>
                 ))}
               </div>
-              <button
-                onClick={handleSelectMethod}
-                disabled={!selectedMethod}
-                className="mt-4 flex w-full items-center justify-center gap-2 bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                {t("selectMethod.continue")}
-              </button>
+              <div className="mt-4 flex flex-col gap-3">
+                {hasNonFreePlan && (
+                  <div className="border border-border bg-secondary/20 p-3">
+                    <p className="text-xs text-muted-foreground mb-2">{t("selectMethod.activationTitle")}</p>
+                    <div className="flex flex-col gap-2">
+                      <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'now' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
+                        <input type="radio" name="activateMode" checked={activateMode === 'now'} onChange={() => setActivateMode('now')} className="accent-primary" />
+                        <span className="text-sm text-foreground">{t("selectMethod.activateNow")}</span>
+                      </label>
+                      <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'renewal' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
+                        <input type="radio" name="activateMode" checked={activateMode === 'renewal'} onChange={() => setActivateMode('renewal')} className="accent-primary" />
+                        <span className="text-sm text-foreground">{t("selectMethod.activateOnRenewal")}</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+                <button
+                  onClick={handleSelectMethod}
+                  disabled={!selectedMethod}
+                  className="flex w-full items-center justify-center gap-2 bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {t("selectMethod.continue")}
+                </button>
+                <button
+                  onClick={handleCancelOrder}
+                  disabled={cancelling}
+                  className="flex w-full items-center justify-center gap-2 border border-destructive/30 bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
+                >
+                  {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+                  {t("selectMethod.cancelOrder")}
+                </button>
+              </div>
             </div>
           )}
 
@@ -353,27 +522,34 @@ export default function CheckoutPage() {
                       <AlertTriangle className="inline h-3.5 w-3.5 mr-1.5 text-destructive" />
                       {t("instructions.fraudWarning")}
                     </div>
-                    <div className="flex gap-3">
-
-
-
+                    <div className="flex flex-col gap-3">
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleMarkSent}
+                          disabled={markingSent}
+                          className="flex flex-1 items-center justify-center gap-2 bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                        >
+                          {markingSent ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Send className="h-4 w-4" />
+                          )}
+                          {t("instructions.markSent")}
+                        </button>
+                        <button
+                          onClick={() => router.push("/dashboard/billing")}
+                          className="flex items-center justify-center gap-2 border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+                        >
+                          {t("instructions.later")}
+                        </button>
+                      </div>
                       <button
-                        onClick={handleMarkSent}
-                        disabled={markingSent}
-                        className="flex flex-1 items-center justify-center gap-2 bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+                        onClick={handleCancelOrder}
+                        disabled={cancelling}
+                        className="flex w-full items-center justify-center gap-2 border border-destructive/30 bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
                       >
-                        {markingSent ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Send className="h-4 w-4" />
-                        )}
-                        {t("instructions.markSent")}
-                      </button>
-                      <button
-                        onClick={() => router.push("/dashboard/billing")}
-                        className="flex items-center justify-center gap-2 border border-border bg-secondary/50 px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
-                      >
-                        {t("instructions.later")}
+                        {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+                        {t("instructions.cancelOrder")}
                       </button>
                     </div>
                   </>

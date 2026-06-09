@@ -58,6 +58,15 @@ export class Order {
   @Column({ nullable: true })
   cryptoNetwork?: string;
 
+  @Column({ nullable: true })
+  couponId?: number;
+
+  @Column({ nullable: true, type: 'text' })
+  couponCode?: string;
+
+  @Column('float', { default: 0 })
+  discountAmount: number;
+
   @Column('datetime')
   createdAt: Date;
 

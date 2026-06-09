@@ -1,5 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { Order } from '../models/order.entity';
+import { Coupon } from '../models/coupon.entity';
+import { CouponUse } from '../models/couponUse.entity';
 import { User } from '../models/user.entity';
 import { Plan } from '../models/plan.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
@@ -49,7 +51,7 @@ async function renderInvoicePdf(order: Order): Promise<Buffer> {
   const dueDate = new Date(createdAt.getTime() + 7 * 24 * 3600 * 1000);
   const expiresAt = order.expiresAt ? new Date(order.expiresAt) : null;
   const monthDiff = expiresAt
-    ? Math.min(24, Math.max(1, (expiresAt.getFullYear() - createdAt.getFullYear()) * 12 + (expiresAt.getMonth() - createdAt.getMonth())))
+    ? Math.max(1, (expiresAt.getFullYear() - createdAt.getFullYear()) * 12 + (expiresAt.getMonth() - createdAt.getMonth()))
     : 1;
   enrichedOrder.invoiceDueDate = dueDate.toISOString();
   enrichedOrder.servicePeriod = {
@@ -304,7 +306,7 @@ async function normalizeOrderWithPayment(o: any) {
   const dueDate = new Date(createdAt.getTime() + 7 * 24 * 3600 * 1000);
   const expiresAt = o.expiresAt ? new Date(o.expiresAt) : null;
   const monthDiff = expiresAt
-    ? Math.min(24, Math.max(1, (expiresAt.getFullYear() - createdAt.getFullYear()) * 12 + (expiresAt.getMonth() - createdAt.getMonth())))
+    ? Math.max(1, (expiresAt.getFullYear() - createdAt.getFullYear()) * 12 + (expiresAt.getMonth() - createdAt.getMonth()))
     : 1;
   base.invoiceDueDate = dueDate.toISOString();
   base.servicePeriod = {
@@ -404,7 +406,18 @@ export async function orderRoutes(app: any, prefix = '') {
         }
       }
 
-      const { orgId, items, amount, description, planId, notes } = body as any;
+      const { orgId, items, amount, description, planId, notes, activateMode } = body as any;
+
+      const effectiveAmount = amount != null ? Number(amount) : 0;
+      const isQueuedForRenewal = activateMode === 'renewal';
+      const isFree = effectiveAmount === 0;
+
+      let enrichedNotes = notes || undefined;
+      if (isQueuedForRenewal) {
+        enrichedNotes = enrichedNotes
+          ? `${enrichedNotes}; queue_for_renewal:true`
+          : 'queue_for_renewal:true';
+      }
 
       let enrichedItems = items;
       if (planId != null) {
@@ -423,7 +436,7 @@ export async function orderRoutes(app: any, prefix = '') {
               } catch {}
             } else {
               enrichedItems = JSON.stringify([
-                { description: itemDesc, quantity: 1, price: Number(amount ?? 0) }
+                { description: itemDesc, quantity: 1, price: effectiveAmount }
               ]);
             }
           }
@@ -433,22 +446,117 @@ export async function orderRoutes(app: any, prefix = '') {
       const order = orderRepo.create({
         orgId,
         items: enrichedItems,
-        amount,
+        amount: effectiveAmount,
         description,
         planId,
-        notes,
+        notes: enrichedNotes,
         userId: user.id,
-        status: 'pending',
+        status: isFree ? 'active' : 'pending',
         createdAt: new Date(),
         expiresAt: new Date(new Date().setMonth(new Date().getMonth() + 1)),
       });
+
+      if (isQueuedForRenewal) {
+        const activeOrders = await orderRepo.find({
+          where: { userId: user.id, status: 'active' },
+        });
+        const pendingQueued = await orderRepo
+          .createQueryBuilder('o')
+          .where('o.userId = :uid', { uid: user.id })
+          .andWhere('o.status IN (:...statuses)', { statuses: ['pending', 'awaiting_payment', 'payment_sent'] })
+          .andWhere("o.notes LIKE '%queue_for_renewal%'")
+          .getMany();
+
+        const allRelevant = [...activeOrders, ...pendingQueued];
+        if (allRelevant.length > 0) {
+          const latest = allRelevant.reduce((latest, o) =>
+            new Date(o.expiresAt) > new Date(latest.expiresAt) ? o : latest
+          , allRelevant[0]);
+          const queueStart = new Date(latest.expiresAt);
+          queueStart.setMonth(queueStart.getMonth() + 1);
+          order.expiresAt = queueStart;
+        }
+      }
+
+      if (isFree) {
+        const prevActive = await orderRepo.find({
+          where: { userId: user.id, status: 'active' },
+        });
+
+        if (!isQueuedForRenewal) {
+          if (prevActive.length > 0) {
+            for (const prev of prevActive) {
+              prev.status = 'cancelled';
+              prev.notes = prev.notes
+                ? `${prev.notes}; Replaced by order #${order.id} on ${new Date().toISOString()}`
+                : `Replaced by order #${order.id} on ${new Date().toISOString()}`;
+            }
+            await orderRepo.save(prevActive);
+
+            const couponRepo = AppDataSource.getRepository(Coupon);
+            const couponUseRepo = AppDataSource.getRepository(CouponUse);
+            for (const prev of prevActive) {
+              if (prev.couponId) {
+                const coupon = await couponRepo.findOneBy({ id: Number(prev.couponId) });
+                if (coupon) {
+                  coupon.currentUsesTotal = Math.max(0, coupon.currentUsesTotal - 1);
+                  await couponRepo.save(coupon);
+                }
+                await couponUseRepo.delete({
+                  couponId: prev.couponId,
+                  userId: prev.userId,
+                });
+              }
+            }
+          }
+        }
+
+        await orderRepo.save(order);
+
+        if (!isQueuedForRenewal && planId != null) {
+          try {
+            const planRepo2 = AppDataSource.getRepository(Plan);
+            const userRepo2 = AppDataSource.getRepository(require('../models/user.entity').User);
+            const plan = await planRepo2.findOneBy({ id: Number(planId) });
+            if (plan) {
+              const userEntity = await userRepo2.findOneBy({ id: user.id });
+              if (userEntity) {
+                const limits: Record<string, number> = {};
+                if (plan.memory != null) limits.memory = plan.memory;
+                if (plan.disk != null) limits.disk = plan.disk;
+                if (plan.cpu != null) limits.cpu = plan.cpu;
+                if (plan.serverLimit != null) limits.serverLimit = plan.serverLimit;
+                if (plan.databases != null) limits.databases = plan.databases;
+                if (plan.backups != null) limits.backups = plan.backups;
+                if (plan.portCount != null) limits.portCount = plan.portCount;
+                if (plan.tunnelPortCount != null) limits.tunnelPortCount = plan.tunnelPortCount;
+
+                const existingLimits = (userEntity as any).limits || {};
+                if (Object.keys(limits).length) {
+                  for (const key of Object.keys(limits)) {
+                    if ((existingLimits[key] ?? 0) < limits[key]) {
+                      existingLimits[key] = limits[key];
+                    }
+                  }
+                  userEntity.limits = existingLimits;
+                }
+                userEntity.portalType = plan.type;
+                await userRepo2.save(userEntity);
+              }
+            }
+          } catch {}
+        }
+
+        return { success: true, order: normalizeOrder(order), autoActivated: true };
+      }
+
       await orderRepo.save(order);
       return { success: true, order: normalizeOrder(order) };
     },
     {
       beforeHandle: [authenticate, authorize('orders:create')],
       response: {
-        200: t.Object({ success: t.Boolean(), order: t.Any() }),
+        200: t.Object({ success: t.Boolean(), order: t.Any(), autoActivated: t.Optional(t.Boolean()) }),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
@@ -512,17 +620,29 @@ export async function orderRoutes(app: any, prefix = '') {
         return { error: ctx.t('order.notFound') };
       }
       const user = ctx.user as any;
-      if (order.userId === user.id) {
-        return normalizeOrder(order);
-      }
-      if (order.orgId) {
+      if (order.userId !== user.id) {
+        if (!order.orgId) {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.forbidden') };
+        }
         const role = await getOrgMembershipRole(user.id, Number(order.orgId));
-        if (role === 'admin' || role === 'owner') {
-          return normalizeOrder(order);
+        if (role !== 'admin' && role !== 'owner') {
+          ctx.set.status = 403;
+          return { error: ctx.t('common.forbidden') };
         }
       }
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
+
+      let plan = null;
+      if (order.planId) {
+        try {
+          const planRepo = AppDataSource.getRepository(Plan);
+          plan = await planRepo.findOneBy({ id: order.planId });
+        } catch {}
+      }
+
+      const result = normalizeOrder(order);
+      if (plan) result.plan = plan;
+      return result;
     },
     {
       beforeHandle: authenticate,
@@ -612,9 +732,10 @@ export async function orderRoutes(app: any, prefix = '') {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
       }
-      if (order.status !== 'active') {
+      const cancellableStatuses = ['pending', 'awaiting_payment', 'payment_sent', 'active'];
+      if (!cancellableStatuses.includes(order.status)) {
         ctx.set.status = 400;
-        return { error: ctx.t('payment.onlyActiveCanCancel') };
+        return { error: ctx.t('payment.cannotCancel') };
       }
 
       order.status = 'cancelled';
@@ -622,6 +743,20 @@ export async function orderRoutes(app: any, prefix = '') {
         ? `${order.notes}; Cancelled by user on ${new Date().toISOString()}`
         : `Cancelled by user on ${new Date().toISOString()}`;
       await orderRepo.save(order);
+
+      if (order.couponId) {
+        const couponRepo = AppDataSource.getRepository(Coupon);
+        const couponUseRepo = AppDataSource.getRepository(CouponUse);
+        const coupon = await couponRepo.findOneBy({ id: Number(order.couponId) });
+        if (coupon) {
+          coupon.currentUsesTotal = Math.max(0, coupon.currentUsesTotal - 1);
+          await couponRepo.save(coupon);
+        }
+        await couponUseRepo.delete({
+          couponId: order.couponId,
+          userId: user.id,
+        });
+      }
 
       const remaining = await orderRepo.find({
         where: { userId: user.id, status: 'active' },

@@ -1,5 +1,7 @@
 import { AppDataSource } from '../config/typeorm';
 import { Order } from '../models/order.entity';
+import { Coupon } from '../models/coupon.entity';
+import { CouponUse } from '../models/couponUse.entity';
 import { User } from '../models/user.entity';
 import { Plan } from '../models/plan.entity';
 import { Node } from '../models/node.entity';
@@ -129,7 +131,7 @@ export async function paymentRoutes(app: any, prefix = '') {
       if (f !== true) return f;
       const user = ctx.user as any;
       const orderId = Number(ctx.params.id);
-      const { paymentMethodId } = ctx.body as any;
+      const { paymentMethodId, activateMode } = ctx.body as any;
 
       if (!paymentMethodId) {
         ctx.set.status = 400;
@@ -160,6 +162,11 @@ export async function paymentRoutes(app: any, prefix = '') {
       order.paymentMethod = method.id;
       order.paymentProvider = method.type;
       order.status = 'awaiting_payment';
+      if (activateMode === 'renewal') {
+        order.notes = order.notes
+          ? `${order.notes}; queue_for_renewal:true`
+          : 'queue_for_renewal:true';
+      }
       if (method.type === 'crypto') {
         order.cryptoAddress = method.address;
         order.cryptoCurrency = method.currency || 'BTC';
@@ -222,7 +229,7 @@ export async function paymentRoutes(app: any, prefix = '') {
     },
     {
       beforeHandle: [authenticate, authorize('orders:create')],
-      body: t.Object({ paymentMethodId: t.String() }),
+      body: t.Object({ paymentMethodId: t.String(), activateMode: t.Optional(t.String()) }),
       detail: { summary: 'Initiate payment for an order', tags: ['Payments'] },
     }
   );
@@ -391,10 +398,12 @@ export async function paymentRoutes(app: any, prefix = '') {
       order.expiresAt = nextMonth;
       if (notes) order.notes = order.notes ? `${order.notes}; ${notes}` : notes;
 
+      const isQueuedForRenewal = (order.notes || '').includes('queue_for_renewal');
+
       const prevActive = await orderRepo.find({
         where: { userId: order.userId, status: 'active' },
       });
-      if (prevActive.length > 0) {
+      if (prevActive.length > 0 && !isQueuedForRenewal) {
         for (const prev of prevActive) {
           if (prev.id !== order.id) {
             prev.status = 'cancelled';
@@ -404,6 +413,31 @@ export async function paymentRoutes(app: any, prefix = '') {
           }
         }
         await orderRepo.save(prevActive);
+
+        const couponRepo = AppDataSource.getRepository(Coupon);
+        const couponUseRepo = AppDataSource.getRepository(CouponUse);
+        for (const prev of prevActive) {
+          if (prev.couponId) {
+            const coupon = await couponRepo.findOneBy({ id: Number(prev.couponId) });
+            if (coupon) {
+              coupon.currentUsesTotal = Math.max(0, coupon.currentUsesTotal - 1);
+              await couponRepo.save(coupon);
+            }
+            await couponUseRepo.delete({
+              couponId: prev.couponId,
+              userId: prev.userId,
+            });
+          }
+        }
+      }
+
+      if (isQueuedForRenewal && prevActive.length > 0) {
+        const latestActive = prevActive.reduce((latest, o) =>
+          new Date(o.expiresAt) > new Date(latest.expiresAt) ? o : latest
+        , prevActive[0]);
+        const queueStart = new Date(latestActive.expiresAt);
+        queueStart.setMonth(queueStart.getMonth() + 1);
+        order.expiresAt = queueStart;
       }
 
       if (order.planId) {
