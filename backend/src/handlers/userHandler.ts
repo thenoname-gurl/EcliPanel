@@ -154,6 +154,21 @@ async function safeUser(user: User): Promise<Record<string, unknown>> {
       fraudFlag: true,
       fraudReason,
     });
+    try {
+      await sendMail({
+        to: user.email,
+        from: process.env.SMTP_FROM || 'noreply@ecli.app',
+        subject: 'Account Suspended - EcliPanel',
+        template: 'account-suspended',
+        vars: {
+          title: 'Account Suspended',
+          message: 'Your account has been suspended because your age does not meet the minimum requirements for your country.',
+          reason: fraudReason,
+        },
+      });
+    } catch (e) {
+      console.error('Failed to send suspension email:', e);
+    }
   }
 
   if (result.fraudDetectedAt === null) {
@@ -1942,6 +1957,22 @@ export async function userRoutes(app: any, prefix = '') {
           user.suspended = true;
           user.fraudFlag = true;
           user.fraudReason = `Underage account (<${minimumAge} years)`;
+          try {
+            await sendMail({
+              to: user.email,
+              from: process.env.SMTP_FROM || 'noreply@ecli.app',
+              subject: 'Account Suspended - EcliPanel',
+              template: 'account-suspended',
+              vars: {
+                title: 'Account Suspended',
+                message: 'Your account has been suspended because your age does not meet the minimum requirements for your country.',
+                reason: user.fraudReason,
+              },
+              locale: ctx.locale,
+            });
+          } catch (e) {
+            console.error('Failed to send suspension email:', e);
+          }
         }
         user.dateOfBirth = dateOfBirth;
         delete payload.dateOfBirth;

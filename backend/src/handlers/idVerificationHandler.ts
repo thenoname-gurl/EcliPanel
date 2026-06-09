@@ -6,6 +6,7 @@ import { User } from '../models/user.entity';
 import { canPerformIdVerification, getMinimumAgeForCountry } from '../utils/eu';
 import { encryptBuffer, encryptBufferToString } from '../utils/crypto';
 import { estimateAgeFromSelfie } from '../services/faceApiService';
+import { sendMail } from '../services/mailService';
 import path from 'path';
 import fs from 'fs';
 import { pipeline } from 'stream/promises';
@@ -253,6 +254,22 @@ export async function idVerificationRoutes(app: any, prefix = '') {
               fraudReason: `Underage account (<${minimumAge} years)`,
               fraudDetectedAt: new Date(),
             });
+            try {
+              await sendMail({
+                to: user.email,
+                from: process.env.SMTP_FROM || 'noreply@ecli.app',
+                subject: 'Account Suspended - EcliPanel',
+                template: 'account-suspended',
+                vars: {
+                  title: 'Account Suspended',
+                  message: 'Your account has been suspended because age verification determined you do not meet the minimum age requirements.',
+                  reason: `Underage account (<${minimumAge} years)`,
+                },
+                locale: ctx.locale,
+              });
+            } catch (e) {
+              console.error('Failed to send suspension email:', e);
+            }
           }
 
           ctx.set.status = 400;

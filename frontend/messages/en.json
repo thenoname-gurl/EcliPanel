@@ -1844,6 +1844,7 @@
       "dismissFailed": "Failed to dismiss: {reason}",
       "failed": "Failed: {reason}",
       "confirmSuspend": "Suspend user {name}?",
+      "suspendReasonPrompt": "Enter suspension reason (optional):",
       "rescanFailed": "Re-scan failed: {reason}"
     },
     "actions": {

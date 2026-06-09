@@ -1902,6 +1902,7 @@
       "dismissFailed": "Не удалось отклонить: {reason}",
       "failed": "Ошибка: {reason}",
       "confirmSuspend": "Приостановить пользователя {name}?",
+      "suspendReasonPrompt": "Введите причину приостановки (необязательно):",
       "rescanFailed": "Повторное сканирование не удалось: {reason}"
     },
     "actions": {

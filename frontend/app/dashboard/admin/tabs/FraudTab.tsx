@@ -188,10 +188,12 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                     <button
                       onClick={async () => {
                         if (!(await confirmAsync(t("alerts.confirmSuspend", { name: `${alert.firstName} ${alert.lastName}` })))) return
+                        const reason = prompt(t("alerts.suspendReasonPrompt"), alert.fraudReason || "")
+                        if (reason === null) return
                         try {
                           await apiFetch(API_ENDPOINTS.adminFraudAction.replace(":id", String(alert.id)), {
                             method: "PUT",
-                            body: JSON.stringify({ action: "suspend" }),
+                            body: JSON.stringify({ action: "suspend", reason: reason.trim() || undefined }),
                           })
                           setFraudAlerts((prev: any[]) => prev.map((a: any) => a.id === alert.id ? { ...a, suspended: true } : a))
                         } catch (e: any) {
