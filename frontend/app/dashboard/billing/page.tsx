@@ -44,6 +44,9 @@ export default function BillingPage() {
   const [billingTaxRules, setBillingTaxRules] = useState("")
   const [cancellingOrderId, setCancellingOrderId] = useState<number | null>(null)
   const [showCancelConfirm, setShowCancelConfirm] = useState<{ plan: any; order: any } | null>(null)
+  const [confirmSwitch, setConfirmSwitch] = useState<{ targetCard: any; targetPlan: any } | null>(null)
+  const [switchLoading, setSwitchLoading] = useState(false)
+  const [activateMode, setActivateMode] = useState<"now" | "renewal">("now")
 
   const portalMarkerByTier: Record<string, string> = {
     free: t("portal.free"),
@@ -64,7 +67,7 @@ export default function BillingPage() {
   const currentPlan = PORTALS[activeTierEffective] ?? PORTALS.free
 
   const userPlanLabel = userPlanType === 'enterprise' ? t("portal.enterprise") : getPortalMarker(userPlanType)
-  const activePlanTitle = primaryPlan?.plan?.name ?? userPlanLabel
+  const activePlanTitle = primaryPlan?.plan?.name || primaryPlan?.order?.description || userPlanLabel
   const activePlanType = primaryPlan?.plan?.type ?? userPlanType
   const normalizedCurrency = sanitizeCurrencyCode(billingCurrency)
   const taxRate = resolveTaxRate(billingTaxRules, currentUser?.billingCountry)
@@ -78,16 +81,21 @@ export default function BillingPage() {
       ? primaryPlan.order?.amount
         ? formatPrice(Number(primaryPlan.order.amount), true)
         : t("pricing.priceVaries")
-      : formatPrice(Number(primaryPlan.plan.price ?? 0), true)
+      : formatPrice(Number(primaryPlan.plan.price || primaryPlan.order?.amount || 0), true)
     : currentPlan.id === 'free'
       ? formatPrice(0, true)
       : currentPlan.id === 'paid'
         ? formatPrice(12, true)
         : t("pricing.custom")
+  const currentPlanPrice = primaryPlan
+    ? primaryPlan.plan.type === 'enterprise'
+      ? (primaryPlan.order?.amount != null ? Number(primaryPlan.order.amount) : null)
+      : Number(primaryPlan.plan.price || primaryPlan.order?.amount || 0)
+    : null
   const activeBaseMonthly = primaryPlan
     ? primaryPlan.plan.type === 'enterprise'
       ? (primaryPlan.order?.amount != null ? Number(primaryPlan.order.amount) : null)
-      : Number(primaryPlan.plan.price ?? 0)
+      : Number(primaryPlan.plan.price || primaryPlan.order?.amount || 0)
     : currentPlan.id === 'free'
       ? 0
       : currentPlan.id === 'paid'
@@ -150,10 +158,44 @@ export default function BillingPage() {
     }
   }
 
-  const hasActivePaidPlan = activePlans.some((ap: any) => {
-    const planType = String(ap.plan?.type || "").toLowerCase()
-    return planType === "paid" || planType === "enterprise"
-  })
+  async function handleSwitchPlan(targetCard: any, targetPlan: any) {
+    setSwitchLoading(true)
+    try {
+      const planId = Number(targetPlan?.id ?? targetCard.id)
+      if (!planId || isNaN(planId)) {
+        toast({ title: "Invalid plan", variant: "destructive" })
+        return
+      }
+      const targetAmount = Number(targetPlan?.price ?? targetCard.price ?? 0)
+      const res = await apiFetch(API_ENDPOINTS.orders, {
+        method: "POST",
+        body: JSON.stringify({
+          planId,
+          amount: targetAmount,
+          description: targetCard.name,
+          activateMode,
+          items: JSON.stringify([{ description: targetCard.name, quantity: 1, price: targetAmount }]),
+        }),
+      })
+      if (res?.order?.id) {
+        if (targetAmount === 0) {
+          if (activateMode === 'renewal') {
+            toast({ title: t("currentSubscription.queued"), description: targetCard.name })
+          } else {
+            toast({ title: t("currentSubscription.switched"), description: targetCard.name })
+          }
+          setTimeout(() => window.location.reload(), 1000)
+        } else {
+          router.push(`/dashboard/billing/checkout?order=${res.order.id}`)
+        }
+      }
+    } catch (e: any) {
+      toast({ title: t("errors.orderCreateFailed"), description: e?.message, variant: "destructive" })
+    } finally {
+      setSwitchLoading(false)
+      setConfirmSwitch(null)
+    }
+  }
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.panelSettings)
@@ -346,7 +388,6 @@ export default function BillingPage() {
                             ? order.description
                             : plan.name}
                         </h3>
-                        <Badge className="bg-primary/20 text-primary border-0 text-xs">{getPortalMarker(currentUser?.portalType || plan.type)}</Badge>
                         {order.status === "active" && (
                           <Badge className="bg-emerald-500/20 text-emerald-400 border-0 text-xs">{t("activeSubscription.activeBadge")}</Badge>
                         )}
@@ -369,7 +410,7 @@ export default function BillingPage() {
                       <p className="text-2xl font-bold text-primary">
                         {plan.type === 'enterprise'
                           ? (order?.amount ? formatPrice(Number(order.amount), true) : t("pricing.priceVaries"))
-                          : `${formatPrice(Number(plan.price ?? 0), true)}${t("common.perMonth")}`}
+                          : `${formatPrice(Number(plan.price || order?.amount || 0), true)}${t("common.perMonth")}`}
                       </p>
                       {order?.expiresAt && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -490,7 +531,13 @@ export default function BillingPage() {
                         </li>
                       ))}
                     </ul>
-                    {(planCard.type === 'educational' && currentUser?.portalType !== 'educational' && (HACKCLUB_STUDENT_ENABLED || GITHUB_STUDENT_ENABLED)) && (
+                    {planCard.isActive && (
+                      <div className="mt-4 flex w-full items-center justify-center gap-2 border border-primary/30 bg-primary/10 py-2 text-xs font-medium text-primary">
+                        <Check className="h-3 w-3" />
+                        {t("currentSubscription.currentPlan")}
+                      </div>
+                    )}
+                    {!planCard.isActive && planCard.type === 'educational' && currentUser?.portalType !== 'educational' && (HACKCLUB_STUDENT_ENABLED || GITHUB_STUDENT_ENABLED) && (
                       <button
                         onClick={async () => {
                           try {
@@ -509,40 +556,6 @@ export default function BillingPage() {
                         <ArrowRight className="h-3 w-3" />
                       </button>
                     )}
-                    {!planCard.isActive && planCard.type === 'paid' && !hasActivePaidPlan && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            const livePlan = livePlanCards.find((lp: any) => lp.key === planCard.key)
-                            const planId = livePlan?.id ?? planCard.id
-                            const amount = Number(livePlan?.price ?? planCard.price ?? 0)
-                            const res = await apiFetch(API_ENDPOINTS.orders, {
-                              method: "POST",
-                              body: JSON.stringify({
-                                planId: Number(planId),
-                                amount,
-                                description: planCard.name,
-                                items: JSON.stringify([{ description: planCard.name, quantity: 1, price: amount }]),
-                              }),
-                            })
-                            if (res?.order?.id) {
-                              router.push(`/dashboard/billing/checkout?order=${res.order.id}`)
-                            }
-                          } catch (e: any) {
-                            toast({ title: t("errors.orderCreateFailed"), description: e?.message, variant: "destructive" })
-                          }
-                        }}
-                        className="mt-4 flex w-full items-center justify-center gap-2 bg-primary py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                      >
-                        {t("currentSubscription.buyNow")}
-                        <ArrowRight className="h-3 w-3" />
-                      </button>
-                    )}
-                    {!planCard.isActive && planCard.type === 'paid' && hasActivePaidPlan && (
-                      <div className="mt-4 border border-warning/20 bg-warning/5 p-2 text-center">
-                        <p className="text-xs text-muted-foreground">{t("currentSubscription.cancelFirst")}</p>
-                      </div>
-                    )}
                     {!planCard.isActive && planCard.type === 'enterprise' && (
                       <a
                         href="mailto:sales@ecli.app"
@@ -551,6 +564,18 @@ export default function BillingPage() {
                         {t("currentSubscription.contactSales")}
                         <ArrowRight className="h-3 w-3" />
                       </a>
+                    )}
+                    {!planCard.isActive && livePlanCards.length > 0 && planCard.type !== 'enterprise' && !(planCard.type === 'educational' && (HACKCLUB_STUDENT_ENABLED || GITHUB_STUDENT_ENABLED)) && (
+                      <button
+                        onClick={() => {
+                          const livePlan = livePlanCards.find((lp: any) => lp.key === planCard.key)
+                          setConfirmSwitch({ targetCard: planCard, targetPlan: livePlan })
+                        }}
+                        className="mt-4 flex w-full items-center justify-center gap-2 bg-primary py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                      >
+                        {t("currentSubscription.switchTo")} {planCard.name}
+                        <ArrowRight className="h-3 w-3" />
+                      </button>
                     )}
                   </div>
                 )
@@ -598,14 +623,14 @@ export default function BillingPage() {
                         {invoice.planSpecs && (
                           <p className="text-xs mt-0.5">
                             {[
-                              invoice.planSpecs.cpu && `${invoice.planSpecs.cpu} vCPU`,
+                              invoice.planSpecs.cpu && `${invoice.planSpecs.cpu}% CPU`,
                               invoice.planSpecs.memory && `${invoice.planSpecs.memory}MB RAM`,
                               invoice.planSpecs.disk && `${invoice.planSpecs.disk}MB Disk`,
                               invoice.planSpecs.serverLimit && `${invoice.planSpecs.serverLimit} servers`,
                             ].filter(Boolean).join(' · ')}
                           </p>
                         )}
-                        {invoice.servicePeriod?.months && invoice.servicePeriod.months <= 24 && (
+                        {invoice.servicePeriod?.months && (
                           <p className="text-xs text-muted-foreground/60 mt-0.5">
                             {invoice.servicePeriod.months} Month{invoice.servicePeriod.months > 1 ? 's' : ''}
                             {invoice.servicePeriod.from && ` · ${new Date(invoice.servicePeriod.from).toLocaleDateString()}`}
@@ -672,6 +697,52 @@ export default function BillingPage() {
           </div>
         </div>
       </ScrollArea>
+
+      {confirmSwitch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setConfirmSwitch(null)}>
+          <div className="w-full max-w-md border border-border bg-card p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold text-foreground">{t("currentSubscription.switchTitle")}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {t("currentSubscription.switchDescription", {
+                current: activePlanTitle || getPortalMarker(userPlanType),
+                target: confirmSwitch.targetCard.name,
+              })}
+            </p>
+            <div className="mt-6 flex flex-col gap-3">
+              {((currentUser?.portalType && currentUser.portalType !== 'free') || activePlans.length > 0) && (
+                <div className="border border-border bg-secondary/20 p-3">
+                  <div className="flex flex-col gap-2">
+                    <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'now' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
+                      <input type="radio" name="activateMode" checked={activateMode === 'now'} onChange={() => setActivateMode('now')} className="accent-primary" />
+                      <span className="text-sm text-foreground">{t("currentSubscription.activateNow")}</span>
+                    </label>
+                    <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'renewal' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
+                      <input type="radio" name="activateMode" checked={activateMode === 'renewal'} onChange={() => setActivateMode('renewal')} className="accent-primary" />
+                      <span className="text-sm text-foreground">{t("currentSubscription.activateOnRenewal")}</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => handleSwitchPlan(confirmSwitch.targetCard, confirmSwitch.targetPlan)}
+                disabled={switchLoading}
+                className="flex items-center justify-center gap-2 bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {switchLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+                {t("currentSubscription.confirmSwitch")}
+              </button>
+              <button
+                onClick={() => setConfirmSwitch(null)}
+                disabled={switchLoading}
+                className="flex items-center justify-center gap-2 border border-border py-3 text-sm text-muted-foreground transition-colors hover:text-foreground hover:bg-secondary/50 disabled:opacity-50"
+              >
+                {t("currentSubscription.goBack")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   </FeatureGuard>
   )

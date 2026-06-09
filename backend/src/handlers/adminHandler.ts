@@ -32,6 +32,8 @@ import { sanitizeError } from '../utils/sanitizeError';
 import { createT, getMessages, defaultLocale } from '../i18n';
 import { In, MoreThanOrEqual } from 'typeorm';
 import { Order } from '../models/order.entity';
+import { Coupon } from '../models/coupon.entity';
+import { CouponUse } from '../models/couponUse.entity';
 import { Plan } from '../models/plan.entity';
 import { ShortUrl } from '../models/shortUrl.entity';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
@@ -8279,7 +8281,7 @@ export async function adminRoutes(app: any, prefix = '') {
       }
 
       const userRepo = AppDataSource.getRepository(User);
-      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      const user = await userRepo.findOneBy({ id: Number(userId) });
       if (!user) {
         ctx.set.status = 404;
         return { error: ctx.t('user.notFound') };
@@ -8300,20 +8302,99 @@ export async function adminRoutes(app: any, prefix = '') {
         } catch {}
       }
 
+      const effectiveAmount = amount != null ? Number(amount) : 0;
+      const effectivePlanId = planId ? Number(planId) : undefined;
+      const isFreeOrder = effectiveAmount === 0;
+
       const order = orderRepo.create({
         userId: Number(userId),
         description: description || undefined,
-        planId: planId ? Number(planId) : undefined,
-        amount: amount != null ? Number(amount) : 0,
+        planId: effectivePlanId,
+        amount: effectiveAmount,
         taxAmount: taxAmount != null ? Number(taxAmount) : 0,
         taxRate: taxRate != null ? Number(taxRate) : 0,
         items: orderItems,
-        status: 'pending',
+        status: isFreeOrder ? 'active' : 'pending',
         notes: notes || undefined,
         createdAt: new Date(),
         expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 3600 * 1000),
         // Fuck leap month atp.
       });
+
+      if (isFreeOrder) {
+        const prevActive = await orderRepo.find({
+          where: { userId: Number(userId), status: 'active' },
+        });
+        if (prevActive.length > 0) {
+          for (const prev of prevActive) {
+            prev.status = 'cancelled';
+            prev.notes = prev.notes
+              ? `${prev.notes}; Replaced by order #${order.id} on ${new Date().toISOString()}`
+              : `Replaced by order #${order.id} on ${new Date().toISOString()}`;
+          }
+          await orderRepo.save(prevActive);
+
+          const couponRepoAdmin = AppDataSource.getRepository(Coupon);
+          const couponUseRepoAdmin = AppDataSource.getRepository(CouponUse);
+          for (const prev of prevActive) {
+            if (prev.couponId) {
+              const coupon = await couponRepoAdmin.findOneBy({ id: Number(prev.couponId) });
+              if (coupon) {
+                coupon.currentUsesTotal = Math.max(0, coupon.currentUsesTotal - 1);
+                await couponRepoAdmin.save(coupon);
+              }
+              await couponUseRepoAdmin.delete({
+                couponId: prev.couponId,
+                userId: prev.userId,
+              });
+            }
+          }
+        }
+
+        await orderRepo.save(order);
+
+        if (effectivePlanId) {
+          try {
+            const planRepo3 = AppDataSource.getRepository(Plan);
+            const plan = await planRepo3.findOneBy({ id: effectivePlanId });
+            if (plan) {
+              const limits: Record<string, number> = {};
+              if (plan.type === 'enterprise' && (user as any).nodeId) {
+                const nodeRepo2 = AppDataSource.getRepository(Node);
+                const node = await nodeRepo2.findOneBy({ id: (user as any).nodeId });
+                if (node) {
+                  if (node.memory != null) limits.memory = Number(node.memory);
+                  if (node.disk != null) limits.disk = Number(node.disk);
+                  if (node.cpu != null) limits.cpu = Number(node.cpu);
+                  if (node.serverLimit != null) limits.serverLimit = Number(node.serverLimit);
+                }
+              }
+              if (Object.keys(limits).length === 0) {
+                if (plan.memory != null) limits.memory = plan.memory;
+                if (plan.disk != null) limits.disk = plan.disk;
+                if (plan.cpu != null) limits.cpu = plan.cpu;
+                if (plan.serverLimit != null) limits.serverLimit = plan.serverLimit;
+              }
+
+              const existingLimits = (user as any).limits || {};
+              if (Object.keys(limits).length) {
+                for (const key of Object.keys(limits)) {
+                  if ((existingLimits[key] ?? 0) < limits[key]) {
+                    existingLimits[key] = limits[key];
+                  }
+                }
+                user.limits = existingLimits;
+              }
+
+              user.portalType = plan.type;
+              await userRepo.save(user);
+            }
+          } catch {}
+        }
+
+        return { success: true, order, autoActivated: true };
+      }
+
       await orderRepo.save(order);
       return { success: true, order };
     },
@@ -8332,7 +8413,7 @@ export async function adminRoutes(app: any, prefix = '') {
           notes: t.Optional(t.String()),
         }),
         response: {
-          200: t.Object({ success: t.Boolean(), order: t.Any() }),
+          200: t.Object({ success: t.Boolean(), order: t.Any(), autoActivated: t.Optional(t.Boolean()) }),
           400: t.Object({ error: t.String() }),
           401: t.Object({ error: t.String() }),
           403: t.Object({ error: t.String() }),
@@ -8635,6 +8716,22 @@ export async function adminRoutes(app: any, prefix = '') {
           order.status = 'cancelled';
         }
         await orderRepo.save(orders);
+
+        const couponRepo = AppDataSource.getRepository(Coupon);
+        const couponUseRepo = AppDataSource.getRepository(CouponUse);
+        for (const order of orders) {
+          if (order.couponId) {
+            const coupon = await couponRepo.findOneBy({ id: Number(order.couponId) });
+            if (coupon) {
+              coupon.currentUsesTotal = Math.max(0, coupon.currentUsesTotal - 1);
+              await couponRepo.save(coupon);
+            }
+            await couponUseRepo.delete({
+              couponId: order.couponId,
+              userId: order.userId,
+            });
+          }
+        }
       }
 
       const remaining = await orderRepo.find({ where: { userId, status: 'active' } });
@@ -8762,6 +8859,22 @@ export async function adminRoutes(app: any, prefix = '') {
             : `Replaced by plan "${plan.name}" on ${new Date().toISOString()}`;
         }
         await orderRepo.save(prevActive);
+
+        const couponRepoApply = AppDataSource.getRepository(Coupon);
+        const couponUseRepoApply = AppDataSource.getRepository(CouponUse);
+        for (const prev of prevActive) {
+          if (prev.couponId) {
+            const coupon = await couponRepoApply.findOneBy({ id: Number(prev.couponId) });
+            if (coupon) {
+              coupon.currentUsesTotal = Math.max(0, coupon.currentUsesTotal - 1);
+              await couponRepoApply.save(coupon);
+            }
+            await couponUseRepoApply.delete({
+              couponId: prev.couponId,
+              userId: prev.userId,
+            });
+          }
+        }
       }
 
       const order = orderRepo.create({

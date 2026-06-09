@@ -1166,6 +1166,7 @@
       "plans": "Plans",
       "orders": "Orders",
       "payments": "Payment Methods",
+      "coupons": "Coupons",
       "settings": "Settings",
       "tunnels": "Tunnels",
       "rollouts": "Rollouts",
@@ -5422,7 +5423,21 @@
       "buyNow": "Buy Now",
       "contactSales": "Contact Sales",
       "cancelFirst": "Cancel your current plan before purchasing a new one",
-      "noPlansVisible": "No plans are currently visible in billing showcase."
+      "noPlansVisible": "No plans are currently visible in billing showcase.",
+      "switchTitle": "Switch Subscription",
+      "switchDescription": "You currently have {current}. Would you like to switch to {target}?",
+      "renewCurrent": "Renew Current Subscription",
+      "upgradeNow": "Upgrade Now",
+      "downgradeNow": "Downgrade Now",
+      "switchNow": "Switch Now",
+      "goBack": "Go Back",
+      "switchTo": "Switch to",
+      "confirmSwitch": "Confirm Switch",
+      "currentPlan": "Current Plan",
+      "switched": "Switched to",
+      "queued": "Queued for renewal",
+      "activateNow": "Activate now (replace current plan)",
+      "activateOnRenewal": "Queue for next renewal"
     },
     "invoices": {
       "title": "Invoice History",
@@ -5454,17 +5469,31 @@
       "orderCreateFailed": "Failed to create order"
     }
   },
-  "checkoutPage": {
+    "checkoutPage": {
     "title": "Checkout",
     "description": "Complete your payment",
     "backToBilling": "Back to billing",
     "orderSummary": "Order Summary",
     "orderDescription": "Description",
     "orderAmount": "Amount",
+    "orderCreated": "Created",
+    "orderExpiresAt": "Expires",
+    "orderStarts": "Starts",
+    "planSpecs": "Plan Specifications",
+    "planType": "Plan Type",
+    "coupon": {
+      "placeholder": "Coupon code",
+      "apply": "Apply",
+      "applied": "Coupon applied"
+    },
     "selectMethod": {
       "title": "Select Payment Method",
       "description": "Choose how you'd like to pay",
-      "continue": "Continue to Payment"
+      "continue": "Continue to Payment",
+      "cancelOrder": "Cancel Order",
+      "activationTitle": "Activation",
+      "activateNow": "Activate now (replace current plan)",
+      "activateOnRenewal": "Queue for next renewal"
     },
     "instructions": {
       "title": "Payment Instructions",
@@ -5474,6 +5503,7 @@
       "payTo": "Send Payment To",
       "markSent": "I've Sent Payment",
       "later": "I'll Do This Later",
+      "cancelOrder": "Cancel Order",
       "sentTitle": "Payment Marked as Sent",
       "sentDescription": "Your payment has been marked as sent. An administrator will review and confirm your payment shortly.",
       "backToBilling": "Back to Billing",
@@ -5485,7 +5515,8 @@
       "missingOrder": "No order specified. Please go back and try again.",
       "invalidStatus": "This order cannot be paid right now. It may already be active or cancelled.",
       "noPaymentMethods": "No payment methods are currently available. Please contact support.",
-      "backToBilling": "Back to Billing"
+      "backToBilling": "Back to Billing",
+      "cancelFailed": "Failed to cancel order"
     }
   },
   "serverSharesTab": {
@@ -5718,37 +5749,6 @@
     "toasts": {
       "saved": "Payment methods saved successfully",
       "saveFailed": "Failed to save payment methods"
-    }
-  },
-  "checkoutPage": {
-    "title": "Checkout",
-    "description": "Complete your order payment",
-    "backToBilling": "Back to Billing",
-    "orderSummary": "Order Summary",
-    "orderDescription": "Description",
-    "orderAmount": "Amount",
-    "selectMethod": {
-      "title": "Choose Payment Method",
-      "description": "Select how you would like to pay for this order.",
-      "continue": "Continue to Payment"
-    },
-    "instructions": {
-      "title": "Payment Instructions",
-      "description": "Send the payment using the details below, then mark it as sent.",
-      "amountToSend": "Amount to Send",
-      "walletAddress": "Wallet Address",
-      "payTo": "Pay to",
-      "markSent": "I've Sent the Payment",
-      "later": "Do Later",
-      "sentTitle": "Payment Marked as Sent",
-      "sentDescription": "An administrator will review your payment and confirm it shortly.",
-      "backToBilling": "Back to Billing",
-      "processingTime": "Manual payment processing may take up to 24-48 hours.",
-      "fraudWarning": "Falsely claiming payment was sent may result in account suspension for fraud."
-    },
-    "error": {
-      "loadFailed": "Could not load checkout information.",
-      "backToBilling": "Back to Billing"
     }
   }
 }

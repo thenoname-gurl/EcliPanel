@@ -276,6 +276,13 @@ export const API_ENDPOINTS = {
   orderDetail: "/api/orders/:id",
   orderCancel: "/api/orders/:id/cancel",
 
+  // Coupons
+  couponValidate: "/api/coupons/validate",
+  couponRedeem: "/api/coupons/redeem",
+  adminCoupons: "/api/admin/coupons",
+  adminCouponGenerateRandom: "/api/admin/coupons/generate-random",
+  adminCouponDetail: "/api/admin/coupons/:id",
+
   // Plans
   plans: "/api/plans",
   planDetail: "/api/plans/:id",

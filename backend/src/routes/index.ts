@@ -9,6 +9,7 @@ import { deletionRoutes } from '../handlers/deletionHandler';
 import { roleRoutes } from '../handlers/roleHandler';
 import { organisationRoutes } from '../handlers/organisationHandler';
 import { orderRoutes } from '../handlers/orderHandler';
+import { couponRoutes } from '../handlers/couponHandler';
 import { socRoutes } from '../handlers/socHandler';
 import { aiRoutes } from '../handlers/aiHandler';
 import { serverRoutes } from '../handlers/serverHandler';
@@ -56,6 +57,8 @@ export function registerRoutes(app: any) {
       { prefix: '/api/admin/orders', feature: 'billing' },
       { prefix: '/api/payments', feature: 'billing' },
       { prefix: '/api/plans', feature: 'billing' },
+      { prefix: '/api/coupons', feature: 'billing' },
+      { prefix: '/api/admin/coupons', feature: 'billing' },
       { prefix: '/api/oauth', feature: 'oauth' },
       { prefix: '/api/tunnel', feature: 'tunnels' },
       { prefix: '/api/users/register', feature: 'registration' },
@@ -98,6 +101,7 @@ export function registerRoutes(app: any) {
   roleRoutes(app, '/api');
   organisationRoutes(app, '/api');
   orderRoutes(app, '/api');
+  couponRoutes(app, '/api');
   socRoutes(app, '/api');
   aiRoutes(app, '/api');
   serverRoutes(app, '/api');
