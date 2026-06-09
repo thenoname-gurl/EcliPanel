@@ -51,7 +51,7 @@ const content = `
 - [**Cookies Policy**](/legal/cookies-policy) — Information about cookies and tracking technologies used on ecli.app.
 - [**AI Policy**](/legal/ai-policy) — Rules around AI usage on the platform, including what is allowed in AI Studio and what is prohibited on infrastructure.
 - [**Email Policy**](/legal/email-policy) — Guidelines for email communications, anti-spam rules, and email-related restrictions.
-- [**Minimum Age Policy**](/legal/minimum-age) — Country-by-country age requirements and parental consent rules.
+- [**Minimum Age Policy**](/legal/minimum-age) — Country-by-country age requirements.
 - [**DMCA Copyright Policy**](/legal/dmca-copyright-policy) — How we handle copyright infringement reports and takedown requests.
 - [**Sunset Policy**](/docs/sunset) — How inactive accounts and idle servers are handled, including inactivity notices, grace periods, and deletion timelines.
 

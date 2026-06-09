@@ -361,39 +361,6 @@ export async function orderRoutes(app: any, prefix = '') {
       const user = ctx.user as any;
       const body = ctx.body as Partial<Order>;
 
-      if (user.parentId) {
-        if (body.orgId) {
-          ctx.set.status = 403;
-          return {
-            error: 'child_accounts_cannot_create_org_orders',
-            message: ctx.t('orders.childCannotCreateOrg'),
-          };
-        }
-        if (body.amount != null && Number(body.amount) > 0) {
-          ctx.set.status = 403;
-          return {
-            error: 'child_accounts_cannot_create_paid_orders',
-            message: ctx.t('orders.childCanOnlyFreeOrEdu'),
-          };
-        }
-        if (body.planId != null) {
-          const planRepo = AppDataSource.getRepository(Plan);
-          const plan = await planRepo.findOneBy({ id: Number(body.planId) });
-          if (!plan) {
-            ctx.set.status = 400;
-            return { error: 'invalid_plan_id', message: ctx.t('orders.planNotFound') };
-          }
-          const allowedTypes = ['free', 'edu'];
-          if (!allowedTypes.includes(String(plan.type).toLowerCase())) {
-            ctx.set.status = 403;
-            return {
-              error: 'child_accounts_can_only_order_free_or_edu_plans',
-              message: ctx.t('orders.childCanOnlyOrderFreeOrEdu'),
-            };
-          }
-        }
-      }
-
       if (body.orgId) {
         const role = await getOrgMembershipRole(user.id, Number(body.orgId));
         if (!role) {

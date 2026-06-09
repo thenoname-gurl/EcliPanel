@@ -1207,8 +1207,6 @@ export default function AdminPanel() {
   const [editDiskLimit, setEditDiskLimit] = useState("")
   const [editDatabaseLimit, setEditDatabaseLimit] = useState("")
   const [editBackupLimit, setEditBackupLimit] = useState("")
-  const [editDateOfBirth, setEditDateOfBirth] = useState("")
-  const [editParentId, setEditParentId] = useState("")
   const [editFirstName, setEditFirstName] = useState("")
   const [editMiddleName, setEditMiddleName] = useState("")
   const [editLastName, setEditLastName] = useState("")
@@ -2266,8 +2264,6 @@ export default function AdminPanel() {
     setEditDiskLimit(lim.disk !== undefined ? String(lim.disk) : "")
     setEditDatabaseLimit(lim.databases !== undefined ? String(lim.databases) : "")
     setEditBackupLimit(lim.backups !== undefined ? String(lim.backups) : "")
-    setEditDateOfBirth(user.dateOfBirth || "")
-    setEditParentId(user.parentId != null ? String(user.parentId) : "")
     setEditFirstName(user.firstName || "")
     setEditMiddleName((user as any).middleName || "")
     setEditLastName(user.lastName || "")
@@ -2356,8 +2352,6 @@ export default function AdminPanel() {
           portalType: editTier,
           limits: Object.keys(limits).length ? limits : null,
           badges,
-          dateOfBirth: editDateOfBirth !== "" ? editDateOfBirth : null,
-          parentId: editParentId ? Number(editParentId) : null,
         }),
       })
       setUsers((prev) =>
@@ -2381,8 +2375,6 @@ export default function AdminPanel() {
                 avatarUrl: asNullableText(editAvatarUrl),
                 role: editRole,
                 portalType: editTier,
-                dateOfBirth: editDateOfBirth !== "" ? editDateOfBirth : null,
-                parentId: editParentId !== "" ? Number(editParentId) : null,
                 settings: {
                   ...(u.settings || {}),
                   badges,
@@ -2396,22 +2388,6 @@ export default function AdminPanel() {
         )
       )
       setEditUserDialog(null)
-    } finally {
-      setEditLoading(false)
-    }
-  }
-
-  async function unlinkChildAccount() {
-    if (!editUserDialog) return
-    if (!(await confirmAsync(`Unlink ${editUserDialog.firstName} ${editUserDialog.lastName} from their parent account?`))) return
-    setEditLoading(true)
-    try {
-      await apiFetch(`${API_ENDPOINTS.adminUsers}/${editUserDialog.id}/unlink-child`, { method: "POST" })
-      setEditParentId("")
-      setUsers((prev) => prev.map((u) => u.id === editUserDialog.id ? { ...u, parentId: null } : u))
-      setEditUserDialog(null)
-    } catch (e: any) {
-      alert("Failed to unlink child account: " + (e.message || "error"))
     } finally {
       setEditLoading(false)
     }
@@ -6536,35 +6512,6 @@ remote: ${panelUrl}`
                 className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
                 {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date of Birth</label>
-              <input
-                type="date"
-                value={editDateOfBirth}
-                onChange={(e) => setEditDateOfBirth(e.target.value)}
-                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-              />
-              <p className="text-xs text-muted-foreground">Enter a birth date for age verification and child account handling.</p>
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Parent Account ID</label>
-                {editParentId && (
-                  <Button type="button" variant="outline" size="sm" onClick={unlinkChildAccount} disabled={editLoading} className="h-7 border-border text-xs">
-                    Unlink child account
-                  </Button>
-                )}
-              </div>
-              <input
-                type="number"
-                min="1"
-                value={editParentId}
-                onChange={(e) => setEditParentId(e.target.value)}
-                placeholder="Parent user id"
-                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
-              />
-              <p className="text-xs text-muted-foreground">Assign a parent account for underage users. Leave blank to clear.</p>
             </div>
             <div className="border-t border-border pt-3">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3">Resource Limits (leave blank = unlimited)</p>

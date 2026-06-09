@@ -515,17 +515,10 @@
   },
   "order": {
     "notFound": "Order not found",
-    "childFreeOrEduOnly": "Child accounts can only create free or education orders.",
-    "childCannotUpdateBilling": "Child accounts cannot update billing or address information.",
-    "childNoOrgOrders": "Child accounts may not create organisation orders.",
-    "childFreeOrEduPlanOnly": "Child accounts may only order free or education plans.",
     "yourCountryRestricted": "Your country is restricted from free portal services.",
     "yourCountryRestrictedEdu": "Your country is restricted from free and educational portal services.",
     "planNotFound": "Plan not found",
-    "invalidPlanId": "invalid_plan_id",
-    "freeOrEduOnly": "child_accounts_can_only_order_free_or_edu_plans",
-    "childCannotCreateOrgOrders": "child_accounts_cannot_create_org_orders",
-    "childCannotCreatePaidOrders": "child_accounts_cannot_create_paid_orders"
+    "invalidPlanId": "invalid_plan_id"
   },
   "email": {
     "passwordReset": {
@@ -671,18 +664,10 @@
     "scanFailed": "Fraud scan failed."
   },
   "orders": {
-    "childCannotCreateOrg": "Child accounts may not create organisation orders.",
-    "childCanOnlyFreeOrEdu": "Child accounts can only create free or education orders.",
-    "childCannotUpdateBilling": "Child accounts cannot update billing or address information.",
-    "childNoOrgOrders": "Child accounts may not create organisation orders.",
-    "childFreeOrEduPlanOnly": "Child accounts may only order free or education plans.",
     "yourCountryRestricted": "Your country is restricted from free portal services.",
     "yourCountryRestrictedEdu": "Your country is restricted from free and educational portal services.",
     "planNotFound": "Plan not found",
-    "invalidPlanId": "invalid_plan_id",
-    "freeOrEduOnly": "child_accounts_can_only_order_free_or_edu_plans",
-    "childCannotCreateOrgOrders": "child_accounts_cannot_create_org_orders",
-    "childCannotCreatePaidOrders": "child_accounts_cannot_create_paid_orders"
+    "invalidPlanId": "invalid_plan_id"
   },
   "paymentInstructions": {
     "subject": "Order #{orderId} - Payment Instructions",
@@ -709,44 +694,6 @@
     "activated": "Your order is now active and any associated limits have been applied to your account.",
     "preview": "Your payment has been confirmed",
     "poweredBy": "Powered by EcliPanel"
-  },
-  "parentLink": {
-    "tokenInvalid": "Parent registration token is invalid or has already been used.",
-    "emailMismatch": "The child email does not match the parent registration invite.",
-    "parentIdRequired": "parentId must be a valid user id.",
-    "parentNotFound": "Parent account not found.",
-    "onlyAdultAsParent": "Only an adult user may be assigned as a parent.",
-    "childDobRequired": "Child dateOfBirth is required when assigning a parent.",
-    "onlyUnderageCanRequest": "Only underage users may request a parent link.",
-    "alreadyLinked": "This account is already linked to a parent.",
-    "parentEmailOrIdRequired": "parentEmail or parentId is required.",
-    "cannotSelfAssign": "You cannot assign yourself as a parent.",
-    "onlyAdultAsParent2": "Only adult users may be assigned as parents.",
-    "invalidInviteId": "Invalid invite id",
-    "inviteNotFound": "Invite not found.",
-    "notYourInvite": "You do not own this invite.",
-    "cannotRevokeUsed": "Cannot revoke an invite that has already been used.",
-    "invalidRequestId": "Invalid request id",
-    "codeRequired": "A parent link code is required.",
-    "requestNotFound": "Parent link request not found.",
-    "notYourRequest": "You are not the parent for this request.",
-    "requestNotPending": "This request is no longer pending.",
-    "incorrectCode": "The provided linking code is incorrect.",
-    "childNotFound": "Child account not found.",
-    "childAlreadyHasParent": "This child already has a parent.",
-    "invalidChildId": "Invalid child user id",
-    "notYourChild": "You do not manage this child account.",
-    "childUserIdRequired": "childUserId is required and must be a valid number.",
-    "cannotSelfChild": "You cannot assign yourself as a child.",
-    "alreadyHasParent": "This account already has a parent.",
-    "dobLocked": "Date of birth is locked after identity or selfie verification and can only be updated by an administrator.",
-    "childCannotUpdateBilling": "Child accounts cannot update billing or address information.",
-    "emailReserved": "That email is reserved by the panel and cannot be used for registration.",
-    "dobFormat": "dateOfBirth must be a valid date string in YYYY-MM-DD format.",
-    "minAge": "Users must be at least {minAge} years old.",
-    "childMustBeUnder": "Child accounts must be under age {age}.",
-    "onlyUnderAge": "Only users under age {age} may be assigned as children.",
-    "fieldRequired": "{field} is required."
   },
   "idVerification": {
     "fileUploadError": "Failed to process uploaded files: ",

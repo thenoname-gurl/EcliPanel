@@ -2848,52 +2848,6 @@ export async function adminRoutes(app: any, prefix = '') {
     }
   );
 
-  app.post(
-    prefix + '/admin/users/:id/unlink-child',
-    async ctx => {
-      const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
-      if (adminErr !== true) return adminErr;
-
-      const userRepo = AppDataSource.getRepository(User);
-      const logRepo = AppDataSource.getRepository(UserLog);
-      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
-      if (!user) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.notFound') };
-      }
-
-      const previousParentId = user.parentId ?? null;
-      user.parentId = null;
-      await userRepo.save(user);
-
-      await logRepo.save(
-        logRepo.create({
-          userId: ctx.user?.id,
-          action: 'admin-unlink-child',
-          targetId: String(user.id),
-          targetType: 'user',
-          timestamp: new Date(),
-          metadata: { previousParentId },
-        } as any)
-      );
-
-      return { success: true, user };
-    },
-    {
-      beforeHandle: [authenticate, authorize('admin:access')],
-      schema: {
-        params: t.Object({ id: t.String() }),
-        response: {
-          200: t.Object({ success: t.Boolean(), user: t.Any() }),
-          401: t.Object({ error: t.String() }),
-          403: t.Object({ error: t.String() }),
-          404: t.Object({ error: t.String() }),
-        },
-      },
-      detail: { summary: 'Unlink a child account from its parent (admin only)', tags: ['Admin'] },
-    }
-  );
-
   app.get(
     prefix + '/admin/users/:id/children',
     async ctx => {

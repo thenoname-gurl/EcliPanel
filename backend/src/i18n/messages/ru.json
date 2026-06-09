@@ -515,17 +515,10 @@
   },
   "order": {
     "notFound": "Заказ не найден",
-    "childFreeOrEduOnly": "Детские учётные записи могут создавать только бесплатные или образовательные заказы.",
-    "childCannotUpdateBilling": "Детские учётные записи не могут обновлять платёжную информацию.",
-    "childNoOrgOrders": "Детские учётные записи не могут создавать заказы организации.",
-    "childFreeOrEduPlanOnly": "Детские учётные записи могут заказывать только бесплатные или образовательные тарифы.",
     "yourCountryRestricted": "Ваша страна ограничена для бесплатных портальных услуг.",
     "yourCountryRestrictedEdu": "Ваша страна ограничена для бесплатных и образовательных портальных услуг.",
     "planNotFound": "Тариф не найден",
-    "invalidPlanId": "invalid_plan_id",
-    "freeOrEduOnly": "child_accounts_can_only_order_free_or_edu_plans",
-    "childCannotCreateOrgOrders": "child_accounts_cannot_create_org_orders",
-    "childCannotCreatePaidOrders": "child_accounts_cannot_create_paid_orders"
+    "invalidPlanId": "invalid_plan_id"
   },
   "paymentInstructions": {
     "subject": "Заказ №{orderId} — Инструкции по оплате",
@@ -697,48 +690,7 @@
     "scanFailed": "Ошибка проверки на мошенничество."
   },
   "orders": {
-    "childCannotCreateOrg": "Детские аккаунты не могут создавать заказы организаций.",
-    "childCanOnlyFreeOrEdu": "Детские аккаунты могут создавать только бесплатные или образовательные заказы.",
-    "planNotFound": "Тариф не найден",
-    "childCanOnlyOrderFreeOrEdu": "Детские аккаунты могут заказывать только бесплатные или образовательные тарифы."
-  },
-  "parentLink": {
-    "tokenInvalid": "Токен родительской регистрации недействителен или уже был использован.",
-    "emailMismatch": "Email ребёнка не совпадает с приглашением родителя.",
-    "parentIdRequired": "parentId должен быть действительным ID пользователя.",
-    "parentNotFound": "Аккаунт родителя не найден.",
-    "onlyAdultAsParent": "Только взрослый пользователь может быть назначен родителем.",
-    "childDobRequired": "Дата рождения ребёнка обязательна при назначении родителя.",
-    "onlyUnderageCanRequest": "Только несовершеннолетние пользователи могут запросить привязку родителя.",
-    "alreadyLinked": "Этот аккаунт уже привязан к родителю.",
-    "parentEmailOrIdRequired": "Требуется parentEmail или parentId.",
-    "cannotSelfAssign": "Вы не можете назначить себя родителем.",
-    "onlyAdultAsParent2": "Только взрослые пользователи могут быть назначены родителями.",
-    "invalidInviteId": "Неверный ID приглашения",
-    "inviteNotFound": "Приглашение не найдено.",
-    "notYourInvite": "Это приглашение не принадлежит вам.",
-    "cannotRevokeUsed": "Нельзя отозвать уже использованное приглашение.",
-    "invalidRequestId": "Неверный ID запроса",
-    "codeRequired": "Требуется код привязки родителя.",
-    "requestNotFound": "Запрос привязки родителя не найден.",
-    "notYourRequest": "Вы не являетесь родителем для этого запроса.",
-    "requestNotPending": "Этот запрос больше не ожидает рассмотрения.",
-    "incorrectCode": "Предоставленный код привязки неверен.",
-    "childNotFound": "Аккаунт ребёнка не найден.",
-    "childAlreadyHasParent": "У этого ребёнка уже есть родитель.",
-    "invalidChildId": "Неверный ID ребёнка",
-    "notYourChild": "Вы не управляете этим аккаунтом ребёнка.",
-    "childUserIdRequired": "childUserId обязателен и должен быть числом.",
-    "cannotSelfChild": "Вы не можете назначить себя ребёнком.",
-    "alreadyHasParent": "У этого аккаунта уже есть родитель.",
-    "dobLocked": "Дата рождения заблокирована после верификации ID или селфи и может быть изменена только администратором.",
-    "childCannotUpdateBilling": "Детские аккаунты не могут изменять платёжную или адресную информацию.",
-    "emailReserved": "Этот email зарезервирован панелью и не может быть использован для регистрации.",
-    "dobFormat": "dateOfBirth должен быть действительной датой в формате ГГГГ-ММ-ДД.",
-    "minAge": "Пользователю должно быть не менее {minAge} лет.",
-    "childMustBeUnder": "Детские аккаунты должны быть младше {age} лет.",
-    "onlyUnderAge": "Только пользователи младше {age} лет могут быть назначены детьми.",
-    "fieldRequired": "{field} обязателен."
+    "planNotFound": "Тариф не найден"
   },
   "idVerification": {
     "fileUploadError": "Не удалось обработать загруженные файлы: ",
