@@ -243,7 +243,7 @@ pub async fn process_connection(
         }
 
         let is_big_hit = !config.safe_ports.contains(&event.dest_port);
-        let is_mining_port = config.mining_ports.contains(&event.dest_port);
+        let is_mining_port = config.mining_ports.contains(&event.dest_port) && !config.safe_ports.contains(&event.dest_port);
         let is_amplification = protocol == Protocol::Udp && is_amplification_port(event.dest_port);
         let is_udp_risky = protocol == Protocol::Udp && is_udp_flood_port(event.dest_port);
 
@@ -295,7 +295,7 @@ pub async fn process_connection(
         if is_big_hit && ddos_eligible {
             state.big_hits += 1;
         }
-        if is_mining_port {
+        if is_mining_port && ddos_eligible {
             state.mining_hits += 1;
             state.mining_unique_ips.insert(remote_ip.clone());
         }
@@ -331,7 +331,7 @@ pub async fn process_connection(
         // connecting to a Minecraft server). These should NOT count as a
         // "port scan" since no attacker would scan ephemeral ports.
         // =====================================================================
-        let is_port_scan_relevant = is_big_hit && is_scannable_port(event.dest_port);
+        let is_port_scan_relevant = is_big_hit && is_scannable_port(event.dest_port) && is_outbound;
 
         if is_port_scan_relevant {
             state
@@ -347,8 +347,8 @@ pub async fn process_connection(
                 .insert(event.dest_port);
         }
 
-        // Also filter sequential port tracking to exclude ephemeral ports
-        if is_scannable_port(event.dest_port) {
+        // Also filter sequential port tracking to exclude ephemeral ports and inbound traffic
+        if is_scannable_port(event.dest_port) && is_outbound {
             let seq_ports = state
                 .recent_ports_per_dest
                 .entry(port_scan_key.clone())
@@ -448,7 +448,9 @@ pub async fn process_connection(
 
         let recent_events: Vec<_> = state.recent_events.iter().cloned().collect();
 
-        let candidate_trigger = if protocol == Protocol::Udp
+        let candidate_trigger = if is_node_fallback_id(&event.server_id) {
+            None
+        } else if protocol == Protocol::Udp
             && state.amplification_hits >= config.amplification_hit_threshold
             && state.amplification_targets.len() >= config.amplification_target_threshold
         {
