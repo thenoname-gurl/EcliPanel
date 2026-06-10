@@ -53,6 +53,7 @@ export { DeletedUserRetention } from '../models/deletedUserRetention.entity';
 export { AIModel } from '../models/aiModel.entity';
 export { AIModelOrg } from '../models/aiModelOrg.entity';
 export { AIModelUser } from '../models/aiModelUser.entity';
+export { AIModelPlan } from '../models/aiModelPlan.entity';
 export { AIUsage } from '../models/aiUsage.entity';
 export { ApplicationForm } from '../models/applicationForm.entity';
 export { ApplicationFormInvite } from '../models/applicationFormInvite.entity';

@@ -118,6 +118,7 @@ export const AppDataSource = new DataSource({
     require('../models/aiModel.entity').AIModel,
     require('../models/aiModelUser.entity').AIModelUser,
     require('../models/aiModelOrg.entity').AIModelOrg,
+    require('../models/aiModelPlan.entity').AIModelPlan,
     require('../models/apiRequestLog.entity').ApiRequestLog,
     require('../models/aiUsage.entity').AIUsage,
     require('../models/node.entity').Node,

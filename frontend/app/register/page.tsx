@@ -748,7 +748,7 @@ export default function RegisterPage() {
                         label={t("phoneNumber")}
                         value={form.phone}
                         onChange={handleChange}
-                        required={!isParentInvite}
+                        required
                         maxLength={FIELD_MAX_LENGTHS.phone}
                         autoComplete="tel"
                       />
@@ -795,7 +795,7 @@ export default function RegisterPage() {
                         label={t("streetAddress")}
                         value={form.address}
                         onChange={handleChange}
-                        required={!isParentInvite}
+                        required
                         maxLength={FIELD_MAX_LENGTHS.address}
                         autoComplete="address-line1"
                       />

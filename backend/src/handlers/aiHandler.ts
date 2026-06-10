@@ -2,6 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { AIModel } from '../models/aiModel.entity';
 import { AIModelUser } from '../models/aiModelUser.entity';
 import { AIModelOrg } from '../models/aiModelOrg.entity';
+import { AIModelPlan } from '../models/aiModelPlan.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
@@ -9,6 +10,8 @@ import { redisClient } from '../config/redis';
 import { createActivityLog } from './logHandler';
 import { AIUsage } from '../models/aiUsage.entity';
 import { User } from '../models/user.entity';
+import { Order } from '../models/order.entity';
+import { Plan } from '../models/plan.entity';
 import { t } from 'elysia';
 import { In } from 'typeorm';
 import { sanitizeError } from '../utils/sanitizeError';
@@ -36,6 +39,7 @@ export async function aiRoutes(app: AIApp, prefix = '') {
   const modelRepo = AppDataSource.getRepository(AIModel);
   const modelUserRepo = AppDataSource.getRepository(AIModelUser);
   const modelOrgRepo = AppDataSource.getRepository(AIModelOrg);
+  const modelPlanRepo = AppDataSource.getRepository(AIModelPlan);
   const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
   const usageRepo = AppDataSource.getRepository(AIUsage);
   const endpointCooldowns: Map<string, number> = new Map();
@@ -45,6 +49,31 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     return memberships
       .map((m: { organisationId?: number | string }) => Number(m.organisationId))
       .filter((v: number) => Number.isFinite(v));
+  }
+
+  async function getUserPlanIds(userId: number): Promise<number[]> {
+    const orderRepo = AppDataSource.getRepository(Order);
+    const orders = await orderRepo.find({
+      where: { userId, status: 'active' },
+      order: { createdAt: 'DESC' },
+    });
+    return orders
+      .filter(o => o.planId != null)
+      .map(o => o.planId as number);
+  }
+
+  async function getPlanModelLinks(planIds: number[]): Promise<AIModelPlan[]> {
+    if (planIds.length === 0) return [];
+    return modelPlanRepo.find({ where: { plan: { id: In(planIds) } }, relations: { model: true } });
+  }
+
+  async function isModelAllowedForPlan(userId: number, modelId: number): Promise<{ allowed: boolean; limits: Record<string, unknown> }> {
+    const planIds = await getUserPlanIds(userId);
+    if (planIds.length === 0) return { allowed: false, limits: {} };
+    const links = await getPlanModelLinks(planIds);
+    const match = links.find(l => l.model?.id === modelId);
+    if (match) return { allowed: true, limits: match.limits || {} };
+    return { allowed: false, limits: {} };
   }
 
   function nowTs() { return Date.now(); }
@@ -190,6 +219,17 @@ export async function aiRoutes(app: AIApp, prefix = '') {
         return { model: safeModel, limits: l.limits };
       }));
     }
+    const planIds = await getUserPlanIds(user.id);
+    if (planIds.length > 0) {
+      const planLinks = await getPlanModelLinks(planIds);
+      const existingIds = new Set(models.map(m => (m.model as any)?.id));
+      for (const l of planLinks) {
+        const { apiKey, endpoint, ...safeModel } = l.model || {};
+        if (!existingIds.has((safeModel as any)?.id)) {
+          models.push({ model: safeModel, limits: l.limits });
+        }
+      }
+    }
     return models;
   }, {beforeHandle: authenticate,
     response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
@@ -214,6 +254,10 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     else if (orgIds.length > 0) {
       const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: modelIdNum } } });
       if (orgLink) limits = orgLink.limits || {};
+    }
+    if (Object.keys(limits).length === 0) {
+      const planCheck = await isModelAllowedForPlan(user.id, modelIdNum);
+      if (planCheck.allowed) limits = planCheck.limits;
     }
 
     const maxTokens = Number(limits.tokens);
@@ -261,6 +305,13 @@ export async function aiRoutes(app: AIApp, prefix = '') {
       if (!model && orgIds.length > 0) {
         const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } }, relations: {"model":true} });
         if (orgLink) model = orgLink.model;
+      }
+      if (!model) {
+        const planIds = await getUserPlanIds(user.id);
+        if (planIds.length > 0) {
+          const planLinks = await getPlanModelLinks(planIds);
+          if (planLinks.length > 0) model = planLinks[0].model;
+        }
       }
     }
 
@@ -330,6 +381,13 @@ export async function aiRoutes(app: AIApp, prefix = '') {
         const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } }, relations: {"model":true} });
         if (orgLink) model = orgLink.model;
       }
+      if (!model) {
+        const planIds = await getUserPlanIds(user.id);
+        if (planIds.length > 0) {
+          const planLinks = await getPlanModelLinks(planIds);
+          if (planLinks.length > 0) model = planLinks[0].model;
+        }
+      }
     }
     if (!model) {
       ctx.set.status = 400;
@@ -341,6 +399,10 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     if (!allowed && orgIds.length > 0) {
       const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: model.id } } });
       if (orgLink) allowed = true;
+    }
+    if (!allowed) {
+      const planCheck = await isModelAllowedForPlan(user.id, model.id);
+      if (planCheck.allowed) allowed = true;
     }
     if (!allowed) {
       ctx.set.status = 403;
@@ -390,6 +452,13 @@ export async function aiRoutes(app: AIApp, prefix = '') {
         const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) } }, relations: {"model":true} });
         if (orgLink) model = orgLink.model;
       }
+      if (!model) {
+        const planIds = await getUserPlanIds(user.id);
+        if (planIds.length > 0) {
+          const planLinks = await getPlanModelLinks(planIds);
+          if (planLinks.length > 0) model = planLinks[0].model;
+        }
+      }
     }
     if (!model) {
       ctx.set.status = 400;
@@ -401,6 +470,10 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     if (!allowed && orgIds.length > 0) {
       const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: model.id } } });
       if (orgLink) allowed = true;
+    }
+    if (!allowed) {
+      const planCheck = await isModelAllowedForPlan(user.id, model.id);
+      if (planCheck.allowed) allowed = true;
     }
     if (!allowed) {
       ctx.set.status = 403;
@@ -450,6 +523,10 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     if (!allowed && orgIds.length > 0) {
       const orgLink = await modelOrgRepo.findOne({ where: { organisation: { id: In(orgIds) }, model: { id: model.id } } });
       if (orgLink) allowed = true;
+    }
+    if (!allowed) {
+      const planCheck = await isModelAllowedForPlan(user.id, model.id);
+      if (planCheck.allowed) allowed = true;
     }
     if (!allowed) {
       ctx.set.status = 403;
@@ -507,7 +584,6 @@ export async function aiRoutes(app: AIApp, prefix = '') {
   });
 
   app.get(prefix + '/admin/ai/models', async (ctx: AIContext) => {
-    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     const models = await modelRepo.find();
@@ -518,7 +594,6 @@ export async function aiRoutes(app: AIApp, prefix = '') {
   });
 
   app.get(prefix + '/admin/ai/cooldowns', async (ctx: AIContext) => {
-    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const adminCheck = requireAiManagement(ctx);
     if (adminCheck !== true) return adminCheck;
     try {
@@ -629,5 +704,74 @@ export async function aiRoutes(app: AIApp, prefix = '') {
   }, {beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Admin delete AI model', tags: ['AI'] }
+  });
+
+  app.get(prefix + '/admin/ai/plans/:planId/models', async (ctx: AIContext) => {
+    const adminCheck = requireAiManagement(ctx);
+    if (adminCheck !== true) return adminCheck;
+    const planId = Number(ctx.params['planId']);
+    const planRepo = AppDataSource.getRepository(Plan);
+    const plan = await planRepo.findOneBy({ id: planId });
+    if (!plan) {
+      ctx.set.status = 404;
+      return { error: 'Plan not found' };
+    }
+    const links = await modelPlanRepo.find({ where: { plan: { id: planId } }, relations: { model: true } });
+    return links.map(l => {
+      const { apiKey, endpoint, ...safeModel } = l.model || {};
+      return { id: l.id, model: safeModel, limits: l.limits };
+    });
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'List AI models assigned to a plan', tags: ['AI'] }
+  });
+
+  app.post(prefix + '/admin/ai/models/:id/link-plan', async (ctx: AIContext) => {
+    const adminCheck = requireAiManagement(ctx);
+    if (adminCheck !== true) return adminCheck;
+    const model = await modelRepo.findOneBy({ id: Number(ctx.params['id']) });
+    if (!model) {
+      ctx.set.status = 404;
+      return { error: ctx.t('common.modelNotFound') };
+    }
+    const { planId, limits } = (ctx.body || {}) as Record<string, unknown>;
+    const planIdNum = Number(planId);
+    const planRepo = AppDataSource.getRepository(Plan);
+    const plan = await planRepo.findOneBy({ id: planIdNum });
+    if (!plan) {
+      ctx.set.status = 404;
+      return { error: 'Plan not found' };
+    }
+    const existing = await modelPlanRepo.findOne({ where: { model: { id: model.id }, plan: { id: planIdNum } } });
+    if (existing) {
+      if (limits !== undefined) {
+        existing.limits = limits;
+        await modelPlanRepo.save(existing);
+      }
+      return { success: true, link: existing, updated: true };
+    }
+    const link = modelPlanRepo.create({ model, plan, limits });
+    await modelPlanRepo.save(link);
+    return { success: true, link };
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean(), link: t.Any(), updated: t.Optional(t.Boolean()) }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Link AI model to plan (Admin only)', tags: ['AI'] }
+  });
+
+  app.delete(prefix + '/admin/ai/models/:id/unlink-plan/:planId', async (ctx: AIContext) => {
+    const adminCheck = requireAiManagement(ctx);
+    if (adminCheck !== true) return adminCheck;
+    const modelId = Number(ctx.params['id']);
+    const planId = Number(ctx.params['planId']);
+    const link = await modelPlanRepo.findOne({ where: { model: { id: modelId }, plan: { id: planId } } });
+    if (!link) {
+      ctx.set.status = 404;
+      return { error: 'Link not found' };
+    }
+    await modelPlanRepo.remove(link);
+    return { success: true };
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Unlink AI model from plan (Admin only)', tags: ['AI'] }
   });
 }
