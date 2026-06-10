@@ -6590,7 +6590,7 @@ export async function adminRoutes(app: any, prefix = '') {
           const base = (n as any).backendWingsUrl || n.url;
           const svc = new WingsApiService(base, n.token);
           const res = await svc.getServers();
-          for (const s of res.data || []) {
+          for (const s of Array.isArray(res.data) ? res.data : []) {
             const serverOwner = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
             if (!Number.isNaN(serverOwner) && serverOwner === userId) {
               servers.push({ ...s, nodeName: n.name, nodeId: n.id });
@@ -6931,7 +6931,7 @@ export async function adminRoutes(app: any, prefix = '') {
           const base = (n as any).backendWingsUrl || n.url;
           const svc = new WingsApiService(base, n.token);
           const res = await svc.getServers();
-          for (const s of res.data || []) {
+          for (const s of Array.isArray(res.data) ? res.data : []) {
             const serverOwner = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
             if (!Number.isNaN(serverOwner) && serverOwner === userId) {
               servers.push({ ...s, nodeName: n.name, nodeId: n.id });

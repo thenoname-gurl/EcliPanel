@@ -1,7 +1,9 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
+import { apiFetch } from "@/lib/api-client"
 import {
   Dialog,
   DialogContent,
@@ -10,8 +12,150 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { formatMoney, sanitizeCurrencyCode } from "@/lib/billing-display"
-import { AlertTriangle, Check, Edit, Loader2, Plus, RefreshCw, Trash2, Zap } from "lucide-react"
+import { AlertTriangle, Bot, Check, ChevronDown, ChevronUp, Edit, Loader2, Plus, RefreshCw, Trash2, X, Zap } from "lucide-react"
 import { useTranslations } from "next-intl"
+
+function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolean }) {
+  const [expanded, setExpanded] = useState(false)
+  const [models, setModels] = useState<any[]>([])
+  const [allModels, setAllModels] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [linking, setLinking] = useState(false)
+  const [selectedModelId, setSelectedModelId] = useState("")
+  const [error, setError] = useState("")
+
+  const fetchAssigned = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const data = await apiFetch(`/api/admin/ai/plans/${planId}/models`)
+      setModels(Array.isArray(data) ? data : [])
+    } catch (e: any) {
+      setError(e?.message || "Failed to load assigned models")
+    }
+    setLoading(false)
+  }, [planId])
+
+  const fetchAllModels = useCallback(async () => {
+    try {
+      const data = await apiFetch("/api/admin/ai/models")
+      setAllModels(Array.isArray(data) ? data : [])
+    } catch (e: any) {
+      setError(prev => prev || e?.message || "Failed to load available models")
+    }
+  }, [])
+
+  useEffect(() => {
+    if (expanded) {
+      fetchAssigned()
+      fetchAllModels()
+    }
+  }, [expanded, fetchAssigned, fetchAllModels])
+
+  const assignedIds = new Set(models.map((m: any) => m.model?.id))
+  const availableModels = allModels.filter((m: any) => !assignedIds.has(m.id))
+
+  const handleLink = async () => {
+    if (!selectedModelId) return
+    setLinking(true)
+    try {
+      await apiFetch(`/api/admin/ai/models/${selectedModelId}/link-plan`, {
+        method: "POST",
+        body: JSON.stringify({ planId }),
+      })
+      setSelectedModelId("")
+      await fetchAssigned()
+    } catch {}
+    setLinking(false)
+  }
+
+  const handleUnlink = async (modelId: number) => {
+    try {
+      await apiFetch(`/api/admin/ai/models/${modelId}/unlink-plan/${planId}`, { method: "DELETE" })
+      await fetchAssigned()
+    } catch {}
+  }
+
+  return (
+    <div className="border-t border-border">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 w-full px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Bot className="h-3 w-3" />
+        <span>AI Models</span>
+        {models.length > 0 && (
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+            {models.length}
+          </span>
+        )}
+        <span className="ml-auto">
+          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-3 flex flex-col gap-2">
+          {error && (
+            <p className="text-xs text-destructive bg-destructive/10 px-2 py-1.5 rounded">{error}</p>
+          )}
+          {loading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading...
+            </div>
+          ) : models.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-1">No AI models assigned to this plan.</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {models.map((m: any) => (
+                <div key={m.id} className="flex items-center justify-between bg-secondary/30 border border-border/50 px-2.5 py-1.5">
+                  <span className="text-xs text-foreground truncate">{m.model?.name || `Model #${m.model?.id}`}</span>
+                  {canManage && (
+                    <button
+                      onClick={() => handleUnlink(m.model?.id)}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          {canManage && availableModels.length > 0 && (
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedModelId}
+                onChange={(e) => setSelectedModelId(e.target.value)}
+                className="flex-1 border border-border bg-secondary/50 px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/50"
+              >
+                <option value="">Select model...</option>
+                {availableModels.map((m: any) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+              </select>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-border"
+                onClick={handleLink}
+                disabled={!selectedModelId || linking}
+              >
+                {linking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+              </Button>
+            </div>
+          )}
+          {canManage && !loading && availableModels.length === 0 && allModels.length === 0 && !error && (
+            <p className="text-xs text-muted-foreground py-1">No AI models available. Create models in the AI tab first.</p>
+          )}
+          {canManage && !loading && availableModels.length === 0 && allModels.length > 0 && (
+            <p className="text-xs text-muted-foreground py-1">All available models are already assigned.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function PlansTab({ ctx }: { ctx: any }) {
   const t = useTranslations("adminPlansTab")
@@ -197,6 +341,8 @@ export default function PlansTab({ ctx }: { ctx: any }) {
                     ))}
                   </div>
                 </div>
+
+                <PlanAiModels planId={plan.id} canManage={canManagePlans} />
 
                 <div className="flex items-center justify-between border-t border-border px-4 py-2.5 bg-secondary/10 rounded-b-xl">
                   <div className="flex items-center gap-1">

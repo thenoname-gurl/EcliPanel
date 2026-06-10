@@ -48,7 +48,7 @@ export async function socRoutes(app: any, prefix = '') {
               const base = (n as any).backendWingsUrl || n.url;
               const svc = new WingsApiService(base, n.token);
               const res = await svc.getServers();
-              for (const s of res.data || []) {
+              for (const s of Array.isArray(res.data) ? res.data : []) {
                 if (s.owner === user.id) serverIds.push(s.uuid);
               }
             } catch {}
