@@ -1,31 +1,4 @@
 services:
-  mariadb:
-    image: mariadb:11
-    restart: unless-stopped
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-changeme}
-      MYSQL_DATABASE: ${DB_NAME:-panel}
-      MYSQL_USER: ${DB_USER:-panel}
-      MYSQL_PASSWORD: ${DB_PASS:-changeme}
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -36,7 +9,7 @@ services:
     environment:
       # Database
       DB_TYPE: ${DB_TYPE:-mariadb}
-      DB_HOST: mariadb
+      DB_HOST: ${DB_HOST:-mariadb}
       DB_PORT: ${DB_PORT:-3306}
       DB_USER: ${DB_USER:-panel}
       DB_PASS: ${DB_PASS:-changeme}
@@ -152,11 +125,6 @@ services:
       # Server
       PORT: "4000"
       HOST: "0.0.0.0"
-    depends_on:
-      mariadb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   frontend:
     build:
@@ -174,7 +142,3 @@ services:
       PORT: "3000"
     depends_on:
       - backend
-
-volumes:
-  mariadb_data:
-  redis_data:
