@@ -105,6 +105,11 @@ import {
   SelectLabel,
 } from "@/components/ui/select"
 
+const OverviewTab = dynamic(() => import("./tabs/OverviewTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading overview...</div>,
+})
+
 const UsersTab = dynamic(() => import("./tabs/UsersTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading users tab...</div>,
@@ -951,6 +956,7 @@ export default function AdminPanel() {
   }
 
   const adminTabs = [
+    { value: 'overview', label: t('tabs.overview') || 'Overview', permissions: ['admin:access'] },
     { value: 'users', label: t('tabs.users'), permissions: ['users:read'] },
     { value: 'metrics', label: t('tabs.metrics'), permissions: ['admin:metrics'] },
     { value: 'export-jobs', label: t('tabs.exportJobs'), permissions: ['admin:export-jobs'] },
@@ -1015,7 +1021,7 @@ export default function AdminPanel() {
 
   // ── Loading flags ──
   const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set())
-  const [activeTab, setActiveTab] = useState("users")
+  const [activeTab, setActiveTab] = useState("overview")
 
   // ── Filters ──
   const [userSearch, setUserSearch] = useState("")
@@ -2092,7 +2098,7 @@ export default function AdminPanel() {
 
   // ── Load default tab on mount and honor ?viewUser=123 query ──
   useEffect(() => {
-    const tab = searchParams.get("tab") || "users"
+    const tab = searchParams.get("tab") || "overview"
     const viewUserId = Number(searchParams.get("viewUser") || "")
 
     if (viewUserQueryHandled) return
@@ -4241,6 +4247,13 @@ remote: ${panelUrl}`
                   </TabsTrigger>
                 ))}
             </TabsList>
+
+            {/* ═══════════════ OVERVIEW ══════════════════════════════════════════ */}
+            <TabsContent value="overview" className="mt-4">
+              {activeTab === "overview" ? (
+                <OverviewTab ctx={{ openGlobalUser, openGlobalServer, openGlobalOrganisation }} />
+              ) : null}
+            </TabsContent>
 
             {/* ═══════════════ USERS ══════════════════════════════════════════ */}
             <TabsContent value="users" className="mt-4">

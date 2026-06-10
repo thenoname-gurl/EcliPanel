@@ -1141,6 +1141,7 @@
       "forUser": "for user #{id}"
     },
     "tabs": {
+      "overview": "Overview",
       "users": "Users",
       "metrics": "Metrics",
       "exportJobs": "Export Jobs",
