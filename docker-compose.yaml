@@ -139,6 +139,7 @@ services:
       NEXT_PUBLIC_WINGS_BASE: ${NEXT_PUBLIC_WINGS_BASE:-http://localhost:8080}
       NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED: ${NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED:-true}
       GITHUB_STUDENT_ENABLED: ${GITHUB_STUDENT_ENABLED:-false}
+      BROWSER_CHECK_SECRET: ${BROWSER_CHECK_SECRET:-change-me-to-a-random-64-char-string-pls}
       PORT: "3000"
     depends_on:
       - backend
