@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Button } from "@/components/ui/button"
 import { useTranslations } from "next-intl"
-import { BarChart3, RefreshCw, TrendingUp, Users, Building2, MessageSquare, Receipt, Server } from "lucide-react"
+import { BarChart3, RefreshCw, TrendingUp, Users, Building2, MessageSquare, Receipt, Server, Zap, Shield, FileText, Trash2 } from "lucide-react"
 import {
   ResponsiveContainer,
   AreaChart,
@@ -31,6 +31,10 @@ interface MetricsPoint {
   organisations: number
   tickets: number
   orders: number
+  serverActions: number
+  verifications: number
+  deletions: number
+  abuseReports: number
 }
 
 interface MetricsSummary {
@@ -50,6 +54,10 @@ interface MetricsSummary {
   organisationGrowthPercent: number
   ticketsCurrent: number
   ordersCurrent: number
+  serverActions: number
+  abuseReports: number
+  totalVerifications: number
+  totalDeletions: number
 }
 
 interface MetricsResponse {
@@ -72,6 +80,10 @@ const CHART_COLORS = {
   serverOnline: "#22c55e",
   serverTransitioning: "#f59e0b",
   serverOffline: "#ef4444",
+  serverActions: "#8b5cf6",
+  abuseReports: "#ef4444",
+  verifications: "#06b6d4",
+  deletions: "#f43f5e",
 }
 
 function formatDayLabel(value: string) {
@@ -287,15 +299,19 @@ export default function MetricsTab() {
         ) : (
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={series} margin={{ top: 8, right: 10, left: -20, bottom: 0 }}>
+              <LineChart data={series} margin={{ top: 8, right: 50, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                 <XAxis dataKey="date" tickFormatter={formatDayLabel} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} minTickGap={28} />
-                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} width={38} />
+                <YAxis yAxisId="left" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} width={38} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fill: CHART_COLORS.serverActions, fontSize: 11 }} tickLine={false} axisLine={false} width={42} />
                 <Tooltip content={<MetricsTooltip />} />
                 <Legend />
-                <Line type="monotone" dataKey="organisations" name={t("charts.legend.organisations")} stroke={CHART_COLORS.organisations} strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="tickets" name={t("charts.legend.tickets")} stroke={CHART_COLORS.tickets} strokeWidth={2.5} dot={false} />
-                <Line type="monotone" dataKey="orders" name={t("charts.legend.orders")} stroke={CHART_COLORS.orders} strokeWidth={2.5} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="organisations" name={t("charts.legend.organisations")} stroke={CHART_COLORS.organisations} strokeWidth={2.5} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="tickets" name={t("charts.legend.tickets")} stroke={CHART_COLORS.tickets} strokeWidth={2.5} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="orders" name={t("charts.legend.orders")} stroke={CHART_COLORS.orders} strokeWidth={2.5} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="verifications" name="KYC Verifications" stroke={CHART_COLORS.verifications} strokeWidth={2.5} dot={false} />
+                <Line yAxisId="left" type="monotone" dataKey="deletions" name="Deletion Requests" stroke={CHART_COLORS.deletions} strokeWidth={2.5} dot={false} />
+                <Line yAxisId="right" type="monotone" dataKey="serverActions" name="Server Actions" stroke={CHART_COLORS.serverActions} strokeWidth={2.5} dot={false} strokeDasharray="6 3" />
               </LineChart>
             </ResponsiveContainer>
           </div>

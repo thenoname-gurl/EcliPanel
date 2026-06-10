@@ -30,7 +30,7 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { sanitizeError } from '../utils/sanitizeError';
 import { createT, getMessages, defaultLocale } from '../i18n';
-import { In, MoreThanOrEqual } from 'typeorm';
+import { In, MoreThanOrEqual, Like } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Coupon } from '../models/coupon.entity';
 import { CouponUse } from '../models/couponUse.entity';
@@ -59,6 +59,7 @@ import { normalizeProcessConfig } from '../utils/startupDetection';
 import { SocData } from '../models/socData.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
+import { Feedback } from '../models/feedback.entity';
 import {
   notifyServerOwnerDmca,
   notifyServerOwnerSuspended,
@@ -1350,8 +1351,12 @@ export async function adminRoutes(app: any, prefix = '') {
       const ticketRepo = AppDataSource.getRepository(Ticket);
       const verRepo = AppDataSource.getRepository(IDVerification);
       const delRepo = AppDataSource.getRepository(DeletionRequest);
+      const feedbackRepo = AppDataSource.getRepository(Feedback);
 
       const orgRepo = AppDataSource.getRepository(Organisation);
+      const logRepo = AppDataSource.getRepository(UserLog);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
 
       const [
         totalUsers,
@@ -1361,6 +1366,10 @@ export async function adminRoutes(app: any, prefix = '') {
         pendingVerifications,
         pendingDeletions,
         fraudAlerts,
+        serverActions,
+        totalVerifications,
+        totalDeletions,
+        totalFeedback,
       ] = await Promise.all([
         userRepo.count(),
         nodeRepo.count(),
@@ -1369,7 +1378,29 @@ export async function adminRoutes(app: any, prefix = '') {
         verRepo.count({ where: { status: 'pending' } }),
         delRepo.count({ where: { status: 'pending' } }),
         userRepo.count({ where: { fraudFlag: true } }),
+        logRepo.count({ where: { targetType: 'server' } }),
+        verRepo.count(),
+        delRepo.count(),
+        feedbackRepo.count(),
       ]);
+
+      let abuseReports = 0;
+      let pendingApplications = 0;
+      try {
+        const abuseForm = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+        if (abuseForm) {
+          abuseReports = await submissionRepo.count({ where: { formId: abuseForm.id } });
+        }
+        const allForms = await formRepo.find();
+        const applicationFormIds = allForms
+          .filter(f => f.slug !== 'antiabuse-incidents')
+          .map(f => f.id);
+        if (applicationFormIds.length > 0) {
+          pendingApplications = await submissionRepo.count({
+            where: { formId: In(applicationFormIds), status: 'pending' },
+          });
+        }
+      } catch {}
 
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
       const configs = await cfgRepo.find();
@@ -1439,6 +1470,12 @@ export async function adminRoutes(app: any, prefix = '') {
         pendingVerifications,
         pendingDeletions,
         fraudAlerts,
+        serverActions,
+        abuseReports,
+        pendingApplications,
+        totalVerifications,
+        totalDeletions,
+        totalFeedback,
         avgTicketResponseMs: avgTicketResponseMsLast30,
         avgTicketResponseSampleCount: responseDurationsLast30.length,
         avgTicketResponseMsLast30,
@@ -1723,6 +1760,10 @@ export async function adminRoutes(app: any, prefix = '') {
       const ticketRepo = AppDataSource.getRepository(Ticket);
       const orderRepo = AppDataSource.getRepository(Order);
       const logRepo = AppDataSource.getRepository(UserLog);
+      const verRepo = AppDataSource.getRepository(IDVerification);
+      const delRepo = AppDataSource.getRepository(DeletionRequest);
+      const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
+      const formRepo = AppDataSource.getRepository(ApplicationForm);
 
       const classifyServerStatus = (rawStatus: any): 'online' | 'transitioning' | 'offline' => {
         const s = String(rawStatus || '')
@@ -1754,6 +1795,11 @@ export async function adminRoutes(app: any, prefix = '') {
         ticketRows,
         orderRows,
         registrationsBeforeWindow,
+        serverActionRows,
+        totalVerifications,
+        totalDeletions,
+        verificationRows,
+        deletionRows,
       ] = await Promise.all([
         userRepo.count(),
         orgRepo.count(),
@@ -1798,13 +1844,51 @@ export async function adminRoutes(app: any, prefix = '') {
           .where('log.action = :action', { action: 'register' })
           .andWhere('log.timestamp < :before', { before: rangeStart })
           .getCount(),
+        logRepo
+          .createQueryBuilder('log')
+          .select(['log.timestamp'])
+          .where('log.targetType = :targetType', { targetType: 'server' })
+          .andWhere('log.timestamp >= :from AND log.timestamp < :to', {
+            from: rangeStart,
+            to: rangeEndExclusive,
+          })
+          .getMany(),
+        verRepo.count(),
+        delRepo.count(),
+        verRepo
+          .createQueryBuilder('ver')
+          .select(['ver.verifiedAt'])
+          .where('ver.verifiedAt >= :from AND ver.verifiedAt < :to', {
+            from: rangeStart,
+            to: rangeEndExclusive,
+          })
+          .getMany(),
+        delRepo
+          .createQueryBuilder('del')
+          .select(['del.requestedAt'])
+          .where('del.requestedAt >= :from AND del.requestedAt < :to', {
+            from: rangeStart,
+            to: rangeEndExclusive,
+          })
+          .getMany(),
       ]);
+
+      let abuseReports = 0;
+      try {
+        const abuseForm = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+        if (abuseForm) {
+          abuseReports = await submissionRepo.count({ where: { formId: abuseForm.id } });
+        }
+      } catch {}
 
       const dayKeys = utcDayKeys(rangeStart, days);
       const registrationDaily = new Map<string, number>();
       const organisationDaily = new Map<string, number>();
       const ticketDaily = new Map<string, number>();
       const orderDaily = new Map<string, number>();
+      const serverActionDaily = new Map<string, number>();
+      const verificationDaily = new Map<string, number>();
+      const deletionDaily = new Map<string, number>();
 
       let registrationsCurrent = 0;
       let registrationsPrevious = 0;
@@ -1852,6 +1936,33 @@ export async function adminRoutes(app: any, prefix = '') {
         orderDaily.set(key, (orderDaily.get(key) || 0) + 1);
       }
 
+      let serverActionsCurrent = 0;
+      for (const row of serverActionRows as any[]) {
+        const ts = new Date(row.timestamp);
+        if (Number.isNaN(ts.getTime())) continue;
+        serverActionsCurrent += 1;
+        const key = formatUtcDayKey(ts);
+        serverActionDaily.set(key, (serverActionDaily.get(key) || 0) + 1);
+      }
+
+      let verificationsCurrent = 0;
+      for (const row of verificationRows as any[]) {
+        const ts = new Date(row.verifiedAt);
+        if (Number.isNaN(ts.getTime())) continue;
+        verificationsCurrent += 1;
+        const key = formatUtcDayKey(ts);
+        verificationDaily.set(key, (verificationDaily.get(key) || 0) + 1);
+      }
+
+      let deletionsCurrent = 0;
+      for (const row of deletionRows as any[]) {
+        const ts = new Date(row.requestedAt);
+        if (Number.isNaN(ts.getTime())) continue;
+        deletionsCurrent += 1;
+        const key = formatUtcDayKey(ts);
+        deletionDaily.set(key, (deletionDaily.get(key) || 0) + 1);
+      }
+
       let totalServers = 0;
       let serversOnline = 0;
       let serversTransitioning = 0;
@@ -1890,6 +2001,10 @@ export async function adminRoutes(app: any, prefix = '') {
           organisations: organisationDaily.get(date) || 0,
           tickets: ticketDaily.get(date) || 0,
           orders: orderDaily.get(date) || 0,
+          serverActions: serverActionDaily.get(date) || 0,
+          verifications: verificationDaily.get(date) || 0,
+          deletions: deletionDaily.get(date) || 0,
+          abuseReports: 0,
         };
       });
 
@@ -1916,6 +2031,10 @@ export async function adminRoutes(app: any, prefix = '') {
           organisationGrowthPercent: growthPct(organisationsCurrent, organisationsPrevious),
           ticketsCurrent,
           ordersCurrent,
+          serverActions: serverActionsCurrent,
+          abuseReports,
+          totalVerifications,
+          totalDeletions,
         },
         series,
       };
