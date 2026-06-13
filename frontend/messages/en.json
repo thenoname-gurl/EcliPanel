@@ -2291,6 +2291,10 @@
       "captchaInvisible": {
         "label": "Invisible Captcha",
         "note": "Behavioral challenge system"
+      },
+      "elo": {
+        "label": "ELO Ranking",
+        "note": "Community voting and project ranking system"
       }
     },
     "gambling": {

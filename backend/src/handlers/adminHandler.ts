@@ -30,12 +30,18 @@ import { ServerConfig } from '../models/serverConfig.entity';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { sanitizeError } from '../utils/sanitizeError';
 import { createT, getMessages, defaultLocale } from '../i18n';
-import { In, MoreThanOrEqual, Like } from 'typeorm';
+import { In, IsNull, Like, MoreThanOrEqual, Not } from 'typeorm';
 import { Order } from '../models/order.entity';
 import { Coupon } from '../models/coupon.entity';
 import { CouponUse } from '../models/couponUse.entity';
 import { Plan } from '../models/plan.entity';
 import { ShortUrl } from '../models/shortUrl.entity';
+import { EloProject } from '../models/eloProject.entity';
+import { EloVote } from '../models/eloVote.entity';
+import { EloDevlog } from '../models/eloDevlog.entity';
+import { EloReport } from '../models/eloReport.entity';
+import { syncEloResources, clampInt } from './eloHandler';
+import { calculateEloResources } from '../services/eloService';
 import { getSlowQueries, clearSlowQueries } from '../utils/slowQueryCollector';
 import { executeDeletionRequest } from '../jobs/deletionExecutionJob';
 import {
@@ -575,25 +581,6 @@ function parseCpuInput(input: unknown): number | null {
   }
   const v = parseFloat(s);
   return Number.isFinite(v) ? v : null;
-}
-
-function requireAdminCtx(ctx: AdminRouteContext): true | { error: string } {
-  const user = ctx.user as User | undefined;
-  if (!user) {
-    ctx.set.status = 401;
-    return { error: ctx.t('auth.unauthorized') };
-  }
-  if (!hasPermissionSync(ctx, 'admin:access')) {
-    ctx.set.status = 403;
-    return { error: ctx.t('admin.accessRequired') };
-  }
-  return true;
-}
-
-function requireAdminCtxOrAdminApiKey(ctx: AdminRouteContext): true | { error: string } {
-  const apiKey = ctx.apiKey;
-  if (apiKey && apiKey.type === 'admin') return true;
-  return requireAdminCtx(ctx);
 }
 
 const ADMIN_PAGE_PERMISSIONS = [
@@ -9144,6 +9131,433 @@ export async function adminRoutes(app: any, prefix = '') {
         },
       },
       detail: { summary: 'Ensure users have a plan matching their portalType', tags: ['Admin'] },
+    }
+  );
+
+  // ── Admin ELO Routes ──────────────────────────────────────────────────────
+
+  const eloProjectRepo = () => AppDataSource.getRepository(EloProject);
+  const eloVoteRepo = () => AppDataSource.getRepository(EloVote);
+  const eloDevlogRepo = () => AppDataSource.getRepository(EloDevlog);
+
+  app.get(
+    prefix + '/admin/elo',
+    async ctx => {
+      const page = Math.max(1, Number((ctx.query as any)?.page || 1));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
+      const search = String((ctx.query as any)?.search || '').trim();
+
+      const where = search
+        ? [
+            { title: Like(`%${search}%`) },
+            { serverId: Like(`%${search}%`) },
+          ]
+        : {};
+
+      const [projects, total] = await eloProjectRepo().findAndCount({
+        where: where as any,
+        order: { eloScore: 'DESC' },
+        skip: (page - 1) * per,
+        take: per,
+      });
+
+      const userIds = [...new Set(projects.map(p => p.userId))];
+      const users = await AppDataSource.getRepository(User).findBy({ id: In(userIds.length > 0 ? userIds : [0]) as any });
+      const userMap = new Map((users as User[]).map(u => [u.id, u]));
+
+      const enriched = await Promise.all(projects.map(async p => {
+        const owner = userMap.get(p.userId) as User | undefined;
+        const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: p.serverId });
+        return {
+          id: p.id,
+          serverId: p.serverId,
+          userId: p.userId,
+          title: p.title || `Project #${p.id}`,
+          description: p.description,
+          eloScore: p.eloScore,
+          kFactor: p.kFactor,
+          totalVotes: p.totalVotes,
+          wins: p.wins,
+          losses: p.losses,
+          skipTokensRemaining: p.skipTokensRemaining,
+          maxSkipTokens: p.maxSkipTokens,
+          githubUrl: p.githubUrl,
+          screenshots: p.screenshots,
+          readme: p.readme,
+          ownerName: owner ? (owner.displayName || `${owner.firstName} ${owner.lastName}`) : 'Unknown',
+          ownerEmail: owner?.email,
+          serverName: cfg?.name,
+          serverStatus: cfg?.suspended ? 'suspended' : cfg ? 'active' : 'orphaned',
+          lastActiveAt: p.lastActiveAt,
+          createdAt: p.createdAt,
+        };
+      }));
+
+      return { projects: enriched, total, page, per, totalPages: Math.ceil(total / per) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'List all ELO projects', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/elo/:id',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+
+      const project = await eloProjectRepo().findOneBy({ id });
+      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+
+      const owner = await AppDataSource.getRepository(User).findOneBy({ id: project.userId });
+      const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: project.serverId });
+      const devlogs = await eloDevlogRepo().find({ where: { projectId: project.id }, order: { publishedAt: 'DESC' } });
+      const voteCount = await eloVoteRepo().count({ where: [{ projectAId: project.id }, { projectBId: project.id }] });
+
+      return {
+        id: project.id,
+        serverId: project.serverId,
+        userId: project.userId,
+        title: project.title,
+        description: project.description,
+        tags: project.tags,
+        eloScore: project.eloScore,
+        kFactor: project.kFactor,
+        totalVotes: project.totalVotes,
+        wins: project.wins,
+        losses: project.losses,
+        skipTokensRemaining: project.skipTokensRemaining,
+        maxSkipTokens: project.maxSkipTokens,
+        lastActiveAt: project.lastActiveAt,
+        createdAt: project.createdAt,
+        ownerName: owner ? (owner.displayName || `${owner.firstName} ${owner.lastName}`) : 'Unknown',
+        ownerEmail: owner?.email,
+        serverName: cfg?.name,
+        serverStatus: cfg?.suspended ? 'suspended' : cfg ? 'active' : 'orphaned',
+        devlogCount: devlogs.length,
+        totalVoteRecords: voteCount,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Get ELO project detail', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/elo/:id',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+
+      const project = await eloProjectRepo().findOneBy({ id });
+      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+
+      const body = ctx.body as Record<string, any>;
+      if (body.eloScore !== undefined) project.eloScore = clampInt(body.eloScore, 100, 99999);
+      if (body.kFactor !== undefined) project.kFactor = clampInt(body.kFactor, 8, 64);
+      if (body.title !== undefined) project.title = String(body.title).trim();
+      if (body.description !== undefined) project.description = String(body.description).trim();
+      if (body.skipTokensRemaining !== undefined) project.skipTokensRemaining = clampInt(body.skipTokensRemaining, 0, project.maxSkipTokens);
+      if (body.readme !== undefined) project.readme = String(body.readme).trim() || null;
+      if (body.githubUrl !== undefined) project.githubUrl = String(body.githubUrl).trim() || null;
+      if (body.demoUrl !== undefined) project.demoUrl = String(body.demoUrl).trim() || null;
+      if (body.screenshots !== undefined) project.screenshots = Array.isArray(body.screenshots) ? body.screenshots : null;
+
+      await eloProjectRepo().save(project);
+      await syncEloResources(project);
+
+      return { id: project.id, eloScore: project.eloScore, kFactor: project.kFactor };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Update ELO project', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/elo/:id/reset',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+
+      const project = await eloProjectRepo().findOneBy({ id });
+      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+
+      project.eloScore = 1000;
+      project.kFactor = 24;
+      project.totalVotes = 0;
+      project.wins = 0;
+      project.losses = 0;
+      project.skipTokensRemaining = project.maxSkipTokens;
+      await eloProjectRepo().save(project);
+      await syncEloResources(project);
+
+      return { id: project.id, eloScore: project.eloScore, message: 'Project reset to 1000 ELO' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Reset ELO project to 1000', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/elo/:id',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+
+      const project = await eloProjectRepo().findOneBy({ id });
+      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+
+      await eloDevlogRepo().delete({ projectId: id });
+      await eloVoteRepo().delete({ projectAId: id });
+      await eloVoteRepo().delete({ projectBId: id });
+      await eloProjectRepo().remove(project);
+
+      return { message: 'Project deleted' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Delete ELO project', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  const eloReportRepo = () => AppDataSource.getRepository(EloReport);
+
+  app.get(
+    prefix + '/admin/elo/votes',
+    async ctx => {
+      const page = Math.max(1, Number((ctx.query as any)?.page || 1));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
+      const search = String((ctx.query as any)?.search || '').trim();
+
+      const where: any = {};
+      if (search) {
+        const uid = Number(search);
+        if (!isNaN(uid)) where.voterId = uid;
+      }
+
+      const [votes, total] = await eloVoteRepo().findAndCount({
+        where,
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * per,
+        take: per,
+      });
+
+      const voterIds = [...new Set(votes.map(v => v.voterId))];
+      const voters = await AppDataSource.getRepository(User).findBy({ id: In(voterIds.length > 0 ? voterIds : [0]) as any });
+      const voterMap = new Map(voters.map(u => [u.id, u]));
+
+      const projectIds = [...new Set(votes.flatMap(v => [v.projectAId, v.projectBId]))];
+      const projects = projectIds.length > 0
+        ? await eloProjectRepo().findBy({ id: In(projectIds) as any })
+        : [];
+      const projectMap = new Map(projects.map(p => [p.id, p]));
+
+      const enriched = votes.map(v => {
+        const voter = voterMap.get(v.voterId);
+        const projectA = projectMap.get(v.projectAId);
+        const projectB = projectMap.get(v.projectBId);
+        return {
+          id: v.id,
+          voterId: v.voterId,
+          voterName: voter ? (voter.displayName || `${voter.firstName} ${voter.lastName}`) : 'Unknown',
+          projectAId: v.projectAId,
+          projectATitle: projectA?.title || `#${v.projectAId}`,
+          projectBId: v.projectBId,
+          projectBTitle: projectB?.title || `#${v.projectBId}`,
+          winnerId: v.winnerId,
+          winnerIsA: v.winnerId === v.projectAId,
+          eloDeltaA: v.eloDeltaA,
+          eloDeltaB: v.eloDeltaB,
+          createdAt: v.createdAt,
+        };
+      });
+
+      return { votes: enriched, total, page, per, totalPages: Math.ceil(total / per) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'List ELO votes', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/elo/votes/:id',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid vote ID' }; }
+
+      const vote = await eloVoteRepo().findOneBy({ id });
+      if (!vote) { ctx.set.status = 404; return { error: 'Vote not found' }; }
+
+      await eloVoteRepo().remove(vote);
+      return { message: 'Vote deleted' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Delete an ELO vote', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/elo/reports',
+    async ctx => {
+      const page = Math.max(1, Number((ctx.query as any)?.page || 1));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
+      const resolved = String((ctx.query as any)?.resolved || '');
+
+      const where: any = {};
+      if (resolved === 'true') where.resolvedAt = Not(IsNull());
+      else if (resolved === 'false') where.resolvedAt = IsNull();
+
+      const [reports, total] = await eloReportRepo().findAndCount({
+        where,
+        order: { createdAt: 'DESC' },
+        skip: (page - 1) * per,
+        take: per,
+      });
+
+      const userIds = [...new Set(reports.flatMap(r => [r.reporterId, r.resolvedById].filter(Boolean)))];
+      const users = await AppDataSource.getRepository(User).findBy({ id: In(userIds.length > 0 ? userIds : [0]) as any });
+      const userMap = new Map(users.map(u => [u.id, u]));
+
+      const enriched = reports.map(r => {
+        const reporter = userMap.get(r.reporterId);
+        const resolver = r.resolvedById ? userMap.get(r.resolvedById) : null;
+        return {
+          id: r.id,
+          reporterId: r.reporterId,
+          reporterName: reporter ? (reporter.displayName || `${reporter.firstName} ${reporter.lastName}`) : 'Unknown',
+          targetType: r.targetType,
+          targetId: r.targetId,
+          reason: r.reason,
+          resolvedById: r.resolvedById,
+          resolvedByName: resolver ? (resolver.displayName || `${resolver.firstName} ${resolver.lastName}`) : null,
+          resolvedAt: r.resolvedAt,
+          createdAt: r.createdAt,
+        };
+      });
+
+      return { reports: enriched, total, page, per, totalPages: Math.ceil(total / per) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'List ELO reports', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/elo/reports/:id',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid report ID' }; }
+
+      const report = await eloReportRepo().findOneBy({ id });
+      if (!report) { ctx.set.status = 404; return { error: 'Report not found' }; }
+
+      report.resolvedAt = new Date();
+      report.resolvedById = ctx.user.id;
+      await eloReportRepo().save(report);
+
+      return { message: 'Report resolved' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Resolve an ELO report', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/elo/voters',
+    async ctx => {
+      const page = Math.max(1, Number((ctx.query as any)?.page || 1));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
+      const search = String((ctx.query as any)?.search || '').trim();
+
+      const where: any = {};
+      if (search) {
+        const uid = Number(search);
+        if (!isNaN(uid)) where.id = uid;
+        else where.displayName = Like(`%${search}%`);
+      }
+
+      const [users, total] = await AppDataSource.getRepository(User).findAndCount({
+        where: where as any,
+        order: { id: 'DESC' },
+        skip: (page - 1) * per,
+        take: per,
+      });
+
+      const enriched = await Promise.all(users.map(async u => {
+        const totalVotes = await eloVoteRepo().count({ where: { voterId: u.id } });
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const votesToday = await eloVoteRepo().count({ where: { voterId: u.id, createdAt: MoreThanOrEqual(today) } });
+        return {
+          id: u.id,
+          name: u.displayName || `${u.firstName} ${u.lastName}`,
+          email: u.email,
+          voteWarnings: u.voteWarnings || 0,
+          totalVotes,
+          votesToday,
+          votesCast: u.limits?.votesCast || 0,
+          eloServerLimit: u.limits?.eloServerLimit || 1,
+        };
+      }));
+
+      return { voters: enriched, total, page, per, totalPages: Math.ceil(total / per) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'List ELO voters', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/elo/voters/:id/reset-warnings',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid user ID' }; }
+
+      const user = await AppDataSource.getRepository(User).findOneBy({ id });
+      if (!user) { ctx.set.status = 404; return { error: 'User not found' }; }
+
+      user.voteWarnings = 0;
+      await AppDataSource.getRepository(User).save(user);
+
+      return { message: 'Vote warnings reset', voteWarnings: 0 };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Reset vote warnings for a user', tags: ['Admin', 'ELO'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/elo/voters/:id/votes',
+    async ctx => {
+      const id = Number((ctx.params as any).id);
+      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid user ID' }; }
+
+      const user = await AppDataSource.getRepository(User).findOneBy({ id });
+      if (!user) { ctx.set.status = 404; return { error: 'User not found' }; }
+
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const recentVotes = await eloVoteRepo().find({ where: { voterId: id, createdAt: MoreThanOrEqual(today) } });
+      await eloVoteRepo().remove(recentVotes);
+
+      if (user.limits) {
+        user.limits.votesCast = Math.max(0, (user.limits.votesCast || 0) - recentVotes.length);
+        await AppDataSource.getRepository(User).save(user);
+      }
+
+      return { message: `Deleted ${recentVotes.length} today vote(s) for user ${id}`, deleted: recentVotes.length };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Delete today\'s votes for a user (reset cooldown)', tags: ['Admin', 'ELO'] },
     }
   );
 }

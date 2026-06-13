@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { motion } from "framer-motion"
+import Link from "next/link"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import {
@@ -14,12 +15,23 @@ import {
   Activity,
   Loader2,
   AlertTriangle,
+  AlertCircle,
   ExternalLink,
   Server,
   Box,
   Globe,
   Terminal,
+  FileText,
+  Check,
 } from "lucide-react"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { formatBytes } from "./serverTabHelpers"
 
 interface ServerViewV2Props {
@@ -68,6 +80,12 @@ export function ServerViewV2({ server, id }: ServerViewV2Props) {
   const [powerLoading, setPowerLoading] = useState<string | null>(null)
   const [stats, setStats] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const [devlogBlock, setDevlogBlock] = useState<{
+    action: string
+    projectId: number
+    skipTokensRemaining: number
+    message: string
+  } | null>(null)
 
   const loadStats = useCallback(async () => {
     try {
@@ -92,23 +110,33 @@ export function ServerViewV2({ server, id }: ServerViewV2Props) {
   const handlePower = async (action: string) => {
     setPowerLoading(action)
     setError(null)
+    let res: any
     try {
-      await apiFetch(API_ENDPOINTS.serverV2Power.replace(":id", id), {
+      res = await apiFetch(API_ENDPOINTS.serverV2Power.replace(":id", id), {
         method: "POST",
         body: JSON.stringify({ action }),
       })
-    } catch (e: any) {
+    } catch {
       try {
-        await apiFetch(API_ENDPOINTS.serverPower.replace(":id", id), {
+        res = await apiFetch(API_ENDPOINTS.serverPower.replace(":id", id), {
           method: "POST",
           body: JSON.stringify({ action }),
         })
       } catch (e2: any) {
         setError(e2?.message || "Power action failed")
+        setPowerLoading(null)
+        return
       }
-    } finally {
-      setPowerLoading(null)
     }
+    if (res && typeof res === "object" && res.needsDevlog) {
+      setDevlogBlock({
+        action,
+        projectId: res.projectId,
+        skipTokensRemaining: res.skipTokensRemaining ?? 0,
+        message: res.message || "A recent devlog is required.",
+      })
+    }
+    setPowerLoading(null)
   }
 
   const vmType = server?.configuration?.vmType || (server?.uuid?.startsWith("qemu") ? "qemu" : "lxc")
@@ -314,6 +342,63 @@ export function ServerViewV2({ server, id }: ServerViewV2Props) {
           </motion.div>
         </div>
       </div>
+
+      {/* Devlog Required Dialog */}
+      <Dialog open={devlogBlock !== null} onOpenChange={(open) => { if (!open) setDevlogBlock(null) }}>
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Devlog Required</DialogTitle>
+          </DialogHeader>
+          <div className="py-3 space-y-3">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-foreground break-words min-w-0">
+                  {devlogBlock?.message}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Publish a devlog for your community to keep them updated, or use a skip token to bypass this requirement.
+            </p>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDevlogBlock(null)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Link href="/dashboard/elo">
+              <Button variant="outline" className="w-full sm:w-auto">
+                <FileText className="h-4 w-4 mr-2" />
+                Publish Devlog
+              </Button>
+            </Link>
+            {devlogBlock && devlogBlock.skipTokensRemaining > 0 && (
+              <Button
+                onClick={async () => {
+                  const block = devlogBlock
+                  setDevlogBlock(null)
+                  try {
+                    await apiFetch(API_ENDPOINTS.eloSkip.replace(":id", String(block.projectId)), {
+                      method: "POST",
+                    })
+                    await handlePower(block.action)
+                  } catch {
+                    setError("Failed to use skip token.")
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                Use Skip Token ({devlogBlock.skipTokensRemaining})
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

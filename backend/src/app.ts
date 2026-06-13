@@ -23,6 +23,7 @@ import { scheduleServerSunsetPolicyJob } from './jobs/serverSunsetPolicyJob';
 import { scheduleGithubContributorsJob } from './jobs/githubContributorsJob';
 import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
 import { scheduleRenewalJob } from './jobs/renewalJob';
+import { scheduleEloDecayJob } from './jobs/eloDecayJob';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
@@ -657,6 +658,11 @@ export async function initApp() {
     scheduleTunnelCleanupJob();
   } catch (e) {
     console.error('Failed to schedule tunnel cleanup job:', e);
+  }
+  try {
+    scheduleEloDecayJob();
+  } catch (e) {
+    console.error('Failed to schedule ELO decay job:', e);
   }
   try {
     scheduleGithubContributorsJob();

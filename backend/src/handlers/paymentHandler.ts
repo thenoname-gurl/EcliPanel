@@ -228,7 +228,7 @@ export async function paymentRoutes(app: any, prefix = '') {
       return response;
     },
     {
-      beforeHandle: [authenticate, authorize('orders:create')],
+      beforeHandle: [authenticate],
       body: t.Object({ paymentMethodId: t.String(), activateMode: t.Optional(t.String()) }),
       detail: { summary: 'Initiate payment for an order', tags: ['Payments'] },
     }

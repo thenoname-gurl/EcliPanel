@@ -158,5 +158,9 @@ export const AppDataSource = new DataSource({
     require('../models/visualEditorBlueprint.entity').VisualEditorBlueprint,
     require('../models/visualEditorLibrary.entity').VisualEditorLibrary,
     require('../models/sharedFileLink.entity').SharedFileLink,
+    require('../models/eloProject.entity').EloProject,
+    require('../models/eloVote.entity').EloVote,
+    require('../models/eloDevlog.entity').EloDevlog,
+    require('../models/eloReport.entity').EloReport,
   ],
 });

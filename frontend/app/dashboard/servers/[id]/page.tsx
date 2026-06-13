@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api-client"
 import { getActivityActionLabel } from "@/lib/activity-action-labels"
@@ -85,6 +86,8 @@ import {
   ExternalLink,
   Link2,
   Server,
+  Star,
+  Edit,
 } from "lucide-react"
 
 const ConsoleTabLazy = lazy(() => import("./ConsoleTab").then((m) => ({ default: m.ConsoleTab })))
@@ -708,6 +711,14 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [markStartedLoading, setMarkStartedLoading] = useState(false)
   const [powerDialogOpen, setPowerDialogOpen] = useState(false)
   const [pendingPowerAction, setPendingPowerAction] = useState<string | null>(null)
+  const [devlogBlock, setDevlogBlock] = useState<{
+    action: string
+    projectId: number
+    skipTokensRemaining: number
+    message: string
+  } | null>(null)
+
+  const [eloProject, setEloProject] = useState<any | null>(null)
 
   const [transferDialogOpen, setTransferDialogOpen] = useState(false)
   const [transferLoading, setTransferLoading] = useState(false)
@@ -778,8 +789,15 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   const loadServer = useCallback(async () => {
     try {
-      const data = await apiFetch(API_ENDPOINTS.serverDetail.replace(":id", id))
+      const [data, eloData] = await Promise.all([
+        apiFetch(API_ENDPOINTS.serverDetail.replace(":id", id)),
+        apiFetch(API_ENDPOINTS.eloMy).catch(() => null),
+      ])
       setServer(data)
+      if (eloData?.projects) {
+        const match = eloData.projects.find((p: any) => p.serverId === id)
+        setEloProject(match || null)
+      }
     } catch (e) {
       console.error("Failed to load server", e)
     } finally {
@@ -842,6 +860,25 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
           method: "POST",
           body: JSON.stringify({ action }),
         })
+
+        if (res && typeof res === "object" && res.needsProjectDetails) {
+          setPowerToast({
+            type: "warning",
+            title: "Project Details Incomplete",
+            message: res.message || "Complete your ELO project details before starting.",
+          })
+          return
+        }
+
+        if (res && typeof res === "object" && res.needsDevlog) {
+          setDevlogBlock({
+            action,
+            projectId: res.projectId,
+            skipTokensRemaining: res.skipTokensRemaining ?? 0,
+            message: res.message || "A recent devlog is required to start this server.",
+          })
+          return
+        }
 
         if (res && typeof res === "object" && res.success === false) {
           setPowerToast({
@@ -1400,6 +1437,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
                 reload={loadServer}
                 isKvm={isKvm}
                 isAdminUser={isAdminUser}
+                eloProject={eloProject}
               />
             )}
           </div>
@@ -1549,6 +1587,86 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             >
               {transferLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
               {t("actions.transfer")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Devlog Required Dialog */}
+      <Dialog
+        open={!!devlogBlock}
+        onOpenChange={(open) => {
+          if (!open) setDevlogBlock(null)
+        }}
+      >
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Devlog Required</DialogTitle>
+          </DialogHeader>
+          <div className="py-3 space-y-4">
+            <div className="border border-amber-500/20 bg-amber-500/5 p-3">
+              <p className="text-sm text-foreground">
+                {devlogBlock?.message}
+              </p>
+              {devlogBlock && devlogBlock.skipTokensRemaining > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  You have {devlogBlock.skipTokensRemaining} skip token{devlogBlock.skipTokensRemaining === 1 ? "" : "s"} remaining.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDevlogBlock(null)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            {devlogBlock && devlogBlock.skipTokensRemaining > 0 && (
+              <Button
+                variant="default"
+                onClick={async () => {
+                  const action = devlogBlock.action
+                  setDevlogBlock(null)
+                  try {
+                    const res = await apiFetch(API_ENDPOINTS.serverPower.replace(":id", id), {
+                      method: "POST",
+                      body: JSON.stringify({ action, skipDevlog: true }),
+                    })
+                    if (res && typeof res === "object" && res.needsDevlog) {
+                      setDevlogBlock({
+                        action,
+                        projectId: res.projectId,
+                        skipTokensRemaining: res.skipTokensRemaining ?? 0,
+                        message: res.message || "A recent devlog is required to start this server.",
+                      })
+                      return
+                    }
+                    if (res && typeof res === "object" && res.success === false) {
+                      return
+                    }
+                  } catch (e) {
+                    console.error("Failed resend power", e)
+                  }
+                }}
+                className="w-full sm:w-auto"
+              >
+                Skip with Token
+              </Button>
+            )}
+            <Button
+              variant="default"
+              onClick={() => {
+                const projectId = devlogBlock?.projectId
+                setDevlogBlock(null)
+                if (projectId) {
+                  router.push(`/dashboard/elo?projectId=${projectId}&writeDevlog=true`)
+                }
+              }}
+              className="w-full sm:w-auto"
+            >
+              Write Devlog
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3579,6 +3697,7 @@ function SettingsTab({
   reload,
   isKvm,
   isAdminUser,
+  eloProject,
 }: {
   serverId: string
   server: any
@@ -3586,6 +3705,7 @@ function SettingsTab({
   reload: () => void
   isKvm?: boolean
   isAdminUser?: boolean
+  eloProject?: any
 }) {
   const t = useTranslations("serverDetailPage")
   const { user } = useAuth()
@@ -3606,6 +3726,41 @@ function SettingsTab({
   const [primaryAlloc, setPrimaryAlloc] = useState<any>(
     server?.allocations?.find((a: any) => a.is_default) || server?.allocations?.[0] || null
   )
+
+  const [editingProject, setEditingProject] = useState<any | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editDesc, setEditDesc] = useState("")
+  const [editGitHub, setEditGitHub] = useState("")
+  const [editReadme, setEditReadme] = useState("")
+  const [editDemoUrl, setEditDemoUrl] = useState("")
+  const [editScreenshots, setEditScreenshots] = useState("")
+  const [editSaving, setEditSaving] = useState(false)
+
+  const saveEdit = async () => {
+    if (!editingProject) return
+    setEditSaving(true)
+    try {
+      await apiFetch(API_ENDPOINTS.eloProjectDetail.replace(":id", String(editingProject.id)), {
+        method: "PUT",
+        body: JSON.stringify({
+          title: editTitle || null,
+          description: editDesc || null,
+          githubUrl: editGitHub || null,
+          demoUrl: editDemoUrl || null,
+          readme: editReadme || null,
+          screenshots: editScreenshots.trim()
+            ? editScreenshots.split("\n").map(s => s.trim()).filter(Boolean)
+            : null,
+        }),
+      })
+      setEditingProject(null)
+      reload()
+    } catch {
+      // ignore
+    } finally {
+      setEditSaving(false)
+    }
+  }
 
   useEffect(() => {
     setMemoryLimit(Number(server?.build?.memory_limit ?? 0))
@@ -3909,7 +4064,69 @@ function SettingsTab({
 
       {/* Build Configuration */}
       {server.build && (
-        <CollapsibleSection title={t("settings.resourceLimits")} icon={Cpu}>
+        <CollapsibleSection title={eloProject ? "ELO Resource Limits" : t("settings.resourceLimits")} icon={eloProject ? Star : Cpu}>
+          {eloProject ? (
+            <div className="pt-3 space-y-3">
+              <div className="border border-purple-500/20 bg-purple-500/5 px-4 py-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <Star className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-semibold text-purple-300">ELO-Managed Resources</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  This server is managed by the ELO rating system. Resource limits are automatically scaled based on ELO performance.
+                </p>
+                <div className="pt-3 space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">CPU Limit</span>
+                    <span className="font-mono text-purple-300">{eloProject.resources?.cpu ?? '-'}%</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Memory</span>
+                    <span className="font-mono text-purple-300">
+                      {eloProject.resources?.memory >= 1024
+                        ? `${(eloProject.resources.memory / 1024).toFixed(1)} GB`
+                        : `${eloProject.resources?.memory ?? '-'} MB`}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-muted-foreground">Disk</span>
+                    <span className="font-mono text-purple-300">
+                      {eloProject.resources?.disk
+                        ? `${(eloProject.resources.disk / 1024).toFixed(1)} GB`
+                        : '-'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-purple-500/10">
+                  <button
+                    onClick={() => {
+                      setEditingProject(eloProject)
+                      setEditTitle(eloProject.title || "")
+                      setEditDesc(eloProject.description || "")
+                      setEditGitHub(eloProject.githubUrl || "")
+                      setEditReadme(eloProject.readme || "")
+                      setEditDemoUrl(eloProject.demoUrl || "")
+                      setEditScreenshots(eloProject.screenshots?.join("\n") || "")
+                    }}
+                    className="inline-flex items-center gap-1.5 border border-purple-500/30 bg-purple-500/10 text-purple-300 px-3 py-1.5 text-xs font-medium hover:bg-purple-500/20 transition-all active:scale-95"
+                  >
+                    <Edit className="h-3 w-3" />
+                    Edit Project
+                  </button>
+                  <Link
+                    href={`/dashboard/elo?projectId=${eloProject.id}&writeDevlog=true`}
+                    className="inline-flex items-center gap-1.5 border border-purple-500/30 bg-purple-500/10 text-purple-300 px-3 py-1.5 text-xs font-medium hover:bg-purple-500/20 transition-all active:scale-95"
+                  >
+                    <FileText className="h-3 w-3" />
+                    Write Devlog
+                  </Link>
+                  <a href="/dashboard/elo" className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors ml-auto">
+                    View ELO Dashboard →
+                  </a>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-w-0 pt-3">
             <div className="space-y-4">
               {hasResourcePools && (
@@ -4103,6 +4320,7 @@ function SettingsTab({
               </Button>
             </div>
           </div>
+          )}
         </CollapsibleSection>
       )}
 
@@ -4211,6 +4429,88 @@ function SettingsTab({
             >
               {reinstalling && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
               {t("settings.reinstall")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Project Dialog */}
+      <Dialog open={editingProject !== null} onOpenChange={(open) => { if (!open) setEditingProject(null) }}>
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-lg overflow-hidden max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Edit Project Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Title</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Description</Label>
+              <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="mt-1" rows={2} />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">GitHub URL</Label>
+              <Input value={editGitHub} onChange={(e) => setEditGitHub(e.target.value)} placeholder="https://github.com/user/repo" className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Demo URL / Server IP</Label>
+              <Input value={editDemoUrl} onChange={(e) => setEditDemoUrl(e.target.value)} placeholder="https://... or play.example.com" className="mt-1" />
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Screenshots</Label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {Array.isArray(editingProject?.screenshots) && editingProject.screenshots.map((url: string, i: number) => (
+                  <div key={i} className="relative group">
+                    <img src={url} alt={`Screenshot ${i + 1}`} className="h-20 w-auto border border-border/50 object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = editingProject.screenshots.filter((_: string, j: number) => j !== i)
+                        setEditScreenshots(updated.join("\n"))
+                        setEditingProject({ ...editingProject, screenshots: updated })
+                      }}
+                      className="absolute top-0 right-0 bg-destructive/80 text-destructive-foreground w-5 h-5 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    const formData = new FormData()
+                    formData.append("file", file)
+                    try {
+                      const res = await apiFetch("/api/elo/screenshots", { method: "POST", body: formData })
+                      if (res?.url) {
+                        const current = editScreenshots.trim() ? editScreenshots.split("\n").map((s: string) => s.trim()).filter(Boolean) : []
+                        current.push(res.url)
+                        setEditScreenshots(current.join("\n"))
+                        setEditingProject((prev: any) => prev ? { ...prev, screenshots: current } : prev)
+                      }
+                    } catch {}
+                    e.target.value = ""
+                  }}
+                  className="text-xs text-muted-foreground file:mr-2 file:border file:border-border file:bg-secondary/30 file:px-2 file:py-1 file:text-xs file:text-foreground file:cursor-pointer hover:file:bg-secondary/60"
+                />
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">README (markdown)</Label>
+              <Textarea value={editReadme} onChange={(e) => setEditReadme(e.target.value)} className="mt-1 font-mono text-xs" rows={8} placeholder="# My Project&#10;&#10;Describe your project here..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingProject(null)}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={editSaving}>
+              {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Save
             </Button>
           </DialogFooter>
         </DialogContent>

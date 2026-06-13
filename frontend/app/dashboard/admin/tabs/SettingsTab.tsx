@@ -393,6 +393,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               { key: "dedicatedIps", label: t("featureFlags.dedicatedIps.label"), note: t("featureFlags.dedicatedIps.note") },
               { key: "captcha", label: t("featureFlags.captcha.label"), note: t("featureFlags.captcha.note") },
               { key: "captchaInvisible", label: t("featureFlags.captchaInvisible.label"), note: t("featureFlags.captchaInvisible.note") },
+              { key: "elo", label: t("featureFlags.elo.label"), note: t("featureFlags.elo.note") },
             ].map((feature) => (
               <div
                 key={feature.key}
