@@ -325,6 +325,8 @@ export function PanelHeader({
     applications: true,
     oauth: true,
     tunnels: true,
+    visualeditor: true,
+    elo: true,
   })
 
   const [searchOpen, setSearchOpen] = useState(false)

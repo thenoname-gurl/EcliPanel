@@ -6,7 +6,6 @@ import { User } from '../models/user.entity';
 import { Plan } from '../models/plan.entity';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { authenticate } from '../middleware/auth';
-import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import { t } from 'elysia';
 import PDFDocument from 'pdfkit';
@@ -521,7 +520,7 @@ export async function orderRoutes(app: any, prefix = '') {
       return { success: true, order: normalizeOrder(order) };
     },
     {
-      beforeHandle: [authenticate, authorize('orders:create')],
+      beforeHandle: [authenticate],
       response: {
         200: t.Object({ success: t.Boolean(), order: t.Any(), autoActivated: t.Optional(t.Boolean()) }),
         400: t.Object({ error: t.String() }),

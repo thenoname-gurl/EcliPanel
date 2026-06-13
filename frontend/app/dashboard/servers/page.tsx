@@ -478,6 +478,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const [disk, setDisk] = useState<number>(10240)
   const [cpu, setCpu] = useState<number>(100)
   const [kvmPassthroughEnabled, setKvmPassthroughEnabled] = useState<boolean>(false)
+  const [isEloServer, setIsEloServer] = useState(false)
   const [startup, setStartup] = useState<string>("")
   const [envVars, setEnvVars] = useState<{ key: string; value: string }[]>([])
   const [blackjackStandAt, setBlackjackStandAt] = useState<number>(17)
@@ -485,6 +486,9 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const [createResult, setCreateResult] = useState<{
     createdUuid?: string
     genericMessage?: string
+    isEloServer?: boolean
+    eloProjectId?: number
+    eloScore?: number
     rolled?: { memory?: number; disk?: number; cpu?: number }
     luckyRoll?: boolean
     blackjack?: {
@@ -625,22 +629,38 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
         environment: envObject,
       }
 
-      if (!gamblingModeEnabled) {
+      if (isEloServer) {
+        createPayload.isEloServer = true
+        createPayload.memory = memory
+        createPayload.disk = disk
+        createPayload.cpu = cpu
+      } else if (!gamblingModeEnabled) {
         createPayload.memory = memory
         createPayload.disk = disk
         createPayload.cpu = cpu
       } else {
         createPayload.playerStandAt = blackjackStandAt
       }
-      const createRes = await apiFetch(API_ENDPOINTS.servers, {
+
+      const apiUrl = isEloServer ? API_ENDPOINTS.eloCreateServer : API_ENDPOINTS.servers
+      const createRes = await apiFetch(apiUrl, {
         method: "POST",
         body: JSON.stringify(createPayload),
       })
 
       const gamblingRes = createRes?.gambling
+      const eloRes = createRes?.isEloServer
       onCreated()
       if (gamblingRes?.enabled && gamblingRes?.rolled) {
         setCreateResult({ createdUuid: createRes?.uuid, ...gamblingRes })
+      } else if (eloRes) {
+        setCreateResult({
+          createdUuid: createRes?.uuid,
+          genericMessage: `ELO server created! Starting at 1000 ELO. Visit the ELO dashboard to manage voting and devlogs.`,
+          isEloServer: true,
+          eloProjectId: createRes?.eloProjectId,
+          eloScore: createRes?.eloScore,
+        })
       } else {
         setCreateResult({
           createdUuid: createRes?.uuid,
@@ -792,6 +812,28 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             <div className="space-y-2">
               <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("fields.node")}</label>
               <NodeSelector nodes={nodes} value={nodeId ? String(nodeId) : ""} onChange={(id) => setNodeId(Number(id))} loading={nodesLoading} />
+            </div>
+
+            {/* ELO Toggle */}
+            <div className="border border-amber-500/20 bg-amber-500/5 p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isEloServer}
+                  onChange={(e) => setIsEloServer(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 border-border bg-secondary/50 text-amber-500 focus:ring-amber-500"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">Enable ELO Features</span>
+                    <span className="border border-amber-500/30 bg-amber-500/10 text-amber-500 px-1.5 py-0.5 text-[10px] font-medium">New</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Community voting, devlogs, and ELO-based resource scaling.
+                    ELO servers use a separate slot limit that increases as you vote.
+                  </p>
+                </div>
+              </label>
             </div>
 
             {/* Startup */}
@@ -1157,6 +1199,15 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 </div>
                 )}
 
+                {createResult.isEloServer && (
+                  <Link
+                    href={`/dashboard/elo`}
+                    className="flex items-center justify-center gap-2 border border-amber-500/30 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-500 hover:bg-amber-500/20 transition-all"
+                  >
+                    <Star className="h-4 w-4" />
+                    ELO Dashboard
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={onClose}
@@ -1231,12 +1282,14 @@ function ServerCard({
   onPower,
   isFavorite,
   onToggleFavorite,
+  isElo,
 }: {
   server: any
   powerLoading: string | null
   onPower: (id: string, action: string) => void
   isFavorite: boolean
   onToggleFavorite: (serverId: string) => void
+  isElo?: boolean
 }) {
   const t = useTranslations("serversPage")
   const sid = server.uuid || server.id
@@ -1267,6 +1320,11 @@ function ServerCard({
               <h3 className="font-semibold text-foreground truncate group-hover:text-primary transition-colors text-sm sm:text-[15px]">
                 {server.name}
               </h3>
+              {isElo && (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 leading-none flex-shrink-0">
+                  ELO
+                </span>
+              )}
             </div>
             <div className="mt-1.5 flex items-center gap-3 text-xs text-muted-foreground">
               <span className="capitalize">{statusLabel(server.status, t)}</span>
@@ -1417,6 +1475,7 @@ export default function ServersPage() {
 
   const needsLegalInfo = needsAgeVerification || needsProfileCompletion
   const [servers, setServers] = useState<any[]>([])
+  const [eloServers, setEloServers] = useState<Set<string>>(new Set())
   const [favoriteServerIds, setFavoriteServerIds] = useState<string[]>([])
 
   useEffect(() => {
@@ -1458,7 +1517,10 @@ export default function ServersPage() {
   const loadServers = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await apiFetch(API_ENDPOINTS.servers)
+      const [data, eloData] = await Promise.all([
+        apiFetch(API_ENDPOINTS.servers),
+        apiFetch(API_ENDPOINTS.eloMy).catch(() => null),
+      ])
       const list = Array.isArray(data) ? data : []
       const seen = new Set<string>()
       const deduped: any[] = []
@@ -1470,6 +1532,9 @@ export default function ServersPage() {
         deduped.push(s)
       }
       setServers(deduped)
+      if (eloData?.projects) {
+        setEloServers(new Set(eloData.projects.map((p: any) => p.serverId)))
+      }
     } catch {
       console.error("failed to load servers")
     } finally {
@@ -1714,6 +1779,7 @@ export default function ServersPage() {
                     onPower={sendPower}
                     isFavorite={true}
                     onToggleFavorite={toggleFavorite}
+                    isElo={eloServers.has(server.uuid || server.id)}
                   />
                 ))}
               </div>
@@ -1786,6 +1852,7 @@ export default function ServersPage() {
                           onPower={sendPower}
                           isFavorite={favoriteServerIds.includes(sid)}
                           onToggleFavorite={toggleFavorite}
+                          isElo={eloServers.has(server.uuid || server.id)}
                         />
                       )
                     })}
@@ -1810,6 +1877,7 @@ export default function ServersPage() {
                           onPower={sendPower}
                           isFavorite={favoriteServerIds.includes(sid)}
                           onToggleFavorite={toggleFavorite}
+                          isElo={eloServers.has(server.uuid || server.id)}
                         />
                       )
                     })}

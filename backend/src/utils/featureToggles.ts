@@ -15,6 +15,7 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   dedicatedIps: true,
   tunnels: true,
   visualeditor: true,
+  elo: true,
 };
 
 export async function getPanelFeatureToggles(): Promise<Record<string, boolean>> {

@@ -31,6 +31,8 @@ import {
   User,
   FileText,
   Braces,
+  Star,
+  Trophy,
   type LucideIcon,
 } from "lucide-react"
 
@@ -315,6 +317,20 @@ export const API_ENDPOINTS = {
   socUsageUser: "/api/soc/usage/user/:id",
   socUsageOrg: "/api/soc/usage/org/:id",
 
+  // ELO
+  eloProjects: "/api/elo/projects",
+  eloProjectDetail: "/api/elo/projects/:id",
+  eloCreateServer: "/api/elo/servers",
+  eloVoteNext: "/api/elo/vote/next",
+  eloVote: "/api/elo/vote",
+  eloLeaderboard: "/api/elo/leaderboard",
+  eloDevlogs: "/api/elo/projects/:id/devlogs",
+  eloDevlogCreate: "/api/elo/devlogs",
+  eloSkipStatus: "/api/elo/projects/:id/skip-status",
+  eloSkip: "/api/elo/projects/:id/skip",
+  eloMy: "/api/elo/my",
+  eloVoteHistory: "/api/elo/vote/history",
+
   // AI
   aiChat: "/api/ai/chat",
   aiStudio: "/api/ai/studio",
@@ -521,7 +537,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo'
 
 export interface NavItem {
   label: string
@@ -601,6 +617,13 @@ export const NAVIGATION: NavSection[] = [
         label: "Servers",
         href: "/dashboard/servers",
         icon: Server,
+      },
+      {
+        label: "ELO",
+        href: "/dashboard/elo",
+        icon: Star,
+        badge: "New",
+        feature: "elo",
       },
       {
         label: "Tunnels",

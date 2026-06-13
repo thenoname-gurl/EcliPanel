@@ -25,7 +25,8 @@
           "name": "Deploying Apps",
           "href": "/docs/deploying-apps",
           "icon": "Rocket"
-        }
+        },
+        { "name": "ELO Rating", "href": "/docs/elo", "icon": "Trophy" }
       ]
     },
     {

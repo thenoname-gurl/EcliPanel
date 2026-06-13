@@ -31,7 +31,10 @@ import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
-import { In, MoreThanOrEqual, Not } from 'typeorm';
+import { In, LessThan, MoreThanOrEqual, Not } from 'typeorm';
+import { EloProject } from '../models/eloProject.entity';
+import { EloDevlog } from '../models/eloDevlog.entity';
+import { EloVote } from '../models/eloVote.entity';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { SocData } from '../models/socData.entity';
 import { ServerMapping } from '../models/serverMapping.entity';
@@ -80,6 +83,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   const applicationFormRepo = () => AppDataSource.getRepository(ApplicationForm);
   const applicationSubmissionRepo = () => AppDataSource.getRepository(ApplicationSubmission);
   const panelSettingRepo = () => AppDataSource.getRepository(PanelSetting);
+  const eloProjectRepo = () => AppDataSource.getRepository(EloProject);
+  const eloDevlogRepo = () => AppDataSource.getRepository(EloDevlog);
+  const eloVoteRepo = () => AppDataSource.getRepository(EloVote);
 
   const getOrCreateIpRequestForm = async () => {
     let form = await applicationFormRepo().findOneBy({ slug: 'ip-request' });
@@ -527,6 +533,84 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         ctx.set.status = 404;
         return { error: 'Server not found' };
       }
+    };
+  }
+
+  async function requireEloDevlog(ctx: AuthenticatedHandlerContext) {
+    const { id } = (ctx.params ?? {}) as Record<string, string>;
+    if (!id) return;
+    const action: string | undefined = (ctx.body as Record<string, unknown> | undefined)?.action as string | undefined;
+    if (action !== 'start' && action !== 'restart') return;
+    const project = await eloProjectRepo().findOneBy({ serverId: id });
+    if (!project) return;
+    const DEVLOG_GRACE_DAYS = 7;
+    const graceCutoff = new Date(Date.now() - DEVLOG_GRACE_DAYS * 24 * 60 * 60 * 1000);
+    const recentDevlog = await eloDevlogRepo().findOne({
+      where: { projectId: project.id, publishedAt: MoreThanOrEqual(graceCutoff) },
+      order: { publishedAt: 'DESC' },
+    });
+    if (recentDevlog) return;
+    if (project.skipTokensRemaining > 0) {
+      project.skipTokensRemaining -= 1;
+      await eloProjectRepo().save(project);
+      return;
+    }
+    ctx.set.status = 200;
+    return {
+      success: false,
+      needsDevlog: true,
+      projectId: project.id,
+      skipTokensRemaining: 0,
+      message: 'This server needs a recent devlog to start. Publish a devlog or use a skip token.',
+    };
+  }
+
+  async function requireEloVote(ctx: AuthenticatedHandlerContext) {
+    const { id } = (ctx.params ?? {}) as Record<string, string>;
+    if (!id) return;
+    const action: string | undefined = (ctx.body as Record<string, unknown> | undefined)?.action as string | undefined;
+    if (action !== 'start' && action !== 'restart') return;
+    const project = await eloProjectRepo().findOneBy({ serverId: id });
+    if (!project) return;
+    const VOTE_REQUIREMENT_DAYS = 7;
+    const cutoff = new Date(Date.now() - VOTE_REQUIREMENT_DAYS * 24 * 60 * 60 * 1000);
+    const recentVote = await eloVoteRepo().findOne({
+      where: { voterId: ctx.user.id, createdAt: MoreThanOrEqual(cutoff) },
+      order: { createdAt: 'DESC' },
+    });
+    if (recentVote) return;
+    ctx.set.status = 400;
+    return {
+      success: false,
+      needsVote: true,
+      message: 'You must cast at least one vote in the last ' + VOTE_REQUIREMENT_DAYS + ' days to start this server. Visit the ELO Voting page.',
+    };
+  }
+
+  async function requireEloProjectDetails(ctx: AuthenticatedHandlerContext) {
+    const { id } = (ctx.params ?? {}) as Record<string, string>;
+    if (!id) return;
+    const action: string | undefined = (ctx.body as Record<string, unknown> | undefined)?.action as string | undefined;
+    if (action !== 'start' && action !== 'restart') return;
+    const project = await eloProjectRepo().findOneBy({ serverId: id });
+    if (!project) return;
+    const missing: string[] = [];
+    if (!project.title?.trim()) missing.push('Title');
+    if (!project.description?.trim() || project.description.trim().split(/\s+/).length < 15) {
+      if (!project.description?.trim()) missing.push('Description (min 15 words)');
+      else missing.push('Description (min 15 words, got ' + project.description.trim().split(/\s+/).length + ')');
+    }
+    if (!project.githubUrl?.trim()) missing.push('GitHub URL');
+    if (!project.readme?.trim()) missing.push('README');
+    if (!project.screenshots?.length) missing.push('Screenshots (at least 1)');
+    if (missing.length === 0) return;
+    ctx.set.status = 400;
+    return {
+      success: false,
+      needsProjectDetails: true,
+      projectId: project.id,
+      missing,
+      message: 'Complete your ELO Project Details before starting: ' + missing.join(', ') + '.',
     };
   }
 
@@ -2030,6 +2114,8 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         }
         await removeServerConfig(id);
 
+        await eloProjectRepo().update({ serverId: id }, { serverId: null, orphanedAt: new Date() });
+
         await createActivityLog({
           userId: user.id,
           action: 'server:delete',
@@ -2528,7 +2614,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
-      beforeHandle: [authenticate, authorize('servers:power')],
+      beforeHandle: [authenticate, authorize('servers:power'), requireEloProjectDetails, requireEloVote, requireEloDevlog],
       response: {
         200: t.Any(),
         401: t.Object({ error: t.String() }),

@@ -33,6 +33,7 @@ import { applicationRoutes } from '../handlers/applicationHandler';
 import { visualEditorRoutes } from '../handlers/visualEditorHandler';
 import { sharedFileRoutes, publicSharedFileRoutes } from '../handlers/sharedFileHandler';
 import { paymentRoutes } from '../handlers/paymentHandler';
+import { eloRoutes } from '../handlers/eloHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 
@@ -62,6 +63,8 @@ export function registerRoutes(app: any) {
       { prefix: '/api/oauth', feature: 'oauth' },
       { prefix: '/api/tunnel', feature: 'tunnels' },
       { prefix: '/api/users/register', feature: 'registration' },
+      { prefix: '/api/elo', feature: 'elo' },
+      { prefix: '/api/admin/elo', feature: 'elo' },
     ];
 
     for (const check of checks) {
@@ -127,4 +130,5 @@ export function registerRoutes(app: any) {
   applicationRoutes(app, '/api');
   visualEditorRoutes(app, '/api');
   paymentRoutes(app, '/api');
+  eloRoutes(app, '/api');
 }

@@ -11,10 +11,11 @@ import {
   Rocket,
   Clock,
   LifeBuoy,
+  Trophy,
 } from "lucide-react";
 import meta from "../meta.json";
 
-const icons = { BookOpen, Sparkles, Server, Cpu, Rocket, Clock, LifeBuoy };
+const icons = { BookOpen, Sparkles, Server, Cpu, Rocket, Clock, LifeBuoy, Trophy };
 
 export function DocSearch() {
   const [open, setOpen] = useState(false);

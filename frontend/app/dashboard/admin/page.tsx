@@ -260,6 +260,11 @@ const FeedbackTab = dynamic(() => import("./tabs/FeedbackTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading feedback tab...</div>,
 })
 
+const EloTab = dynamic(() => import("./tabs/EloTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading ELO tab...</div>,
+})
+
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `\
     .email-preview-root { background: #0a0a12; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; color: #e0e0e0; margin: 0; padding: 0; width: 100%; line-height: 1.6; }
@@ -987,6 +992,7 @@ export default function AdminPanel() {
     { value: 'settings', label: t('tabs.settings'), permissions: ['admin:settings', 'admin:geoblock:view'] },
     { value: 'rollouts', label: t('tabs.rollouts'), permissions: ['admin:access'] },
     { value: 'feedback', label: t('tabs.feedback'), permissions: ['admin:access'] },
+    { value: 'elo', label: 'ELO', feature: 'elo', permissions: ['admin:access'] },
   ]
 
   const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => hasAnyPermission(tab.permissions)))
@@ -1669,6 +1675,7 @@ export default function AdminPanel() {
       oauth: true,
       tunnels: true,
       dedicatedIps: true,
+      elo: true,
     },
   })
   const [settingsSaving, setSettingsSaving] = useState(false)
@@ -1810,6 +1817,7 @@ export default function AdminPanel() {
                 applications: true,
                 tunnels: true,
                 dedicatedIps: true,
+                elo: true,
                 ...(data.featureToggles || {}),
               },
             })
@@ -6270,6 +6278,10 @@ remote: ${panelUrl}`
             {/* ═════════════════ FEEDBACK ════════════════════════════════════ */}
             <TabsContent value="feedback" className="mt-4">
               {activeTab === "feedback" ? <FeedbackTab /> : null}
+            </TabsContent>
+            {/* ═════════════════ ELO ════════════════════════════════════════ */}
+            <TabsContent value="elo" className="mt-4">
+              {activeTab === "elo" ? <EloTab ctx={{}} /> : null}
             </TabsContent>
             {/* ═════════════════ DATABASE HOSTS ══════════════════════════════ */}
             <TabsContent value="databases" className="mt-4">

@@ -350,4 +350,7 @@ export class User {
 
   @Column({ default: false })
   guideShown: boolean;
+
+  @Column({ default: 0 })
+  voteWarnings: number;
 }

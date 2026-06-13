@@ -205,3 +205,50 @@ CREATE TABLE `shared_file_link` (
   INDEX `idx_shared_file_link_server` (`serverUuid`, `active`),
   INDEX `idx_shared_file_link_token` (`token`)
 );
+
+CREATE TABLE `elo_project` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `serverId` varchar(255) NOT NULL,
+  `userId` int NOT NULL,
+  `eloScore` int DEFAULT 1000,
+  `kFactor` int DEFAULT 24,
+  `totalVotes` int DEFAULT 0,
+  `wins` int DEFAULT 0,
+  `losses` int DEFAULT 0,
+  `skipTokensRemaining` int DEFAULT 5,
+  `maxSkipTokens` int DEFAULT 5,
+  `title` varchar(255),
+  `description` text,
+  `tags` json,
+  `readme` text,
+  `githubUrl` varchar(255),
+  `screenshots` json,
+  `lastActiveAt` datetime,
+  `createdAt` datetime NOT NULL,
+  INDEX `idx_elo_project_server` (`serverId`),
+  INDEX `idx_elo_project_user` (`userId`)
+);
+
+CREATE TABLE `elo_vote` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `voterId` int NOT NULL,
+  `projectAId` int NOT NULL,
+  `projectBId` int NOT NULL,
+  `winnerId` int NOT NULL,
+  `eloDeltaA` float NOT NULL,
+  `eloDeltaB` float NOT NULL,
+  `createdAt` datetime NOT NULL,
+  INDEX `idx_elo_vote_voter` (`voterId`)
+);
+
+CREATE TABLE `elo_devlog` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `projectId` int NOT NULL,
+  `userId` int NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `content` text NOT NULL,
+  `tags` json,
+  `publishedAt` datetime,
+  `createdAt` datetime NOT NULL,
+  INDEX `idx_elo_devlog_project` (`projectId`)
+);
