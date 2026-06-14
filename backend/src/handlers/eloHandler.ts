@@ -769,7 +769,9 @@ export async function eloRoutes(app: any, prefix = '') {
         return {
           rank: (page - 1) * per + i + 1,
           id: p.id,
+          userId: p.userId,
           title: p.title || `Project #${p.id}`,
+          description: p.description,
           githubUrl: p.githubUrl,
           eloScore: p.eloScore,
           totalVotes: p.totalVotes,
@@ -783,7 +785,6 @@ export async function eloRoutes(app: any, prefix = '') {
       return { leaderboard: enriched, total, page, per, totalPages: Math.ceil(total / per) };
     },
     {
-      beforeHandle: [authenticate],
       detail: { summary: 'ELO leaderboard', tags: ['ELO'] },
     }
   );
@@ -1296,4 +1297,5 @@ export async function eloRoutes(app: any, prefix = '') {
       detail: { summary: 'Report an ELO vote, project, or user', tags: ['ELO'] },
     }
   );
+
 }

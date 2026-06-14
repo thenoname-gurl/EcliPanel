@@ -6,9 +6,7 @@ import { headers } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { API_ENDPOINTS } from "@/lib/panel-config";
-
-const DEFAULT_TITLE = "EclipseSystems";
-const DEFAULT_DESCRIPTION = "Next-Gen Server Management platform.";
+import { createMetadata } from "@/lib/metadata";
 
 function getBackendBaseUrl(): string {
   return (
@@ -27,10 +25,13 @@ const _didactGothic = Didact_Gothic({
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("layout");
-
-  return {
+  const meta = createMetadata({
     title: t("title"),
     description: t("description"),
+  });
+
+  return {
+    ...meta,
     icons: {
       icon: [
         {
