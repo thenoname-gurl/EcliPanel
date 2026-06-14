@@ -16,6 +16,7 @@ import { cancelPendingAutoSunsetDeletionRequest } from '../services/sunsetPolicy
 import { validatePassword } from '../utils/passwordValidation';
 import { storeCsrfToken } from '../middleware/csrf';
 import { randomHex, randomInt, sha256Hex } from '../utils/bunCrypto';
+import { verifyAnyToken } from '../utils/pqJwt';
 import type { VerifyTempTokenResult } from '../types/context';
 import {
   getPanelUrl,
@@ -55,6 +56,9 @@ const speakeasy = require('speakeasy');
 interface AuthRouteApp {
   jwt: {
     sign: (payload: JsonObject, options?: { expiresIn?: string | number }) => string;
+  };
+  pqJwt: {
+    signPqJwt: (payload: JsonObject) => string;
   };
   post: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
   get: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
@@ -104,6 +108,11 @@ async function verifyTempToken(token: string, logSource: string, ctx: BaseHandle
     return { error: ctx.t('auth.missingTempToken') };
   }
   try {
+    const pqJwt = ctx.app?.pqJwt;
+    if (pqJwt && typeof pqJwt.verifyAnyToken === 'function') {
+      const res = pqJwt.verifyAnyToken(token);
+      return res as VerifyTempTokenResult;
+    }
     const jwt = ctx.app?.jwt || ctx.jwt;
     if (!jwt || typeof jwt.verify !== 'function') {
       throw new Error('jwt unavailable');
@@ -185,6 +194,16 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     try {
       const name = process.env.JWT_COOKIE_NAME || 'token';
       const maxAge = Number(process.env.JWT_COOKIE_MAX_AGE || String(30 * 24 * 60 * 60));
+      let cookieToken: string;
+      try {
+        const payload = verifyAnyToken(token);
+        cookieToken = require('jsonwebtoken').sign(
+          { userId: payload.userId, sessionId: payload.sessionId },
+          process.env.JWT_SECRET
+        );
+      } catch {
+        cookieToken = token;
+      }
       const forwardedProto =
         (ctx.headers?.['x-forwarded-proto'] as string) ||
         (ctx.headers?.['X-Forwarded-Proto'] as string);
@@ -225,7 +244,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       );
       if (ctx.cookie) {
         const c = ctx.cookie[name];
-        c.value = token;
+        c.value = cookieToken;
         c.httpOnly = true;
         c.secure = secure;
         c.sameSite = sameSite;
@@ -234,7 +253,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         if (domain) c.domain = domain;
       } else if (ctx.set?.cookie) {
         const c = ctx.set.cookie[name];
-        c.value = token;
+        c.value = cookieToken;
         c.httpOnly = true;
         c.secure = secure;
         c.sameSite = sameSite;
@@ -242,10 +261,10 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         c.maxAge = maxAge;
         if (domain) c.domain = domain;
       } else if (typeof ctx.setCookie === 'function') {
-        ctx.setCookie(name, token, options);
+        ctx.setCookie(name, cookieToken, options);
       } else if (ctx.set && typeof ctx.set.header === 'function') {
         const parts: string[] = [
-          `${name}=${token}`,
+          `${name}=${cookieToken}`,
           `Path=/`,
           `HttpOnly`,
           `SameSite=${sameSite}`,
@@ -409,13 +428,15 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       if (user.twoFactorEnabled) {
         const tfaSession = crypto.randomUUID();
         await redisSet(`tfa:session:${tfaSession}`, String(user.id), 300);
-        const tempToken = ctx.app?.jwt?.sign
-          ? ctx.app.jwt.sign({ userId: user.id, tfaSession, tfa: true }, { expiresIn: '5m' })
-          : require('jsonwebtoken').sign(
-            { userId: user.id, tfaSession, tfa: true },
-            process.env.JWT_SECRET,
-            { expiresIn: '5m' }
-          );
+        const tempToken = ctx.app?.pqJwt?.signPqJwt
+          ? ctx.app.pqJwt.signPqJwt({ userId: user.id, tfaSession, tfa: true }, 300)
+          : ctx.app?.jwt?.sign
+            ? ctx.app.jwt.sign({ userId: user.id, tfaSession, tfa: true }, { expiresIn: '5m' })
+            : require('jsonwebtoken').sign(
+              { userId: user.id, tfaSession, tfa: true },
+              process.env.JWT_SECRET,
+              { expiresIn: '5m' }
+            );
         ctx.log?.info?.({ userId: user.id, tfaSession }, 'issued 2FA tempToken');
         return { twoFactorRequired: true, tempToken };
       }
@@ -435,9 +456,11 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       await cancelPendingAutoSunsetDeletionRequest(user);
       await userRepo.save(user);
 
-      const token = ctx.app?.jwt?.sign
-        ? ctx.app.jwt.sign({ userId: user.id, sessionId })
-        : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET);
+      const token = ctx.app?.pqJwt?.signPqJwt
+        ? ctx.app.pqJwt.signPqJwt({ userId: user.id, sessionId })
+        : ctx.app?.jwt?.sign
+          ? ctx.app.jwt.sign({ userId: user.id, sessionId })
+          : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET);
 
       try {
         const logRepo = AppDataSource.getRepository(UserLog);
@@ -765,7 +788,9 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         }
         await cancelPendingAutoSunsetDeletionRequest(user);
         await userRepo.save(user);
-        const finalToken = app.jwt.sign({ userId: user.id, sessionId });
+        const finalToken = app.pqJwt?.signPqJwt
+          ? app.pqJwt.signPqJwt({ userId: user.id, sessionId })
+          : app.jwt.sign({ userId: user.id, sessionId });
         try {
           setAuthCookie(ctx, finalToken);
         } catch (e) {
@@ -1477,7 +1502,9 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         }
         await cancelPendingAutoSunsetDeletionRequest(user);
         await userRepo.save(user);
-        const token = app.jwt.sign({ userId: user.id, sessionId });
+        const token = app.pqJwt?.signPqJwt
+          ? app.pqJwt.signPqJwt({ userId: user.id, sessionId })
+          : app.jwt.sign({ userId: user.id, sessionId });
         try {
           setAuthCookie(ctx, token);
         } catch (e) {

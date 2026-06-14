@@ -28,8 +28,13 @@ import path from 'path';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
 import { csrfProtection } from './middleware/csrf';
+import {
+  initPqJwtKeypair,
+  signPqJwt,
+  verifyAnyToken,
+} from './utils/pqJwt';
 import type { SignOptions } from 'jsonwebtoken';
-import type { JwtPayload as AppJwtPayload } from './types/context';
+import type { JwtPayload as AppJwtPayload, PqJwtPayload } from './types/context';
 import type { BaseHandlerContext } from './types/handler';
 
 interface AppServerLike {
@@ -44,6 +49,7 @@ type AppRequestContext = Omit<BaseHandlerContext, 'request' | 't'> & {
   user?: { id: number };
   apiKey?: { type?: string };
   jwtPayload?: AppJwtPayload;
+  pqJwtPayload?: PqJwtPayload;
   clientIP?: string;
   store?: Record<string, unknown> & { clientIP?: string };
   t?: BaseHandlerContext['t'];
@@ -58,6 +64,10 @@ interface AppExtensions {
   jwt: {
     sign(payload: object, opts?: SignOptions): string;
     verify<T = unknown>(token: string): T;
+  };
+  pqJwt: {
+    signPqJwt(payload: object, expiresInSec?: number): string;
+    verifyAnyToken(token: string): PqJwtPayload;
   };
   log: typeof console;
   server?: AppServerLike;
@@ -371,6 +381,16 @@ app.jwt = {
   sign: (payload: object, opts?: SignOptions) => jsonwebtoken.sign(payload, _jwtSecret, opts),
   verify: <T = unknown>(token: string) => jsonwebtoken.verify(token, _jwtSecret) as T,
 };
+try {
+  initPqJwtKeypair();
+  console.log('[pqJwt] ML-DSA-65 keypair initialized');
+} catch (err) {
+  console.warn('[pqJwt] Failed to initialize ML-DSA-65 keypair:', err);
+}
+app.pqJwt = {
+  signPqJwt: (payload: object, expiresInSec?: number) => signPqJwt(payload as any, expiresInSec),
+  verifyAnyToken: (token: string) => verifyAnyToken(token),
+};
 app.log = console;
 
 app.onError(rawCtx => {
@@ -464,6 +484,10 @@ declare module 'elysia' {
     jwt: {
       sign(payload: object, opts?: SignOptions): string;
       verify<T = unknown>(token: string): T;
+    };
+    pqJwt: {
+      signPqJwt(payload: object, expiresInSec?: number): string;
+      verifyAnyToken(token: string): PqJwtPayload;
     };
     log: typeof console;
   }
@@ -585,10 +609,16 @@ app.onRequest(async rawCtx => {
     const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : qToken;
     if (rawToken) {
       try {
-        const decoded = app.jwt.verify<unknown>(rawToken);
-        ctx.jwtPayload = decoded as AppJwtPayload;
+        const decoded = app.pqJwt.verifyAnyToken(rawToken);
+        ctx.pqJwtPayload = decoded;
+        ctx.jwtPayload = decoded;
       } catch {
-        // skip
+        try {
+          const decoded = app.jwt.verify<unknown>(rawToken);
+          ctx.jwtPayload = decoded as AppJwtPayload;
+        } catch {
+          // skip
+        }
       }
     }
   } catch {

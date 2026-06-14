@@ -218,7 +218,12 @@ class WingsProxySession {
 
   private async validateSession(token: string): Promise<User | null> {
     try {
-      const decoded = this.app.jwt.verify(token) as { userId: number; sessionId: string };
+      let decoded: { userId: number; sessionId: string } | null = null;
+      if (this.app.pqJwt?.verifyAnyToken) {
+        decoded = this.app.pqJwt.verifyAnyToken(token) as any;
+      } else {
+        decoded = this.app.jwt.verify(token) as { userId: number; sessionId: string };
+      }
       if (!decoded?.userId) return null;
 
       const user = await AppDataSource.getRepository(User).findOne({

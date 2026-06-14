@@ -4,6 +4,7 @@ import { User } from '../models/user.entity';
 import { ApiKey } from '../models/apiKey.entity';
 import { OAuthToken } from '../models/oauthToken.entity';
 import { checkKycStatus } from './kycCheck';
+import { verifyAnyToken } from '../utils/pqJwt';
 
 export type AuthContext = {
   user?: User;
@@ -78,9 +79,15 @@ export async function authenticate(ctx: any) {
   }
 
   try {
-    const secret = process.env.JWT_SECRET;
-    const decoded = jwtLib.verify(rawToken, secret, { algorithms: ['HS256'] }) as any;
+    let decoded: any;
+    try {
+      decoded = verifyAnyToken(rawToken) as any;
+    } catch {
+      const secret = process.env.JWT_SECRET;
+      decoded = jwtLib.verify(rawToken, secret, { algorithms: ['HS256'] }) as any;
+    }
     ctx.jwtPayload = decoded;
+    ctx.pqJwtPayload = decoded;
 
     const userRepo = AppDataSource.getRepository(User);
     const user = await userRepo.findOne({

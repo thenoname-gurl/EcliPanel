@@ -45,6 +45,10 @@ type TunnelApp = {
     verify: (token: string) => unknown;
     sign?: (payload: Record<string, unknown>, opts?: { expiresIn?: string }) => string;
   };
+  pqJwt: {
+    signPqJwt: (payload: Record<string, unknown>, expiresInSec?: number) => string;
+    verifyAnyToken: (token: string) => unknown;
+  };
   get?: (...args: unknown[]) => unknown;
   post?: (...args: unknown[]) => unknown;
   ws?: (...args: unknown[]) => unknown;
@@ -228,7 +232,10 @@ async function requireAuthOrDevice(
   let device: TunnelDevice | null = null;
 
   if (token) {
-    device = await verifyDeviceToken(app.jwt, token);
+    device = await verifyDeviceToken(
+      { verify: (t: string) => (app.pqJwt?.verifyAnyToken ? app.pqJwt.verifyAnyToken(t) : app.jwt.verify(t)) },
+      token
+    );
   }
 
   if (!device) {
@@ -660,14 +667,15 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
       device.name = name;
       device.approved = true;
       device.approvedBy = currentUser;
-      device.token = app.jwt.sign(
-        {
-          agent: device.deviceCode,
-          kind,
-          iat: Math.floor(Date.now() / 1000),
-        },
-        { expiresIn: kind === 'server' ? '365d' : '90d' }
-      );
+      device.token = app.pqJwt?.signPqJwt
+        ? app.pqJwt.signPqJwt(
+            { agent: device.deviceCode, kind },
+            kind === 'server' ? 365 * 86400 : 90 * 86400
+          )
+        : app.jwt.sign(
+            { agent: device.deviceCode, kind, iat: Math.floor(Date.now() / 1000) },
+            { expiresIn: kind === 'server' ? '365d' : '90d' }
+          );
 
       await repo.save(device);
 
@@ -863,15 +871,13 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         return errorResponse('not_approved', 400);
       }
 
-      const tokenExpiry = device.kind === 'server' ? '365d' : '90d';
-      device.token = app.jwt.sign(
-        {
-          agent: device.deviceCode,
-          kind: device.kind,
-          iat: Math.floor(Date.now() / 1000),
-        },
-        { expiresIn: tokenExpiry }
-      );
+      const tokenExpirySec = device.kind === 'server' ? 365 * 86400 : 90 * 86400;
+      device.token = app.pqJwt?.signPqJwt
+        ? app.pqJwt.signPqJwt({ agent: device.deviceCode, kind: device.kind }, tokenExpirySec)
+        : app.jwt.sign(
+            { agent: device.deviceCode, kind: device.kind, iat: Math.floor(Date.now() / 1000) },
+            { expiresIn: device.kind === 'server' ? '365d' : '90d' }
+          );
       await repo.save(device);
 
       return createJsonResponse({
@@ -948,10 +954,15 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         approvedBy: ctx.user,
         ownerUser,
         expiresAt,
-        token: app.jwt.sign(
-          { agent: deviceCode, kind, iat: Math.floor(Date.now() / 1000) },
-          { expiresIn: kind === 'server' ? '365d' : '90d' }
-        ),
+        token: app.pqJwt?.signPqJwt
+          ? app.pqJwt.signPqJwt(
+              { agent: deviceCode, kind },
+              kind === 'server' ? 365 * 86400 : 90 * 86400
+            )
+          : app.jwt.sign(
+              { agent: deviceCode, kind, iat: Math.floor(Date.now() / 1000) },
+              { expiresIn: kind === 'server' ? '365d' : '90d' }
+            ),
       });
       if (kind === 'server' && fqdn) {
         device.fqdn = fqdn;
@@ -1509,7 +1520,10 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         return;
       }
 
-      const device = await verifyDeviceToken(app.jwt, token).catch(() => null);
+      const device = await verifyDeviceToken(
+        { verify: (t: string) => (app.pqJwt?.verifyAnyToken ? app.pqJwt.verifyAnyToken(t) : app.jwt.verify(t)) },
+        token
+      ).catch(() => null);
 
       if (!device) {
         ws.send(JSON.stringify({ type: 'error', error: 'invalid_token' }));

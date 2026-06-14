@@ -43,8 +43,9 @@ After installing wings complete backend and frontend setup then start them again
    bun install      # or `pnpm install`/`npm install` if you prefer
    sudo apt install ffmpeg #if using captcha
    sudo apt install espeak #if using captcha
-   bun run gen:jwt-secret # generate all secrets needed by .env and set them manually!
-   bun -e "console.log((await import('crypto')).randomBytes(64).toString('base64'))" # generate NODE_PQ_ENCRYPTION_SEED
+    bun run gen:jwt-secret    # generate all secrets needed by .env and set them manually!
+    bun run gen:pq-jwt-seed   # generate PQ_JWT_SEED for ML-DSA-65 signed tokens
+    bun -e "console.log((await import('crypto')).randomBytes(64).toString('base64'))" # generate NODE_PQ_ENCRYPTION_SEED
    nano .env              # edit .env (see .env.example)
    bun run gen:default-role # create default role
    # for development you can simply run:
@@ -82,6 +83,15 @@ The backend includes a couple of helper scripts used during setup.
   cd backend
   bun run seed
   ```
+
+- **Generate PQ_JWT_SEED** — creates a 64-byte seed for deterministic ML-DSA-65 key generation (post-quantum signed tokens).
+
+  ```bash
+  cd backend
+  bun run gen:pq-jwt-seed
+  ```
+
+  Add the output `PQ_JWT_SEED` to your `.env`. Without it, a random keypair is generated at each startup (invalidating all existing tokens on restart).
 
 - **Promote a user** - set an existing user to `rootAdmin` (or another role).
 
