@@ -8,10 +8,19 @@ export interface AuthContext {
   apiKey?: ApiKey;
   oauthToken?: OAuthToken;
   jwtPayload?: JwtPayload;
+  pqJwtPayload?: PqJwtPayload;
   userPermissions?: string[];
 }
 
 export interface JwtPayload {
+  userId: number;
+  sessionId: string;
+  iat?: number;
+  exp?: number;
+  [key: string]: unknown;
+}
+
+export interface PqJwtPayload {
   userId: number;
   sessionId: string;
   iat?: number;

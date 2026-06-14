@@ -33,8 +33,15 @@ export interface HandlerJwtContext {
   verify?: (token: string) => JwtPayload | Promise<JwtPayload>;
 }
 
+export interface HandlerPqJwtContext {
+  signPqJwt?: (payload: JsonObject, expiresInSec?: number) => string;
+  verifyPqJwt?: (token: string) => import('./context').PqJwtPayload;
+  verifyAnyToken?: (token: string) => import('./context').PqJwtPayload;
+}
+
 export interface HandlerAppContext {
   jwt?: HandlerJwtContext;
+  pqJwt?: HandlerPqJwtContext;
   log?: HandlerLogContext;
 }
 
