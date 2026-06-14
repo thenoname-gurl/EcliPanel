@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
+import { createMetadata } from "@/lib/metadata";
 import { Md } from "./_components/md";
+
+export const metadata: Metadata = createMetadata({
+  title: "Documentation — EclipseSystems",
+  description:
+    "Learn how to set up your account, deploy servers, manage resources, and get help with EcliPanel.",
+  path: "/docs",
+});
 
 const content = `
 # EcliPanel Documentation
