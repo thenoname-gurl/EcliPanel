@@ -6157,8 +6157,8 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       };
 
       const panelJwt =
-        ((ctx.headers['authorization'] as string) || '').replace(/^Bearer\s+/i, '') ||
-        getCookieToken();
+        getCookieToken() ||
+        ((ctx.headers['authorization'] as string) || '').replace(/^Bearer\s+/i, '');
       const wsUrl =
         backendBase.replace(/^https?/, socketScheme) +
         `/api/servers/v1/${id}/ws/proxy?token=${encodeURIComponent(panelJwt)}`;

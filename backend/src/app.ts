@@ -604,10 +604,11 @@ app.onRequest(async rawCtx => {
   }
 
   try {
+    const isWsUpgrade = getHeader('upgrade')?.toLowerCase() === 'websocket';
     const authHeader = getHeader('authorization') || '';
     const qToken = ctx.query?.token;
     const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : qToken;
-    if (rawToken) {
+    if (rawToken && !isWsUpgrade) {
       try {
         const decoded = app.pqJwt.verifyAnyToken(rawToken);
         ctx.pqJwtPayload = decoded;
