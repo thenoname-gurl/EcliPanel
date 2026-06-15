@@ -219,10 +219,12 @@ class WingsProxySession {
   private async validateSession(token: string): Promise<User | null> {
     try {
       let decoded: { userId: number; sessionId: string } | null = null;
-      if (this.app.pqJwt?.verifyAnyToken) {
-        decoded = this.app.pqJwt.verifyAnyToken(token) as any;
-      } else {
+      try {
         decoded = this.app.jwt.verify(token) as { userId: number; sessionId: string };
+      } catch {
+        if (this.app.pqJwt?.verifyAnyToken) {
+          decoded = this.app.pqJwt.verifyAnyToken(token) as any;
+        }
       }
       if (!decoded?.userId) return null;
 
