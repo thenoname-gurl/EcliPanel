@@ -45,6 +45,7 @@ export function createMetadata({
     description,
     keywords,
     authors,
+    robots: { index: true, follow: true },
     metadataBase: new URL(siteUrl()),
     alternates: { canonical: url },
     openGraph: {

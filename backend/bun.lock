@@ -12,6 +12,7 @@
         "@noble/post-quantum": "latest",
         "@react-email/components": "^1.0.12",
         "@react-email/render": "^2.0.8",
+        "@serenity-kit/opaque": "^1.1.0",
         "@simplewebauthn/server": "latest",
         "@tensorflow/tfjs-node": "latest",
         "@types/bun": "^1.3.14",
@@ -31,12 +32,12 @@
         "mariadb": "latest",
         "mlkem": "latest",
         "mysql": "latest",
-        "mysql2": "^3.22.3",
+        "mysql2": "^3.22.5",
         "nodemailer": "latest",
         "pdfkit": "latest",
         "pg": "latest",
         "pqclean": "latest",
-        "react": "^19.2.6",
+        "react": "^19.2.7",
         "reflect-metadata": "latest",
         "sharp": "latest",
         "speakeasy": "latest",
@@ -55,7 +56,7 @@
         "@types/ws": "latest",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.21.0",
-        "eslint": "^8.57.0",
+        "eslint": "^8.57.1",
         "prettier": "latest",
         "typescript": "latest",
       },
@@ -255,6 +256,8 @@
     "@redis/time-series": ["@redis/time-series@5.12.1", "", { "peerDependencies": { "@redis/client": "^5.12.1" } }, "sha512-c6JL6E3EcZJuNqKFz+KM+l9l5mpcQiKvTwgA3blt5glWJ8hjDk0yeHN3beE/MpqYIQ8UEX44ItQzgkE/gCBELQ=="],
 
     "@selderee/plugin-htmlparser2": ["@selderee/plugin-htmlparser2@0.12.0", "", { "dependencies": { "domelementtype": "~2.3.0", "domhandler": "~5.0.3" }, "peerDependencies": { "selderee": "~0.12.0" } }, "sha512-oELmoyA6ML9jDRMV3kgcMQFKxUfBU0yFVn6yTctVaLT5ygXnxH52I3TZEgV9EhXJC68/uFvE5Daj1/25c0Xa/A=="],
+
+    "@serenity-kit/opaque": ["@serenity-kit/opaque@1.1.0", "", { "bin": { "opaque": "bin/index.js" } }, "sha512-Y6v/+hRMn0MdMEk5+/ArM0vPIiFfFEbdTZc7oAx+cWyvGODGezAQ/sMjXBVogf7NsS9z9EV0Ve5paZCVULuedw=="],
 
     "@simplewebauthn/server": ["@simplewebauthn/server@13.3.1", "", { "dependencies": { "@hexagon/base64": "^1.1.27", "@levischuck/tiny-cbor": "^0.2.2", "@peculiar/asn1-android": "^2.6.0", "@peculiar/asn1-ecc": "^2.6.1", "@peculiar/asn1-rsa": "^2.6.1", "@peculiar/asn1-schema": "^2.6.0", "@peculiar/asn1-x509": "^2.6.1", "@peculiar/x509": "^1.14.3" } }, "sha512-GV/oM/qeycWn8p42JZIMJBsXWQcNFg+nJFzeQTnMA4gN8mXg0+HZFWJerHg8ZN/zlveMS3iV1wzuFpOVWS/46w=="],
 
