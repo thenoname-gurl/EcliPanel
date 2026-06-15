@@ -492,8 +492,8 @@ export interface PortalConfig {
 export const PORTALS: Record<PortalTier, PortalConfig> = {
   free: {
     id: "free",
-    name: "Free Portal",
-    description: "Get started with basic server management",
+    name: "Free Portal (ELO)",
+    description: "ELO servers with community voting & resource scaling",
     icon: Zap,
     color: "#10b981",
     maxServers: 2,

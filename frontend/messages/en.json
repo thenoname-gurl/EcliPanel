@@ -318,12 +318,12 @@
       "perMonth": "/mo",
       "plans": {
         "free": {
-          "name": "Free Portal",
+          "name": "Free Portal (ELO)",
           "price": "0,00 $/mo",
-          "desc": "Free plan, perfect for newbies!",
-          "cta": "Request Change",
+          "desc": "ELO servers with community voting. Earn votes, scale resources, climb the leaderboard!",
+          "cta": "Get Started Free",
           "features": [
-            "1 Server",
+            "1 ELO Server",
             "1 Port per server",
             "1 vCore",
             "1028 MB ram",
@@ -3650,6 +3650,8 @@
         "aupLink": "Acceptable Use Policy",
         "sunsetLink": "Sunset policy",
         "freePlanWarning": "Free servers may be sunset after inactivity or tier changes. Keep backups and consider upgrading for long-term retention.",
+        "freePlanEloOnly": "Free plan users can only create ELO servers. ELO servers use community voting for resource scaling and have separate slot limits.",
+        "freePlanUpgradeLink": "Upgrade your plan",
         "planWarning": "Review our policies before deploying.",
         "nodeTypes": {
           "freeAndPaid": "Public Node",
@@ -5357,7 +5359,7 @@
       "description": "Manage your subscription and payment methods"
     },
     "portal": {
-      "free": "Free Portal",
+      "free": "Free Portal (ELO)",
       "paid": "Paid Portal",
       "educational": "Educational Portal",
       "enterprise": "Enterprise Portal"

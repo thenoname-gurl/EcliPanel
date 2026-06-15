@@ -510,6 +510,10 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
   const isAdmin = user && (user.role === 'admin' || user.role === 'rootAdmin' || user.role === '*')
 
   useEffect(() => {
+    if (isFreePlan) setIsEloServer(true)
+  }, [isFreePlan])
+
+  useEffect(() => {
     apiFetch(API_ENDPOINTS.session)
       .then((data: any) => {
         const l = data?.user?.limits || data?.limits || null
@@ -713,7 +717,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
   const canCreate = name.trim() && eggId && !eggsLoading && eggs.length > 0 && !nodesLoading && nodes.length > 0 &&
     !selectedNodeDisabled &&
-    (user ? (user.emailVerified && (((user.passkeyCount ?? 0) > 0) || !!user.twoFactorEnabled)) : true)
+    (user ? ((isFreePlan || user.emailVerified) && (((user.passkeyCount ?? 0) > 0) || !!user.twoFactorEnabled)) : true)
   const canSubmit = canCreate && legalConfirmed && (!hasEulaFeature || eulaAccepted)
 
   return (
@@ -763,6 +767,15 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               <div className="flex items-start gap-3 border border-amber-500/20 bg-amber-500/5 px-4 py-3">
                 <KeyRound className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">{t("alerts.securityRequirement")}</p>
+              </div>
+            )}
+            {isFreePlan && (
+              <div className="flex items-start gap-3 border border-primary/20 bg-primary/5 px-4 py-3">
+                <Zap className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs text-foreground leading-relaxed">{t("fields.freePlanEloOnly")}</p>
+                  <a href="/dashboard/billing" className="inline-block mt-1.5 text-xs font-medium text-primary hover:underline">{t("fields.freePlanUpgradeLink")} →</a>
+                </div>
               </div>
             )}
 
@@ -815,26 +828,49 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             </div>
 
             {/* ELO Toggle */}
-            <div className="border border-amber-500/20 bg-amber-500/5 p-4">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isEloServer}
-                  onChange={(e) => setIsEloServer(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 border-border bg-secondary/50 text-amber-500 focus:ring-amber-500"
-                />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">Enable ELO Features</span>
-                    <span className="border border-amber-500/30 bg-amber-500/10 text-amber-500 px-1.5 py-0.5 text-[10px] font-medium">New</span>
+            {isFreePlan ? (
+              <div className="border border-primary/20 bg-primary/5 p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={true}
+                    disabled
+                    className="mt-0.5 h-4 w-4 border-border bg-primary/20 text-primary opacity-60"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">ELO Server (Free Plan)</span>
+                      <span className="border border-primary/30 bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] font-medium">Default</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Free plan servers use ELO by default. Community voting, devlogs, and ELO-based resource scaling.
+                      ELO servers use a separate slot limit that increases as you vote.
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Community voting, devlogs, and ELO-based resource scaling.
-                    ELO servers use a separate slot limit that increases as you vote.
-                  </p>
                 </div>
-              </label>
-            </div>
+              </div>
+            ) : (
+              <div className="border border-amber-500/20 bg-amber-500/5 p-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isEloServer}
+                    onChange={(e) => setIsEloServer(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 border-border bg-secondary/50 text-amber-500 focus:ring-amber-500"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">Enable ELO Features</span>
+                      <span className="border border-amber-500/30 bg-amber-500/10 text-amber-500 px-1.5 py-0.5 text-[10px] font-medium">New</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Community voting, devlogs, and ELO-based resource scaling.
+                      ELO servers use a separate slot limit that increases as you vote.
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
 
             {/* Startup */}
             <div className="space-y-2">
@@ -893,6 +929,24 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             </div>
 
             {/* Resources */}
+            {isFreePlan ? (
+              <div className="space-y-3 border border-primary/20 bg-primary/5 p-4 sm:p-5">
+                <div className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold text-foreground">ELO Resource Scaling</p>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  ELO server resources scale with community votes. The more votes your project earns, the more CPU, RAM, and disk you unlock — up to 12x the base resources.
+                </p>
+                <a
+                  href="/dashboard/elo"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                >
+                  Learn more about ELO
+                  <ChevronRight className="h-3 w-3" />
+                </a>
+              </div>
+            ) : (
             <div data-guide-id="new-server-resources" className="space-y-4 border border-border/50 bg-gradient-to-b from-muted/40 to-muted/20 p-4 sm:p-5">
               <div className="flex items-center gap-2">
                 <Zap className="h-4 w-4 text-primary" />
@@ -1026,6 +1080,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 </div>
               )}
             </div>
+            )}
 
             {selectedEgg && (selectedEgg.requiresKvm || selectedEgg.requires_kvm) ? (
               <div className="flex items-center justify-center gap-2 text-sm text-foreground">
