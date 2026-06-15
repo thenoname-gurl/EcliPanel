@@ -130,6 +130,7 @@ export default function LoginPage() {
         setTempToken(res.tempToken);
         return;
       }
+
       router.replace(redirectTo);
     } catch (err: any) {
       setError(err.message || t("loginFailed"));

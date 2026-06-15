@@ -32,6 +32,7 @@
     "@noble/post-quantum": "latest",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.8",
+    "@serenity-kit/opaque": "^1.1.0",
     "@simplewebauthn/server": "latest",
     "@tensorflow/tfjs-node": "latest",
     "@types/bun": "^1.3.14",
