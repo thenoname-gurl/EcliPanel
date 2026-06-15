@@ -599,6 +599,7 @@
   "plan": {
     "restrictedCountry": "Your country is restricted from free portal services.",
     "restrictedCountryEdu": "Your country is restricted from free and educational portal services.",
+    "freeEloServersOnly": "Free plan users can only create ELO servers. Upgrade your plan to create regular servers.",
     "notFound": "Plan not found"
   },
   "ticket": {

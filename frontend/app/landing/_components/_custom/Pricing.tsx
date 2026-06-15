@@ -131,6 +131,7 @@ function PlanCard({
   cta,
   ctaHref,
   highlight,
+  iconKey,
 }: PlanCardProps) {
   const icons = featureIconKinds.map((kind) => ICON_BY_KIND[kind]);
 
@@ -161,7 +162,14 @@ function PlanCard({
       )}
 
       <div className="flex flex-col gap-3">
-        <p className="text-white font-flink text-2xl sm:text-3xl">{name}</p>
+        <div className="flex items-center gap-3">
+          <p className="text-white font-flink text-2xl sm:text-3xl">{name}</p>
+          {iconKey === "free" && (
+            <span className="border border-[#8b5cf6]/40 bg-[#8b5cf6]/10 text-[#a78bfa] text-[11px] px-2 py-0.5 font-medium rounded-full">
+              ELO
+            </span>
+          )}
+        </div>
         <p className="text-white/70 font-flink text-base sm:text-[18px]">
           {desc}
         </p>

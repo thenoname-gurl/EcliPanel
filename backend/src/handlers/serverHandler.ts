@@ -1404,6 +1404,11 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             return { error: ctx.t('user.mustVerifyEmail') };
           }
         }
+
+        if (effectivePortalType === 'free') {
+          ctx.set.status = 403;
+          return { error: ctx.t('plan.freeEloServersOnly') };
+        }
       }
 
       const body = ctx.body as Record<string, unknown>;
