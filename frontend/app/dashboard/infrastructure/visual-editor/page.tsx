@@ -71,8 +71,6 @@ type GenerateMultiResponse = { files: { name: string; code: string }[] }
 const uid = () => {
   try { return crypto.randomUUID() } catch { return `b${Date.now()}_${Math.random().toString(36).slice(2, 8)}` }
 }
-let _defsCache: BlockDef[] = []
-let _catsCache: Category[] = []
 
 const safeArr = <T,>(a: T[] | null | undefined): T[] => (Array.isArray(a) ? a : [])
 
@@ -539,135 +537,10 @@ const EMPTY_VALIDATION: ValidationReport = {
   hasErrors: false,
 }
 
-type ParsedParam = {
+type ParsedHandlerParam = {
   name: string
   type?: string
-}
-
-type ParsedHandlerParam = ParsedParam & {
   optional?: boolean
-}
-
-const IDENTIFIER_RE = /^[$A-Z_a-z][$\w$]*$/
-const TOP_LEVEL_RESERVED = new Set([
-  "Bun",
-  "Buffer",
-  "crypto",
-  "nodemailer",
-  "server",
-  "transporter",
-  "request",
-  "url",
-  "method",
-])
-
-function addValidationIssue(target: ValidationIssue[], issue: ValidationIssue, blockIssues: Record<string, ValidationIssue[]>) {
-  target.push(issue)
-  if (issue.blockId) {
-    if (!blockIssues[issue.blockId]) blockIssues[issue.blockId] = []
-    blockIssues[issue.blockId].push(issue)
-  }
-}
-
-function normalizeIdentifier(value: unknown): string {
-  return String(value ?? "").trim()
-}
-
-function isValidIdentifier(value: string): boolean {
-  return IDENTIFIER_RE.test(value)
-}
-
-function splitTopLevelArgs(raw: string): string[] {
-  const out: string[] = []
-  let current = ""
-  let depth = 0
-  let quote: string | null = null
-
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i]
-    const prev = raw[i - 1]
-
-    if (quote) {
-      current += ch
-      if (ch === quote && prev !== "\\") quote = null
-      continue
-    }
-
-    if (ch === '"' || ch === "'" || ch === "`") {
-      quote = ch
-      current += ch
-      continue
-    }
-
-    if (ch === "(" || ch === "[" || ch === "{") depth++
-    if (ch === ")" || ch === "]" || ch === "}") depth = Math.max(0, depth - 1)
-
-    if (ch === "," && depth === 0) {
-      if (current.trim()) out.push(current.trim())
-      current = ""
-      continue
-    }
-
-    current += ch
-  }
-
-  if (current.trim()) out.push(current.trim())
-  return out
-}
-
-function inferLiteralType(expr: string): string | null {
-  const value = expr.trim()
-  if (!value) return null
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")) || (value.startsWith("`") && value.endsWith("`"))) return "string"
-  if (/^-?\d+(\.\d+)?$/.test(value)) return "number"
-  if (value === "true" || value === "false") return "boolean"
-  if (value === "null") return "null"
-  if (value === "undefined") return "undefined"
-  if (value.startsWith("[") && value.endsWith("]")) return "array"
-  if (value.startsWith("{") && value.endsWith("}")) return "object"
-  if (/^new\s+\w+\(/.test(value)) return "object"
-  return null
-}
-
-function normalizeExpectedToken(token: string): string {
-  return token.trim().toLowerCase()
-}
-
-function isTypeCompatible(actual: string | null, expectedRaw: string): boolean {
-  if (!expectedRaw.trim()) return true
-  if (!actual) return true
-  const tokens = expectedRaw.split("|").map(normalizeExpectedToken).filter(Boolean)
-  if (tokens.length === 0) return true
-
-  return tokens.some(token => {
-    if (token === "any" || token === "unknown" || token === "never") return true
-    if (token === actual) return true
-    if (token.endsWith("[]")) return actual === "array"
-    if (token === "string") return actual === "string"
-    if (token === "number") return actual === "number"
-    if (token === "boolean") return actual === "boolean"
-    if (token === "array") return actual === "array"
-    if (token === "object") return actual === "object"
-    if (token === "null") return actual === "null"
-    if (token === "undefined") return actual === "undefined"
-    return false
-  })
-}
-
-function parseFunctionParams(raw: string): ParsedParam[] {
-  return splitTopLevelArgs(raw)
-    .map(part => part.trim())
-    .filter(Boolean)
-    .map(part => {
-      const colonIdx = part.indexOf(":")
-      if (colonIdx > 0) {
-        return {
-          name: part.slice(0, colonIdx).trim(),
-          type: part.slice(colonIdx + 1).trim() || undefined,
-        }
-      }
-      return { name: part }
-    })
 }
 
 function parseHandlerParams(raw: unknown): ParsedHandlerParam[] {
@@ -675,7 +548,7 @@ function parseHandlerParams(raw: unknown): ParsedHandlerParam[] {
     const parsed = typeof raw === "string" ? JSON.parse(raw) : raw
     if (!Array.isArray(parsed)) return []
     return parsed
-      .map((item: any) => ({
+      .map((item: Record<string, unknown>) => ({
         name: String(item?.name ?? "").trim(),
         type: String(item?.type ?? "").trim() || undefined,
         optional: Boolean(item?.optional),
@@ -683,428 +556,6 @@ function parseHandlerParams(raw: unknown): ParsedHandlerParam[] {
       .filter(item => item.name)
   } catch {
     return []
-  }
-}
-
-function getDeclaredNames(block: Block): Array<{ name: string; kind: "const" | "let" | "function" | "import" }> {
-  const cfg = block.config || {}
-  const names: Array<{ name: string; kind: "const" | "let" | "function" | "import" }> = []
-
-  switch (block.type) {
-    case "create_variable":
-      if (cfg.name) names.push({ name: normalizeIdentifier(cfg.name), kind: cfg.global ? "const" : "let" })
-      break
-    case "create_list":
-    case "create_object":
-      if (cfg.name) names.push({ name: normalizeIdentifier(cfg.name), kind: cfg.global ? "const" : "let" })
-      break
-    case "create_function":
-      if (cfg.name) names.push({ name: normalizeIdentifier(cfg.name), kind: "function" })
-      break
-    case "define_handler":
-      if (cfg.name) names.push({ name: normalizeIdentifier(cfg.name), kind: "function" })
-      break
-    case "create_smtp_transport":
-      names.push({ name: normalizeIdentifier(cfg.name || "transporter"), kind: "const" })
-      break
-    case "connect_database":
-    case "connect_redis":
-    case "connect_mongodb":
-    case "connect_typeorm":
-      if (cfg.name) names.push({ name: normalizeIdentifier(cfg.name), kind: "const" })
-      break
-    case "get_from_list":
-    case "math":
-    case "text_join":
-    case "random_number":
-    case "run_function":
-    case "invoke_handler":
-    case "fetch_url":
-    case "get_env":
-    case "read_file":
-    case "write_file":
-    case "list_files":
-    case "generate_uuid":
-    case "hash_text":
-    case "hash_verify":
-    case "random_bytes":
-    case "encrypt_text":
-    case "decrypt_text":
-    case "generate_key":
-    case "sign_hmac":
-    case "verify_hmac":
-    case "csrf_token":
-    case "csrf_verify":
-    case "redis_get":
-    case "mongo_find":
-    case "orm_find":
-    case "orm_save":
-    case "orm_update":
-    case "orm_delete":
-      for (const key of ["saveTo", "saveKeyTo", "saveIvTo"] as const) {
-        if (cfg[key]) names.push({ name: normalizeIdentifier(cfg[key]), kind: "const" })
-      }
-      break
-  }
-
-  if (block.type === "import_file") {
-    const importType = String(cfg.importType || "named")
-    if (importType !== "side-effect" && cfg.what) {
-      const whatStr = String(cfg.what)
-      const importNames = whatStr.split(",").map(s => normalizeIdentifier(s.trim())).filter(Boolean)
-      importNames.forEach(name => names.push({ name, kind: "import" }))
-    }
-  }
-
-  return names.filter(item => item.name)
-}
-
-function getReservedNamesForBlock(block: Block): string[] {
-  const cfg = block.config || {}
-  switch (block.type) {
-    case "run_in_background":
-      return []
-    case "start_server":
-    case "start_ws_server":
-      return ["server"]
-    case "send_email":
-      return ["transporter"]
-    case "connect_database": {
-      const type = String(cfg.type || "sqlite")
-      if (type === "sqlite") return ["Database"]
-      if (type === "postgres") return ["postgres"]
-      return ["mysql"]
-    }
-    case "connect_redis":
-      return ["Redis"]
-    case "connect_mongodb":
-      return ["MongoClient"]
-    case "connect_typeorm":
-      return ["DataSource"]
-    default:
-      return []
-  }
-}
-
-function collectValidation(files: ProjectFile[]): ValidationReport {
-  const issues: ValidationIssue[] = []
-  const blockIssues: Record<string, ValidationIssue[]> = {}
-  const seenTopLevelPerFile = new Map<string, Map<string, { blockId: string; kind: string }>>()
-  const functionDefs = new Map<string, { blockId: string; params: ParsedParam[]; fileId?: string }>()
-  const handlerDefs = new Map<string, { blockId: string; params: ParsedHandlerParam[]; fileId?: string }>()
-  const functionLocalScopes = new Map<string, Set<string>>()
-  const handlerLocalScopes = new Map<string, Set<string>>()
-  const transportVars = new Set<string>()
-  const dbConnectors = new Set<string>()
-  const redisConnectors = new Set<string>()
-  const mongoConnectors = new Set<string>()
-  const ormConnectors = new Set<string>()
-  const blockToFile = new Map<string, string>()
-
-  const visit = (block: Block, currentFileId: string, parentFunctionId?: string, parentHandlerId?: string) => {
-    blockToFile.set(block.id, currentFileId)
-    const declared = getDeclaredNames(block)
-    const reserved = new Set<string>([...TOP_LEVEL_RESERVED, ...getReservedNamesForBlock(block)])
-
-    for (const declaredItem of declared) {
-      const name = declaredItem.name
-      const kind = declaredItem.kind
-
-      if (!isValidIdentifier(name)) {
-        addValidationIssue(issues, {
-          severity: "error",
-          blockId: block.id,
-          field: "name",
-          message: `"${name}" is not a valid JavaScript identifier.`,
-        }, blockIssues)
-        continue
-      }
-
-      if (reserved.has(name)) {
-        addValidationIssue(issues, {
-          severity: "error",
-          blockId: block.id,
-          field: "name",
-          message: `"${name}" is reserved by generated imports or runtime code.`,
-        }, blockIssues)
-      }
-
-      if (parentFunctionId) {
-        const funcScope = functionLocalScopes.get(parentFunctionId)
-        if (funcScope?.has(name)) {
-          addValidationIssue(issues, {
-            severity: "error",
-            blockId: block.id,
-            field: "name",
-            message: `"${name}" is already used by a declaration within this function scope.`,
-          }, blockIssues)
-        } else if (kind !== "function") {
-          functionLocalScopes.get(parentFunctionId)?.add(name)
-        }
-      } else if (parentHandlerId) {
-        const handlerScope = handlerLocalScopes.get(parentHandlerId)
-        if (handlerScope?.has(name)) {
-          addValidationIssue(issues, {
-            severity: "error",
-            blockId: block.id,
-            field: "name",
-            message: `"${name}" is already used by a declaration within this handler scope.`,
-          }, blockIssues)
-        } else if (kind !== "function") {
-          handlerLocalScopes.get(parentHandlerId)?.add(name)
-        }
-      } else {
-        if (!seenTopLevelPerFile.has(currentFileId)) {
-          seenTopLevelPerFile.set(currentFileId, new Map())
-        }
-        const fileScope = seenTopLevelPerFile.get(currentFileId)!
-
-        if (kind === "import") {
-          fileScope.set(name, { blockId: block.id, kind })
-        } else {
-          const prev = fileScope.get(name)
-          if (prev) {
-            addValidationIssue(issues, {
-              severity: "error",
-              blockId: block.id,
-              field: "name",
-              message: `"${name}" is already used by a ${prev.kind} declaration.`,
-            }, blockIssues)
-            addValidationIssue(issues, {
-              severity: "error",
-              blockId: prev.blockId,
-              field: "name",
-              message: `"${name}" conflicts with another declaration.`,
-            }, blockIssues)
-          } else {
-            fileScope.set(name, { blockId: block.id, kind })
-          }
-        }
-      }
-    }
-
-    if (block.type === "create_function") {
-      const name = normalizeIdentifier(block.config.name)
-      if (name) {
-        functionDefs.set(name, { blockId: block.id, params: parseFunctionParams(String(block.config.inputs || "")), fileId: currentFileId })
-        functionLocalScopes.set(block.id, new Set())
-      }
-    }
-
-    if (block.type === "define_handler") {
-      const name = normalizeIdentifier(block.config.name)
-      if (name) {
-        handlerDefs.set(name, { blockId: block.id, params: parseHandlerParams(block.config.params), fileId: currentFileId })
-        handlerLocalScopes.set(block.id, new Set())
-      }
-    }
-
-    if (block.type === "create_smtp_transport") {
-      transportVars.add(currentFileId + ":" + normalizeIdentifier(block.config.name || "transporter"))
-    }
-
-    if (block.type === "connect_database") {
-      dbConnectors.add(currentFileId + ":" + normalizeIdentifier(block.config.name || "db"))
-    }
-    if (block.type === "connect_redis") {
-      redisConnectors.add(currentFileId + ":" + normalizeIdentifier(block.config.name || "redis"))
-    }
-    if (block.type === "connect_mongodb") {
-      mongoConnectors.add(currentFileId + ":" + normalizeIdentifier(block.config.name || "mongo"))
-    }
-    if (block.type === "connect_typeorm") {
-      ormConnectors.add(currentFileId + ":" + normalizeIdentifier(block.config.name || "AppDataSource"))
-    }
-
-    const nextFnId = block.type === "create_function" ? block.id : parentFunctionId
-    const nextHandlerId = block.type === "define_handler" ? block.id : parentHandlerId
-    safeArr(block.children).forEach(child => visit(child, currentFileId, nextFnId, nextHandlerId))
-  }
-
-  files.forEach(file => safeArr(file.blocks).forEach(block => visit(block, file.id)))
-
-  const validateCall = (block: Block) => {
-    if (block.type === "run_function") {
-      const fnName = normalizeIdentifier(block.config.name)
-      const fn = functionDefs.get(fnName)
-      if (!fn) {
-        addValidationIssue(issues, {
-          severity: "error",
-          blockId: block.id,
-          field: "name",
-          message: `Function "${fnName}" is not defined.`,
-        }, blockIssues)
-      } else {
-        const args = splitTopLevelArgs(String(block.config.inputs || "")).filter(Boolean)
-        if (args.length !== fn.params.length) {
-          addValidationIssue(issues, {
-            severity: "error",
-            blockId: block.id,
-            field: "inputs",
-            message: `Function "${fnName}" expects ${fn.params.length} argument(s), got ${args.length}.`,
-          }, blockIssues)
-        }
-        fn.params.forEach((param, index) => {
-          if (!param.type) return
-          const argExpr = args[index]
-          if (!argExpr) return
-          const actual = inferLiteralType(argExpr)
-          if (!isTypeCompatible(actual, param.type || "")) {
-            addValidationIssue(issues, {
-              severity: "error",
-              blockId: block.id,
-              field: "inputs",
-              message: `Argument ${index + 1} for "${fnName}" expects ${param.type}, got ${actual || "an unknown expression"}.`,
-            }, blockIssues)
-          }
-        })
-      }
-    }
-
-    if (block.type === "invoke_handler") {
-      const handlerName = normalizeIdentifier(block.config.name)
-      const handler = handlerDefs.get(handlerName)
-      if (!handler) {
-        addValidationIssue(issues, {
-          severity: "error",
-          blockId: block.id,
-          field: "name",
-          message: `Handler "${handlerName}" is not defined.`,
-        }, blockIssues)
-      } else {
-        handler.params.forEach((param, index) => {
-          const argExpr = block.config[`arg_${param.name}`]
-          if ((argExpr === undefined || argExpr === "") && !param.optional) {
-            addValidationIssue(issues, {
-              severity: "error",
-              blockId: block.id,
-              field: `arg_${param.name}`,
-              message: `Missing argument "${param.name}" for handler "${handlerName}".`,
-            }, blockIssues)
-            return
-          }
-          if (!param.type || argExpr === undefined || argExpr === "") return
-          const actual = inferLiteralType(String(argExpr))
-          if (!isTypeCompatible(actual, param.type || "")) {
-            addValidationIssue(issues, {
-              severity: "error",
-              blockId: block.id,
-              field: `arg_${param.name}`,
-              message: `Argument "${param.name}" expects ${param.type}, got ${actual || "an unknown expression"}.`,
-            }, blockIssues)
-          }
-        })
-      }
-    }
-
-    if (block.type === "create_variable") {
-      const expected = String(block.config.type || "").trim()
-      const value = String(block.config.value ?? "")
-      const actual = inferLiteralType(value)
-      if (expected && actual && !isTypeCompatible(actual, expected)) {
-        addValidationIssue(issues, {
-          severity: "error",
-          blockId: block.id,
-          field: "value",
-          message: `Variable "${String(block.config.name || "")}" expects ${expected}, got ${actual}.`,
-        }, blockIssues)
-      }
-    }
-
-    safeArr(block.children).forEach(validateCall)
-  }
-
-  const checkTransport = (block: Block) => {
-    if (block.type === "send_email" && !String(block.config.smtpHost || "").trim()) {
-      const transportName = normalizeIdentifier(block.config.transport || "transporter")
-      const fileId = blockToFile.get(block.id) || ""
-      if (!transportVars.has(fileId + ":" + transportName)) {
-        addValidationIssue(issues, {
-          severity: "warning",
-          blockId: block.id,
-          field: "transport",
-          message: `Transport "${transportName}" is not defined. Add a "Create SMTP Transport" block with name "${transportName}".`,
-        }, blockIssues)
-      }
-    }
-    safeArr(block.children).forEach(checkTransport)
-  }
-
-  const checkDatabaseRefs = (block: Block) => {
-    if (block.type === "db_find" || block.type === "db_add" || block.type === "db_update" || block.type === "db_delete") {
-      const dbName = normalizeIdentifier(block.config.db || "db")
-      const fileId = blockToFile.get(block.id) || ""
-      if (!dbConnectors.has(fileId + ":" + dbName)) {
-        addValidationIssue(issues, {
-          severity: "warning",
-          blockId: block.id,
-          field: "db",
-          message: `Database connector "${dbName}" not found. Add a "Connect to Database" block with name "${dbName}".`,
-        }, blockIssues)
-      }
-    }
-    safeArr(block.children).forEach(checkDatabaseRefs)
-  }
-
-  const checkRedisRefs = (block: Block) => {
-    if (block.type === "redis_set" || block.type === "redis_get" || block.type === "redis_del") {
-      const clientName = normalizeIdentifier(block.config.client || "redis")
-      const fileId = blockToFile.get(block.id) || ""
-      if (!redisConnectors.has(fileId + ":" + clientName)) {
-        addValidationIssue(issues, {
-          severity: "warning",
-          blockId: block.id,
-          field: "client",
-          message: `Redis client "${clientName}" not found. Add a "Connect to Redis" block with name "${clientName}".`,
-        }, blockIssues)
-      }
-    }
-    safeArr(block.children).forEach(checkRedisRefs)
-  }
-
-  const checkMongoRefs = (block: Block) => {
-    if (block.type === "mongo_find" || block.type === "mongo_insert" || block.type === "mongo_update" || block.type === "mongo_delete") {
-      const clientName = normalizeIdentifier(block.config.client || "mongo")
-      const fileId = blockToFile.get(block.id) || ""
-      if (!mongoConnectors.has(fileId + ":" + clientName)) {
-        addValidationIssue(issues, {
-          severity: "warning",
-          blockId: block.id,
-          field: "client",
-          message: `MongoDB client "${clientName}" not found. Add a "Connect to MongoDB" block with name "${clientName}".`,
-        }, blockIssues)
-      }
-    }
-    safeArr(block.children).forEach(checkMongoRefs)
-  }
-
-  const checkOrmRefs = (block: Block) => {
-    if (block.type === "orm_find" || block.type === "orm_save" || block.type === "orm_update" || block.type === "orm_delete") {
-      const dsName = normalizeIdentifier(block.config.ds || "AppDataSource")
-      const fileId = blockToFile.get(block.id) || ""
-      if (!ormConnectors.has(fileId + ":" + dsName)) {
-        addValidationIssue(issues, {
-          severity: "warning",
-          blockId: block.id,
-          field: "ds",
-          message: `TypeORM DataSource "${dsName}" not found. Add a "Connect with TypeORM" block with name "${dsName}".`,
-        }, blockIssues)
-      }
-    }
-    safeArr(block.children).forEach(checkOrmRefs)
-  }
-
-  files.forEach(file => safeArr(file.blocks).forEach(validateCall))
-  files.forEach(file => safeArr(file.blocks).forEach(checkTransport))
-  files.forEach(file => safeArr(file.blocks).forEach(checkDatabaseRefs))
-  files.forEach(file => safeArr(file.blocks).forEach(checkRedisRefs))
-  files.forEach(file => safeArr(file.blocks).forEach(checkMongoRefs))
-  files.forEach(file => safeArr(file.blocks).forEach(checkOrmRefs))
-
-  return {
-    issues,
-    blockIssues,
-    hasErrors: issues.some(issue => issue.severity === "error"),
   }
 }
 
@@ -1146,8 +597,8 @@ export default function VisualEditorPage() {
   const { user } = useAuth()
   const { toast } = useToast()
 
-  const [defs, setDefs] = useState<BlockDef[]>(() => _defsCache)
-  const [categories, setCategories] = useState<Category[]>(() => _catsCache)
+  const [defs, setDefs] = useState<BlockDef[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [initError, setInitError] = useState<string | null>(null)
   const [files, setFiles] = useState<ProjectFile[]>(() => [{ id: "main", name: "main.ts", blocks: [] }])
@@ -1198,7 +649,6 @@ export default function VisualEditorPage() {
         const data = (await apiFetch("/api/infrastructure/visual-editor/block-definitions")) as DefinitionsResponse | null
         const b = safeArr(data?.blocks)
         const c = safeArr(data?.categories)
-        _defsCache = b; _catsCache = c
         setDefs(b); setCategories(c)
         const starter = b.find(x => x.type === 'print')
         const initial = starter ? [mkBlock('print', b)] : []
@@ -1210,7 +660,7 @@ export default function VisualEditorPage() {
         toast({ title: "Failed to load", description: msg, variant: "destructive" })
       } finally { setLoading(false) }
     })()
-  }, [user]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, toast]) // eslint-disable-line react-hooks/exhaustive-deps -- loadLibrary and updateFiles are stable refs
 
   useEffect(() => {
     if (!user || loading || initError || defs.length === 0) return
@@ -1286,7 +736,9 @@ export default function VisualEditorPage() {
     try {
       const data = JSON.stringify({ files, activeFileId })
       localStorage.setItem('ve_autosave', data)
-    } catch {}
+    } catch (e) {
+      console.warn('Failed to save visual editor autosave:', e)
+    }
   }, [files, activeFileId])
 
   useEffect(() => {
@@ -1299,7 +751,9 @@ export default function VisualEditorPage() {
           if (data.activeFileId) setActiveFileId(data.activeFileId)
         }
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Failed to restore visual editor autosave:', e)
+    }
   }, [loading])
 
   function handleUndo() {
@@ -1720,9 +1174,15 @@ export default function VisualEditorPage() {
     try {
       const bp = blueprints.find(b => b.id === id)
       if (!bp) return
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+      const csrfToken = typeof window !== 'undefined' ? localStorage.getItem('csrfToken') : null
+      const headers: Record<string, string> = {}
+      if (token) headers['Authorization'] = `Bearer ${token}`
+      if (csrfToken) headers['x-csrf-token'] = csrfToken
       const response = await fetch(`/api/infrastructure/visual-editor/blueprints/${id}/export`, {
         method: 'GET',
         credentials: 'include',
+        headers,
       })
       if (!response.ok) throw new Error('Export failed')
       const blob = await response.blob()
@@ -1940,7 +1400,7 @@ export default function VisualEditorPage() {
         <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-3 gap-2">
           <div>
             <h1 className="text-xl font-bold tracking-tight">Visual Editor</h1>
-            <p className="text-xs text-muted-foreground">Create powerfull applications in TypeScript (Bun) via visual code editor</p>
+            <p className="text-xs text-muted-foreground">Create powerful applications in TypeScript (Bun) via visual code editor</p>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
             <Button variant="outline" size="sm" className="h-7 text-[10px] lg:text-xs" onClick={loadBlueprints}>

@@ -11,7 +11,7 @@
   "dependencies": {
     "@base-ui/react": "latest",
     "@hookform/resolvers": "latest",
-    "@monaco-editor/react": "latest",
+    "@monaco-editor/react": "^4.7.0",
     "@noble/post-quantum": "^0.6.1",
     "@radix-ui/react-accordion": "latest",
     "@radix-ui/react-alert-dialog": "latest",
