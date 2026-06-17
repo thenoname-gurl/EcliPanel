@@ -16,24 +16,35 @@ import {
   deleteLibraryItem,
   getUserLibraryItems,
   exportBlueprintAsZip,
+  type Block,
+  type ProjectFile,
 } from '../services/visualEditorService';
 
 const genQueues = new Map<string, Promise<void>>();
 
-async function enqueueGenerate(userId: number | string, fn: () => Promise<any>) {
+async function enqueueGenerate<T>(userId: number | string, fn: () => Promise<T>): Promise<T> {
   const key = String(userId);
   const prev = genQueues.get(key) || Promise.resolve();
   const next = prev.then(fn, fn);
-  genQueues.set(key, next.catch(() => {}));
+  genQueues.set(key, next.then(() => {}, () => {}));
   return next;
 }
 
-async function guard(ctx: any) {
+async function guard(ctx: { set: { status: number } }) {
   const enabled = await isFeatureEnabled('visualeditor');
   if (!enabled) {
     ctx.set.status = 503;
     return { error: 'Visual Editor feature is disabled' };
   }
+}
+
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 200;
+
+function parsePagination(query: { page?: string; limit?: string }): { skip: number; take: number } {
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(MAX_PAGE_SIZE, Math.max(1, Number(query.limit) || DEFAULT_PAGE_SIZE));
+  return { skip: (page - 1) * limit, take: limit };
 }
 
 export async function visualEditorRoutes(app: any, prefix = '') {
@@ -71,7 +82,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
   app.post(
     prefix + '/infrastructure/visual-editor/generate',
     async (ctx: any) => {
-      const body = ctx.body as any;
+      const body = ctx.body as { blocks: Block[] };
       if (!body?.blocks || !Array.isArray(body.blocks)) {
         ctx.set.status = 400;
         return { error: 'Blocks array is required' };
@@ -93,15 +104,14 @@ export async function visualEditorRoutes(app: any, prefix = '') {
   app.post(
     prefix + '/infrastructure/visual-editor/generate-multi',
     async (ctx: any) => {
-      const body = ctx.body as any;
+      const body = ctx.body as { files: { name: string; blocks: Block[] }[] };
       if (!body?.files || !Array.isArray(body.files)) {
         ctx.set.status = 400;
         return { error: 'Files array is required' };
       }
       return enqueueGenerate(ctx.user?.id || 0, async () => {
-        const files = body.files as { name: string; blocks: any[] }[];
         const result: { name: string; code: string }[] = [];
-        for (const file of files) {
+        for (const file of body.files) {
           const code = generateCode(Array.isArray(file.blocks) ? file.blocks : []);
           result.push({ name: file.name || 'untitled.ts', code });
         }
@@ -117,7 +127,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
   app.post(
     prefix + '/infrastructure/visual-editor/validate',
     async (ctx: any) => {
-      const body = ctx.body as any;
+      const body = ctx.body as { files: ProjectFile[] };
       if (!body?.files || !Array.isArray(body.files)) {
         ctx.set.status = 400;
         return { error: 'Files array is required' };
@@ -141,7 +151,8 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         ctx.set.status = 401;
         return { error: 'Unauthorized' };
       }
-      return getUserBlueprints(userId);
+      const { skip, take } = parsePagination(ctx.query || {});
+      return getUserBlueprints(userId, skip, take);
     },
     {
       beforeHandle: [authenticate, guard],
@@ -157,7 +168,8 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         ctx.set.status = 401;
         return { error: 'Unauthorized' };
       }
-      return getUserLibraryItems(userId);
+      const { skip, take } = parsePagination(ctx.query || {});
+      return getUserLibraryItems(userId, skip, take);
     },
     {
       beforeHandle: [authenticate, guard],
@@ -173,7 +185,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         ctx.set.status = 401;
         return { error: 'Unauthorized' };
       }
-      const body = ctx.body as any;
+      const body = ctx.body as { name?: string; blocks: Block[]; description?: string };
       if (!body?.blocks || !Array.isArray(body.blocks)) {
         ctx.set.status = 400;
         return { error: 'Blocks array is required' };
@@ -187,9 +199,9 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         );
         ctx.set.status = 201;
         return item;
-      } catch (err: any) {
+      } catch (err: unknown) {
         ctx.set.status = 400;
-        return { error: err.message || 'Failed to create library item' };
+        return { error: err instanceof Error ? err.message : 'Failed to create library item' };
       }
     },
     {
@@ -255,7 +267,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         ctx.set.status = 401;
         return { error: 'Unauthorized' };
       }
-      const body = ctx.body as any;
+      const body = ctx.body as { name: string; description?: string; projectData: unknown; latestGeneratedCode?: string };
       if (!body?.name || !body?.projectData) {
         ctx.set.status = 400;
         return { error: 'Name and project data required' };
@@ -270,9 +282,9 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         );
         ctx.set.status = 201;
         return blueprint;
-      } catch (err: any) {
+      } catch (err: unknown) {
         ctx.set.status = 400;
-        return { error: err.message || 'Failed to create blueprint' };
+        return { error: err instanceof Error ? err.message : 'Failed to create blueprint' };
       }
     },
     {
@@ -290,8 +302,8 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         ctx.set.status = 400;
         return { error: 'Invalid request' };
       }
-      const body = ctx.body as any;
-      const data: any = {};
+      const body = ctx.body as Record<string, unknown>;
+      const data: Record<string, unknown> = {};
       if (body.name !== undefined) data.name = String(body.name).trim();
       if (body.description !== undefined) data.description = String(body.description).trim();
       if (body.projectData !== undefined) data.projectData = body.projectData;
@@ -304,9 +316,9 @@ export async function visualEditorRoutes(app: any, prefix = '') {
           return { error: 'Blueprint not found' };
         }
         return blueprint;
-      } catch (err: any) {
+      } catch (err: unknown) {
         ctx.set.status = 400;
-        return { error: err.message || 'Failed to update blueprint' };
+        return { error: err instanceof Error ? err.message : 'Failed to update blueprint' };
       }
     },
     {
@@ -359,47 +371,5 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       beforeHandle: [authenticate, guard],
       detail: { tags: ['Infrastructure'], summary: 'Export a blueprint as ZIP' },
     }
-  );
-
-  app.get(
-    prefix + '/infrastructure/visual-editor/library',
-    async (ctx: any) => {
-      const userId = ctx.user?.id;
-      if (!userId) { ctx.set.status = 401; return { error: 'Unauthorized' } }
-      return getUserLibraryItems(userId);
-    },
-    { beforeHandle: [authenticate, guard], detail: { tags: ['Infrastructure'], summary: 'List user library items' } }
-  );
-
-  app.post(
-    prefix + '/infrastructure/visual-editor/library',
-    async (ctx: any) => {
-      const userId = ctx.user?.id;
-      if (!userId) { ctx.set.status = 401; return { error: 'Unauthorized' } }
-      const body = ctx.body as any;
-      if (!body?.name || !body?.blocks) { ctx.set.status = 400; return { error: 'Name and blocks required' } }
-      try {
-        const item = await createLibraryItem(userId, String(body.name).trim(), body.blocks, body.description ? String(body.description) : undefined);
-        ctx.set.status = 201;
-        return item;
-      } catch (err: any) {
-        ctx.set.status = 400;
-        return { error: err.message || 'Failed to save library item' };
-      }
-    },
-    { beforeHandle: [authenticate, guard], detail: { tags: ['Infrastructure'], summary: 'Create a library item' } }
-  );
-
-  app.delete(
-    prefix + '/infrastructure/visual-editor/library/:id',
-    async (ctx: any) => {
-      const userId = ctx.user?.id;
-      const id = Number(ctx.params?.id);
-      if (!userId || !id || isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid request' } }
-      const deleted = await deleteLibraryItem(id, userId);
-      if (!deleted) { ctx.set.status = 404; return { error: 'Library item not found' } }
-      return { success: true };
-    },
-    { beforeHandle: [authenticate, guard], detail: { tags: ['Infrastructure'], summary: 'Delete a library item' } }
   );
 }

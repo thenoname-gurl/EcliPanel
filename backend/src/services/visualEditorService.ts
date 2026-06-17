@@ -1457,7 +1457,7 @@ export async function createBlueprint(
   userId: number,
   name: string,
   description: string | undefined,
-  projectData: Project,
+  projectData: unknown,
   latestGeneratedCode?: string
 ): Promise<VisualEditorBlueprint> {
   const repo = AppDataSource.getRepository(VisualEditorBlueprint);
@@ -1478,7 +1478,7 @@ export async function createBlueprint(
 export async function updateBlueprint(
   id: number,
   userId: number,
-  data: { name?: string; description?: string; projectData?: Project; latestGeneratedCode?: string }
+  data: { name?: string; description?: string; projectData?: unknown; latestGeneratedCode?: string }
 ): Promise<VisualEditorBlueprint | null> {
   const repo = AppDataSource.getRepository(VisualEditorBlueprint);
   const blueprint = await repo.findOneBy({ id, userId });
@@ -1511,9 +1511,14 @@ export async function getBlueprint(id: number, userId: number): Promise<Blueprin
   return mapBlueprint(blueprint);
 }
 
-export async function getUserBlueprints(userId: number): Promise<BlueprintResponse[]> {
+export async function getUserBlueprints(userId: number, skip = 0, take = 50): Promise<BlueprintResponse[]> {
   const repo = AppDataSource.getRepository(VisualEditorBlueprint);
-  const blueprints = await repo.find({ where: { userId }, order: { updatedAt: 'DESC' } });
+  const [blueprints] = await repo.findAndCount({
+    where: { userId },
+    order: { updatedAt: 'DESC' },
+    skip,
+    take,
+  });
   return blueprints.map(mapBlueprint);
 }
 
@@ -1581,9 +1586,14 @@ export async function createLibraryItem(userId: number, name: string, blocks: Bl
   return mapLibrary(await repo.save(item));
 }
 
-export async function getUserLibraryItems(userId: number): Promise<LibraryItem[]> {
+export async function getUserLibraryItems(userId: number, skip = 0, take = 50): Promise<LibraryItem[]> {
   const repo = AppDataSource.getRepository(VisualEditorLibrary);
-  const items = await repo.find({ where: { userId }, order: { updatedAt: 'DESC' } });
+  const [items] = await repo.findAndCount({
+    where: { userId },
+    order: { updatedAt: 'DESC' },
+    skip,
+    take,
+  });
   return items.map(mapLibrary);
 }
 
