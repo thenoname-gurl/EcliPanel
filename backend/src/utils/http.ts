@@ -59,7 +59,11 @@ export async function httpRequest<T = unknown>(
     };
 
     if (allowInvalidCerts) {
-      init.tls = { rejectUnauthorized: false };
+      try {
+        (init as any).tls = { rejectUnauthorized: false };
+      } catch {
+        // uwu
+      }
     }
 
     if (body !== undefined) {

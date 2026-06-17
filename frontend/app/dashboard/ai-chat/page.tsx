@@ -8,6 +8,9 @@ import { PanelHeader } from "@/components/panel/header"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { FeatureGuard } from "@/components/panel/feature-guard"
 import { apiFetch } from "@/lib/api-client"
+import { useAuth } from "@/hooks/useAuth"
+import { isByoaiConfigured, type ByoaiConfig, OPENCODE_GO_MODELS, OPENCODE_GO_REFERRAL } from "@/lib/byoai-config"
+import { ExternalLink } from "lucide-react"
 import {
   Send,
   Bot,
@@ -58,6 +61,9 @@ export default function AIChatPage() {
   const t = useTranslations("aiChatPage")
   const INITIAL_MESSAGES = getInitialMessages(t)
   const SUGGESTIONS = getSuggestions(t)
+  const { user } = useAuth()
+  const byoaiConfig = user?.settings?.byoai as ByoaiConfig | undefined
+  const useByoai = isByoaiConfigured(byoaiConfig)
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
       const raw =
@@ -101,6 +107,14 @@ export default function AIChatPage() {
   useEffect(() => {
     const loadModels = async () => {
       try {
+        if (useByoai && byoaiConfig) {
+          const modelOptions = OPENCODE_GO_MODELS
+          setModels(modelOptions.map(m => ({
+            model: { name: m.name, config: { modelId: m.id } }
+          })))
+          setSelectedModel(byoaiConfig.modelId || OPENCODE_GO_MODELS[0].id)
+          return
+        }
         const data: any[] = await apiFetch(API_ENDPOINTS.aiMyModels)
         setModels(data)
         const stored =
@@ -117,7 +131,7 @@ export default function AIChatPage() {
       }
     }
     loadModels()
-  }, [])
+  }, [useByoai])
 
   useEffect(() => {
     if (inputRef.current) {
@@ -126,6 +140,18 @@ export default function AIChatPage() {
         Math.min(inputRef.current.scrollHeight, 120) + "px"
     }
   }, [input])
+
+  const SYSTEM_PROMPT = `You are EcliPanel AI, a helpful assistant for the EcliPanel game server and application hosting platform.
+
+You help users with:
+- Managing game servers (Minecraft, Counter-Strike, Valheim, etc.) and applications (Node.js, Python, Docker)
+- Server configuration, performance tuning, and debugging
+- File editing, command execution, and service management
+- Billing, user permissions, API keys, and account settings
+- Node infrastructure, networking, and deployment
+- Panel navigation and feature discovery
+
+Keep responses concise and actionable. Use code blocks for commands, configs, and file content. When suggesting file edits, show the full file path. Assume the user has admin access to their own servers.`
 
   const handleSend = async () => {
     if (!input.trim() || isTyping) return
@@ -146,10 +172,12 @@ export default function AIChatPage() {
     }
 
     try {
-      const payload = [...messages, userMsg].map((m) => ({
+      const systemMsg = { role: "system", content: SYSTEM_PROMPT }
+      const conversationMessages = [...messages, userMsg].map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
         content: m.content,
       }))
+      const payload = [systemMsg, ...conversationMessages]
       const candidateModel =
         selectedModel ||
         models?.[0]?.model?.config?.modelId ||
@@ -159,7 +187,7 @@ export default function AIChatPage() {
           ? String(candidateModel)
           : undefined
 
-      if (!candidateModel && !(models && models.length > 0)) {
+      if (!useByoai && !candidateModel && !(models && models.length > 0)) {
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
@@ -177,9 +205,11 @@ export default function AIChatPage() {
       const body: any = { messages: payload }
       if (providerModelId) body.model = providerModelId
 
-      const res = await apiFetch(API_ENDPOINTS.openaiChat, {
+      const endpoint = useByoai ? API_ENDPOINTS.byoaiChatCompletions : API_ENDPOINTS.openaiChat
+      const res = await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
+        timeout: 120000,
       })
 
       const aiText =
@@ -314,6 +344,19 @@ export default function AIChatPage() {
               </div>
             </div>
           </div>
+
+          {!useByoai && (
+            <a
+              href={OPENCODE_GO_REFERRAL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 flex items-center justify-center gap-1.5 border-b border-border/50 bg-primary/5 px-3 py-1.5 text-[10px] sm:text-[11px] text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors"
+            >
+              <Sparkles className="h-3 w-3" />
+              Bring your own AI — get an API key from OpenCode Go
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
 
           <div
             ref={messagesContainerRef}
