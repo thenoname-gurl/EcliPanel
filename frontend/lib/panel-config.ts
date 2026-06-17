@@ -123,6 +123,7 @@ export const API_ENDPOINTS = {
   // Nodes
   nodes: "/api/nodes",
   nodesAvailable: "/api/nodes/available",
+  nodesMyHealth: "/api/nodes/my-health",
   nodeDetail: "/api/nodes/:id",
   nodeProxmoxStorages: "/api/nodes/:id/proxmox/storages",
   nodeProxmoxStorageContent: "/api/nodes/:id/proxmox/storage/:storage/content",

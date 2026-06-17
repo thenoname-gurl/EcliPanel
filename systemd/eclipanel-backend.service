@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/srv/samba/shared/EcliPanel/v3/backend
 Environment=NODE_ENV=production
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/root/.bun/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/bin/bash -lc './start.sh'
 Restart=on-failure
 RestartSec=5

@@ -1100,6 +1100,13 @@
       "eventDetected": "Security event detected",
       "server": "Server",
       "unknown": "unknown"
+    },
+    "warnings": {
+      "nodeIssueTitle": "{node} is currently experiencing issues",
+      "nodesIssueTitle": "Some nodes are currently experiencing issues",
+      "nodeIssueDescription": "Servers on this node may be unavailable or unresponsive.",
+      "nodesIssueDescription": "Servers on these nodes may be unavailable or unresponsive: {nodes}.",
+      "learnMore": "Learn more at /status"
     }
   },
   "adminPage": {
@@ -3584,7 +3591,12 @@
     },
     "warnings": {
       "legalInfoTitle": "Complete required legal information",
-      "legalInfoDescription": "Your account is missing required legal profile information or age verification, so you cannot view projects or deploy new servers. Please update your legal name, phone, billing address, and date of birth in Settings."
+      "legalInfoDescription": "Your account is missing required legal profile information or age verification, so you cannot view projects or deploy new servers. Please update your legal name, phone, billing address, and date of birth in Settings.",
+      "nodeIssueTitle": "{node} is currently experiencing issues",
+      "nodesIssueTitle": "Some nodes are currently experiencing issues",
+      "nodeIssueDescription": "Servers on this node may be unavailable or unresponsive.",
+      "nodesIssueDescription": "Servers on these nodes may be unavailable or unresponsive: {nodes}.",
+      "learnMore": "Learn more at /status"
     },
     "search": {
       "placeholder": "Search servers..."

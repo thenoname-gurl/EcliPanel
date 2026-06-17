@@ -1532,6 +1532,7 @@ export default function ServersPage() {
   const [servers, setServers] = useState<any[]>([])
   const [eloServers, setEloServers] = useState<Set<string>>(new Set())
   const [favoriteServerIds, setFavoriteServerIds] = useState<string[]>([])
+  const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
 
   useEffect(() => {
     if (user?.settings?.serverFavorites && Array.isArray(user.settings.serverFavorites)) {
@@ -1660,6 +1661,14 @@ export default function ServersPage() {
   }
 
   useEffect(() => { loadServers() }, [loadServers])
+
+  useEffect(() => {
+    apiFetch(API_ENDPOINTS.nodesMyHealth)
+      .then((data) => {
+        if (Array.isArray(data)) setUnhealthyNodes(data)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!gamblingModeEnabled) return
@@ -1792,6 +1801,29 @@ export default function ServersPage() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {t("warnings.legalInfoDescription")}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {unhealthyNodes.length > 0 && (
+        <div className="border border-destructive/30 bg-destructive/5 p-4 text-sm text-foreground">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 text-destructive flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground">
+                {unhealthyNodes.length === 1
+                  ? t("warnings.nodeIssueTitle", { node: unhealthyNodes[0].name })
+                  : t("warnings.nodesIssueTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {unhealthyNodes.length === 1
+                  ? t("warnings.nodeIssueDescription", { node: unhealthyNodes[0].name })
+                  : t("warnings.nodesIssueDescription", { nodes: unhealthyNodes.map(n => n.name).join(", ") })}
+              </p>
+              <Link href="/status" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                {t("warnings.learnMore")}
+              </Link>
             </div>
           </div>
         </div>
