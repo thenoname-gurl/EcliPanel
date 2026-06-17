@@ -27,7 +27,7 @@ async function resolvePaymentMethodLabel(methodId: string): Promise<string | nul
   }
 }
 
-async function renderInvoicePdf(order: Order): Promise<Buffer> {
+export async function renderInvoicePdf(order: Order): Promise<Buffer> {
   const enrichedOrder: any = { ...order };
   if ((order as any).paymentMethod) {
     enrichedOrder.paymentMethodLabel = await resolvePaymentMethodLabel((order as any).paymentMethod);

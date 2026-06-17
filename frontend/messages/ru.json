@@ -1772,7 +1772,9 @@
       "applying": "Применение…",
       "saving": "Сохранение…",
       "applyPlan": "Применить план",
-      "saveChanges": "Сохранить изменения"
+      "saveChanges": "Сохранить изменения",
+      "downloadInvoice": "Скачать счёт",
+      "invoice": "Счёт"
     }
   },
   "adminVerificationsTab": {

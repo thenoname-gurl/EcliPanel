@@ -626,6 +626,9 @@ app.onRequest(async rawCtx => {
     // skip
   }
 
+});
+
+app.onBeforeHandle(async (ctx: any) => {
   const csrfResult = await csrfProtection(ctx);
   if (csrfResult) return csrfResult;
 });

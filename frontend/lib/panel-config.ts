@@ -287,6 +287,7 @@ export const API_ENDPOINTS = {
   // Admin Orders & Apply Plan
   adminOrders: "/api/admin/orders",
   adminOrderDetail: "/api/admin/orders/:id",
+  adminOrderInvoice: "/api/admin/orders/:id/invoice",
   adminApplyPlan: "/api/admin/users/:id/apply-plan",
   adminUserCurrentPlan: "/api/admin/users/:id/current-plan",
   adminUserCancelPlan: "/api/admin/users/:id/cancel-plan",
