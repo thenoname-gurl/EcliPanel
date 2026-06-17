@@ -13,6 +13,7 @@ import { COUNTRIES } from "@/lib/countries"
 import { resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
 import { DEFAULT_EDITOR_SETTINGS, EditorSettings } from "@/lib/editor-settings"
 import { LEGAL_DOCUMENTS } from "@/lib/legal-docs"
+import { DEFAULT_BYOAI_CONFIG, type ByoaiConfig, isByoaiConfigured, OPENCODE_GO_ENDPOINT, OPENCODE_GO_MODELS } from "@/lib/byoai-config"
 import { cn } from "@/lib/utils"
 import { getBadgeColorClass } from "@/lib/badge-colors"
 import { isPasswordValid, PASSWORD_MAX, FIELD_MAX_LENGTHS } from "@/lib/password-validation"
@@ -1070,6 +1071,8 @@ export default function SettingsPage() {
     isSupportedLocale(locale) ? locale : defaultLocale
   )
   const [editorSettings, setEditorSettings] = useState<EditorSettings>(DEFAULT_EDITOR_SETTINGS)
+  const [byoaiConfig, setByoaiConfig] = useState<ByoaiConfig>(DEFAULT_BYOAI_CONFIG)
+  const [showApiKey, setShowApiKey] = useState(false)
   const { user, refreshUser } = useAuth()
 
   const [apiKeys, setApiKeys] = useState<any[]>([])
@@ -1450,6 +1453,9 @@ export default function SettingsPage() {
     if (user?.settings?.editor) {
       setEditorSettings({ ...DEFAULT_EDITOR_SETTINGS, ...user.settings.editor })
     }
+    if (user?.settings?.byoai) {
+      setByoaiConfig({ ...DEFAULT_BYOAI_CONFIG, ...user.settings.byoai })
+    }
   }, [user])
 
   const saveUserSettings = async (settings: Record<string, any>) => {
@@ -1591,6 +1597,16 @@ export default function SettingsPage() {
     }
     setEditorSettings(merged)
     await saveUserSettings({ editor: merged })
+  }
+
+  const updateByoaiConfig = async (partial: Partial<ByoaiConfig>) => {
+    const merged = {
+      ...DEFAULT_BYOAI_CONFIG,
+      ...(user?.settings?.byoai || {}),
+      ...partial,
+    }
+    setByoaiConfig(merged)
+    await saveUserSettings({ byoai: merged })
   }
 
   useEffect(() => {
@@ -1768,6 +1784,7 @@ export default function SettingsPage() {
       guideId: "settings-appearance",
     },
     { value: "editor", icon: Settings, label: t("tabs.editor"), guideId: "settings-editor" },
+    { value: "ai", icon: Sparkles, label: t("tabs.ai") || "AI", guideId: "settings-ai" },
   ]
 
   return (
@@ -3000,6 +3017,170 @@ export default function SettingsPage() {
                   </div>
                 </div>
               </SettingsCard>
+            </div>
+          )}
+
+          {/* AI Tab */}
+          {activeTab === "ai" && (
+            <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <SettingsCard>
+                <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-foreground">{t("ai.title")}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("ai.subtitle")}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2.5 min-w-0">
+                  <SettingRow
+                    icon={Sparkles}
+                    title={t("ai.enableLabel")}
+                    description={t("ai.enableHint")}
+                    action={
+                      <Switch
+                        checked={!!byoaiConfig.enabled}
+                        onCheckedChange={(v) => updateByoaiConfig({ enabled: v })}
+                      />
+                    }
+                  />
+                </div>
+              </SettingsCard>
+
+              {byoaiConfig.enabled && (
+                <>
+                  <SettingsCard>
+                    <h3 className="text-sm font-semibold text-foreground mb-4">{t("ai.provider.title")}</h3>
+                    <div className="flex flex-col gap-3 min-w-0">
+                      <SettingRow
+                        icon={Sparkles}
+                        title={t("ai.provider.presetLabel")}
+                        description={t("ai.provider.presetHint")}
+                        action={
+                          <select
+                            value={byoaiConfig.provider || "opencode-go"}
+                            onChange={(e) => {
+                              const provider = e.target.value as ByoaiConfig["provider"]
+                              const updates: Partial<ByoaiConfig> = { provider }
+                              if (provider === "opencode-go") {
+                                updates.endpoint = OPENCODE_GO_ENDPOINT
+                                updates.modelId = OPENCODE_GO_MODELS[0].id
+                              }
+                              updateByoaiConfig(updates)
+                            }}
+                            className="w-48 border border-border bg-secondary/30 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                          >
+                            <option value="opencode-go">OpenCode Go</option>
+                            <option value="custom">{t("ai.provider.custom")}</option>
+                          </select>
+                        }
+                      />
+                    </div>
+                  </SettingsCard>
+
+                  <SettingsCard>
+                    <h3 className="text-sm font-semibold text-foreground mb-4">{t("ai.connection.title")}</h3>
+                    <div className="flex flex-col gap-3 min-w-0">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("ai.connection.endpointLabel")}</label>
+                        <input
+                          type="url"
+                          value={byoaiConfig.endpoint}
+                          onChange={(e) => updateByoaiConfig({ endpoint: e.target.value })}
+                          placeholder="https://opencode.ai/zen/go"
+                          className="w-full border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono"
+                        />
+                        <p className="text-[10px] text-muted-foreground">{t("ai.connection.endpointHint")}</p>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("ai.connection.apiKeyLabel")}</label>
+                        <div className="relative">
+                          <input
+                            type={showApiKey ? "text" : "password"}
+                            value={byoaiConfig.apiKey}
+                            onChange={(e) => updateByoaiConfig({ apiKey: e.target.value })}
+                            placeholder="sk-..."
+                            className="w-full border border-border bg-secondary/30 px-3 py-2.5 pr-10 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">{t("ai.connection.apiKeyHint")}</p>
+                        <a
+                          href="https://opencode.ai/go?ref=GKS00BZJQZ"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary transition-colors mt-1"
+                        >
+                          {t("ai.connection.getApiKey")}
+                          <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </SettingsCard>
+
+                  <SettingsCard>
+                    <h3 className="text-sm font-semibold text-foreground mb-4">{t("ai.model.title")}</h3>
+                    <div className="flex flex-col gap-3 min-w-0">
+                      {byoaiConfig.provider === "opencode-go" ? (
+                        <SettingRow
+                          icon={Sparkles}
+                          title={t("ai.model.modelLabel")}
+                          description={t("ai.model.modelHint")}
+                          action={
+                            <select
+                              value={byoaiConfig.modelId}
+                              onChange={(e) => updateByoaiConfig({ modelId: e.target.value })}
+                              className="w-48 border border-border bg-secondary/30 px-3 py-2 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                            >
+                              {OPENCODE_GO_MODELS.map((m) => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                          }
+                        />
+                      ) : (
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("ai.model.customModelLabel")}</label>
+                          <input
+                            type="text"
+                            value={byoaiConfig.modelId}
+                            onChange={(e) => updateByoaiConfig({ modelId: e.target.value })}
+                            placeholder="e.g. gpt-4, claude-3-opus, deepseek-v4-pro"
+                            className="w-full border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none focus:ring-2 focus:ring-primary/20 transition-all font-mono"
+                          />
+                          <p className="text-[10px] text-muted-foreground">{t("ai.model.customModelHint")}</p>
+                        </div>
+                      )}
+                    </div>
+                  </SettingsCard>
+
+                  <SettingsCard>
+                    <div className="flex items-center justify-between gap-3 min-w-0">
+                      <div className="min-w-0">
+                        <h3 className="text-sm font-semibold text-foreground">{t("ai.status.title")}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {isByoaiConfigured(byoaiConfig) ? t("ai.status.configured") : t("ai.status.incomplete")}
+                        </p>
+                      </div>
+                      <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${isByoaiConfigured(byoaiConfig) ? "bg-green-500 animate-pulse" : "bg-muted-foreground"}`} />
+                    </div>
+                    {isByoaiConfigured(byoaiConfig) && (
+                      <div className="mt-3 p-3 bg-green-500/5 border border-green-500/20 text-xs text-muted-foreground">
+                        <p className="font-medium text-green-400">{t("ai.status.active")}</p>
+                        <p className="mt-0.5">
+                          {byoaiConfig.provider === "opencode-go" ? "OpenCode Go" : t("ai.provider.custom")} &middot; {byoaiConfig.modelId}
+                        </p>
+                      </div>
+                    )}
+                  </SettingsCard>
+                </>
+              )}
             </div>
           )}
         </div>

@@ -15,6 +15,7 @@ import { Plan } from '../models/plan.entity';
 import { t } from 'elysia';
 import { In } from 'typeorm';
 import { sanitizeError } from '../utils/sanitizeError';
+import { httpRequest } from '../utils/http';
 import type { AIApp, AIContext, ModelLike } from '../types/ai';
 import { extractEndpoints, requestWithFallback, resolveProviderModelId } from '../utils/aiProvider';
 
@@ -773,5 +774,156 @@ export async function aiRoutes(app: AIApp, prefix = '') {
   }, {beforeHandle: authenticate,
     response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Unlink AI model from plan (Admin only)', tags: ['AI'] }
+  });
+
+  function getUserByoaiConfig(user: User): { endpoint: string; apiKey: string; modelId: string } | null {
+    const byoai = user.settings?.byoai as Record<string, unknown> | undefined;
+    if (!byoai || !byoai.enabled) return null;
+    const endpoint = String(byoai.endpoint || '').replace(/\/+$/, '');
+    const apiKey = String(byoai.apiKey || '');
+    const modelId = String(byoai.modelId || '');
+    if (!endpoint || !apiKey || !modelId) {
+      console.warn('[aiHandler:byoai] config incomplete', { hasEndpoint: !!endpoint, hasApiKey: !!apiKey, hasModelId: !!modelId });
+      return null;
+    }
+    return { endpoint, apiKey, modelId };
+  }
+
+  app.post(prefix + '/ai/byoai/chat', async (ctx: AIContext) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
+    const user = ctx.user as User | null;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: ctx.t('auth.unauthorized') };
+    }
+    const byoai = getUserByoaiConfig(user);
+    if (!byoai) {
+      ctx.set.status = 400;
+      return { error: 'BYOAI is not configured. Configure your AI provider in Settings > AI.' };
+    }
+    const { message, systemPrompt, history } = (ctx.body || {}) as Record<string, unknown>;
+    if (!message) {
+      ctx.set.status = 400;
+      return { error: ctx.t('validation.messageRequired') };
+    }
+
+    try {
+      const messages: { role: string; content: string }[] = [];
+      if (typeof systemPrompt === 'string' && systemPrompt) messages.push({ role: 'system', content: systemPrompt });
+      if (Array.isArray(history)) {
+        for (const h of history) {
+          if (!h || typeof h !== 'object') continue;
+          const msg = h as Record<string, unknown>;
+          if (typeof msg.role === 'string' && typeof msg.content === 'string') {
+            messages.push({ role: msg.role, content: msg.content });
+          }
+        }
+      }
+      messages.push({ role: 'user', content: String(message) });
+
+      try {
+        const url = `${byoai.endpoint}/v1/chat/completions`;
+        const res = await httpRequest(url, {
+          method: 'post',
+          body: { model: byoai.modelId, messages, max_tokens: 4096 } as never,
+          headers: {
+            Authorization: `Bearer ${byoai.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeoutMs: 120000,
+        });
+        const payload = res.data as Record<string, unknown>;
+        const choices = payload?.choices as Array<{ message?: { content?: unknown } }> | undefined;
+        const content = choices?.[0]?.message?.content;
+        if (content) {
+          return { reply: String(content) };
+        }
+        console.error('[aiHandler:byoai-chat] unexpected response shape:', JSON.stringify(payload).slice(0, 500));
+        return { reply: String(JSON.stringify(res.data)) };
+      } catch (httpErr: any) {
+        const detail = httpErr?.response?.data || httpErr?.message || httpErr;
+        console.error('[aiHandler:byoai-chat] provider error:', detail);
+        ctx.set.status = 502;
+        return { reply: `AI service error: ${String(detail).slice(0, 200)}` };
+      }
+    } catch (err) {
+      console.error('[aiHandler:byoai-chat]', err);
+      return { reply: 'AI service temporarily unavailable. Please try again shortly.' };
+    }
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Object({ reply: t.String() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'Chat with your own AI provider (BYOAI)', tags: ['AI'] }
+  });
+
+  app.post(prefix + '/ai/byoai/chat/completions', async (ctx: AIContext) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
+    const user = ctx.user as User | null;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: ctx.t('auth.unauthorized') };
+    }
+    const byoai = getUserByoaiConfig(user);
+    if (!byoai) {
+      ctx.set.status = 400;
+      return { error: 'BYOAI is not configured. Configure your AI provider in Settings > AI.' };
+    }
+    const body = (ctx.body || {}) as Record<string, unknown>;
+
+    try {
+      const forwardBody: Record<string, unknown> = { ...body };
+      forwardBody.model = byoai.modelId;
+      const url = `${byoai.endpoint}/v1/chat/completions`;
+      const res = await httpRequest(url, {
+        method: 'post',
+        body: forwardBody as never,
+        headers: {
+          Authorization: `Bearer ${byoai.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeoutMs: 120000,
+      });
+      return res.data;
+    } catch (err: any) {
+      ctx.set.status = 502;
+      const detail = err?.response?.data || err?.message || String(err);
+      console.error('[aiHandler:byoai-chat-completions]', detail);
+      return { error: String(detail).slice(0, 300) };
+    }
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'OpenAI-compatible chat completions via your own AI provider (BYOAI)', tags: ['AI'] }
+  });
+
+  app.get(prefix + '/ai/byoai/models', async (ctx: AIContext) => {
+    const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
+    const user = ctx.user as User | null;
+    if (!user) {
+      ctx.set.status = 401;
+      return { error: ctx.t('auth.unauthorized') };
+    }
+    const byoai = getUserByoaiConfig(user);
+    if (!byoai) {
+      ctx.set.status = 400;
+      return { error: 'BYOAI is not configured.' };
+    }
+    try {
+      const url = `${byoai.endpoint}/v1/models`;
+      const res = await httpRequest(url, {
+        method: 'get',
+        headers: {
+          Authorization: `Bearer ${byoai.apiKey}`,
+        },
+        timeoutMs: 15000,
+      });
+      return res.data;
+    } catch (err: any) {
+      ctx.set.status = 502;
+      const detail = err?.response?.data || err?.message || String(err);
+      console.error('[aiHandler:byoai-models]', detail);
+      return { error: String(detail).slice(0, 300) };
+    }
+  }, {beforeHandle: authenticate,
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
+    detail: { summary: 'List models from your own AI provider (BYOAI)', tags: ['AI'] }
   });
 }

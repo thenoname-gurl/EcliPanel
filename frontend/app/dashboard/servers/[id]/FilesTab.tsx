@@ -1769,6 +1769,8 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
               }}
               language={MONACO_LANGUAGE_MAP[ext] || "plaintext"}
               editorSettings={editorSettings}
+              filePath={editingFile}
+              fileName={editingFile?.split("/").pop()}
             />
           </div>
           {revisions && (

@@ -3072,7 +3072,8 @@
       "documents": "Documents",
       "api": "API",
       "theme": "Theme",
-      "editor": "Editor"
+      "editor": "Editor",
+      "ai": "AI"
     },
     "documents": {
       "title": "Documents",
@@ -3362,6 +3363,39 @@
       "tabSizeHint": "Number of spaces per tab",
       "fontFamily": "Font Family",
       "fontFamilyHint": "Choose a monospace font for better code readability"
+    },
+    "ai": {
+      "title": "Bring Your Own AI",
+      "subtitle": "Use your own AI provider with an OpenAI-compatible API endpoint. OpenCode Go is included as a preset.",
+      "enableLabel": "Enable BYOAI",
+      "enableHint": "Use your own API key and endpoint instead of panel-managed models",
+      "provider": {
+        "title": "Provider",
+        "presetLabel": "Preset",
+        "presetHint": "Select a pre-configured provider or enter custom settings",
+        "custom": "Custom"
+      },
+      "connection": {
+        "title": "Connection",
+        "endpointLabel": "API Endpoint",
+        "endpointHint": "Base URL of your OpenAI-compatible API (e.g. https://opencode.ai/zen/go)",
+        "apiKeyLabel": "API Key",
+        "apiKeyHint": "Your provider API key is stored securely in your account settings",
+        "getApiKey": "Don't have an API key? Get one from OpenCode Go"
+      },
+      "model": {
+        "title": "Model",
+        "modelLabel": "Model",
+        "modelHint": "Select which model to use for completions",
+        "customModelLabel": "Model ID",
+        "customModelHint": "Enter the model identifier (e.g. gpt-4, claude-3-opus, deepseek-v4-pro)"
+      },
+      "status": {
+        "title": "Status",
+        "configured": "Your AI provider is configured and ready to use",
+        "incomplete": "Fill in all required fields to enable your AI provider",
+        "active": "Active"
+      }
     }
   },
   "identityPage": {
@@ -5315,13 +5349,13 @@
       "codeAssistant": {
         "name": "Code Assistant",
         "description": "Generate, debug, and optimize server configurations",
-        "systemPrompt": "You are a Code Assistant for game server management. Help the user generate, debug, and optimize server configuration files (server.properties, spigot.yml, paper.yml, startup scripts, Docker compose files, etc). Provide clear code with explanations.",
+        "systemPrompt": "You are a Code Assistant for the EcliPanel game server management platform. Help users generate, debug, and optimize server configuration files (server.properties, spigot.yml, paper.yml, bukkit.yml, startup scripts, Docker compose files, .env files, nginx configs, etc). When providing code, always include the full file path as a comment at the top. Explain what each setting does. Suggest security hardening where applicable. Output complete, ready-to-use config blocks. Consider the user's game server type (Minecraft, Valheim, CS2, etc) and adapt configs accordingly.",
         "placeholder": "Describe what you need — e.g. 'Optimize my paper.yml for 50 players'"
       },
       "logAnalyzer": {
         "name": "Log Analyzer",
         "description": "Analyze server logs and identify issues automatically",
-        "systemPrompt": "You are a Log Analyzer for game servers. The user will paste server logs. Identify errors, warnings, performance issues, plugin conflicts, and crashes. Provide clear diagnoses and actionable fix steps.",
+        "systemPrompt": "You are a Log Analyzer for game servers on EcliPanel. The user will paste server logs. Systematically identify: errors (crash logs, stack traces), warnings (deprecated API calls, mod conflicts), performance issues (TPS drops, GC pauses, tick lag), plugin/mod conflicts, and security concerns. For each issue found: 1) Quote the relevant log line, 2) Explain what it means, 3) Provide a specific fix with exact config values or commands. Prioritize critical issues first. If the log contains a full crash report, analyze the stack trace and identify the root cause mod/plugin.",
         "placeholder": "Paste your server log or describe the error…"
       },
       "imageGenerator": {
@@ -5331,19 +5365,19 @@
       "configWizard": {
         "name": "Config Wizard",
         "description": "Auto-generate optimal server configurations",
-        "systemPrompt": "You are a Config Wizard for game servers. Based on the user's requirements (player count, server type, mods/plugins, hardware specs), generate complete, optimized configuration files. Output ready-to-use config blocks.",
+        "systemPrompt": "You are a Config Wizard for game servers on EcliPanel. Based on the user's requirements (player count, server type, mods/plugins, hardware specs like RAM and CPU), generate complete, optimized configuration files. For each config: 1) State the file path, 2) Explain key decisions made, 3) Output the full ready-to-use config. Adapt JVM flags, garbage collection settings, and startup parameters to the specified hardware. Consider server type specific optimizations (Paper/Airplane/Pufferfish for performance, Forge/Fabric for modded). Include comments explaining each significant setting.",
         "placeholder": "e.g. 'Generate optimized JVM flags for 8GB RAM, Paper 1.21, 100 players'"
       },
       "performanceAdvisor": {
         "name": "Performance Advisor",
         "description": "AI-powered performance optimization suggestions",
-        "systemPrompt": "You are a Performance Advisor for game servers. Analyze the user's described setup and provide specific optimization suggestions for TPS, memory usage, chunk loading, entity management, and network performance. Be specific with config values.",
+        "systemPrompt": "You are a Performance Advisor for game servers on EcliPanel. Analyze the user's described setup and provide specific optimization suggestions across all layers: JVM/startup flags (GC tuning, memory allocation), server config (view-distance, simulation-distance, entity-activation-range, tick-rates), plugin optimization (identify laggy plugins, suggest alternatives), database tuning (if MySQL/Redis involved), and OS-level tuning where applicable. Be specific with exact config values and file paths. Explain the performance impact of each change. Prioritize by impact — highest gain changes first.",
         "placeholder": "Describe your server setup and performance issues…"
       },
       "analyticsAi": {
         "name": "Analytics AI",
         "description": "Predictive analytics for server resource planning",
-        "systemPrompt": "You are an Analytics AI for server resource planning. Help the user predict resource needs, plan scaling, estimate costs, and analyze usage patterns. Provide data-driven recommendations for server sizing and capacity planning.",
+        "systemPrompt": "You are an Analytics AI for server resource planning on EcliPanel. Help users predict resource needs, plan scaling, estimate costs, and analyze usage patterns. Provide data-driven recommendations for: CPU cores needed per player count, RAM allocation guidelines per server type, storage growth estimates, network bandwidth requirements, and node capacity planning. When estimating costs, consider EcliPanel's node-based infrastructure model. Help users understand when to scale vertically (bigger node) vs horizontally (more nodes). Include formulas where applicable so users can adapt to their specific case.",
         "placeholder": "e.g. 'I expect 200 concurrent players, what resources do I need?'"
       }
     },

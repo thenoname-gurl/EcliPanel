@@ -9,6 +9,8 @@ import { useEffect, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import { useAuth } from "@/hooks/useAuth"
+import { isByoaiConfigured, type ByoaiConfig, OPENCODE_GO_MODELS, OPENCODE_GO_REFERRAL } from "@/lib/byoai-config"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
@@ -24,6 +26,8 @@ import {
   X,
   Loader2,
   Clock,
+  ExternalLink,
+  Sparkles,
 } from "lucide-react"
 
 function MarkdownContent({ content }: { content: string }) {
@@ -113,6 +117,9 @@ interface ChatMessage {
 export default function AIStudioPage() {
   const t = useTranslations("aiStudioPage")
   const AI_TOOLS = getAiTools(t)
+  const { user } = useAuth()
+  const byoaiConfig = user?.settings?.byoai as ByoaiConfig | undefined
+  const useByoai = isByoaiConfigured(byoaiConfig)
 
   const [models, setModels] = useState<any[]>([])
   const [myModels, setMyModels] = useState<any[]>([])
@@ -127,6 +134,17 @@ export default function AIStudioPage() {
   useEffect(() => {
     const load = async () => {
       try {
+        if (useByoai && byoaiConfig) {
+          const mapped = OPENCODE_GO_MODELS.map(m => ({
+            id: m.id,
+            name: m.name,
+            config: { type: "text", modelId: m.id },
+          }))
+          setModels(mapped)
+          setMyModels(mapped.map(m => ({ model: m })))
+          setLoading(false)
+          return
+        }
         const [all, mine] = await Promise.all([
           apiFetch(API_ENDPOINTS.aiModels),
           apiFetch(API_ENDPOINTS.aiMyModels),
@@ -140,7 +158,7 @@ export default function AIStudioPage() {
       }
     }
     load()
-  }, [])
+  }, [useByoai])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -169,6 +187,10 @@ export default function AIStudioPage() {
 
     try {
       const payloadMessages: { role: string; content: string }[] = []
+      payloadMessages.push({
+        role: "system",
+        content: "You are an expert assistant in the EcliPanel server management platform. Help users manage game servers, applications, configurations, and infrastructure. Be concise, specific, and actionable. Use code blocks for configs and commands."
+      })
       if (activeTool.systemPrompt) {
         payloadMessages.push({ role: "system", content: activeTool.systemPrompt })
       }
@@ -185,9 +207,11 @@ export default function AIStudioPage() {
       const body: any = { messages: payloadMessages }
       if (providerModelId) body.model = providerModelId
 
-      const res = await apiFetch(API_ENDPOINTS.openaiChat, {
+      const endpoint = useByoai ? API_ENDPOINTS.byoaiChatCompletions : API_ENDPOINTS.openaiChat
+      const res = await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
+        timeout: 120000,
       })
 
       const aiText =
@@ -336,6 +360,18 @@ export default function AIStudioPage() {
                       <p className="font-medium text-foreground">{t("models.noModelsAssignedTitle")}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{t("models.noModelsAssignedDescription")}</p>
                     </div>
+                    {!useByoai && (
+                      <a
+                        href={OPENCODE_GO_REFERRAL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
+                      >
+                        <Sparkles className="h-3 w-3" />
+                        Bring your own AI with OpenCode Go
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </a>
+                    )}
                   </div>
                 ) : (
                   myModels.map(({ model }) => {
