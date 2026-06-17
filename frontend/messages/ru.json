@@ -4609,6 +4609,13 @@
         "filesystemManaged": "Файловая система управляется cloud-init",
         "panelFilesGuest": "Файлы панели могут не отражать состояние гостевой системы"
       }
+    },
+    "warnings": {
+      "nodeIssueTitle": "{node} сейчас испытывает проблемы",
+      "nodesIssueTitle": "Некоторые ноды сейчас испытывают проблемы",
+      "nodeIssueDescription": "Серверы на этой ноде могут быть недоступны или не отвечать.",
+      "nodesIssueDescription": "Серверы на этих нодах могут быть недоступны или не отвечать: {nodes}.",
+      "learnMore": "Подробнее на /status"
     }
   },
   "tunnelsPage": {

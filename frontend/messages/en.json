@@ -4560,6 +4560,13 @@
         "filesystemManaged": "Filesystem managed by cloud-init",
         "panelFilesGuest": "Panel files may not reflect guest state"
       }
+    },
+    "warnings": {
+      "nodeIssueTitle": "{node} is currently experiencing issues",
+      "nodesIssueTitle": "Some nodes are currently experiencing issues",
+      "nodeIssueDescription": "Servers on this node may be unavailable or unresponsive.",
+      "nodesIssueDescription": "Servers on these nodes may be unavailable or unresponsive: {nodes}.",
+      "learnMore": "Learn more at /status"
     }
   },
   "tunnelsPage": {
