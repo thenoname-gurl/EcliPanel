@@ -9,6 +9,7 @@ import { Node } from '../models/node.entity';
 import { Organisation } from '../models/organisation.entity';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
+import { ServerSubuser } from '../models/serverSubuser.entity';
 import { refreshAllSftpProxies } from '../services/sftpProxyService';
 import { isValidIpv6Cidr } from '../utils/ipv6';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
@@ -136,6 +137,44 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'List nodes available for the current user', tags: ['Nodes'] },
+    }
+  );
+
+  app.get(
+    prefix + '/nodes/my-health',
+    async (ctx: BaseHandlerContext) => {
+      const user = (ctx as unknown as Record<string, unknown>).user as User;
+      if (!user) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
+
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
+        where: { userId: user.id },
+      });
+      const subuserUuids = subuserEntries.map(s => s.serverUuid);
+      const where: Record<string, unknown>[] = [{ userId: user.id }];
+      if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
+      const configs = await cfgRepo.find({ where });
+
+      const nodeIds = [...new Set(configs.map(c => c.nodeId))];
+      if (nodeIds.length === 0) return [];
+
+      const unhealthyNodeIds = await getUnhealthyNodeIds();
+      const affectedIds = nodeIds.filter(id => unhealthyNodeIds.includes(id));
+      if (affectedIds.length === 0) return [];
+
+      const nodes = await nodeRepo().find({ where: { id: In(affectedIds) } });
+      return nodes.map(n => ({ id: n.id, name: n.name }));
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Array(t.Object({ id: t.Number(), name: t.String() })),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get unhealthy nodes for the current user\'s servers', tags: ['Nodes'] },
     }
   );
 

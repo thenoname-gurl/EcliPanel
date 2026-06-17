@@ -9,7 +9,7 @@ User=root
 WorkingDirectory=/srv/samba/shared/EcliPanel/v3/frontend
 Environment=NODE_ENV=production
 Environment=PORT=3001
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/root/.bun/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=/bin/bash -lc './start.sh --port ${PORT}'
 Restart=on-failure
 RestartSec=5

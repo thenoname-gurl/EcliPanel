@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { useTranslations } from "next-intl"
+import Link from "next/link"
 import {
   Server,
   Shield,
@@ -18,6 +19,7 @@ import {
   Zap,
   HardDrive,
   MemoryStick,
+  AlertCircle,
 } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -90,6 +92,7 @@ export default function SOCDashboard() {
   const [recentActivity, setRecentActivity] = useState<any[]>([])
   const [socAlerts, setSocAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.servers)
@@ -129,6 +132,14 @@ export default function SOCDashboard() {
         setRecentActivity([])
         setSocAlerts([])
       })
+  }, [])
+
+  useEffect(() => {
+    apiFetch(API_ENDPOINTS.nodesMyHealth)
+      .then((data) => {
+        if (Array.isArray(data)) setUnhealthyNodes(data)
+      })
+      .catch(() => {})
   }, [])
 
   const myServers = servers.filter((s) => s.userId == null || s.userId === user.id)
@@ -211,6 +222,29 @@ export default function SOCDashboard() {
       </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
+          {unhealthyNodes.length > 0 && (
+            <div className="border border-destructive/30 bg-destructive/5 p-4 text-sm text-foreground">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="mt-0.5 h-4 w-4 text-destructive flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">
+                    {unhealthyNodes.length === 1
+                      ? t("warnings.nodeIssueTitle", { node: unhealthyNodes[0].name })
+                      : t("warnings.nodesIssueTitle")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {unhealthyNodes.length === 1
+                      ? t("warnings.nodeIssueDescription", { node: unhealthyNodes[0].name })
+                      : t("warnings.nodesIssueDescription", { nodes: unhealthyNodes.map(n => n.name).join(", ") })}
+                  </p>
+                  <Link href="/status" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                    {t("warnings.learnMore")}
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Stats Row */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <StatCard
