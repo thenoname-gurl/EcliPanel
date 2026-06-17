@@ -726,6 +726,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [transferNodeId, setTransferNodeId] = useState<number | null>(null)
   const [transferError, setTransferError] = useState<string | null>(null)
   const [cancellingTransfer, setCancellingTransfer] = useState(false)
+  const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
 
   useEffect(() => {
     if (!powerToast) return
@@ -828,6 +829,14 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   useEffect(() => {
     setEditorSettings(user?.settings?.editor)
   }, [user?.settings?.editor])
+
+  useEffect(() => {
+    apiFetch(API_ENDPOINTS.nodesMyHealth)
+      .then((data) => {
+        if (Array.isArray(data)) setUnhealthyNodes(data)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     loadServer()
@@ -1271,6 +1280,29 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               >
                 <X className="h-3.5 w-3.5" />
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {unhealthyNodes.length > 0 && (
+        <div className="border-b border-destructive/30 bg-destructive/5 px-6 sm:px-12 lg:px-40 py-3 text-sm text-foreground">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 text-destructive flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground">
+                {unhealthyNodes.length === 1
+                  ? t("warnings.nodeIssueTitle", { node: unhealthyNodes[0].name })
+                  : t("warnings.nodesIssueTitle")}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {unhealthyNodes.length === 1
+                  ? t("warnings.nodeIssueDescription", { node: unhealthyNodes[0].name })
+                  : t("warnings.nodesIssueDescription", { nodes: unhealthyNodes.map(n => n.name).join(", ") })}
+              </p>
+              <Link href="/status" className="mt-2 inline-block text-xs font-medium text-primary hover:underline">
+                {t("warnings.learnMore")}
+              </Link>
             </div>
           </div>
         </div>
