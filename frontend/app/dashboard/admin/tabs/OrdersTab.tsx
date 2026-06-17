@@ -24,6 +24,7 @@ import {
   ChevronRight,
   Clock,
   Edit,
+  FileDown,
   Loader2,
   Plus,
   Receipt,
@@ -204,6 +205,22 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
       console.error("suspend user failed", e)
     } finally {
       setSuspendingUserId(null)
+    }
+  }
+
+  async function handleDownloadInvoice(order: any) {
+    try {
+      const url = API_ENDPOINTS.adminOrderInvoice.replace(":id", String(order.id))
+      const res = await fetch(url, { credentials: "include" })
+      if (!res.ok) throw new Error("Download failed")
+      const blob = await res.blob()
+      const a = document.createElement("a")
+      a.href = URL.createObjectURL(blob)
+      a.download = `invoice-${order.id}.pdf`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (e: any) {
+      console.error("invoice download failed", e)
     }
   }
 
@@ -440,6 +457,13 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                                 <XCircle className="h-3.5 w-3.5" />
                               </button>
                             )}
+                            <button
+                              onClick={() => handleDownloadInvoice(order)}
+                              title={t("actions.downloadInvoice")}
+                              className="p-1.5 text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                            >
+                              <FileDown className="h-3.5 w-3.5" />
+                            </button>
                             {canDeleteOrders && (
                               <button
                                 onClick={() => deleteOrder(order)}
@@ -591,6 +615,13 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         <span>{t("actions.cancel")}</span>
                       </button>
                     )}
+                    <button
+                      onClick={() => handleDownloadInvoice(order)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    >
+                      <FileDown className="h-3.5 w-3.5" />
+                      <span>{t("actions.invoice")}</span>
+                    </button>
                     <button
                       onClick={() => deleteOrder(order)}
                       className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"

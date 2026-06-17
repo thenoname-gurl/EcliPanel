@@ -419,8 +419,8 @@
     "missingTokenOrSecret": "Missing token or secret",
     "missingCodeOrState": "Missing code or state",
     "invalidSession": "Invalid session",
-    "missingCSRFToken": "Missing CSRF token",
-    "invalidCSRFToken": "Invalid CSRF token",
+    "missingCSRFToken": "Missing CSRF token — please refresh the page and try again.",
+    "invalidCSRFToken": "Invalid CSRF token — please refresh the page and try again.",
     "ageVerificationRequired": "Age verification is required before using server management features.",
     "paymentMethodRequired": "Payment method ID is required",
     "invalidPaymentMethods": "Invalid payment methods data"

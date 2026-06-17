@@ -419,8 +419,8 @@
     "missingTokenOrSecret": "Отсутствует токен или секрет",
     "missingCodeOrState": "Отсутствует код или state",
     "invalidSession": "Недопустимая сессия",
-    "missingCSRFToken": "Отсутствует CSRF-токен",
-    "invalidCSRFToken": "Недопустимый CSRF-токен",
+    "missingCSRFToken": "Отсутствует CSRF-токен — обновите страницу и попробуйте снова.",
+    "invalidCSRFToken": "Недопустимый CSRF-токен — обновите страницу и попробуйте снова.",
     "ageVerificationRequired": "Для использования функций управления сервером требуется подтверждение возраста.",
     "paymentMethodRequired": "ID способа оплаты обязателен",
     "invalidPaymentMethods": "Неверные данные способов оплаты"

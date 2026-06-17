@@ -1712,7 +1712,9 @@
       "applying": "Applying…",
       "saving": "Saving…",
       "applyPlan": "Apply Plan",
-      "saveChanges": "Save Changes"
+      "saveChanges": "Save Changes",
+      "downloadInvoice": "Download Invoice",
+      "invoice": "Invoice"
     }
   },
   "adminVerificationsTab": {

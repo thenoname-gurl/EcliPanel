@@ -32,6 +32,7 @@ import { sanitizeError } from '../utils/sanitizeError';
 import { createT, getMessages, defaultLocale } from '../i18n';
 import { In, IsNull, Like, MoreThanOrEqual, Not } from 'typeorm';
 import { Order } from '../models/order.entity';
+import { renderInvoicePdf } from './orderHandler';
 import { Coupon } from '../models/coupon.entity';
 import { CouponUse } from '../models/couponUse.entity';
 import { Plan } from '../models/plan.entity';
@@ -8628,6 +8629,45 @@ export async function adminRoutes(app: any, prefix = '') {
         },
       },
       detail: { summary: 'Delete an order (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/orders/:id/invoice',
+    async (ctx: any) => {
+      const adminErr = requireAdminPermission(ctx, 'orders:view');
+      if (adminErr !== true) return adminErr;
+      const orderRepo = AppDataSource.getRepository(Order);
+      const order = await orderRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!order) {
+        ctx.set.status = 404;
+        return { error: ctx.t('order.notFound') };
+      }
+      try {
+        const pdfBuf = await renderInvoicePdf(order as any);
+        return new Response(pdfBuf as any, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': `attachment; filename="invoice-${order.id}.pdf"`,
+          },
+        });
+      } catch (e: any) {
+        console.error('invoice generation failed', e);
+        ctx.set.status = 500;
+        return { error: ctx.t('system.invoiceGenerationFailed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Download invoice PDF (admin)', tags: ['Admin'] },
     }
   );
 
