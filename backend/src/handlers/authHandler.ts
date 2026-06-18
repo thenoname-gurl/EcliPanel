@@ -614,6 +614,23 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       const tempPayload = payload;
       const tempUserId = Number(tempPayload.userId);
       const tempSessionId = String(tempPayload.tfaSession);
+
+      // 5-second cooldown per 2FA session to prevent rapid resends
+      const cooldownKey = `tfa:email:cooldown:${tempSessionId}`;
+      try {
+        const cooldown = await redisGet(cooldownKey);
+        if (cooldown) {
+          ctx.set.status = 429;
+          ctx.set.headers = {
+            ...(ctx.set.headers || {}),
+            'Retry-After': '5',
+          };
+          return { error: 'rate_limited', retryAfter: 5 };
+        }
+      } catch (e) {
+        /* proceed — cooldown check is best-effort */
+      }
+
       ctx.log?.info?.(
         { userId: tempUserId, tfaSession: tempSessionId },
         'sending 2FA email'
@@ -626,6 +643,10 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       }
       const code = randomInt(0, 1000000).toString().padStart(6, '0');
       await redisSet(`tfa:email:${tempSessionId}`, code, 300);
+
+      // Set 5-second cooldown after successful send
+      await redisSet(cooldownKey, '1', 5);
+
       try {
         await sendMail({
           to: user.email,
