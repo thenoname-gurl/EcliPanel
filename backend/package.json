@@ -32,7 +32,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@noble/post-quantum": "latest",
     "@react-email/components": "^1.0.12",
-    "@react-email/render": "^2.0.8",
+    "@react-email/render": "^2.0.9",
     "@serenity-kit/opaque": "^1.1.0",
     "@simplewebauthn/server": "latest",
     "@slack/bolt": "^4.7.3",
