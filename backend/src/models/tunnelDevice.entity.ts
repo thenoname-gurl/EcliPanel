@@ -37,7 +37,7 @@ export class TunnelDevice {
   @Column({ default: false })
   approved: boolean;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, type: 'text' })
   token?: string;
 
   @Column({ nullable: true })
