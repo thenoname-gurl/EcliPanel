@@ -25,7 +25,7 @@ function stripHtml(html: string, maxLen = 4000): string {
 }
 
 function extractTagText(html: string): string {
-  return html.replace(/<[^>]+>/g, "").replace(/&[a-z]+;/gi, " ").replace(/&#\d+;/g, " ").replace(/\s+/g, " ").trim();
+  return stripHtml(html, Infinity);
 }
 
 export interface ToolDef {
