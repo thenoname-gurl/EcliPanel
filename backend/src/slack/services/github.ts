@@ -156,4 +156,50 @@ export const githubService = {
       id: c.id, body: c.body, author: c.user?.login, createdAt: c.created_at,
     }));
   },
+
+  async updateIssue(token: string, owner: string, repo: string, issueNumber: number, updates: { state?: "open" | "closed"; title?: string; body?: string; labels?: string[] }) {
+    const client = getClient(token);
+    const res = await client.rest.issues.update({ owner, repo, issue_number: issueNumber, ...updates });
+    return {
+      number: res.data.number, title: res.data.title, state: res.data.state, url: res.data.html_url,
+    };
+  },
+
+  async closeIssue(token: string, owner: string, repo: string, issueNumber: number, comment?: string) {
+    const client = getClient(token);
+    if (comment) {
+      await client.rest.issues.createComment({
+        owner, repo, issue_number: issueNumber,
+        body: comment + "\n\n> *Resolved via EcliBot AI*",
+      });
+    }
+    const res = await client.rest.issues.update({ owner, repo, issue_number: issueNumber, state: "closed" });
+    return {
+      number: res.data.number, title: res.data.title, state: res.data.state, url: res.data.html_url,
+    };
+  },
+
+  async closePR(token: string, owner: string, repo: string, prNumber: number) {
+    const client = getClient(token);
+    const res = await client.rest.pulls.update({ owner, repo, pull_number: prNumber, state: "closed" });
+    return {
+      number: res.data.number, title: res.data.title, state: res.data.state, url: res.data.html_url,
+    };
+  },
+
+  async mergePR(token: string, owner: string, repo: string, prNumber: number, method: "merge" | "squash" | "rebase" = "merge", title?: string) {
+    const client = getClient(token);
+    const res = await client.rest.pulls.merge({ owner, repo, pull_number: prNumber, merge_method: method, commit_title: title });
+    return {
+      merged: res.data.merged, message: res.data.message, sha: res.data.sha,
+    };
+  },
+
+  async requestReviewers(token: string, owner: string, repo: string, prNumber: number, reviewers: string[]) {
+    const client = getClient(token);
+    const res = await client.rest.pulls.requestReviewers({ owner, repo, pull_number: prNumber, reviewers });
+    return {
+      requested: res.data.requested_reviewers?.map((r: any) => r.login) || [],
+    };
+  },
 };

@@ -56,6 +56,10 @@ async function executeGithubTool(token: string, name: string, args: any): Promis
       case "github_list_issues": result = await githubService.listIssues(token, args.owner, args.repo, args.state); break;
       case "github_get_issue": result = await githubService.getIssue(token, args.owner, args.repo, args.issueNumber); break;
       case "github_get_comments": result = await githubService.listIssueComments(token, args.owner, args.repo, args.issueNumber); break;
+      case "github_close_issue": result = await githubService.closeIssue(token, args.owner, args.repo, args.issueNumber, args.comment); break;
+      case "github_close_pr": result = await githubService.closePR(token, args.owner, args.repo, args.prNumber); break;
+      case "github_merge_pr": result = await githubService.mergePR(token, args.owner, args.repo, args.prNumber, args.method || "merge", args.title); break;
+      case "github_request_review": result = await githubService.requestReviewers(token, args.owner, args.repo, args.prNumber, args.reviewers); break;
       default: return JSON.stringify({ error: `Unknown GitHub tool: ${name}` });
     }
     return JSON.stringify(result);
@@ -83,6 +87,10 @@ const githubTools: Array<{
   { type: "function", function: { name: "github_list_issues", description: "List issues in a repo", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, state: { type: "string", enum: ["open", "closed", "all"] } }, required: ["owner", "repo"] } } },
   { type: "function", function: { name: "github_get_issue", description: "Get issue details", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" } }, required: ["owner", "repo", "issueNumber"] } } },
   { type: "function", function: { name: "github_get_comments", description: "List comments on an issue/PR", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" } }, required: ["owner", "repo", "issueNumber"] } } },
+  { type: "function", function: { name: "github_close_issue", description: "Close an issue, optionally with a comment. Adds 'Resolved via EcliBot AI' footer.", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" }, comment: { type: "string" } }, required: ["owner", "repo", "issueNumber"] } } },
+  { type: "function", function: { name: "github_close_pr", description: "Close a pull request without merging", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, prNumber: { type: "number" } }, required: ["owner", "repo", "prNumber"] } } },
+  { type: "function", function: { name: "github_merge_pr", description: "Merge a pull request. Use merge_method: merge, squash, or rebase.", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, prNumber: { type: "number" }, method: { type: "string", enum: ["merge", "squash", "rebase"] }, title: { type: "string" } }, required: ["owner", "repo", "prNumber"] } } },
+  { type: "function", function: { name: "github_request_review", description: "Request reviewers on a PR", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, prNumber: { type: "number" }, reviewers: { type: "array", items: { type: "string" }, description: "Array of GitHub usernames" } }, required: ["owner", "repo", "prNumber", "reviewers"] } } },
 ];
 
 function sanitizeHistory(history: Message[]): Message[] {
