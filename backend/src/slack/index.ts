@@ -89,12 +89,25 @@ export function initSlackBot(): void {
         } else if (p.type === "text" && p.text) {
           streamText = p.text;
           const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
-          await client.chat.update({ channel: command.channel_id, ts, text: tools + streamText });
+          const clean = hasPII(streamText) ? cleanPII(streamText) : streamText;
+          await client.chat.update({ channel: command.channel_id, ts, text: tools + clean });
         }
       });
 
       const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
-      await client.chat.update({ channel: command.channel_id, ts, text: tools + result.reply });
+      const fullReply = tools + result.reply;
+
+      if (hasPII(fullReply)) {
+        await client.chat.update({ channel: command.channel_id, ts, text: tools + cleanPII(result.reply) });
+        await client.chat.postEphemeral({ channel: command.channel_id, user: command.user_id, text: `:warning: *PII detected — full response (only visible to you):*\n\n${fullReply}`,
+          blocks: [
+            { type: "section", text: { type: "mrkdwn", text: `:warning: *PII detected — full response:*\n\n${fullReply.slice(0, 2800)}` } },
+            { type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "Post publicly" }, action_id: "publish_ephemeral_pii", value: JSON.stringify({ channel: command.channel_id, ts, fullReply }) }] },
+          ],
+        });
+      } else {
+        await client.chat.update({ channel: command.channel_id, ts, text: fullReply });
+      }
       messageAuthors.set(`${command.channel_id}:${ts}`, command.user_id);
       await addDeleteReaction(client, command.channel_id, ts);
       await respond({ text: result.reply, response_type: "in_channel", mrkdwn: true });
@@ -161,7 +174,8 @@ export function initSlackBot(): void {
         } else if (p.type === "text" && p.text) {
           streamText = p.text;
           const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
-          await client.chat.update({ channel: event.channel, ts, text: tools + streamText });
+          const clean = hasPII(streamText) ? cleanPII(streamText) : streamText;
+          await client.chat.update({ channel: event.channel, ts, text: tools + clean });
         }
       });
 
@@ -169,17 +183,14 @@ export function initSlackBot(): void {
       const fullReply = tools + result.reply;
 
       if (hasPII(fullReply)) {
-        const cleanReply = tools + cleanPII(result.reply);
-        await client.chat.update({ channel: event.channel, ts, text: cleanReply });
+        await client.chat.update({ channel: event.channel, ts, text: tools + cleanPII(result.reply) });
         messageAuthors.set(`${event.channel}:${ts}`, userId);
         await addDeleteReaction(client, event.channel, ts);
         await client.chat.postEphemeral({
-          channel: event.channel,
-          user: userId,
-          thread_ts: threadTs,
-          text: `:warning: *PII detected in this response.*\n\n${fullReply}`,
+          channel: event.channel, user: userId, thread_ts: threadTs,
+          text: `:warning: *PII detected — full response (only visible to you):*\n\n${fullReply}`,
           blocks: [
-            { type: "section", text: { type: "mrkdwn", text: `:warning: *PII detected — full response (only visible to you):*\n\n${fullReply}` } },
+            { type: "section", text: { type: "mrkdwn", text: `:warning: *PII detected — full response:*\n\n${fullReply.slice(0, 2800)}` } },
             { type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "Post publicly" }, action_id: "publish_pii", value: JSON.stringify({ channel: event.channel, ts, fullReply, threadTs }) }] },
           ],
         });
@@ -254,14 +265,19 @@ export function initSlackBot(): void {
     } catch {}
   });
 
-  app.action("publish_pii", async ({ action, ack, client, respond }) => {
+  app.action("publish_pii", async ({ action, ack, client }) => {
     await ack();
     try {
       const data = JSON.parse((action as any).value);
       await client.chat.update({ channel: data.channel, ts: data.ts, text: data.fullReply, blocks: [] });
-      if (data.threadTs) {
-        await client.chat.postEphemeral({ channel: data.channel, user: (action as any).user?.id, text: ":white_check_mark: Published to channel." });
-      }
+    } catch {}
+  });
+
+  app.action("publish_ephemeral_pii", async ({ action, ack, respond }) => {
+    await ack();
+    try {
+      const data = JSON.parse((action as any).value);
+      await respond({ text: data.fullReply, response_type: "in_channel", mrkdwn: true, replace_original: false });
     } catch {}
   });
 }
