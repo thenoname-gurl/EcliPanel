@@ -10,7 +10,7 @@ import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
-import { isByoaiConfigured, type ByoaiConfig, OPENCODE_GO_MODELS, OPENCODE_GO_REFERRAL } from "@/lib/byoai-config"
+import { isByoaiConfigured, type ByoaiConfig, OPENCODE_GO_MODELS, OPENCODE_GO_REFERRAL, getModelSource, normalizeByoaiModels } from "@/lib/byoai-config"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
@@ -134,23 +134,39 @@ export default function AIStudioPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        if (useByoai && byoaiConfig) {
-          const mapped = OPENCODE_GO_MODELS.map(m => ({
-            id: m.id,
-            name: m.name,
-            config: { type: "text", modelId: m.id },
-          }))
-          setModels(mapped)
-          setMyModels(mapped.map(m => ({ model: m })))
-          setLoading(false)
-          return
-        }
-        const [all, mine] = await Promise.all([
+        const fetches: Promise<any>[] = [
           apiFetch(API_ENDPOINTS.aiModels),
           apiFetch(API_ENDPOINTS.aiMyModels),
-        ])
+        ]
+        if (useByoai && byoaiConfig) {
+          fetches.push(apiFetch(API_ENDPOINTS.byoaiModels).catch(() => null))
+        }
+        const results = await Promise.all(fetches)
+        const all = results[0]
+        const mine = results[1]
+        const byoaiRaw = useByoai ? results[2] : null
+
         setModels(all ?? [])
-        setMyModels(mine ?? [])
+
+        if (useByoai && byoaiConfig) {
+          const byoaiProviderModels = normalizeByoaiModels(byoaiRaw)
+          if (byoaiProviderModels.length > 0) {
+            const byoaiEntries = byoaiProviderModels.map(m => ({
+              _byoai: true,
+              model: { id: 0, name: m.name, config: { type: "text", modelId: m.id } },
+            }))
+            setMyModels([...byoaiEntries, ...(mine ?? [])])
+          } else {
+            const byoaiName = OPENCODE_GO_MODELS.find(m => m.id === byoaiConfig.modelId)?.name || byoaiConfig.modelId
+            const byoaiEntry = {
+              _byoai: true,
+              model: { id: 0, name: byoaiName, config: { type: "text", modelId: byoaiConfig.modelId } },
+            }
+            setMyModels([byoaiEntry, ...(mine ?? [])])
+          }
+        } else {
+          setMyModels(mine ?? [])
+        }
       } catch (e) {
         console.error(e)
       } finally {
@@ -201,13 +217,15 @@ export default function AIStudioPage() {
         })
       }
 
+      const isFirstModelByoai = !!(myModels?.[0] as any)?._byoai
+      const useByoaiEndpoint = useByoai && isFirstModelByoai
       const candidateModel = myModels?.[0]?.model?.config?.modelId || myModels?.[0]?.model?.name
       const providerModelId =
         candidateModel && !/^\d+$/.test(String(candidateModel)) ? String(candidateModel) : undefined
       const body: any = { messages: payloadMessages }
       if (providerModelId) body.model = providerModelId
 
-      const endpoint = useByoai ? API_ENDPOINTS.byoaiChatCompletions : API_ENDPOINTS.openaiChat
+      const endpoint = useByoaiEndpoint ? API_ENDPOINTS.byoaiChatCompletions : API_ENDPOINTS.openaiChat
       const res = await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
@@ -374,10 +392,20 @@ export default function AIStudioPage() {
                     )}
                   </div>
                 ) : (
-                  myModels.map(({ model }) => {
+                  myModels.map((entry) => {
+                    const model = entry.model
                     if (!model) return null
                     const status = model.config?.status || "active"
                     const type = model.config?.type || "text"
+                    const source = getModelSource((entry as any)._byoai ? { _byoai: true } : model)
+                    const sourceColors: Record<string, string> = {
+                      BYO: "bg-primary/15 text-primary border-primary/30",
+                      OpenAI: "bg-green-500/15 text-green-400 border-green-500/30",
+                      Anthropic: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+                      Google: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+                      DeepSeek: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+                    }
+                    const sourceColor = sourceColors[source] || "bg-muted text-muted-foreground border-border"
                     return (
                       <div
                         key={model.id}
@@ -406,6 +434,9 @@ export default function AIStudioPage() {
                           >
                             {type}
                           </Badge>
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${sourceColor}`}>
+                            {source}
+                          </Badge>
                           <span className="bg-green-500/10 border border-green-500/30 px-3 py-1.5 text-xs text-green-400">
                             {t("modelStatus.accessGranted")}
                           </span>
@@ -424,6 +455,15 @@ export default function AIStudioPage() {
                   {models.map((model) => {
                     const linked = myModels.some((m) => m.model?.id === model.id)
                     const type = model.config?.type || "text"
+                    const source = getModelSource(model)
+                    const sourceColors: Record<string, string> = {
+                      BYO: "bg-primary/15 text-primary border-primary/30",
+                      OpenAI: "bg-green-500/15 text-green-400 border-green-500/30",
+                      Anthropic: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+                      Google: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+                      DeepSeek: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+                    }
+                    const sourceColor = sourceColors[source] || "bg-muted text-muted-foreground border-border"
                     return (
                       <div
                         key={model.id}
@@ -450,6 +490,9 @@ export default function AIStudioPage() {
                             className="border-border bg-secondary/50 text-muted-foreground text-xs capitalize"
                           >
                             {type}
+                          </Badge>
+                          <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 ${sourceColor}`}>
+                            {source}
                           </Badge>
                           {linked ? (
                             <span className="text-xs text-green-400">{t("modelStatus.assigned")}</span>

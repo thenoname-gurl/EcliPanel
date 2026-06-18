@@ -40,3 +40,81 @@ export const DEFAULT_BYOAI_CONFIG: ByoaiConfig = {
 export function isByoaiConfigured(config: ByoaiConfig | null | undefined): boolean {
   return !!(config?.enabled && config?.endpoint && config?.apiKey && config?.modelId)
 }
+
+const PROVIDER_BY_HOST: Record<string, string> = {
+  "openai": "OpenAI",
+  "anthropic": "Anthropic",
+  "google": "Google",
+  "gemini": "Google",
+  "deepseek": "DeepSeek",
+  "groq": "Groq",
+  "mistral": "Mistral",
+  "cohere": "Cohere",
+  "together": "Together",
+  "perplexity": "Perplexity",
+  "opencode": "OpenCode Go",
+}
+
+export function getModelSource(model: Record<string, unknown> | null | undefined): string {
+  if (!model) return "Eclipse"
+  if ((model as any)._byoai) return "BYO"
+
+  const tags = Array.isArray(model.tags) ? model.tags as string[] : []
+  for (const tag of tags) {
+    const lower = tag.toLowerCase()
+    for (const [key, label] of Object.entries(PROVIDER_BY_HOST)) {
+      if (lower.includes(key)) return label
+    }
+  }
+
+  const endpoint = typeof model.endpoint === "string" ? model.endpoint : ""
+  if (endpoint) {
+    try {
+      const host = new URL(endpoint).hostname
+      for (const [key, label] of Object.entries(PROVIDER_BY_HOST)) {
+        if (host.includes(key)) return label
+      }
+    } catch {}
+  }
+
+  const endpoints = Array.isArray((model as any).endpoints) ? (model as any).endpoints as Array<Record<string, unknown>> : []
+  for (const ep of endpoints) {
+    const url = typeof ep.endpoint === "string" ? ep.endpoint : typeof ep.url === "string" ? ep.url : ""
+    if (url) {
+      try {
+        const host = new URL(url).hostname
+        for (const [key, label] of Object.entries(PROVIDER_BY_HOST)) {
+          if (host.includes(key)) return label
+        }
+      } catch {}
+    }
+  }
+
+  const config = (model as any).config as Record<string, unknown> | undefined
+  const modelId = typeof config?.modelId === "string" ? config.modelId : ""
+  if (modelId) {
+    const lower = modelId.toLowerCase()
+    if (lower.includes("gpt") || lower.includes("o1") || lower.includes("o3") || lower.includes("davinci")) return "OpenAI"
+    if (lower.includes("claude")) return "Anthropic"
+    if (lower.includes("gemini")) return "Google"
+    if (lower.includes("deepseek")) return "DeepSeek"
+    if (lower.includes("llama") || lower.includes("mixtral")) return "Meta"
+    for (const [key, label] of Object.entries(PROVIDER_BY_HOST)) {
+      if (lower.includes(key)) return label
+    }
+  }
+
+  return "Eclipse"
+}
+
+export function normalizeByoaiModels(raw: unknown): Array<{ id: string; name: string }> {
+  if (!raw) return []
+  if (Array.isArray(raw)) {
+    return raw.map((m: any) => ({ id: String(m.id || m.name || ""), name: String(m.name || m.id || "") })).filter(m => m.id)
+  }
+  const data = (raw as any).data || (raw as any).models
+  if (Array.isArray(data)) {
+    return data.map((m: any) => ({ id: String(m.id || m.name || ""), name: String(m.name || m.id || "") })).filter(m => m.id)
+  }
+  return []
+}
