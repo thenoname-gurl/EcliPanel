@@ -9,7 +9,7 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import { FeatureGuard } from "@/components/panel/feature-guard"
 import { apiFetch } from "@/lib/api-client"
 import { useAuth } from "@/hooks/useAuth"
-import { isByoaiConfigured, type ByoaiConfig, OPENCODE_GO_MODELS, OPENCODE_GO_REFERRAL } from "@/lib/byoai-config"
+import { isByoaiConfigured, type ByoaiConfig, OPENCODE_GO_MODELS, OPENCODE_GO_REFERRAL, getModelSource, normalizeByoaiModels } from "@/lib/byoai-config"
 import { ExternalLink } from "lucide-react"
 import {
   Send,
@@ -107,15 +107,38 @@ export default function AIChatPage() {
   useEffect(() => {
     const loadModels = async () => {
       try {
+        const fetches: Promise<any>[] = [apiFetch(API_ENDPOINTS.aiMyModels)]
         if (useByoai && byoaiConfig) {
-          const modelOptions = OPENCODE_GO_MODELS
-          setModels(modelOptions.map(m => ({
-            model: { name: m.name, config: { modelId: m.id } }
-          })))
-          setSelectedModel(byoaiConfig.modelId || OPENCODE_GO_MODELS[0].id)
+          fetches.push(apiFetch(API_ENDPOINTS.byoaiModels).catch(() => null))
+        }
+        const results = await Promise.all(fetches)
+        const data: any[] = results[0]
+
+        if (useByoai && byoaiConfig) {
+          const byoaiProviderModels = normalizeByoaiModels(results[1])
+          let byoaiEntries: any[]
+          if (byoaiProviderModels.length > 0) {
+            byoaiEntries = byoaiProviderModels.map(m => ({
+              _byoai: true,
+              model: { id: 0, name: m.name, config: { modelId: m.id } },
+            }))
+          } else {
+            const byoaiName = OPENCODE_GO_MODELS.find(m => m.id === byoaiConfig.modelId)?.name || byoaiConfig.modelId
+            byoaiEntries = [{
+              _byoai: true,
+              model: { id: 0, name: byoaiName, config: { modelId: byoaiConfig.modelId } },
+            }]
+          }
+          const merged = [...byoaiEntries, ...data]
+          setModels(merged)
+          const stored =
+            typeof window !== "undefined"
+              ? window.localStorage.getItem("ecli_ai_model")
+              : null
+          setSelectedModel(stored || byoaiConfig.modelId)
           return
         }
-        const data: any[] = await apiFetch(API_ENDPOINTS.aiMyModels)
+
         setModels(data)
         const stored =
           typeof window !== "undefined"
@@ -178,6 +201,10 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
         content: m.content,
       }))
       const payload = [systemMsg, ...conversationMessages]
+      const selectedOption = modelOptions?.find(o => o.id === selectedModel)
+      const isSelectedByoai = !!(selectedOption as any)?._byoai
+      const useByoaiEndpoint = useByoai && isSelectedByoai
+
       const candidateModel =
         selectedModel ||
         models?.[0]?.model?.config?.modelId ||
@@ -187,7 +214,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
           ? String(candidateModel)
           : undefined
 
-      if (!useByoai && !candidateModel && !(models && models.length > 0)) {
+      if (!useByoaiEndpoint && !candidateModel && !(models && models.length > 0)) {
         const botMsg: Message = {
           id: (Date.now() + 1).toString(),
           role: "assistant",
@@ -204,8 +231,11 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
 
       const body: any = { messages: payload }
       if (providerModelId) body.model = providerModelId
+      if (!useByoaiEndpoint && isFinite(Number(selectedModel))) {
+        body.modelId = Number(selectedModel)
+      }
 
-      const endpoint = useByoai ? API_ENDPOINTS.byoaiChatCompletions : API_ENDPOINTS.openaiChat
+      const endpoint = useByoaiEndpoint ? API_ENDPOINTS.byoaiChatCompletions : API_ENDPOINTS.openaiChat
       const res = await apiFetch(endpoint, {
         method: "POST",
         body: JSON.stringify(body),
@@ -249,6 +279,8 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
       m.model?.name ||
       m.model?.config?.modelId ||
       `Model ${m.model?.id ?? "unknown"}`,
+    _byoai: !!(m as any)._byoai,
+    source: getModelSource((m as any)._byoai ? { _byoai: true } : m.model),
   }))
 
   const selectedModelLabel =
@@ -302,7 +334,20 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                       />
                       <div className="absolute right-0 top-full z-50 mt-1.5 w-56 border border-border/50 bg-card shadow-xl shadow-black/20 overflow-hidden">
                         <div className="p-1.5 max-h-60 overflow-y-auto">
-                          {modelOptions?.map((opt) => (
+                          {modelOptions?.map((opt) => {
+                            const sourceColors: Record<string, string> = {
+                              BYO: "bg-primary/15 text-primary",
+                              OpenAI: "bg-green-500/15 text-green-400",
+                              Anthropic: "bg-amber-500/15 text-amber-400",
+                              Google: "bg-blue-500/15 text-blue-400",
+                              DeepSeek: "bg-cyan-500/15 text-cyan-400",
+                              Meta: "bg-sky-500/15 text-sky-400",
+                              Groq: "bg-orange-500/15 text-orange-400",
+                              Mistral: "bg-indigo-500/15 text-indigo-400",
+                              "OpenCode Go": "bg-purple-500/15 text-purple-400",
+                            }
+                            const sourceColor = sourceColors[opt.source] || "bg-muted text-muted-foreground"
+                            return (
                             <button
                               key={opt.id}
                               onClick={() => {
@@ -318,11 +363,15 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                                 className={`h-3 w-3 shrink-0 ${selectedModel === opt.id ? "text-primary" : "text-muted-foreground"}`}
                               />
                               <span className="truncate">{opt.label}</span>
+                              <span className={`ml-auto shrink-0 px-1.5 py-0.5 text-[9px] leading-none font-medium ${sourceColor}`}>
+                                {opt.source}
+                              </span>
                               {selectedModel === opt.id && (
-                                <Check className="h-3 w-3 ml-auto shrink-0 text-primary" />
+                                <Check className="h-3 w-3 shrink-0 text-primary" />
                               )}
                             </button>
-                          ))}
+                            )
+                          })}
                           {!modelOptions?.length && (
                             <p className="px-3 py-2 text-xs text-muted-foreground">
                               {t("header.noModels")}
