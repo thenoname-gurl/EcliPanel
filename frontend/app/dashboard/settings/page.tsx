@@ -2,6 +2,7 @@
 
 import { PanelHeader } from "@/components/panel/header"
 import { FeedbackSettingsCard } from "@/components/panel/feedback-settings-card"
+import { SlackBotSettings } from "@/components/panel/slack-bot-settings"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
@@ -53,6 +54,7 @@ import {
   CheckCircle2,
   Upload,
   ExternalLink,
+  MessageSquare,
 } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import QRCode from "qrcode"
@@ -1785,6 +1787,7 @@ export default function SettingsPage() {
     },
     { value: "editor", icon: Settings, label: t("tabs.editor"), guideId: "settings-editor" },
     { value: "ai", icon: Sparkles, label: t("tabs.ai") || "AI", guideId: "settings-ai" },
+    { value: "slack", icon: MessageSquare, label: "Slack Bot", guideId: "settings-slack" },
   ]
 
   return (
@@ -3181,6 +3184,12 @@ export default function SettingsPage() {
                   </SettingsCard>
                 </>
               )}
+            </div>
+          )}
+
+          {activeTab === "slack" && (
+            <div className="space-y-6">
+              <SlackBotSettings />
             </div>
           )}
         </div>

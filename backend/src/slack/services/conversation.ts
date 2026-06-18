@@ -8,10 +8,7 @@ interface Message {
 interface ToolCall {
   id: string;
   type: "function";
-  function: {
-    name: string;
-    arguments: string;
-  };
+  function: { name: string; arguments: string };
 }
 
 const conversations = new Map<string, Message[]>();
@@ -24,20 +21,12 @@ export function getConversation(key: string): Message[] {
 export function addMessage(key: string, message: Message): void {
   const history = conversations.get(key) || [];
   history.push(message);
-
-  if (history.length > MAX_HISTORY) {
-    history.splice(0, history.length - MAX_HISTORY);
-  }
-
+  if (history.length > MAX_HISTORY) history.splice(0, history.length - MAX_HISTORY);
   conversations.set(key, history);
 }
 
 export function clearConversation(key: string): void {
   conversations.delete(key);
-}
-
-export function setMessages(key: string, messages: Message[]): void {
-  conversations.set(key, messages);
 }
 
 export type { Message, ToolCall };

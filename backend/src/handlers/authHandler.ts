@@ -17,6 +17,7 @@ import { validatePassword } from '../utils/passwordValidation';
 import { storeCsrfToken } from '../middleware/csrf';
 import { randomHex, randomInt, sha256Hex } from '../utils/bunCrypto';
 import { verifyAnyToken } from '../utils/pqJwt';
+import { slackGithubStates, handleSlackGithubCallback } from './slackHandler';
 import type { VerifyTempTokenResult } from '../types/context';
 import {
   getPanelUrl,
@@ -1850,6 +1851,22 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         ctx.set.status = 400;
         return { error: ctx.t('validation.missingCodeOrState') };
       }
+
+      if (slackGithubStates.has(state)) {
+        const result = await handleSlackGithubCallback(code, state);
+        const panelUrl = process.env.PANEL_URL || process.env.FRONTEND_URL || 'https://ecli.app';
+        if (!result.success) {
+          return new Response(null, {
+            status: 302,
+            headers: { Location: `${panelUrl}/dashboard/settings?tab=slack&github_error=${encodeURIComponent(result.error || '')}` },
+          });
+        }
+        return new Response(null, {
+          status: 302,
+          headers: { Location: `${panelUrl}/dashboard/settings?tab=slack&github_linked=${result.githubLogin}` },
+        });
+      }
+
       const stored = await redisGet(`github-student-state:${state}`);
       if (!stored) {
         ctx.set.status = 400;
