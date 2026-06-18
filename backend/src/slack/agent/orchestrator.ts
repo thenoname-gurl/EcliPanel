@@ -76,7 +76,7 @@ export async function runAgent(
 
   if (!userCtx) {
     onProgress?.({ type: "text", text: "Checking account..." });
-    return { reply: "You haven't linked your EcliPanel account yet. Go to *Settings → Slack Bot* in your EcliPanel dashboard and enter your Slack User ID.", toolsUsed: [] };
+    return { reply: "Hello! :wave: I'm *EcliBot*, the AI assistant for EcliPanel.\n\nI see you're new here — you haven't linked your EcliPanel account yet. To use me:\n\n1. Register at *ecli.app* if you don't have an account\n2. Go to *Settings → AI* and turn on *Bring Your Own AI*\n3. Go to *Settings → Slack Bot* and enter your *Slack User ID*\n\nYour Slack User ID can be found by clicking your profile picture → Profile → ••• → Copy member ID.\n\nOnce linked, you can ask me about your servers, GitHub repos, and more!", toolsUsed: [] };
   }
 
   let fullMessage = userMessage;

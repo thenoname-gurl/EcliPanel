@@ -1,6 +1,7 @@
 import { App } from "@slack/bolt";
 import { runAgent } from "./agent/orchestrator";
 import { clearConversation } from "./services/conversation";
+import { resolveUser } from "./services/user-context";
 
 let app: App | null = null;
 let botUserId: string | null = null;
@@ -120,7 +121,12 @@ export function initSlackBot(): void {
     }
 
     if (!text) {
-      await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "Hi! Ask me anything about your EcliPanel servers, GitHub repos, or infrastructure. :wave:", mrkdwn: true });
+      const linked = await resolveUser(event.user);
+      if (!linked) {
+        await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "Hello! :wave: I'm *EcliBot*, the AI assistant for EcliPanel.\n\nTo use me:\n1. Register at *ecli.app*\n2. Go to *Settings → AI* and enable *Bring Your Own AI*\n3. Go to *Settings → Slack Bot* and enter your Slack User ID\n\nYour Slack User ID → profile picture → Profile → ••• → Copy member ID.", mrkdwn: true });
+      } else {
+        await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "Hi! Ask me anything about your EcliPanel servers, GitHub repos, or infrastructure. :wave:", mrkdwn: true });
+      }
       return;
     }
 
