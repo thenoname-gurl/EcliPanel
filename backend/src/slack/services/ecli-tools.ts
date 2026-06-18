@@ -13,6 +13,21 @@ async function logAction(userId: number, action: string, targetId?: string, targ
   } catch {}
 }
 
+function stripHtml(html: string, maxLen = 4000): string {
+  let text = html;
+  text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ");
+  text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+  text = text.replace(/<[^>]+>/g, " ");
+  text = text.replace(/&[a-z]+;/gi, " ");
+  text = text.replace(/&#\d+;/g, " ");
+  text = text.replace(/\s+/g, " ").trim();
+  return text.slice(0, maxLen);
+}
+
+function extractTagText(html: string): string {
+  return html.replace(/<[^>]+>/g, "").replace(/&[a-z]+;/gi, " ").replace(/&#\d+;/g, " ").replace(/\s+/g, " ").trim();
+}
+
 export interface ToolDef {
   type: "function";
   function: { name: string; description: string; parameters: Record<string, any> };
@@ -155,11 +170,17 @@ export async function executeEcliTool(name: string, args: any, userId: number, i
         const html = await res.text();
         await logAction(userId, "ai:web:search", undefined, "web", { query: args.query });
         const results: Array<{ title: string; snippet: string; url: string }> = [];
-        const links = [...html.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([^<]+)<\/a>/gi)];
-        const snippets = [...html.matchAll(/<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi)];
+        const linkRx = /<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+        const snipRx = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
+        const links = [...html.matchAll(linkRx)];
+        const snippets = [...html.matchAll(snipRx)];
         for (let i = 0; i < Math.min(links.length, snippets.length, 8); i++) {
-          const url = links[i][1].replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, "").split("&")[0];
-          results.push({ title: links[i][2].replace(/<[^>]+>/g, "").trim(), snippet: snippets[i] ? snippets[i][1].replace(/<[^>]+>/g, "").trim() : "", url: decodeURIComponent(url) });
+          const rawUrl = links[i][1].replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, "").split("&")[0];
+          results.push({
+            title: extractTagText(links[i][2]),
+            snippet: snippets[i] ? extractTagText(snippets[i][1]) : "",
+            url: decodeURIComponent(rawUrl),
+          });
         }
         result = { query: args.query, results };
         break;
@@ -168,8 +189,7 @@ export async function executeEcliTool(name: string, args: any, userId: number, i
         const fetchRes = await fetch(args.url, { headers: { "User-Agent": "EcliBot/1.0" }, signal: AbortSignal.timeout(10000) });
         const pageHtml = await fetchRes.text();
         await logAction(userId, "ai:web:fetch", args.url, "web", { status: fetchRes.status });
-        const text = pageHtml.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000);
-        result = { url: args.url, text };
+        result = { url: args.url, text: stripHtml(pageHtml) };
         break;
       }
       default:
