@@ -20,6 +20,9 @@ RULES FOR TOOLS:
 - For "tell me about myself" or own info: use ecli_my_profile and ecli_my_servers (NOT ecli_get_user or ecli_list_servers)
 - NEVER expose .env files, API keys, passwords, tokens, or private credentials from any repo
 - NEVER expose user PII (emails, IPs, phone numbers) from other users to the channel
+- Use github_review_pr to review PRs (auto-adds "Reviewed by EcliBot AI" footer)
+- Use github_comment_issue to respond to issues (auto-adds "Responded via EcliBot AI" footer)
+- When reviewing code, check for bugs, security issues, style, and suggest improvements
 
 Be concise. Use tools for real data. Confirm destructive actions.`;
 
@@ -45,6 +48,14 @@ async function executeGithubTool(token: string, name: string, args: any): Promis
       case "github_list_prs": result = await githubService.listPullRequests(token, args.owner, args.repo, args.state); break;
       case "github_get_repo": result = await githubService.getRepoInfo(token, args.owner, args.repo); break;
       case "github_search_code": result = await githubService.searchCode(token, args.query, args.owner, args.repo); break;
+      case "github_get_pr": result = await githubService.getPullRequest(token, args.owner, args.repo, args.prNumber); break;
+      case "github_get_pr_files": result = await githubService.getPRFiles(token, args.owner, args.repo, args.prNumber); break;
+      case "github_get_diff": result = await githubService.getPRDiff(token, args.owner, args.repo, args.prNumber); break;
+      case "github_review_pr": result = await githubService.reviewPR(token, args.owner, args.repo, args.prNumber, args.body, args.event || "COMMENT"); break;
+      case "github_comment_issue": result = await githubService.commentOnIssue(token, args.owner, args.repo, args.issueNumber, args.body); break;
+      case "github_list_issues": result = await githubService.listIssues(token, args.owner, args.repo, args.state); break;
+      case "github_get_issue": result = await githubService.getIssue(token, args.owner, args.repo, args.issueNumber); break;
+      case "github_get_comments": result = await githubService.listIssueComments(token, args.owner, args.repo, args.issueNumber); break;
       default: return JSON.stringify({ error: `Unknown GitHub tool: ${name}` });
     }
     return JSON.stringify(result);
@@ -63,7 +74,15 @@ const githubTools: Array<{
   { type: "function", function: { name: "github_create_pr", description: "Create a pull request", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, title: { type: "string" }, body: { type: "string" }, head: { type: "string" }, base: { type: "string" } }, required: ["owner", "repo", "title", "body", "head", "base"] } } },
   { type: "function", function: { name: "github_list_prs", description: "List pull requests", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, state: { type: "string", enum: ["open", "closed", "all"] } }, required: ["owner", "repo"] } } },
   { type: "function", function: { name: "github_get_repo", description: "Get repository info", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" } }, required: ["owner", "repo"] } } },
-  { type: "function", function: { name: "github_search_code", description: "Search code", parameters: { type: "object", properties: { query: { type: "string" }, owner: { type: "string" }, repo: { type: "string" } }, required: ["query"] } } },
+  { type: "function", function: { name: "github_search_code", description: "Search code across GitHub", parameters: { type: "object", properties: { query: { type: "string" }, owner: { type: "string" }, repo: { type: "string" } }, required: ["query"] } } },
+  { type: "function", function: { name: "github_get_pr", description: "Get PR details", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, prNumber: { type: "number" } }, required: ["owner", "repo", "prNumber"] } } },
+  { type: "function", function: { name: "github_get_pr_files", description: "List files changed in a PR", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, prNumber: { type: "number" } }, required: ["owner", "repo", "prNumber"] } } },
+  { type: "function", function: { name: "github_get_diff", description: "Get raw diff of a PR", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, prNumber: { type: "number" } }, required: ["owner", "repo", "prNumber"] } } },
+  { type: "function", function: { name: "github_review_pr", description: "Submit a PR review (APPROVE, REQUEST_CHANGES, or COMMENT). Adds 'Reviewed by EcliBot AI' footer.", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, prNumber: { type: "number" }, body: { type: "string", description: "Review summary" }, event: { type: "string", enum: ["APPROVE", "REQUEST_CHANGES", "COMMENT"] } }, required: ["owner", "repo", "prNumber", "body"] } } },
+  { type: "function", function: { name: "github_comment_issue", description: "Comment on an issue. Adds 'Responded via EcliBot AI' footer.", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" }, body: { type: "string" } }, required: ["owner", "repo", "issueNumber", "body"] } } },
+  { type: "function", function: { name: "github_list_issues", description: "List issues in a repo", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, state: { type: "string", enum: ["open", "closed", "all"] } }, required: ["owner", "repo"] } } },
+  { type: "function", function: { name: "github_get_issue", description: "Get issue details", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" } }, required: ["owner", "repo", "issueNumber"] } } },
+  { type: "function", function: { name: "github_get_comments", description: "List comments on an issue/PR", parameters: { type: "object", properties: { owner: { type: "string" }, repo: { type: "string" }, issueNumber: { type: "number" } }, required: ["owner", "repo", "issueNumber"] } } },
 ];
 
 function sanitizeHistory(history: Message[]): Message[] {

@@ -77,4 +77,83 @@ export const githubService = {
       name: item.name, path: item.path, repo: item.repository.full_name, url: item.html_url,
     }));
   },
+
+  async getPullRequest(token: string, owner: string, repo: string, prNumber: number) {
+    const client = getClient(token);
+    const res = await client.rest.pulls.get({ owner, repo, pull_number: prNumber });
+    return {
+      number: res.data.number, title: res.data.title, body: res.data.body,
+      state: res.data.state, url: res.data.html_url, author: res.data.user?.login,
+      head: res.data.head.ref, base: res.data.base.ref,
+      additions: res.data.additions, deletions: res.data.deletions,
+      changedFiles: res.data.changed_files, mergeable: res.data.mergeable,
+    };
+  },
+
+  async getPRFiles(token: string, owner: string, repo: string, prNumber: number) {
+    const client = getClient(token);
+    const res = await client.rest.pulls.listFiles({ owner, repo, pull_number: prNumber, per_page: 50 });
+    return res.data.map((f: any) => ({
+      filename: f.filename, status: f.status, additions: f.additions, deletions: f.deletions, changes: f.changes, patch: f.patch?.slice(0, 3000) || "",
+    }));
+  },
+
+  async getPRDiff(token: string, owner: string, repo: string, prNumber: number) {
+    const client = getClient(token);
+    const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}.diff`, {
+      headers: { Accept: "application/vnd.github.v3.diff", Authorization: `Bearer ${token}` },
+    });
+    return res.text();
+  },
+
+  async reviewPR(
+    token: string, owner: string, repo: string, prNumber: number,
+    body: string, event: "APPROVE" | "REQUEST_CHANGES" | "COMMENT" = "COMMENT",
+    comments?: Array<{ path: string; line: number; body: string }>
+  ) {
+    const client = getClient(token);
+    const reviewBody = body + "\n\n> *Reviewed by EcliBot AI*";
+    const res = await client.rest.pulls.createReview({
+      owner, repo, pull_number: prNumber, body: reviewBody, event,
+      comments: comments?.map(c => ({ path: c.path, line: c.line, body: c.body + "\n\n> *Reviewed by EcliBot AI*" })),
+    });
+    return { id: res.data.id, state: res.data.state, url: res.data.html_url };
+  },
+
+  async commentOnIssue(token: string, owner: string, repo: string, issueNumber: number, body: string) {
+    const client = getClient(token);
+    const commentBody = body + "\n\n> *Responded via EcliBot AI*";
+    const res = await client.rest.issues.createComment({
+      owner, repo, issue_number: issueNumber, body: commentBody,
+    });
+    return { id: res.data.id, url: res.data.html_url };
+  },
+
+  async listIssues(token: string, owner: string, repo: string, state: "open" | "closed" | "all" = "open") {
+    const client = getClient(token);
+    const res = await client.rest.issues.listForRepo({ owner, repo, state, per_page: 25 });
+    return res.data.map((issue: any) => ({
+      number: issue.number, title: issue.title, state: issue.state,
+      url: issue.html_url, author: issue.user?.login,
+      labels: issue.labels?.map((l: any) => l.name) || [],
+    }));
+  },
+
+  async getIssue(token: string, owner: string, repo: string, issueNumber: number) {
+    const client = getClient(token);
+    const res = await client.rest.issues.get({ owner, repo, issue_number: issueNumber });
+    return {
+      number: res.data.number, title: res.data.title, body: res.data.body,
+      state: res.data.state, url: res.data.html_url, author: res.data.user?.login,
+      labels: res.data.labels?.map((l: any) => l.name) || [],
+    };
+  },
+
+  async listIssueComments(token: string, owner: string, repo: string, issueNumber: number) {
+    const client = getClient(token);
+    const res = await client.rest.issues.listComments({ owner, repo, issue_number: issueNumber, per_page: 25 });
+    return res.data.map((c: any) => ({
+      id: c.id, body: c.body, author: c.user?.login, createdAt: c.created_at,
+    }));
+  },
 };
