@@ -2,29 +2,49 @@
 
 import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
-import PixelSnow from "./_react-bits/PixelSnow";
+import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/dist/client/link";
+
+const PixelSnow = dynamic(() => import("./_react-bits/PixelSnow"), {
+  ssr: false,
+  loading: () => null,
+});
 
 export function Hero() {
   const t = useTranslations("contributorsPage");
+  const [show, setShow] = useState(false);
+
+  useEffect(() => {
+    const schedule = typeof requestIdleCallback !== "undefined"
+      ? (cb: () => void) => requestIdleCallback(cb, { timeout: 3000 })
+      : (cb: () => void) => setTimeout(cb, 2000);
+    const id = schedule(() => setShow(true));
+    return () => {
+      if (typeof requestIdleCallback !== "undefined") cancelIdleCallback(id as number);
+      else clearTimeout(id as ReturnType<typeof setTimeout>);
+    };
+  }, []);
 
   return (
     <div className="relative">
       <div className="absolute inset-0 h-full z-0">
-        <PixelSnow
-          color="#e594c7"
-          flakeSize={0.01}
-          minFlakeSize={1.25}
-          pixelResolution={200}
-          speed={1.25}
-          density={0.3}
-          direction={125}
-          brightness={1}
-          depthFade={8}
-          farPlane={20}
-          gamma={0.4545}
-          variant="snowflake"
-        />
+        {show && (
+          <PixelSnow
+            color="#e594c7"
+            flakeSize={0.01}
+            minFlakeSize={1.25}
+            pixelResolution={200}
+            speed={1.25}
+            density={0.3}
+            direction={125}
+            brightness={1}
+            depthFade={8}
+            farPlane={20}
+            gamma={0.4545}
+            variant="snowflake"
+          />
+        )}
       </div>
       <div className="relative z-10 min-h-screen flex items-center justify-center flex-col gap-4 px-6 py-20 text-center">
         <motion.h1

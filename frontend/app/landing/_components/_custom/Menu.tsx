@@ -40,6 +40,8 @@ export function Menu({ customCTA, customMenu, sticky = true }: MenuProps) {
           <img
             src="/assets/icons/logo.png"
             alt={t("brand")}
+            width={60}
+            height={60}
             className="w-12 sm:w-15 h-auto"
           />
         </a>

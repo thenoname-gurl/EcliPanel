@@ -98,21 +98,25 @@ export default async function RootLayout({
   let themeName: string | null = null;
   let initialUser: User | null = null;
 
-  try {
-    const backendBase = getBackendBaseUrl();
-    const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
-      headers: { cookie: cookieHeader },
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const data = await res.json();
-      themeName = data?.user?.settings?.theme?.name || null;
-      initialUser = data?.user || null;
-    } else {
-      initialUser = null;
+  if (cookieHeader) {
+    try {
+      const backendBase = getBackendBaseUrl();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
+        headers: { cookie: cookieHeader },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        const data = await res.json();
+        themeName = data?.user?.settings?.theme?.name || null;
+        initialUser = data?.user || null;
+      }
+    } catch (_e) {
+      // Timed out or failed — AuthProvider will fetch session client-side
     }
-  } catch (e) {
-    initialUser = null;
   }
 
   const inlineScript = `(() => {
@@ -133,6 +137,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://backend.ecli.app" />
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
       <body

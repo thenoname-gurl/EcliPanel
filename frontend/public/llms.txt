@@ -1,0 +1,39 @@
+# EclipseSystems
+
+> EclipseSystems is a game server and application hosting platform. Deploy Minecraft, Rust, CS2, Discord bots, web apps, and more across a globally distributed node network. Managed through EcliPanel, our open-source control panel with Wings and Proxmox VE support.
+
+EclipseSystems provides managed hosting with automated provisioning, DDoS protection, competitive ELO-ranked servers, KVM virtual machines, and one-click app deployments. The platform is built on EcliPanel — an open-source panel (Next.js 16, Tailwind CSS v4, Node.js/Express backend, PostgreSQL) — with a dark-first design system and 14 theme variants.
+
+For the full API, see the OpenAPI spec at https://backend.ecli.app/openapi.
+
+## Hosting & Products
+
+- [Getting Started](https://ecli.app/docs/getting-started): Quick start for new EclipseSystems customers
+- [Server Management](https://ecli.app/docs/server-management): Console, files, databases, power controls, backups
+- [KVM Hosting](https://ecli.app/docs/kvm): KVM virtual machine provisioning and control
+- [One-Click Apps](https://ecli.app/docs/deploying-apps): Deploy Discord bots, web apps, game servers in one click
+- [ELO Servers](https://ecli.app/elo): Competitive hosting — climb ranks, scale from 256 MB to 24 GB RAM
+- [SMARTNET DDoS Protection](https://ecli.app): Always-on DDoS mitigation with PlexT integration
+- [Sunset Migration](https://ecli.app/docs/sunset): Migration guide for legacy server plans
+
+## Platform & Development
+
+- [EcliPanel on GitHub](https://github.com/thenoname-gurl/EcliPanel): Open-source panel source code and issue tracker
+- [OpenAPI Spec](https://backend.ecli.app/openapi): Full REST API reference
+- [Status](https://ecli.app/status): Network and node uptime monitoring
+
+## Legal
+
+- [Terms of Service](https://ecli.app/legal/terms-of-service)
+- [Privacy Policy](https://ecli.app/legal/privacy-policy)
+- [Acceptable Use Policy](https://ecli.app/legal/acceptable-use-policy)
+- [Cookies Policy](https://ecli.app/legal/cookies-policy)
+- [DMCA / Copyright Policy](https://ecli.app/legal/dmca-copyright-policy)
+- [AI Policy](https://ecli.app/legal/ai-policy)
+- [Imprint](https://ecli.app/legal/imprint)
+
+## Optional
+
+- [Contributors](https://ecli.app/contributors): People who helped build the platform
+- [Changelogs](https://ecli.app/changelogs): Latest release notes and updates
+- [License](https://ecli.app/license): EcliPanel open-source license terms

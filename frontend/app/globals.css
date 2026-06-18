@@ -90,8 +90,8 @@
   --font-sans: "Geist", "Geist Fallback";
   --font-mono: "Geist Mono", "Geist Mono Fallback";
   --font-inter: var(--font-inter);
-  --font-flink: var(--font-dedact-gothic);
-  --font-heading: var(--font-dedact-gothic);
+  --font-flink: var(--font-didact-gothic);
+  --font-heading: var(--font-didact-gothic);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

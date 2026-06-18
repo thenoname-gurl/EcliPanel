@@ -45,6 +45,15 @@ const nextConfig = {
   async headers() {
     return [
       {
+        source: "/assets/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, immutable",
+          },
+        ],
+      },
+      {
         source: "/:path*",
         headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
       },

@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useAuth } from "@/hooks/useAuth";
-
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 
 const PixelBlast = dynamic(() => import("../_reacts-bits/PixelBlast"), {
@@ -15,29 +15,43 @@ const PixelBlast = dynamic(() => import("../_reacts-bits/PixelBlast"), {
 export function Hero() {
   const t = useTranslations("landing");
   const { isLoggedIn } = useAuth();
+  const [showBg, setShowBg] = useState(false);
+
+  useEffect(() => {
+    const schedule = typeof requestIdleCallback !== "undefined"
+      ? (cb: () => void) => requestIdleCallback(cb, { timeout: 3000 })
+      : (cb: () => void) => setTimeout(cb, 2000);
+    const id = schedule(() => setShowBg(true));
+    return () => {
+      if (typeof requestIdleCallback !== "undefined") cancelIdleCallback(id as number);
+      else clearTimeout(id as ReturnType<typeof setTimeout>);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen w-full relative bg-[#e594c7]">
       <div className="absolute inset-0 h-full z-0">
-        <PixelBlast
-          variant="square"
-          pixelSize={4}
-          color="#B85A96"
-          patternScale={1.9}
-          patternDensity={1.3}
-          pixelSizeJitter={0}
-          enableRipples
-          rippleSpeed={0.4}
-          rippleThickness={0.12}
-          rippleIntensityScale={1.5}
-          liquid={false}
-          liquidStrength={0.12}
-          liquidRadius={1.2}
-          liquidWobbleSpeed={5}
-          speed={0.95}
-          edgeFade={0.25}
-          transparent
-        />
+        {showBg && (
+          <PixelBlast
+            variant="square"
+            pixelSize={4}
+            color="#B85A96"
+            patternScale={1.9}
+            patternDensity={1.3}
+            pixelSizeJitter={0}
+            enableRipples
+            rippleSpeed={0.4}
+            rippleThickness={0.12}
+            rippleIntensityScale={1.5}
+            liquid={false}
+            liquidStrength={0.12}
+            liquidRadius={1.2}
+            liquidWobbleSpeed={5}
+            speed={0.95}
+            edgeFade={0.25}
+            transparent
+          />
+        )}
       </div>
 
       <div className="relative z-10 min-h-screen flex items-center justify-center flex-col gap-4 px-6 py-20 text-center">
