@@ -24,6 +24,7 @@ import { scheduleGithubContributorsJob } from './jobs/githubContributorsJob';
 import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
 import { scheduleRenewalJob } from './jobs/renewalJob';
 import { scheduleEloDecayJob } from './jobs/eloDecayJob';
+import { initSlackBot } from './slack/index';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
@@ -638,6 +639,56 @@ export async function initApp() {
   await setupConfig(app);
   setupMiddleware(app);
   registerRoutes(app);
+  (app as any).post("/api/mcp/messages", async ({ request, set }: any) => {
+    try {
+      const body = await request.json();
+      if (!body || typeof body !== "object") {
+        set.status = 400;
+        return { error: "Invalid JSON-RPC body" };
+      }
+      const b = body as any;
+      const method = b.method;
+      let result: any;
+      if (method === "initialize") {
+        result = { capabilities: { tools: {} }, serverInfo: { name: "eclipanel-mcp", version: "1.0.0" } };
+      } else if (method === "tools/list" || method === "tools/call") {
+        const { allMcpTools } = require('./mcp/server');
+        if (method === "tools/list") {
+          result = { tools: allMcpTools.map((t: any) => ({ name: t.name, description: t.description, inputSchema: { type: "object", properties: {} } })) };
+        } else {
+          const params = b.params || {};
+          const tool = allMcpTools.find((t: any) => t.name === params.name);
+          if (!tool) {
+            result = { error: { code: -32602, message: `Unknown tool: ${params.name}` } };
+          } else {
+            try {
+              const data = await tool.handler(params.arguments || {});
+              result = { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
+            } catch (err: any) {
+              result = { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+            }
+          }
+        }
+      } else {
+        result = { error: { code: -32601, message: `Method not found: ${method}` } };
+      }
+      return { jsonrpc: "2.0", id: b.id || null, result };
+    } catch (err: any) {
+      set.status = 500;
+      return { jsonrpc: "2.0", id: null, error: { code: -32603, message: err.message } };
+    }
+  });
+  (app as any).get("/api/mcp/sse", ({ set }: any) => {
+    return new Response(
+      new ReadableStream({
+        start(controller: any) {
+          controller.enqueue("data: " + JSON.stringify({ jsonrpc: "2.0", method: "endpoint", params: { uri: "/api/mcp/messages" } }) + "\n\n");
+          controller.close();
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } }
+    );
+  });
   try {
     scheduleStudentReverifyJob();
   } catch (e) {
@@ -708,6 +759,11 @@ export async function initApp() {
     scheduleMailboxPasswordRotation();
   } catch (e) {
     console.error('Failed to schedule mailbox password rotation job:', e);
+  }
+  try {
+    initSlackBot();
+  } catch (e) {
+    console.error('Failed to initialize Slack bot:', e);
   }
 }
 
