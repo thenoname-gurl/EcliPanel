@@ -61,6 +61,7 @@
     "pg": "latest",
     "pqclean": "latest",
     "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "reflect-metadata": "latest",
     "sharp": "latest",
     "speakeasy": "latest",
