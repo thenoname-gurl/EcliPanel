@@ -29,9 +29,9 @@ export function Footer() {
     {
       title: t("footer.columns.product"),
       links: [
-        { l: t("footer.links.features"), h: "#features" },
-        { l: t("footer.links.pricing"), h: "#pricing" },
-        { l: t("footer.links.network"), h: "#network" },
+        { l: t("footer.links.features"), h: "/#features" },
+        { l: t("footer.links.pricing"), h: "/#pricing" },
+        { l: t("footer.links.network"), h: "/#network" },
         { l: t("footer.links.status"), h: "/status" },
       ],
     },
