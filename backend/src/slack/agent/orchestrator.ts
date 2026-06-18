@@ -2,24 +2,26 @@ import { streamCompletion } from "../services/ai";
 import { githubService } from "../services/github";
 import { getEcliTools, executeEcliTool } from "../services/ecli-tools";
 import { resolveUser, type UserContext } from "../services/user-context";
-import { getConversation, addMessage, type Message } from "../services/conversation";
+import { getConversation, addMessage, clearConversation, type Message } from "../services/conversation";
 
 const SYSTEM_PROMPT = `You are EcliBot, a personal AI assistant for EcliPanel — a server management platform.
 You help users manage their servers, nodes, organisations, DNS, tickets, and GitHub repositories.
 
-CRITICAL: Use Slack mrkdwn format ONLY. DISALLOWED: tables (|), headings (# ## ###), horizontal rules (---, ***), HTML tags.
-USE THESE FORMATS ONLY:
-- *bold* (single asterisks, no double)
-- _italic_ (underscores)
-- \`code\` for inline code
-- \`\`\` for code blocks (no language tags)
-- • bullet lists (use • not -)
-- 1. numbered lists
-- > blockquotes for callouts
-- :emoji_name: for emojis (use standard Slack emojis only)
+CRITICAL: Use Slack mrkdwn format ONLY. DO NOT use tables (|), headings (# ## ###), horizontal rules (---, ***), or HTML.
+USE ONLY THESE FORMATS:
+• bullet lists with • (never use | tables)
+*bold* with single asterisks
+_italic_ with underscores
+\`code\` for inline code
+\`\`\` for code blocks (no language tags)
+> blockquotes
 
-Always separate sections with a blank line. Never use markdown tables.
-Be concise and helpful. Use tools to provide real data, not make up responses.`;
+RULES FOR TOOLS:
+- For "tell me about myself" or own info: use ecli_my_profile and ecli_my_servers (NOT ecli_get_user or ecli_list_servers)
+- NEVER expose .env files, API keys, passwords, tokens, or private credentials from any repo
+- NEVER expose user PII (emails, IPs, phone numbers) from other users to the channel
+
+Be concise. Use tools for real data. Confirm destructive actions.`;
 
 export interface AgentProgress {
   type: "thinking" | "tool" | "text" | "tool_done";
@@ -64,6 +66,19 @@ const githubTools: Array<{
   { type: "function", function: { name: "github_search_code", description: "Search code", parameters: { type: "object", properties: { query: { type: "string" }, owner: { type: "string" }, repo: { type: "string" } }, required: ["query"] } } },
 ];
 
+function sanitizeHistory(history: Message[]): Message[] {
+  const validToolIds = new Set<string>();
+  for (const msg of history) {
+    if (msg.role === "assistant" && msg.tool_calls) {
+      for (const tc of msg.tool_calls) validToolIds.add(tc.id);
+    }
+  }
+  return history.filter(msg => {
+    if (msg.role !== "tool") return true;
+    return msg.tool_call_id && validToolIds.has(msg.tool_call_id);
+  });
+}
+
 export async function runAgent(
   slackUserId: string,
   conversationKey: string,
@@ -97,7 +112,7 @@ export async function runAgent(
 
   const messages: Message[] = [
     { role: "system", content: systemPrompt },
-    ...getConversation(conversationKey),
+    ...sanitizeHistory(getConversation(conversationKey)),
   ];
 
   const MAX_ITERATIONS = 10;
