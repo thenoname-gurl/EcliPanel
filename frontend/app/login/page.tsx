@@ -54,6 +54,7 @@ export default function LoginPage() {
   const [emailCode, setEmailCode] = useState("");
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [dismissedDomainWarning, setDismissedDomainWarning] = useState<boolean>(
     () => {
       try {
@@ -81,6 +82,25 @@ export default function LoginPage() {
       setDomainOk(null);
     }
   }, []);
+
+  // Resend cooldown countdown timer
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) return 0;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // Auto-send email code when user selects email method
+  useEffect(() => {
+    if (otpMethod === "email" && tempToken && !emailSent && !sendingEmail) {
+      sendEmailCode();
+    }
+  }, [otpMethod]);
 
   const checkBackend = useCallback(async (): Promise<void> => {
     if (typeof window === "undefined") return;
@@ -149,6 +169,7 @@ export default function LoginPage() {
       });
       setError(null);
       setEmailSent(true);
+      setResendCooldown(5);
     } catch (e: any) {
       setError(e.message || t("failedToSendEmailCode"));
     }
@@ -249,6 +270,7 @@ export default function LoginPage() {
     setEmailCode("");
     setOtpMethod(null);
     setError(null);
+    setResendCooldown(0);
   };
 
   return (
@@ -444,7 +466,7 @@ export default function LoginPage() {
                         <button
                           type="button"
                           onClick={sendEmailCode}
-                          disabled={sendingEmail}
+                          disabled={sendingEmail || resendCooldown > 0}
                           className={cn(
                             "w-full min-h-[44px] py-3 flex gap-2 items-center justify-center rounded-md font-mono text-base sm:text-lg border border-white/40 transition-colors duration-200 cursor-pointer",
                             "text-white",
@@ -454,10 +476,10 @@ export default function LoginPage() {
                         >
                           {sendingEmail ? (
                             <Loader2 className="h-4 w-4 rounded-full animate-spin mx-auto" />
-                          ) : emailSent ? (
-                            t("resend")
+                          ) : resendCooldown > 0 ? (
+                            `${t("resend")} (${resendCooldown}s)`
                           ) : (
-                            t("send")
+                            t("resend")
                           )}
                         </button>
                       </div>
