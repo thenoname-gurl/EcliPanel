@@ -1477,6 +1477,21 @@ export default function SettingsPage() {
     }
   }
 
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const debouncedSaveSettings = (settings: Record<string, any>) => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveUserSettings(settings)
+    }, 800)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+    }
+  }, [])
+
   const updateLocalePreference = async (nextLocale: string) => {
     if (!isSupportedLocale(nextLocale)) return
     if (nextLocale === settingsLocale) return
@@ -1591,24 +1606,24 @@ export default function SettingsPage() {
     await saveUserSettings({ theme: { name: themeName } })
   }
 
-  const updateEditorSettings = async (partial: Partial<EditorSettings>) => {
+  const updateEditorSettings = (partial: Partial<EditorSettings>) => {
     const merged = {
       ...DEFAULT_EDITOR_SETTINGS,
       ...(user?.settings?.editor || {}),
       ...partial,
     }
     setEditorSettings(merged)
-    await saveUserSettings({ editor: merged })
+    debouncedSaveSettings({ editor: merged })
   }
 
-  const updateByoaiConfig = async (partial: Partial<ByoaiConfig>) => {
+  const updateByoaiConfig = (partial: Partial<ByoaiConfig>) => {
     const merged = {
       ...DEFAULT_BYOAI_CONFIG,
       ...(user?.settings?.byoai || {}),
       ...partial,
     }
     setByoaiConfig(merged)
-    await saveUserSettings({ byoai: merged })
+    debouncedSaveSettings({ byoai: merged })
   }
 
   useEffect(() => {
