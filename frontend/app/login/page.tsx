@@ -25,7 +25,7 @@ import { TwoFactorMethodButton } from "./_components/TwoFactorMethodButton";
 import { InputField } from "./_components/InputField";
 import { AlertBanner } from "./_components/AlertBanner";
 import { SectionDivider } from "./_components/SectionDivider";
-import PixelBlast from "../landing/_components/_reacts-bits/PixelBlast";
+import DeferredPixelBlast from "@/components/DeferredPixelBlast";
 
 type OtpMethod = "totp" | "email" | "backup";
 
@@ -255,7 +255,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-black">
       <div className="flex min-h-screen flex-col md:flex-row">
         <div className="hidden md:block md:flex-1 items-center justify-center overflow-hidden">
-          <PixelBlast
+          <DeferredPixelBlast
             variant="square"
             color="#B85A96"
             patternScale={1.9}

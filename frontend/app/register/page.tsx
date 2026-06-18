@@ -37,7 +37,7 @@ import {
   getPasswordStrength,
   getPasswordStrengthLabel,
 } from "./utils";
-import PixelBlast from "../landing/_components/_reacts-bits/PixelBlast";
+import DeferredPixelBlast from "@/components/DeferredPixelBlast";
 
 interface BehaviorMetrics {
   mouseMoves: number;
@@ -449,7 +449,7 @@ export default function RegisterPage() {
     <div className="min-h-screen w-full bg-black">
       <div className="flex min-h-screen flex-col md:flex-row">
         <div className="hidden md:block md:flex-1 items-center justify-center overflow-hidden">
-          <PixelBlast
+          <DeferredPixelBlast
             variant="square"
             color="#B85A96"
             patternScale={1.9}

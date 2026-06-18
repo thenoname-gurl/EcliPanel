@@ -75,8 +75,8 @@ export function Footer() {
             <img
               src="/assets/icons/logo.png"
               alt={t("brand")}
-              width={24}
-              height={24}
+              width={48}
+              height={48}
               className="h-6 w-6"
             />
             <p className="text-white text-xl font-semibold">{t("brand")}</p>

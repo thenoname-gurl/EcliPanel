@@ -76,6 +76,8 @@ export function DdosProtection() {
           <img
             src="/assets/banners/smartnet.svg"
             alt="SMARTNET"
+            width={128}
+            height={36}
             className="h-8 sm:h-9 w-auto brightness-0 invert"
           />
         </div>
