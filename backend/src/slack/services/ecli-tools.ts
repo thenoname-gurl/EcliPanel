@@ -25,7 +25,7 @@ function stripHtml(html: string, maxLen = 4000): string {
 }
 
 function extractTagText(html: string): string {
-  return stripHtml(html);
+  return stripHtml(html, Infinity);
 }
 
 export interface ToolDef {
