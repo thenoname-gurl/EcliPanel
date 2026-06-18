@@ -1478,17 +1478,28 @@ export default function SettingsPage() {
   }
 
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingSettingsRef = useRef<Record<string, any>>({})
 
   const debouncedSaveSettings = (settings: Record<string, any>) => {
+    Object.assign(pendingSettingsRef.current, settings)
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     autoSaveTimerRef.current = setTimeout(() => {
-      saveUserSettings(settings)
+      const combined = { ...pendingSettingsRef.current }
+      pendingSettingsRef.current = {}
+      saveUserSettings(combined).catch((err: any) => {
+        console.error('Autosave failed:', err)
+      })
     }, 800)
   }
 
   useEffect(() => {
     return () => {
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+        if (Object.keys(pendingSettingsRef.current).length > 0) {
+          saveUserSettings({ ...pendingSettingsRef.current })
+        }
+      }
     }
   }, [])
 
