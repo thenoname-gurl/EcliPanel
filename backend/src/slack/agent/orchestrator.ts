@@ -35,7 +35,15 @@ export interface AgentProgress {
 export interface AgentResult {
   reply: string;
   toolsUsed: string[];
+  status: "ok" | "thinking_limit";
 }
+
+interface PendingContinuation {
+  slackUserId: string;
+  toolsUsed: string[];
+}
+
+const pendingContinuations = new Map<string, PendingContinuation>();
 
 async function executeGithubTool(token: string, name: string, args: any): Promise<string> {
   try {
@@ -106,41 +114,23 @@ function sanitizeHistory(history: Message[]): Message[] {
   });
 }
 
-export async function runAgent(
-  slackUserId: string,
-  conversationKey: string,
-  userMessage: string,
-  context?: string,
-  onProgress?: (progress: AgentProgress) => void
-): Promise<AgentResult> {
-  const toolsUsed: string[] = [];
-  const userCtx = await resolveUser(slackUserId);
-
-  if (!userCtx) {
-    onProgress?.({ type: "text", text: "Checking account..." });
-    return { reply: "Hello! :wave: I'm *EcliBot*, the AI assistant for EcliPanel.\n\nI see you're new here — you haven't linked your EcliPanel account yet. To use me:\n\n1. Register at *ecli.app* if you don't have an account\n2. Go to *Settings → AI* and turn on *Bring Your Own AI*\n3. Go to *Settings → Slack Bot* and enter your *Slack User ID*\n\nYour Slack User ID can be found by clicking your profile picture → Profile → ••• → Copy member ID.\n\nOnce linked, you can ask me about your servers, GitHub repos, and more!", toolsUsed: [] };
-  }
-
-  let fullMessage = userMessage;
-  if (context) {
-    fullMessage = `[Conversation context]\n${context}\n\n[User message]\n${userMessage}`;
-  }
-
-  addMessage(conversationKey, { role: "user", content: fullMessage });
-
-  const ecliToolDefs = getEcliTools(userCtx.isAdmin);
-  const allTools = [...ecliToolDefs];
-  if (userCtx.githubToken) allTools.push(...githubTools);
-
-  const systemPrompt = SYSTEM_PROMPT +
+function buildSystemPrompt(userCtx: UserContext): string {
+  return SYSTEM_PROMPT +
     `\n\nCurrent user: ${userCtx.firstName} (${userCtx.email})` +
     `\nRole: ${userCtx.role === "*" ? "* (Root Admin)" : userCtx.role === "rootAdmin" ? "Root Admin" : userCtx.isAdmin ? "Administrator" : "User"}` +
     (userCtx.githubLogin ? `\nGitHub: ${userCtx.githubLogin}` : "");
+}
 
-  const messages: Message[] = [
-    { role: "system", content: systemPrompt },
-    ...sanitizeHistory(getConversation(conversationKey)),
-  ];
+async function runAgentLoop(
+  conversationKey: string,
+  userCtx: UserContext,
+  messages: Message[],
+  toolsUsed: string[],
+  onProgress?: (progress: AgentProgress) => void
+): Promise<AgentResult> {
+  const ecliToolDefs = getEcliTools(userCtx.isAdmin);
+  const allTools = [...ecliToolDefs];
+  if (userCtx.githubToken) allTools.push(...githubTools);
 
   const MAX_ITERATIONS = 10;
   let iteration = 0;
@@ -203,10 +193,72 @@ export async function runAgent(
 
     const reply = result.content || "I couldn't generate a response.";
     addMessage(conversationKey, { role: "assistant", content: reply });
-    return { reply, toolsUsed };
+    return { reply, toolsUsed, status: "ok" };
   }
 
-  const fallback = "I hit the maximum number of thinking steps.";
-  addMessage(conversationKey, { role: "assistant", content: fallback });
-  return { reply: fallback, toolsUsed };
+  // Max iterations reached — store pending continuation and return limit status
+  pendingContinuations.set(conversationKey, { slackUserId: String(userCtx.userId), toolsUsed });
+  const limitMsg = "_I've reached my thinking limit._\n\nClick :white_check_mark: to continue or :x: to cancel.";
+  return { reply: limitMsg, toolsUsed, status: "thinking_limit" };
+}
+
+export async function runAgent(
+  slackUserId: string,
+  conversationKey: string,
+  userMessage: string,
+  context?: string,
+  onProgress?: (progress: AgentProgress) => void
+): Promise<AgentResult> {
+  const toolsUsed: string[] = [];
+  const userCtx = await resolveUser(slackUserId);
+
+  if (!userCtx) {
+    onProgress?.({ type: "text", text: "Checking account..." });
+    return { reply: "Hello! :wave: I'm *EcliBot*, the AI assistant for EcliPanel.\n\nI see you're new here — you haven't linked your EcliPanel account yet. To use me:\n\n1. Register at *ecli.app* if you don't have an account\n2. Go to *Settings → AI* and turn on *Bring Your Own AI*\n3. Go to *Settings → Slack Bot* and enter your *Slack User ID*\n\nYour Slack User ID can be found by clicking your profile picture → Profile → ••• → Copy member ID.\n\nOnce linked, you can ask me about your servers, GitHub repos, and more!", toolsUsed: [], status: "ok" };
+  }
+
+  let fullMessage = userMessage;
+  if (context) {
+    fullMessage = `[Conversation context]\n${context}\n\n[User message]\n${userMessage}`;
+  }
+
+  addMessage(conversationKey, { role: "user", content: fullMessage });
+
+  const systemPrompt = buildSystemPrompt(userCtx);
+  const messages: Message[] = [
+    { role: "system", content: systemPrompt },
+    ...sanitizeHistory(getConversation(conversationKey)),
+  ];
+
+  return runAgentLoop(conversationKey, userCtx, messages, toolsUsed, onProgress);
+}
+
+export async function continueAgent(
+  slackUserId: string,
+  conversationKey: string,
+  onProgress?: (progress: AgentProgress) => void
+): Promise<AgentResult> {
+  const pending = pendingContinuations.get(conversationKey);
+  if (!pending) {
+    return { reply: "No pending conversation to continue. Start a new request.", toolsUsed: [], status: "ok" };
+  }
+  pendingContinuations.delete(conversationKey);
+
+  const userCtx = await resolveUser(slackUserId);
+  if (!userCtx) {
+    return { reply: "Your account could not be found. Please re-link your Slack account.", toolsUsed: [], status: "ok" };
+  }
+
+  const systemPrompt = buildSystemPrompt(userCtx);
+  const messages: Message[] = [
+    { role: "system", content: systemPrompt },
+    ...sanitizeHistory(getConversation(conversationKey)),
+  ];
+
+  const toolsUsed = [...pending.toolsUsed];
+  return runAgentLoop(conversationKey, userCtx, messages, toolsUsed, onProgress);
+}
+
+export function clearPendingContinuation(conversationKey: string): void {
+  pendingContinuations.delete(conversationKey);
 }
