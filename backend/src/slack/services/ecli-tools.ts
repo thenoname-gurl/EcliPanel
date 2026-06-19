@@ -15,8 +15,8 @@ async function logAction(userId: number, action: string, targetId?: string, targ
 
 function stripHtml(html: string, maxLen = 4000): string {
   let text = html;
-  text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ");
-  text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ");
+  text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, " ");
+  text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, " ");
   text = text.replace(/<[^>]+>/g, " ");
   text = text.replace(/&[a-z]+;/gi, " ");
   text = text.replace(/&#\d+;/g, " ");
@@ -105,7 +105,7 @@ export async function executeEcliTool(name: string, args: any, userId: number, i
         if (u.userRoles) for (const ur of u.userRoles) { if (ur.role) roles.push(ur.role.name); }
         const permissions: string[] = [];
         if (u.userRoles) for (const ur of u.userRoles) { if (ur.role?.permissions) for (const p of ur.role.permissions) { if (p.value && !permissions.includes(p.value)) permissions.push(p.value); } }
-        result = { id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, suspended: u.suspended, role: u.role || "user", roles, permissions: permissions.length > 0 ? permissions : (u.role === '*' || u.role === 'rootAdmin' ? ["* (all)"] : []), createdAt: u.createdAt };
+        result = { id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, suspended: u.suspended, role: u.role || "user", roles, permissions: permissions.length > 0 ? permissions : (u.role === '*' || u.role === 'rootAdmin' ? [ "* (all)" ] : []), createdAt: u.createdAt };
         break;
       }
       case "ecli_list_users": {
