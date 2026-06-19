@@ -1,5 +1,5 @@
 import { App } from "@slack/bolt";
-import { runAgent } from "./agent/orchestrator";
+import { runAgent, continueAgent, clearPendingContinuation } from "./agent/orchestrator";
 import { clearConversation } from "./services/conversation";
 import { resolveUser } from "./services/user-context";
 
@@ -49,6 +49,37 @@ function cleanPII(text: string): string {
   return cleaned;
 }
 
+/** Extract the original Slack user ID from a convKey (`channel:...:user:USERID`) */
+function getOriginalUserId(convKey: string): string | null {
+  const parts = convKey.split(":user:");
+  return parts.length === 2 ? parts[1] : null;
+}
+
+function buildContinueBlocks(text: string, convKey: string): any[] {
+  return [
+    { type: "section", text: { type: "mrkdwn", text } },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Continue", emoji: true },
+          style: "primary",
+          action_id: "continue_thinking",
+          value: convKey,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Cancel", emoji: true },
+          style: "danger",
+          action_id: "cancel_thinking",
+          value: convKey,
+        },
+      ],
+    },
+  ];
+}
+
 export function initSlackBot(): void {
   if (!process.env.SLACK_BOT_TOKEN || !process.env.SLACK_APP_TOKEN) {
     console.log("[slack-bot] Slack tokens not configured — bot disabled");
@@ -95,6 +126,21 @@ export function initSlackBot(): void {
       });
 
       const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+
+      if (result.status === "thinking_limit") {
+        const displayText = streamText || "_No response generated yet._";
+        const currentText = tools + displayText + "\n\n" + result.reply;
+        await client.chat.update({
+          channel: command.channel_id,
+          ts,
+          text: currentText,
+          blocks: buildContinueBlocks(currentText, convKey),
+        });
+        messageAuthors.set(`${command.channel_id}:${ts}`, command.user_id);
+        await addDeleteReaction(client, command.channel_id, ts);
+        return;
+      }
+
       const fullReply = tools + result.reply;
 
       if (hasPII(fullReply)) {
@@ -119,6 +165,7 @@ export function initSlackBot(): void {
   app.command("/ecli-reset", async ({ command, ack, respond }) => {
     await ack();
     clearConversation(`channel:${command.channel_id}:user:${command.user_id}`);
+    clearPendingContinuation(`channel:${command.channel_id}:user:${command.user_id}`);
     await respond({ text: "Conversation history cleared.", response_type: "ephemeral" });
   });
 
@@ -129,6 +176,7 @@ export function initSlackBot(): void {
     const lower = text.toLowerCase();
     if (lower === "forget" || lower === "reset" || lower === "clear" || lower === "clear history") {
       clearConversation(`channel:${event.channel}:user:${event.user}`);
+      clearPendingContinuation(`channel:${event.channel}:user:${event.user}`);
       await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "_Conversation history cleared. I'll start fresh._", mrkdwn: true });
       return;
     }
@@ -180,6 +228,21 @@ export function initSlackBot(): void {
       });
 
       const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+
+      if (result.status === "thinking_limit") {
+        const displayText = streamText || "_No response generated yet._";
+        const currentText = tools + displayText + "\n\n" + result.reply;
+        await client.chat.update({
+          channel: event.channel,
+          ts,
+          text: currentText,
+          blocks: buildContinueBlocks(currentText, convKey),
+        });
+        messageAuthors.set(`${event.channel}:${ts}`, userId);
+        await addDeleteReaction(client, event.channel, ts);
+        return;
+      }
+
       const fullReply = tools + result.reply;
 
       if (hasPII(fullReply)) {
@@ -229,12 +292,32 @@ export function initSlackBot(): void {
 
     try {
       let streamText = "";
+      let toolCalls: string[] = [];
       const result = await runAgent(userId, convKey, text, context || undefined, async (p) => {
-        if (p.type === "text" && p.text) {
+        if (p.type === "tool" && p.toolName) {
+          toolCalls.push(p.toolName);
+        } else if (p.type === "text" && p.text) {
           streamText = p.text;
-          await client.chat.update({ channel: message.channel, ts, text: streamText });
+          const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+          await client.chat.update({ channel: message.channel, ts, text: tools + streamText });
         }
       });
+
+      if (result.status === "thinking_limit") {
+        const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+        const displayText = streamText || "_No response generated yet._";
+        const currentText = tools + displayText + "\n\n" + result.reply;
+        await client.chat.update({
+          channel: message.channel,
+          ts,
+          text: currentText,
+          blocks: buildContinueBlocks(currentText, convKey),
+        });
+        messageAuthors.set(`${message.channel}:${ts}`, userId);
+        await addDeleteReaction(client, message.channel, ts);
+        return;
+      }
+
       await client.chat.update({ channel: message.channel, ts, text: result.reply });
       messageAuthors.set(`${message.channel}:${ts}`, userId);
       await addDeleteReaction(client, message.channel, ts);
@@ -279,6 +362,99 @@ export function initSlackBot(): void {
       const data = JSON.parse((action as any).value);
       await respond({ text: data.fullReply, response_type: "in_channel", mrkdwn: true, replace_original: false });
     } catch {}
+  });
+
+  // Handle continue button — only original user can continue
+  app.action("continue_thinking", async ({ action, ack, client, body }) => {
+    await ack();
+    const convKey = (action as any).value;
+    const slackUserId = (body as any).user?.id;
+    if (!slackUserId || !convKey) return;
+
+    const originalUserId = getOriginalUserId(convKey);
+    if (originalUserId && originalUserId !== slackUserId) {
+      await client.chat.postEphemeral({
+        channel: (body as any).channel?.id || (body as any).channel,
+        user: slackUserId,
+        text: "Only the person who asked the question can continue or cancel this conversation.",
+      });
+      return;
+    }
+
+    const channel = (body as any).channel?.id || (body as any).channel;
+    const messageTs = (body as any).message?.ts;
+    if (!channel || !messageTs) return;
+
+    // Update message to show continuing
+    await client.chat.update({
+      channel,
+      ts: messageTs,
+      text: "_Continuing..._",
+      blocks: [],
+    });
+
+    try {
+      let toolCalls: string[] = [];
+      let streamText = "";
+      const result = await continueAgent(slackUserId, convKey, async (p) => {
+        if (p.type === "tool" && p.toolName) {
+          toolCalls.push(p.toolName);
+        } else if (p.type === "text" && p.text) {
+          streamText = p.text;
+          const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+          await client.chat.update({ channel, ts: messageTs, text: tools + streamText });
+        }
+      });
+
+      const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+
+      if (result.status === "thinking_limit") {
+        const displayText = streamText || "_No response generated yet._";
+        const currentText = tools + displayText + "\n\n" + result.reply;
+        await client.chat.update({
+          channel,
+          ts: messageTs,
+          text: currentText,
+          blocks: buildContinueBlocks(currentText, convKey),
+        });
+      } else {
+        const finalText = tools + result.reply;
+        await client.chat.update({ channel, ts: messageTs, text: finalText, blocks: [] });
+      }
+    } catch (err: any) {
+      await client.chat.update({ channel, ts: messageTs, text: `*Error:* ${err.message}`, blocks: [] });
+    }
+  });
+
+  // Handle cancel button — only original user can cancel
+  app.action("cancel_thinking", async ({ action, ack, client, body }) => {
+    await ack();
+    const convKey = (action as any).value;
+    const slackUserId = (body as any).user?.id;
+    if (!slackUserId || !convKey) return;
+
+    const originalUserId = getOriginalUserId(convKey);
+    if (originalUserId && originalUserId !== slackUserId) {
+      await client.chat.postEphemeral({
+        channel: (body as any).channel?.id || (body as any).channel,
+        user: slackUserId,
+        text: "Only the person who asked the question can continue or cancel this conversation.",
+      });
+      return;
+    }
+
+    const channel = (body as any).channel?.id || (body as any).channel;
+    const messageTs = (body as any).message?.ts;
+    if (!channel || !messageTs) return;
+
+    clearPendingContinuation(convKey);
+
+    await client.chat.update({
+      channel,
+      ts: messageTs,
+      text: "_Cancelled._",
+      blocks: [],
+    });
   });
 }
 
