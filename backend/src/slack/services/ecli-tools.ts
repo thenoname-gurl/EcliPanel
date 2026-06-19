@@ -15,8 +15,8 @@ async function logAction(userId: number, action: string, targetId?: string, targ
 
 function stripHtml(html: string, maxLen = 4000): string {
   let text = html;
-  text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, " ");
-  text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gi, " ");
+  text = text.replace(/<script\b[^>]*>[\s\S]*?<\/script[^>]*>/gi, " ");
+  text = text.replace(/<style\b[^>]*>[\s\S]*?<\/style[^>]*>/gi, " ");
   text = text.replace(/<[^>]+>/g, " ");
   text = text.replace(/&[a-z]+;/gi, " ");
   text = text.replace(/&#\d+;/g, " ");
