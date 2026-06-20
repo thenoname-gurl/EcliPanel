@@ -103,14 +103,26 @@ const githubTools: Array<{
 
 function sanitizeHistory(history: Message[]): Message[] {
   const validToolIds = new Set<string>();
+  const respondedToolIds = new Set<string>();
   for (const msg of history) {
     if (msg.role === "assistant" && msg.tool_calls) {
       for (const tc of msg.tool_calls) validToolIds.add(tc.id);
     }
+    if (msg.role === "tool" && msg.tool_call_id) {
+      respondedToolIds.add(msg.tool_call_id);
+    }
   }
   return history.filter(msg => {
-    if (msg.role !== "tool") return true;
-    return msg.tool_call_id && validToolIds.has(msg.tool_call_id);
+    if (msg.role === "tool") {
+      return msg.tool_call_id && validToolIds.has(msg.tool_call_id);
+    }
+    if (msg.role === "assistant" && msg.tool_calls) {
+      for (const tc of msg.tool_calls) {
+        if (!respondedToolIds.has(tc.id)) return false;
+      }
+      return true;
+    }
+    return true;
   });
 }
 
