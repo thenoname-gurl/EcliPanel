@@ -172,21 +172,22 @@ export function initSlackBot(): void {
   app.event("app_mention", async ({ event, client }) => {
     const text = event.text.replace(/<@[A-Z0-9]+>/, "").trim();
     const threadTs = (event as any).thread_ts || undefined;
+    const replyThread = threadTs || (event as any).ts;
 
     const lower = text.toLowerCase();
     if (lower === "forget" || lower === "reset" || lower === "clear" || lower === "clear history") {
       clearConversation(`channel:${event.channel}:user:${event.user}`);
       clearPendingContinuation(`channel:${event.channel}:user:${event.user}`);
-      await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "_Conversation history cleared. I'll start fresh._", mrkdwn: true });
+      await client.chat.postMessage({ channel: event.channel, thread_ts: replyThread, text: "_Conversation history cleared. I'll start fresh._", mrkdwn: true });
       return;
     }
 
     if (!text) {
       const linked = await resolveUser(event.user);
       if (!linked) {
-        await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "Hello! :wave: I'm *EcliBot*, the AI assistant for EcliPanel.\n\nTo use me:\n1. Register at *ecli.app*\n2. Go to *Settings → AI* and enable *Bring Your Own AI*\n3. Go to *Settings → Slack Bot* and enter your Slack User ID\n\nYour Slack User ID → profile picture → Profile → ••• → Copy member ID.", mrkdwn: true });
+        await client.chat.postMessage({ channel: event.channel, thread_ts: replyThread, text: "Hello! :wave: I'm *EcliBot*, the AI assistant for EcliPanel.\n\nTo use me:\n1. Register at *ecli.app*\n2. Go to *Settings → AI* and enable *Bring Your Own AI*\n3. Go to *Settings → Slack Bot* and enter your Slack User ID\n\nYour Slack User ID → profile picture → Profile → ••• → Copy member ID.", mrkdwn: true });
       } else {
-        await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "Hi! Ask me anything about your EcliPanel servers, GitHub repos, or infrastructure. :wave:", mrkdwn: true });
+        await client.chat.postMessage({ channel: event.channel, thread_ts: replyThread, text: "Hi! Ask me anything about your EcliPanel servers, GitHub repos, or infrastructure. :wave:", mrkdwn: true });
       }
       return;
     }
@@ -210,7 +211,7 @@ export function initSlackBot(): void {
       }
     } catch {}
 
-    const msg = await client.chat.postMessage({ channel: event.channel, thread_ts: threadTs, text: "_Thinking..._", mrkdwn: true });
+    const msg = await client.chat.postMessage({ channel: event.channel, thread_ts: replyThread, text: "_Thinking..._", mrkdwn: true });
     const ts = msg.ts!;
 
     try {
@@ -250,11 +251,11 @@ export function initSlackBot(): void {
         messageAuthors.set(`${event.channel}:${ts}`, userId);
         await addDeleteReaction(client, event.channel, ts);
         await client.chat.postEphemeral({
-          channel: event.channel, user: userId, thread_ts: threadTs,
+          channel: event.channel, user: userId, thread_ts: replyThread,
           text: `:warning: *PII detected — full response (only visible to you):*\n\n${fullReply}`,
           blocks: [
             { type: "section", text: { type: "mrkdwn", text: `:warning: *PII detected — full response:*\n\n${fullReply.slice(0, 2800)}` } },
-            { type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "Post publicly" }, action_id: "publish_pii", value: JSON.stringify({ channel: event.channel, ts, fullReply, threadTs }) }] },
+            { type: "actions", elements: [{ type: "button", text: { type: "plain_text", text: "Post publicly" }, action_id: "publish_pii", value: JSON.stringify({ channel: event.channel, ts, fullReply, threadTs: replyThread }) }] },
           ],
         });
       } else {
