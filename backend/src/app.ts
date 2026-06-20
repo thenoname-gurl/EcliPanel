@@ -24,7 +24,6 @@ import { scheduleGithubContributorsJob } from './jobs/githubContributorsJob';
 import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
 import { scheduleRenewalJob } from './jobs/renewalJob';
 import { scheduleEloDecayJob } from './jobs/eloDecayJob';
-import { initSlackBot } from './slack/index';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
 import { openapi } from '@elysia/openapi';
@@ -77,8 +76,8 @@ interface AppExtensions {
 function getSafeUploadPath(base: string, relPath: string) {
   const normalised = path
     .normalize(String(relPath || ''))
-    .replace(/^([/\\])+/, '')
-    .replace(/^(\.{2}(\/|\\|$))+/, '');
+    .replace(/^([/\\\\])+/, '')
+    .replace(/^(\\.{2}(\\/|\\\\|$))+/, '');
   const fullPath = path.join(base, normalised);
   const relative = path.relative(base, fullPath);
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) {
@@ -760,11 +759,7 @@ export async function initApp() {
   } catch (e) {
     console.error('Failed to schedule mailbox password rotation job:', e);
   }
-  try {
-    initSlackBot();
-  } catch (e) {
-    console.error('Failed to initialize Slack bot:', e);
-  }
+  // Slack bot has been removed (see PR #)
 }
 
 app.get(
