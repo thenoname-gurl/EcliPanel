@@ -3599,7 +3599,8 @@
       "installing": "Installing",
       "hibernated": "Hibernated",
       "dmca": "DMCA",
-      "unknown": "Unknown"
+      "unknown": "Unknown",
+      "unavailable": "Unavailable"
     },
     "resources": {
       "cpu": "CPU",

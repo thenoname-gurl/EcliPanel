@@ -109,6 +109,8 @@ function statusColor(status: string) {
       return "bg-zinc-500"
     case "dmca":
       return "bg-destructive"
+    case "unavailable":
+      return "bg-red-500"
     default:
       return "bg-zinc-500"
   }
@@ -132,6 +134,8 @@ function statusLabel(status: string, t?: (key: string) => string) {
       return t ? t("status.offline") : "Offline"
     case "dmca":
       return t ? t("status.dmca") : "DMCA"
+    case "unavailable":
+      return t ? t("status.unavailable") : "Unavailable"
     default:
       return status || (t ? t("status.unknown") : "Unknown")
   }

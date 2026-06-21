@@ -4345,7 +4345,7 @@ export async function adminRoutes(app: any, prefix = '') {
         all.push({
           uuid: c.uuid,
           name: c.name || c.uuid,
-          status: c.hibernated ? 'hibernated' : 'unknown',
+          status: c.hibernated ? 'hibernated' : unhealthyNodeIds.includes(c.nodeId) ? 'unavailable' : 'unknown',
           hibernated: !!c.hibernated,
           is_suspended: c.suspended,
           resources: null,

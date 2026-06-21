@@ -242,6 +242,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                     starting: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
                     suspended: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
                     stopping: { class: "border-orange-500/30 bg-orange-500/10 text-orange-400", dot: "bg-orange-400" },
+                    unavailable: { class: "border-red-500/40 bg-red-500/10 text-red-400", dot: "bg-red-400" },
                     unknown: { class: "border-amber-500/30 bg-amber-500/10 text-amber-400", dot: "bg-amber-400" },
                   }
                   const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "border-border bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" }

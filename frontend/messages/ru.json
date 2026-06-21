@@ -3655,7 +3655,8 @@
       "stopping": "Останавливается",
       "offline": "Офлайн",
       "dmca": "DMCA",
-      "unknown": "Неизвестно"
+      "unknown": "Неизвестно",
+      "unavailable": "Недоступен"
     },
     "resources": {
       "cpu": "CPU",

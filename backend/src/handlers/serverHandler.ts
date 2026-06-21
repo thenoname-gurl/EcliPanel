@@ -796,7 +796,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             all.push({
               uuid: c.uuid,
               name: c.name || c.uuid,
-              status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
+              status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : unhealthyNodeIds.includes(c.nodeId) ? 'unavailable' : 'unknown',
               hibernated: !!c.hibernated,
               is_suspended: c.suspended || c.dmca,
               is_dmca: !!c.dmca,
@@ -843,12 +843,12 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         for (const [nodeId, cfgList] of configsByNode.entries()) {
           const node = nodeMap.get(nodeId);
           if (!node) continue;
-          if (unhealthyNodeIds.includes(nodeId)) {
-            for (const c of cfgList) {
-              all.push({
-                uuid: c.uuid,
-                name: c.name || c.uuid,
-                status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
+              if (unhealthyNodeIds.includes(nodeId)) {
+                for (const c of cfgList) {
+                  all.push({
+                    uuid: c.uuid,
+                    name: c.name || c.uuid,
+                    status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unavailable',
                 hibernated: !!c.hibernated,
                 is_suspended: c.suspended || c.dmca,
                 is_dmca: !!c.dmca,
@@ -1157,7 +1157,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const norm = normalizeServer(
           {
             uuid: cfg.uuid,
-            state: cfg.hibernated ? 'hibernated' : 'unknown',
+            state: cfg.hibernated ? 'hibernated' : 'unavailable',
             is_suspended: cfg.suspended,
             is_dmca: cfg.dmca,
             dmca: cfg.dmca,
