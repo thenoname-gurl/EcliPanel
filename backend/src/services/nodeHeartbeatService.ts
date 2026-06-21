@@ -39,6 +39,7 @@ export class NodeHeartbeatService {
   private async pingNode(node: Node) {
     let responseMs: number | undefined;
     let status = 'ok';
+    let errorMessage: string | undefined;
     const start = Date.now();
 
     try {
@@ -50,6 +51,7 @@ export class NodeHeartbeatService {
       responseMs = Date.now() - start;
     } catch (e: any) {
       responseMs = Date.now() - start;
+      errorMessage = e.code ? `${e.code}: ${e.message}` : e.message || String(e);
       if (
         e.code === 'ETIMEDOUT' ||
         e.code === 'ECONNABORTED' ||
@@ -59,10 +61,11 @@ export class NodeHeartbeatService {
       } else {
         status = 'error';
       }
+      console.warn(`[heartbeat] ${node.name} (id=${node.id}) ${status}: ${errorMessage}`);
     }
 
     const hbRepo = AppDataSource.getRepository(NodeHeartbeat);
-    await hbRepo.save(hbRepo.create({ nodeId: node.id, responseMs, status })).catch(() => {});
+    await hbRepo.save(hbRepo.create({ nodeId: node.id, responseMs, status, errorMessage })).catch(() => {});
   }
 
   private async pingWings(node: Node) {
@@ -73,13 +76,19 @@ export class NodeHeartbeatService {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PING_TIMEOUT);
     try {
-      const fetchOpts: RequestInit & { tls?: { rejectUnauthorized: boolean } } = {
+      const fetchOpts: any = {
         method: 'GET',
         headers: { Authorization: `Bearer ${node.token}` },
         signal: controller.signal,
       };
-      if (ALLOW_INVALID_CERTS) fetchOpts.tls = { rejectUnauthorized: false };
-      await fetch(endpoint, fetchOpts);
+      if (ALLOW_INVALID_CERTS) {
+        fetchOpts.tls = { rejectUnauthorized: false };
+        try { process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; } catch {}
+      }
+      const res = await fetch(endpoint, fetchOpts);
+      if (!res.ok && res.status !== 401 && res.status !== 403) {
+        throw new Error(`HTTP ${res.status}`);
+      }
     } finally {
       clearTimeout(timeout);
     }

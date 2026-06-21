@@ -436,12 +436,24 @@ interface AdminTicket {
 
 interface AdminNode {
   id: number
+  nodeId?: string
   name: string
   url: string
   nodeType: string
   deploymentsDisabled?: boolean
   deploymentNotice?: string | null
   organisation?: { id: number; name: string }
+}
+
+function formatNodeUuid(node: { id: number; nodeId?: string }): string {
+  if (node.nodeId) {
+    const cleaned = node.nodeId.replace(/-/g, "")
+    if (cleaned.length === 32) {
+      return `${cleaned.slice(0, 8)}-${cleaned.slice(8, 12)}-${cleaned.slice(12, 16)}-${cleaned.slice(16, 20)}-${cleaned.slice(20)}`
+    }
+    return node.nodeId
+  }
+  return String(node.id)
 }
 
 interface AdminEgg {
@@ -578,6 +590,7 @@ interface HeartbeatPoint {
   timestamp: string
   responseMs: number | null
   status: string // 'ok' | 'timeout' | 'error'
+  errorMessage?: string | null
 }
 
 // ─── NodeSparkline — pure SVG heartbeat sparkline ─────────────────────────────
@@ -619,6 +632,11 @@ function NodeSparkline({ data, compact = true }: { data: HeartbeatPoint[]; compa
         </div>
         <span className="text-xs text-muted-foreground">{uptimePct}% up</span>
       </div>
+      {isOffline && last?.errorMessage && (
+        <p className="text-[10px] text-red-400/70 truncate" title={last.errorMessage}>
+          {last.errorMessage}
+        </p>
+      )}
       {pts.length > 0 ? (
         <svg
           width="100%"
@@ -1624,6 +1642,8 @@ export default function AdminPanel() {
   const [syncingFromWings, setSyncingFromWings] = useState(false)
   // ── Sync to Wings (push panel configs) ──
   const [syncingToWings, setSyncingToWings] = useState(false)
+  // ── Per-server resync (unknown → Wings) ──
+  const [resyncingServer, setResyncingServer] = useState<string | null>(null)
 
   // ── View Node Config dialog ──
   const [viewConfigNode, setViewConfigNode] = useState<AdminNode | null>(null)
@@ -2940,6 +2960,18 @@ export default function AdminPanel() {
     }
   }
 
+  async function resyncServer(uuid: string) {
+    setResyncingServer(uuid)
+    try {
+      await apiFetch(API_ENDPOINTS.serverSync.replace(":id", uuid), { method: "POST" })
+      forceRefreshTab("servers")
+    } catch (e: any) {
+      alert(`Resync failed: ${e.message}`)
+    } finally {
+      setResyncingServer(null)
+    }
+  }
+
   function openCreateServer() {
     const defaultNode = nodes.find((n: any) => !n.deploymentsDisabled) || nodes[0]
     setCsNodeId(defaultNode ? String(defaultNode.id) : "")
@@ -3323,7 +3355,7 @@ export default function AdminPanel() {
     const isSsl = urlObj?.protocol === "https:"
     const fqdn = urlObj?.hostname || node.url
     return `debug: false
-uuid: ${node.id}
+uuid: ${formatNodeUuid(node)}
 token_id: eclipanel
 token: ${token}
 api:
@@ -3440,7 +3472,7 @@ remote: ${backendUrl}`
     const certPath = `/etc/letsencrypt/live/${addNodeFqdn}/fullchain.pem`
     const keyPath = `/etc/letsencrypt/live/${addNodeFqdn}/privkey.pem`
     return `debug: false
-uuid: ${addNodeCreated?.id ?? "<node-id>"}
+uuid: ${addNodeCreated ? formatNodeUuid(addNodeCreated) : "<node-id>"}
 token_id: eclipanel
 token: ${addNodeToken}
 api:
@@ -4463,6 +4495,9 @@ remote: ${panelUrl}`
                     submitCreateServer,
                     csLoading,
                     panelSettings,
+                    nodeHeartbeats,
+                    resyncServer,
+                    resyncingServer,
                   }}
                 />
               ) : null}

@@ -135,6 +135,9 @@ export default function ServersTab({ ctx }: { ctx: any }) {
     submitCreateServer,
     csLoading,
     panelSettings,
+    nodeHeartbeats,
+    resyncServer,
+    resyncingServer,
   } = ctx
 
   return (
@@ -239,8 +242,12 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                     starting: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
                     suspended: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
                     stopping: { class: "border-orange-500/30 bg-orange-500/10 text-orange-400", dot: "bg-orange-400" },
+                    unknown: { class: "border-amber-500/30 bg-amber-500/10 text-amber-400", dot: "bg-amber-400" },
                   }
                   const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "border-border bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" }
+                  const nodeHb = srv.nodeId != null ? (nodeHeartbeats?.[srv.nodeId] || []) : []
+                  const nodeIsUp = nodeHb.length > 0 && nodeHb[nodeHb.length - 1]?.status === "ok"
+                  const isUnknownWings = srv.status === "unknown" && (!srv.provider || srv.provider === "wings") && nodeIsUp
 
                   return (
                     <tr key={srv.uuid ? `${srv.uuid}-${srv.nodeId || ""}` : i} className="border-b border-border/50 transition-colors hover:bg-secondary/20 group">
@@ -290,6 +297,20 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                               <Square className="h-3.5 w-3.5" />
                             </button>
                           </div>
+                          {isUnknownWings && (
+                            <button
+                              onClick={() => resyncServer(srv.uuid)}
+                              disabled={resyncingServer === srv.uuid}
+                              title="Resync server config to Wings"
+                              className="p-1.5 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 transition-colors"
+                            >
+                              {resyncingServer === srv.uuid ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                          )}
                           {srv.status === "suspended" ? (
                               <button onClick={() => unsuspendServer(srv.uuid)} title={t("actions.unsuspend")} className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors">
                               <CheckCircle className="h-3.5 w-3.5" />

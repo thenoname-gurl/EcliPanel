@@ -2588,9 +2588,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         }
       }
 
-      try {
-        const svc = await serviceFor(id);
-        const res = await svc.powerServer(id, action as 'start' | 'stop' | 'restart' | 'shutdown' | 'kill');
+      const handlePowerSuccess = async () => {
         if (gamblingPowerEnabled) {
           await recordPowerGambleOutcome(Number(user.id), true);
         }
@@ -2607,7 +2605,34 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           metadata: { powerAction: action },
           ipAddress: ctx.ip,
         });
-        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      };
+
+      try {
+        const svc = await serviceFor(id);
+        try {
+          const res = await svc.powerServer(id, action as 'start' | 'stop' | 'restart' | 'shutdown' | 'kill');
+          await handlePowerSuccess();
+          return res.data && typeof res.data === 'object' ? res.data : { success: true };
+        } catch (firstErr: any) {
+          if (firstErr?.response?.status === 404) {
+            await svc.syncServer(id, {}).catch(e =>
+              console.warn('[power] sync failed', e?.message || e)
+            );
+            for (const delay of [2000, 4000, 8000]) {
+              await new Promise(r => setTimeout(r, delay));
+              try {
+                const retryRes = await svc.powerServer(id, action as 'start' | 'stop' | 'restart' | 'shutdown' | 'kill');
+                await handlePowerSuccess();
+                const result = retryRes.data && typeof retryRes.data === 'object' ? retryRes.data : { success: true };
+                (result as any).synced = true;
+                return result;
+              } catch {}
+            }
+            ctx.set.status = 404;
+            return { error: 'Server not found on node after sync attempt' };
+          }
+          throw firstErr;
+        }
       } catch (e: unknown) {
         const err = e as Record<string, unknown>;
         const errResponse = err?.response as Record<string, unknown> | undefined;

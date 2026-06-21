@@ -80,6 +80,57 @@ function buildContinueBlocks(text: string, convKey: string): any[] {
   ];
 }
 
+function buildRetryBlocks(errorText: string, retryValue: string): any[] {
+  return [
+    { type: "section", text: { type: "mrkdwn", text: `:warning: ${errorText}` } },
+    {
+      type: "actions",
+      elements: [
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Retry \u267B", emoji: true },
+          action_id: "retry_agent",
+          value: retryValue,
+        },
+        {
+          type: "button",
+          text: { type: "plain_text", text: "Dismiss", emoji: true },
+          action_id: "dismiss_error",
+          value: retryValue,
+        },
+      ],
+    },
+  ];
+}
+
+function formatToolStatus(statuses: Map<string, string>): string {
+  if (statuses.size === 0) return "";
+  const parts: string[] = [];
+  for (const [name, s] of statuses) {
+    parts.push(`\`${name}\` ${s === "done" ? "✓" : "…"}`);
+  }
+  return `_${parts.join("  ")}_\n`;
+}
+
+function renderToolUpdate(
+  statuses: Map<string, string>,
+  streamText: string
+): string {
+  const statusLine = formatToolStatus(statuses);
+  const clean = hasPII(streamText) ? cleanPII(streamText) : streamText;
+  return statusLine + clean;
+}
+
+function buildFinalReply(
+  toolCalls: string[],
+  statuses: Map<string, string>,
+  reply: string
+): string {
+  const statusLine = formatToolStatus(statuses);
+  const toolsLine = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n` : "";
+  return statusLine + toolsLine + reply;
+}
+
 export function initSlackBot(): void {
   if (!process.env.SLACK_BOT_TOKEN || !process.env.SLACK_APP_TOKEN) {
     console.log("[slack-bot] Slack tokens not configured — bot disabled");
@@ -113,23 +164,27 @@ export function initSlackBot(): void {
 
     try {
       let toolCalls: string[] = [];
+      let toolStatuses = new Map<string, string>();
       let streamText = "";
       const result = await runAgent(command.user_id, convKey, text, undefined, async (p) => {
         if (p.type === "tool" && p.toolName) {
           toolCalls.push(p.toolName);
+          toolStatuses.set(p.toolName, "running");
+          await client.chat.update({ channel: command.channel_id, ts, text: renderToolUpdate(toolStatuses, streamText) });
+        } else if (p.type === "tool_done" && p.toolName) {
+          toolStatuses.set(p.toolName, "done");
+          await client.chat.update({ channel: command.channel_id, ts, text: renderToolUpdate(toolStatuses, streamText) });
         } else if (p.type === "text" && p.text) {
           streamText = p.text;
-          const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
-          const clean = hasPII(streamText) ? cleanPII(streamText) : streamText;
-          await client.chat.update({ channel: command.channel_id, ts, text: tools + clean });
+          await client.chat.update({ channel: command.channel_id, ts, text: renderToolUpdate(toolStatuses, streamText) });
         }
       });
 
-      const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+      const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n` : "";
 
       if (result.status === "thinking_limit") {
         const displayText = streamText || "_No response generated yet._";
-        const currentText = tools + displayText + "\n\n" + result.reply;
+        const currentText = formatToolStatus(toolStatuses) + tools + displayText + "\n\n" + result.reply;
         await client.chat.update({
           channel: command.channel_id,
           ts,
@@ -141,10 +196,10 @@ export function initSlackBot(): void {
         return;
       }
 
-      const fullReply = tools + result.reply;
+      const fullReply = buildFinalReply(toolCalls, toolStatuses, result.reply);
 
       if (hasPII(fullReply)) {
-        await client.chat.update({ channel: command.channel_id, ts, text: tools + cleanPII(result.reply) });
+        await client.chat.update({ channel: command.channel_id, ts, text: formatToolStatus(toolStatuses) + cleanPII(result.reply) });
         await client.chat.postEphemeral({ channel: command.channel_id, user: command.user_id, text: `:warning: *PII detected — full response (only visible to you):*\n\n${fullReply}`,
           blocks: [
             { type: "section", text: { type: "mrkdwn", text: `:warning: *PII detected — full response:*\n\n${fullReply.slice(0, 2800)}` } },
@@ -158,7 +213,13 @@ export function initSlackBot(): void {
       await addDeleteReaction(client, command.channel_id, ts);
       await respond({ text: result.reply, response_type: "in_channel", mrkdwn: true });
     } catch (err: any) {
-      await client.chat.update({ channel: command.channel_id, ts, text: `*Error:* ${err.message}` });
+      const retryValue = JSON.stringify({ convKey, text, channel: command.channel_id, userId: command.user_id });
+      await client.chat.update({
+        channel: command.channel_id,
+        ts,
+        text: `⚠️ ${err.message}`,
+        blocks: buildRetryBlocks(err.message, retryValue),
+      });
     }
   });
 
@@ -216,23 +277,27 @@ export function initSlackBot(): void {
 
     try {
       let toolCalls: string[] = [];
+      let toolStatuses = new Map<string, string>();
       let streamText = "";
       const result = await runAgent(userId, convKey, text, context || undefined, async (p) => {
         if (p.type === "tool" && p.toolName) {
           toolCalls.push(p.toolName);
+          toolStatuses.set(p.toolName, "running");
+          await client.chat.update({ channel: event.channel, ts, text: renderToolUpdate(toolStatuses, streamText) });
+        } else if (p.type === "tool_done" && p.toolName) {
+          toolStatuses.set(p.toolName, "done");
+          await client.chat.update({ channel: event.channel, ts, text: renderToolUpdate(toolStatuses, streamText) });
         } else if (p.type === "text" && p.text) {
           streamText = p.text;
-          const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
-          const clean = hasPII(streamText) ? cleanPII(streamText) : streamText;
-          await client.chat.update({ channel: event.channel, ts, text: tools + clean });
+          await client.chat.update({ channel: event.channel, ts, text: renderToolUpdate(toolStatuses, streamText) });
         }
       });
 
-      const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+      const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n` : "";
 
       if (result.status === "thinking_limit") {
         const displayText = streamText || "_No response generated yet._";
-        const currentText = tools + displayText + "\n\n" + result.reply;
+        const currentText = formatToolStatus(toolStatuses) + tools + displayText + "\n\n" + result.reply;
         await client.chat.update({
           channel: event.channel,
           ts,
@@ -244,10 +309,10 @@ export function initSlackBot(): void {
         return;
       }
 
-      const fullReply = tools + result.reply;
+      const fullReply = buildFinalReply(toolCalls, toolStatuses, result.reply);
 
       if (hasPII(fullReply)) {
-        await client.chat.update({ channel: event.channel, ts, text: tools + cleanPII(result.reply) });
+        await client.chat.update({ channel: event.channel, ts, text: formatToolStatus(toolStatuses) + cleanPII(result.reply) });
         messageAuthors.set(`${event.channel}:${ts}`, userId);
         await addDeleteReaction(client, event.channel, ts);
         await client.chat.postEphemeral({
@@ -265,7 +330,13 @@ export function initSlackBot(): void {
       }
 
     } catch (err: any) {
-      await client.chat.update({ channel: event.channel, ts, text: `*Error:* ${err.message}` });
+      const retryValue = JSON.stringify({ convKey, text, channel: event.channel, userId, threadTs: replyThread });
+      await client.chat.update({
+        channel: event.channel,
+        ts,
+        text: `⚠️ ${err.message}`,
+        blocks: buildRetryBlocks(err.message, retryValue),
+      });
     }
   });
 
@@ -294,20 +365,25 @@ export function initSlackBot(): void {
     try {
       let streamText = "";
       let toolCalls: string[] = [];
+      let toolStatuses = new Map<string, string>();
       const result = await runAgent(userId, convKey, text, context || undefined, async (p) => {
         if (p.type === "tool" && p.toolName) {
           toolCalls.push(p.toolName);
+          toolStatuses.set(p.toolName, "running");
+          await client.chat.update({ channel: message.channel, ts, text: renderToolUpdate(toolStatuses, streamText) });
+        } else if (p.type === "tool_done" && p.toolName) {
+          toolStatuses.set(p.toolName, "done");
+          await client.chat.update({ channel: message.channel, ts, text: renderToolUpdate(toolStatuses, streamText) });
         } else if (p.type === "text" && p.text) {
           streamText = p.text;
-          const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
-          await client.chat.update({ channel: message.channel, ts, text: tools + streamText });
+          await client.chat.update({ channel: message.channel, ts, text: renderToolUpdate(toolStatuses, streamText) });
         }
       });
 
       if (result.status === "thinking_limit") {
-        const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+        const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n` : "";
         const displayText = streamText || "_No response generated yet._";
-        const currentText = tools + displayText + "\n\n" + result.reply;
+        const currentText = formatToolStatus(toolStatuses) + tools + displayText + "\n\n" + result.reply;
         await client.chat.update({
           channel: message.channel,
           ts,
@@ -319,11 +395,17 @@ export function initSlackBot(): void {
         return;
       }
 
-      await client.chat.update({ channel: message.channel, ts, text: result.reply });
+      await client.chat.update({ channel: message.channel, ts, text: buildFinalReply(toolCalls, toolStatuses, result.reply) });
       messageAuthors.set(`${message.channel}:${ts}`, userId);
       await addDeleteReaction(client, message.channel, ts);
     } catch (err: any) {
-      await client.chat.update({ channel: message.channel, ts, text: `*Error:* ${err.message}` });
+      const retryValue = JSON.stringify({ convKey, text, channel: message.channel, userId });
+      await client.chat.update({
+        channel: message.channel,
+        ts,
+        text: `⚠️ ${err.message}`,
+        blocks: buildRetryBlocks(err.message, retryValue),
+      });
     }
   });
 
@@ -396,22 +478,27 @@ export function initSlackBot(): void {
 
     try {
       let toolCalls: string[] = [];
+      let toolStatuses = new Map<string, string>();
       let streamText = "";
       const result = await continueAgent(slackUserId, convKey, async (p) => {
         if (p.type === "tool" && p.toolName) {
           toolCalls.push(p.toolName);
+          toolStatuses.set(p.toolName, "running");
+          await client.chat.update({ channel, ts: messageTs, text: renderToolUpdate(toolStatuses, streamText) });
+        } else if (p.type === "tool_done" && p.toolName) {
+          toolStatuses.set(p.toolName, "done");
+          await client.chat.update({ channel, ts: messageTs, text: renderToolUpdate(toolStatuses, streamText) });
         } else if (p.type === "text" && p.text) {
           streamText = p.text;
-          const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
-          await client.chat.update({ channel, ts: messageTs, text: tools + streamText });
+          await client.chat.update({ channel, ts: messageTs, text: renderToolUpdate(toolStatuses, streamText) });
         }
       });
 
-      const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n\n` : "";
+      const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n` : "";
 
       if (result.status === "thinking_limit") {
         const displayText = streamText || "_No response generated yet._";
-        const currentText = tools + displayText + "\n\n" + result.reply;
+        const currentText = formatToolStatus(toolStatuses) + tools + displayText + "\n\n" + result.reply;
         await client.chat.update({
           channel,
           ts: messageTs,
@@ -419,11 +506,11 @@ export function initSlackBot(): void {
           blocks: buildContinueBlocks(currentText, convKey),
         });
       } else {
-        const finalText = tools + result.reply;
+        const finalText = buildFinalReply(toolCalls, toolStatuses, result.reply);
         await client.chat.update({ channel, ts: messageTs, text: finalText, blocks: [] });
       }
     } catch (err: any) {
-      await client.chat.update({ channel, ts: messageTs, text: `*Error:* ${err.message}`, blocks: [] });
+      await client.chat.update({ channel, ts: messageTs, text: `⚠️ ${err.message}`, blocks: [] });
     }
   });
 
@@ -456,6 +543,98 @@ export function initSlackBot(): void {
       text: "_Cancelled._",
       blocks: [],
     });
+  });
+
+  // Handle retry button — only original user can retry
+  app.action("retry_agent", async ({ action, ack, client, body }) => {
+    await ack();
+    let data: any;
+    try { data = JSON.parse((action as any).value); } catch { return; }
+    const { convKey, text, channel, userId, threadTs } = data;
+    const slackUserId = (body as any).user?.id;
+    if (!slackUserId || !convKey || !channel || !userId || !text) return;
+
+    const originalUserId = getOriginalUserId(convKey);
+    if (originalUserId && originalUserId !== slackUserId) {
+      await client.chat.postEphemeral({
+        channel,
+        user: slackUserId,
+        text: "Only the person who asked the question can retry.",
+      });
+      return;
+    }
+
+    const messageTs = (body as any).message?.ts;
+    if (!messageTs) return;
+
+    await client.chat.update({ channel, ts: messageTs, text: "_Retrying..._", blocks: [] });
+
+    try {
+      let toolCalls: string[] = [];
+      let toolStatuses = new Map<string, string>();
+      let streamText = "";
+      const result = await runAgent(slackUserId, convKey, text, undefined, async (p) => {
+        if (p.type === "tool" && p.toolName) {
+          toolCalls.push(p.toolName);
+          toolStatuses.set(p.toolName, "running");
+          await client.chat.update({ channel, ts: messageTs, text: renderToolUpdate(toolStatuses, streamText) });
+        } else if (p.type === "tool_done" && p.toolName) {
+          toolStatuses.set(p.toolName, "done");
+          await client.chat.update({ channel, ts: messageTs, text: renderToolUpdate(toolStatuses, streamText) });
+        } else if (p.type === "text" && p.text) {
+          streamText = p.text;
+          await client.chat.update({ channel, ts: messageTs, text: renderToolUpdate(toolStatuses, streamText) });
+        }
+      });
+
+      if (result.status === "thinking_limit") {
+        const tools = toolCalls.length > 0 ? `_AI used: ${formatTools(toolCalls)}_\n` : "";
+        const displayText = streamText || "_No response generated yet._";
+        const currentText = formatToolStatus(toolStatuses) + tools + displayText + "\n\n" + result.reply;
+        await client.chat.update({
+          channel,
+          ts: messageTs,
+          text: currentText,
+          blocks: buildContinueBlocks(currentText, convKey),
+        });
+      } else {
+        await client.chat.update({
+          channel,
+          ts: messageTs,
+          text: buildFinalReply(toolCalls, toolStatuses, result.reply),
+          blocks: [],
+        });
+      }
+      messageAuthors.set(`${channel}:${messageTs}`, slackUserId);
+      await addDeleteReaction(client, channel, messageTs);
+    } catch (err: any) {
+      const retryValue = JSON.stringify({ convKey, text, channel, userId, threadTs });
+      await client.chat.update({
+        channel,
+        ts: messageTs,
+        text: `⚠️ ${err.message}`,
+        blocks: buildRetryBlocks(err.message, retryValue),
+      });
+    }
+  });
+
+  // Handle dismiss button — only original user can dismiss
+  app.action("dismiss_error", async ({ action, ack, client, body }) => {
+    await ack();
+    let data: any;
+    try { data = JSON.parse((action as any).value); } catch { return; }
+    const { convKey } = data;
+    const slackUserId = (body as any).user?.id;
+    if (!slackUserId || !convKey) return;
+
+    const originalUserId = getOriginalUserId(convKey);
+    if (originalUserId && originalUserId !== slackUserId) return;
+
+    const channel = (body as any).channel?.id || (body as any).channel;
+    const messageTs = (body as any).message?.ts;
+    if (!channel || !messageTs) return;
+
+    await client.chat.update({ channel, ts: messageTs, text: "_Dismissed._", blocks: [] });
   });
 }
 

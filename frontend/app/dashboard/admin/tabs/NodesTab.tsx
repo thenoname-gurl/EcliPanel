@@ -170,7 +170,9 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
-                    <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs">#{node.id}</Badge>
+                    <Badge variant="outline" className="border-border bg-secondary/50 text-muted-foreground text-xs font-mono">
+                      {node.nodeId ? node.nodeId : `#${node.id}`}
+                    </Badge>
                     <Badge variant="outline" className={`text-xs ${providerColors[node.provider || 'wings']}`}>{node.provider || 'wings'}</Badge>
                     <Badge variant="outline" className={`text-xs ${typeColors[node.nodeType] || typeColors.free}`}>{typeLabel[node.nodeType] || node.nodeType}</Badge>
                     {node.deploymentsDisabled && <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs">Disabled</Badge>}

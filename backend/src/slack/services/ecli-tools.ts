@@ -166,7 +166,10 @@ export async function executeEcliTool(name: string, args: any, userId: number, i
       }
       case "web_search": {
         const q = encodeURIComponent(args.query);
-        const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`);
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15_000);
+        const res = await fetch(`https://html.duckduckgo.com/html/?q=${q}`, { signal: controller.signal });
+        clearTimeout(timer);
         const html = await res.text();
         await logAction(userId, "ai:web:search", undefined, "web", { query: args.query });
         const results: Array<{ title: string; snippet: string; url: string }> = [];

@@ -4526,19 +4526,48 @@ export async function adminRoutes(app: any, prefix = '') {
       try {
         const base = (node as any).backendWingsUrl || node.url;
         const svc = new WingsApiService(base, node.token);
-        const res = await svc.powerServer(serverId, action);
-        if (action === 'start' || action === 'restart') {
-          await AppDataSource.getRepository(ServerConfig).update(
-            { uuid: serverId },
-            { desiredPowerState: true }
-          );
-        } else if (action === 'stop' || action === 'kill') {
-          await AppDataSource.getRepository(ServerConfig).update(
-            { uuid: serverId },
-            { desiredPowerState: false }
-          );
+        try {
+          const res = await svc.powerServer(serverId, action);
+          if (action === 'start' || action === 'restart') {
+            await AppDataSource.getRepository(ServerConfig).update(
+              { uuid: serverId },
+              { desiredPowerState: true }
+            );
+          } else if (action === 'stop' || action === 'kill') {
+            await AppDataSource.getRepository(ServerConfig).update(
+              { uuid: serverId },
+              { desiredPowerState: false }
+            );
+          }
+          return { success: true, data: res.data };
+        } catch (firstErr: any) {
+          if (firstErr?.response?.status === 404) {
+            await svc.syncServer(serverId, {}).catch(e =>
+              console.warn('[adminHandler:power] sync failed', e?.message || e)
+            );
+            for (const delay of [2000, 4000, 8000]) {
+              await new Promise(r => setTimeout(r, delay));
+              try {
+                const retryRes = await svc.powerServer(serverId, action);
+                if (action === 'start' || action === 'restart') {
+                  await AppDataSource.getRepository(ServerConfig).update(
+                    { uuid: serverId },
+                    { desiredPowerState: true }
+                  );
+                } else if (action === 'stop' || action === 'kill') {
+                  await AppDataSource.getRepository(ServerConfig).update(
+                    { uuid: serverId },
+                    { desiredPowerState: false }
+                  );
+                }
+                return { success: true, data: retryRes.data, synced: true };
+              } catch {}
+            }
+            ctx.set.status = 404;
+            return { error: 'Server not found on node after sync attempt' };
+          }
+          throw firstErr;
         }
-        return { success: true, data: res.data };
       } catch (e: any) {
         const status = e?.response?.status || 502;
         ctx.set.status = status;
@@ -5216,6 +5245,7 @@ export async function adminRoutes(app: any, prefix = '') {
         const mountRepo = AppDataSource.getRepository(ServerMount);
         const nodes = await nodeRepo.find();
         const configs = await cfgRepo.find();
+        const unhealthyNodeIds = await getUnhealthyNodeIds();
         const results: any[] = [];
 
         // Batch-load eggs and mounts upfront to avoid N+1 queries
@@ -5243,6 +5273,10 @@ export async function adminRoutes(app: any, prefix = '') {
           const node = nodes.find(n => n.id === cfg.nodeId);
           if (!node) {
             results.push({ uuid: cfg.uuid, status: 'node_not_found' });
+            continue;
+          }
+          if (unhealthyNodeIds.includes(node.id)) {
+            results.push({ uuid: cfg.uuid, status: 'node_offline', nodeId: node.id });
             continue;
           }
 
@@ -5333,11 +5367,12 @@ export async function adminRoutes(app: any, prefix = '') {
         const authFailedCount = results.filter(r => r.status === 'auth_failed').length;
         const errorCount = results.filter(r => r.status === 'error').length;
         const nodeNotFoundCount = results.filter(r => r.status === 'node_not_found').length;
+        const nodeOfflineCount = results.filter(r => r.status === 'node_offline').length;
 
         await createActivityLog({
           userId: adminId,
-          action: `admin:sync-to-wings:completed - created ${createdCount}, exists ${existsCount}, auth_failed ${authFailedCount}, errors ${errorCount}, node_not_found ${nodeNotFoundCount}`,
-          metadata: { createdCount, existsCount, authFailedCount, errorCount, nodeNotFoundCount },
+          action: `admin:sync-to-wings:completed - created ${createdCount}, exists ${existsCount}, auth_failed ${authFailedCount}, errors ${errorCount}, node_not_found ${nodeNotFoundCount}, node_offline ${nodeOfflineCount}`,
+          metadata: { createdCount, existsCount, authFailedCount, errorCount, nodeNotFoundCount, nodeOfflineCount },
           notify: false,
         });
       })().catch(async (err: any) => {

@@ -544,6 +544,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
           timestamp: r.timestamp,
           responseMs: r.responseMs ?? null,
           status: r.status,
+          errorMessage: r.errorMessage ?? null,
         }));
       }
       return result;
@@ -581,6 +582,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
           timestamp: r.timestamp,
           responseMs: r.responseMs ?? null,
           status: r.status,
+          errorMessage: r.errorMessage ?? null,
         })),
         summary: {
           uptime_pct: total > 0 ? Math.round((okCount / total) * 1000) / 10 : 100,

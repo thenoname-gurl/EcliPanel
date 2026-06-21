@@ -451,6 +451,7 @@ export const API_ENDPOINTS = {
   serverUpdate: "/api/servers/:id",
   serverSuspend: "/api/servers/v1/:id/suspend",
   serverUnsuspend: "/api/servers/v1/:id/unsuspend",
+  serverSync: "/api/servers/v1/:id/sync",
 
   // Eggs (server types)
   eggs: "/api/eggs",
