@@ -1,7 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { RefreshCw } from "lucide-react"
+import { RefreshCw, Trash2 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useTranslations } from "next-intl"
 
@@ -15,6 +15,7 @@ export default function ExportJobsTab({ ctx }: { ctx: any }) {
     createExportShareLink,
     exportShareLoading,
     exportShareLinks,
+    deleteExportJob,
   } = ctx
 
   return (
@@ -79,9 +80,17 @@ export default function ExportJobsTab({ ctx }: { ctx: any }) {
                       ) : null}
                       {job.shareLinkExpiresAt ? <span className="text-[11px] text-muted-foreground">{t("meta.expiresAt")} {new Date(job.shareLinkExpiresAt).toLocaleString()}</span> : null}
                     </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">—</span>
-                  )}
+                  ) : null}
+                  <div className="flex items-center gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => deleteExportJob(job.id)}
+                      className="text-xs text-red-400 hover:text-red-300"
+                      title="Delete job"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

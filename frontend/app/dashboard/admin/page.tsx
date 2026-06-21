@@ -1949,6 +1949,23 @@ export default function AdminPanel() {
     }
   }
 
+  async function deleteExportJob(jobId: string) {
+    if (!jobId) return
+    if (!(await confirmAsync("Delete this export job and its archive? This cannot be undone."))) return
+    try {
+      await apiFetch(API_ENDPOINTS.adminExportJobDelete.replace(":id", String(jobId)), {
+        method: "DELETE",
+      })
+      setExportJobs((prev) => {
+        const next = { ...prev }
+        delete next[jobId]
+        return next
+      })
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete export job")
+    }
+  }
+
   // ── Fetch orders with pagination/search ──
   async function fetchOrders(page = 1, q = "") {
     setOrdersLoading(true)
@@ -4343,6 +4360,7 @@ remote: ${panelUrl}`
                     createExportShareLink,
                     exportShareLoading,
                     exportShareLinks,
+                    deleteExportJob,
                   }}
                 />
               ) : null}

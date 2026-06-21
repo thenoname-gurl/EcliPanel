@@ -2563,6 +2563,42 @@ export async function adminRoutes(app: any, prefix = '') {
     }
   );
 
+  app.delete(
+    prefix + '/admin/export-jobs/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:export-jobs');
+      if (adminErr !== true) return adminErr;
+
+      const id = String(ctx.params.id || '');
+      const repo = AppDataSource.getRepository(ExportJob);
+      const job = await repo.findOneBy({ id } as any);
+      if (!job) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.jobNotFound') };
+      }
+
+      if (job.resultPath) {
+        try { fs.unlinkSync(job.resultPath); } catch {}
+      }
+      await repo.delete(job.id);
+
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete an export job and its archive', tags: ['Admin'] },
+    }
+  );
+
   app.get(
     prefix + '/public/export-shares/:token',
     async ctx => {

@@ -299,6 +299,7 @@ export const API_ENDPOINTS = {
   adminExportJobStatus: "/api/admin/export-jobs/:id",
   adminExportJobDownload: "/api/admin/export-jobs/:id/download",
   adminExportJobShareLink: "/api/admin/export-jobs/:id/share-link",
+  adminExportJobDelete: "/api/admin/export-jobs/:id",
   adminDeletionExpedite: "/api/admin/deletions/:id/expedite",
   adminDeletionCancel: "/api/admin/deletions/:id/cancel",
 
