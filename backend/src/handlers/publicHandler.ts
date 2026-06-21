@@ -297,6 +297,7 @@ export async function publicRoutes(app: any, prefix = '') {
           .createQueryBuilder('feedback')
           .select('AVG(feedback.rating)', 'averageRating')
           .addSelect('COUNT(feedback.id)', 'reviewCount')
+          .where('feedback.message IS NULL OR feedback.message NOT LIKE :prefix', { prefix: 'ELO vote feedback%' })
           .getRawOne();
 
         const averageRating = Number(result?.averageRating ?? 0);

@@ -1369,7 +1369,7 @@ export async function adminRoutes(app: any, prefix = '') {
         logRepo.count({ where: { targetType: 'server' } }),
         verRepo.count(),
         delRepo.count(),
-        feedbackRepo.count(),
+        feedbackRepo.count({ where: [{ message: IsNull() }, { message: Not(Like('ELO vote feedback%')) }] }),
       ]);
 
       let abuseReports = 0;

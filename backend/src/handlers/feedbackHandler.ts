@@ -5,7 +5,7 @@ import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { getRolloutTreatment } from '../services/rolloutService';
-import { In } from 'typeorm';
+import { In, Not, Like, IsNull } from 'typeorm';
 
 const ROLLOUT_KEY = 'feedback_prompt';
 
@@ -162,9 +162,12 @@ export async function feedbackRoutes(app: any, prefix = '') {
       const repo = AppDataSource.getRepository(Feedback);
       const userRepo = AppDataSource.getRepository(User);
 
-      const where: any = {};
+      const where: any[] = [
+        { message: IsNull() },
+        { message: Not(Like('ELO vote feedback%')) },
+      ];
       if (rating !== undefined && !isNaN(rating)) {
-        where.rating = rating;
+        where.forEach(w => { w.rating = rating; });
       }
 
       const [rows, total] = await repo.findAndCount({
