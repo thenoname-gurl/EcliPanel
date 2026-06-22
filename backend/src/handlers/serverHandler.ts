@@ -69,6 +69,8 @@ import type {
   ServerAllocationOwners,
   ServerProcessConfigLike,
   ServerSftpInfo,
+  ServerBoostPayload,
+  BoostInfo,
 } from '../types/server';
 
 export async function serverRoutes(app: ServerApp, prefix = '') {
@@ -1090,6 +1092,24 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     return server;
   }
 
+  function getBoostFromUserLimits(limits: Record<string, unknown> | null | undefined): BoostInfo {
+    if (!limits || typeof limits !== 'object') return { active: false, percent: 0, expiresAt: null, reason: null };
+    const percent = Number(limits.boostPercent) || 0;
+    if (percent <= 0) return { active: false, percent: 0, expiresAt: null, reason: null };
+    const rawStartsAt = limits.boostStartsAt;
+    const rawExpiresAt = limits.boostExpiresAt;
+    const startsAt = typeof rawStartsAt === 'string' || typeof rawStartsAt === 'number' ? new Date(rawStartsAt).getTime() : 0;
+    const expiresAt = typeof rawExpiresAt === 'string' || typeof rawExpiresAt === 'number' ? new Date(rawExpiresAt).getTime() : 0;
+    const now = Date.now();
+    const active = startsAt > 0 && expiresAt > 0 && now >= startsAt && now <= expiresAt;
+    return {
+      active,
+      percent,
+      expiresAt: active && expiresAt > 0 ? new Date(expiresAt).toISOString() : null,
+      reason: typeof limits.boostReason === 'string' ? limits.boostReason : null,
+    };
+  }
+
   app.get(
     prefix + '/servers/:id',
     async (ctx: AuthenticatedHandlerContext) => {
@@ -1152,6 +1172,21 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         }
       }
 
+      const userLimits: Record<string, unknown> | null = cfg.userId
+        ? (await AppDataSource.getRepository(User).findOneBy({ id: cfg.userId }))?.limits ?? null
+        : null;
+      const boostInfo = userLimits ? getBoostFromUserLimits(userLimits) : { active: false as const, percent: 0, expiresAt: null, reason: null };
+      const boostPayload: ServerBoostPayload | null = boostInfo.active && cfg
+        ? {
+            boost: boostInfo,
+            virtualResources: {
+              memory: Math.ceil((cfg.memory ?? 0) * (1 + boostInfo.percent / 100)),
+              disk: Math.ceil((cfg.disk ?? 0) * (1 + boostInfo.percent / 100)),
+              cpu: Math.ceil((cfg.cpu ?? 0) * (1 + boostInfo.percent / 100)),
+            },
+          }
+        : null;
+
       const unhealthyNodeIds = await getUnhealthyNodeIds();
       if (node && unhealthyNodeIds.includes(node.id)) {
         const norm = normalizeServer(
@@ -1191,6 +1226,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           sftp: sftpInfo,
           isOwner: cfg.userId === user?.id,
           userId: cfg.userId,
+          ...(boostPayload ?? {}),
           ...(isAdmin
             ? {
                 owner: cfg.userId,
@@ -1233,6 +1269,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           isOwner: cfg.userId === user?.id,
           userId: cfg.userId,
           ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
+          ...(boostPayload ?? {}),
           ...(isAdmin
             ? {
                 owner: cfg.userId,
@@ -1273,6 +1310,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
               node: nodeName,
               sftp: sftpInfo,
               ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
+              ...(boostPayload ?? {}),
               ...(isAdmin
                 ? {
                     owner: cfg.userId,
@@ -1324,6 +1362,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             node: nodeName,
             sftp: sftpInfo,
             ignoreAntiAbuse: cfg.ignoreAntiAbuse ?? false,
+            ...(boostPayload ?? {}),
             ...(isAdmin
               ? {
                   owner: cfg.userId,

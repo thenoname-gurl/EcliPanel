@@ -35,6 +35,30 @@ export type MetricsRow = {
   metrics: MetricsData;
 };
 
+export interface BoostInfo {
+  active: boolean;
+  percent: number;
+  expiresAt: string | null;
+  reason: string | null;
+}
+
+export interface VirtualResources {
+  memory: number;
+  disk: number;
+  cpu: number;
+}
+
+export interface ServerBoostPayload {
+  boost: BoostInfo;
+  virtualResources: VirtualResources;
+}
+
+export interface PlanBoostBody {
+  percent: number;
+  expiresAt?: string;
+  reason?: string | null;
+}
+
 export type ServerApp = {
   get: (path: string, handler: (ctx: BaseHandlerContext) => unknown, opts?: unknown) => void;
   post: (path: string, handler: (ctx: BaseHandlerContext) => unknown, opts?: unknown) => void;

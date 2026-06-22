@@ -12,13 +12,87 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { formatMoney, sanitizeCurrencyCode } from "@/lib/billing-display"
-import { AlertTriangle, Bot, Check, ChevronDown, ChevronUp, Edit, Loader2, Plus, RefreshCw, Trash2, X, Zap } from "lucide-react"
+import { AlertTriangle, Bot, Check, ChevronDown, ChevronUp, Edit, Gift, Loader2, Plus, RefreshCw, Trash2, X, Zap } from "lucide-react"
 import { useTranslations } from "next-intl"
+import type { AdminPlan, PanelSettings } from "@/types/admin"
+
+interface PlansTabCtx {
+  plans: AdminPlan[]
+  panelSettings: PanelSettings
+  ensurePortalPlans: () => void
+  ensureLoading: boolean
+  openNewPlan: () => void
+  planReapplyLoading: boolean
+  planReapplyId: number | null
+  getPortalMarker: (tier?: string) => string
+  reapplyPlanLimits: (planId: number, force?: boolean) => void
+  openEditPlan: (plan: AdminPlan) => void
+  deletePlan: (plan: AdminPlan) => void
+  planDialogOpen: boolean
+  setPlanDialogOpen: (open: boolean) => void
+  planEditTarget: AdminPlan | null
+  planName: string
+  setPlanName: (v: string) => void
+  planType: string
+  setPlanType: (v: string) => void
+  planPrice: string
+  setPlanPrice: (v: string) => void
+  planDesc: string
+  setPlanDesc: (v: string) => void
+  planMemory: string
+  setPlanMemory: (v: string) => void
+  planDisk: string
+  setPlanDisk: (v: string) => void
+  planCpu: string
+  setPlanCpu: (v: string) => void
+  planServerLimit: string
+  setPlanServerLimit: (v: string) => void
+  planDatabases: string
+  setPlanDatabases: (v: string) => void
+  planBackups: string
+  setPlanBackups: (v: string) => void
+  planEmailSendDailyLimit: string
+  setPlanEmailSendDailyLimit: (v: string) => void
+  planEmailSendQueueLimit: string
+  setPlanEmailSendQueueLimit: (v: string) => void
+  planPortCount: string
+  setPlanPortCount: (v: string) => void
+  planTunnelPortCount: string
+  setPlanTunnelPortCount: (v: string) => void
+  planIsDefault: boolean
+  setPlanIsDefault: (v: boolean) => void
+  planHiddenFromBilling: boolean
+  setPlanHiddenFromBilling: (v: boolean) => void
+  planFeatures: string
+  setPlanFeatures: (v: string) => void
+  planError: string
+  planLoading: boolean
+  savePlan: () => void
+  planBoostOpen: boolean
+  setPlanBoostOpen: (open: boolean) => void
+  planBoostTarget: AdminPlan | null
+  planBoostPercent: string
+  setPlanBoostPercent: (v: string) => void
+  planBoostDurationDays: string
+  setPlanBoostDurationDays: (v: string) => void
+  planBoostReason: string
+  setPlanBoostReason: (v: string) => void
+  planBoostSaving: boolean
+  planBoostError: string
+  openBoostDialog: (plan: AdminPlan) => void
+  savePlanBoost: () => void
+  removePlanBoost: (plan: AdminPlan) => void
+}
+
+interface AiModelItem {
+  id: number
+  model?: { id: number; name: string }
+}
 
 function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolean }) {
   const [expanded, setExpanded] = useState(false)
-  const [models, setModels] = useState<any[]>([])
-  const [allModels, setAllModels] = useState<any[]>([])
+  const [models, setModels] = useState<AiModelItem[]>([])
+  const [allModels, setAllModels] = useState<{ id: number; name: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [linking, setLinking] = useState(false)
   const [selectedModelId, setSelectedModelId] = useState("")
@@ -28,10 +102,10 @@ function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolea
     setLoading(true)
     setError("")
     try {
-      const data = await apiFetch(`/api/admin/ai/plans/${planId}/models`)
+      const data: AiModelItem[] = await apiFetch(`/api/admin/ai/plans/${planId}/models`)
       setModels(Array.isArray(data) ? data : [])
-    } catch (e: any) {
-      setError(e?.message || "Failed to load assigned models")
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load assigned models")
     }
     setLoading(false)
   }, [planId])
@@ -40,8 +114,8 @@ function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolea
     try {
       const data = await apiFetch("/api/admin/ai/models")
       setAllModels(Array.isArray(data) ? data : [])
-    } catch (e: any) {
-      setError(prev => prev || e?.message || "Failed to load available models")
+    } catch (e: unknown) {
+      setError(prev => prev || (e instanceof Error ? e.message : "Failed to load available models"))
     }
   }, [])
 
@@ -52,8 +126,8 @@ function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolea
     }
   }, [expanded, fetchAssigned, fetchAllModels])
 
-  const assignedIds = new Set(models.map((m: any) => m.model?.id))
-  const availableModels = allModels.filter((m: any) => !assignedIds.has(m.id))
+  const assignedIds = new Set(models.map(m => m.model?.id))
+  const availableModels = allModels.filter(m => !assignedIds.has(m.id))
 
   const handleLink = async () => {
     if (!selectedModelId) return
@@ -107,12 +181,12 @@ function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolea
             <p className="text-xs text-muted-foreground py-1">No AI models assigned to this plan.</p>
           ) : (
             <div className="flex flex-col gap-1">
-              {models.map((m: any) => (
+              {models.map(m => (
                 <div key={m.id} className="flex items-center justify-between bg-secondary/30 border border-border/50 px-2.5 py-1.5">
                   <span className="text-xs text-foreground truncate">{m.model?.name || `Model #${m.model?.id}`}</span>
                   {canManage && (
                     <button
-                      onClick={() => handleUnlink(m.model?.id)}
+                      onClick={() => m.model?.id != null && handleUnlink(m.model.id)}
                       className="text-muted-foreground hover:text-destructive transition-colors"
                     >
                       <X className="h-3 w-3" />
@@ -130,7 +204,7 @@ function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolea
                 className="flex-1 border border-border bg-secondary/50 px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/50"
               >
                 <option value="">Select model...</option>
-                {availableModels.map((m: any) => (
+                {availableModels.map(m => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
               </select>
@@ -157,7 +231,25 @@ function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolea
   )
 }
 
-export default function PlansTab({ ctx }: { ctx: any }) {
+function getBoostStatus(plan: AdminPlan): { active: boolean; expiresAt: Date | null; remaining: string } {
+  if (!plan.boostPercent || plan.boostPercent <= 0 || !plan.boostExpiresAt) {
+    return { active: false, expiresAt: null, remaining: "" }
+  }
+  const now = Date.now()
+  const startsAt = plan.boostStartsAt ? new Date(plan.boostStartsAt).getTime() : 0
+  const expiresAt = new Date(plan.boostExpiresAt)
+  const expiresMs = expiresAt.getTime()
+  if (startsAt > 0 && now >= startsAt && now <= expiresMs) {
+    const daysLeft = Math.ceil((expiresMs - now) / 86400000)
+    return { active: true, expiresAt, remaining: daysLeft > 1 ? `${daysLeft} days` : daysLeft === 1 ? "1 day" : "expiring soon" }
+  }
+  if (now > expiresMs) {
+    return { active: false, expiresAt, remaining: "expired" }
+  }
+  return { active: false, expiresAt, remaining: "not yet started" }
+}
+
+export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
   const t = useTranslations("adminPlansTab")
   const { user } = useAuth()
   const canManagePlans = !!user && hasPermission(user, 'admin:plans:manage')
@@ -216,6 +308,20 @@ export default function PlansTab({ ctx }: { ctx: any }) {
     planLoading,
     savePlan,
     panelSettings,
+    planBoostOpen,
+    setPlanBoostOpen,
+    planBoostTarget,
+    planBoostPercent,
+    setPlanBoostPercent,
+    planBoostDurationDays,
+    setPlanBoostDurationDays,
+    planBoostReason,
+    setPlanBoostReason,
+    planBoostSaving,
+    planBoostError,
+    openBoostDialog,
+    savePlanBoost,
+    removePlanBoost,
   } = ctx
 
   const currencyCode = sanitizeCurrencyCode(panelSettings?.billingCurrency || "USD")
@@ -267,8 +373,9 @@ export default function PlansTab({ ctx }: { ctx: any }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {plans.map((plan: any) => {
+          {plans.map(plan => {
             const isReapplying = planReapplyLoading && planReapplyId === plan.id
+            const boost = getBoostStatus(plan)
 
             const resources = [
               { label: t("resources.ram"), value: plan.memory != null ? `${plan.memory} MB` : t("common.infinity") },
@@ -284,7 +391,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
               <div
                 key={plan.id}
                 className={`group border bg-card transition-all hover:shadow-md hover:border-primary/20 ${plan.isDefault ? "border-green-500/30 ring-1 ring-green-500/10" : "border-border"
-                  }`}
+                  } ${boost.active ? "ring-1 ring-amber-500/20" : ""}`}
               >
                 <div className="flex items-start justify-between p-4 pb-3">
                   <div className="flex-1 min-w-0">
@@ -311,9 +418,25 @@ export default function PlansTab({ ctx }: { ctx: any }) {
                           {t("badges.hiddenInBilling")}
                         </span>
                       )}
+                      {boost.active && (
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                          <Gift className="h-2.5 w-2.5" />
+                          +{plan.boostPercent}% boost
+                        </span>
+                      )}
                     </div>
                     {plan.description && (
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{plan.description}</p>
+                    )}
+                    {boost.active && (
+                      <p className="text-[11px] text-amber-400/70 mt-1.5">
+                        +{plan.boostPercent}% resource boost · {boost.remaining}{plan.boostReason ? ` · ${plan.boostReason}` : ""}
+                      </p>
+                    )}
+                    {boost.remaining === "expired" && (
+                      <p className="text-[11px] text-muted-foreground/50 mt-1.5">
+                        Resource boost expired
+                      </p>
                     )}
                   </div>
 
@@ -327,7 +450,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
 
                 <div className="px-4 pb-3">
                   <div className="grid grid-cols-3 gap-2">
-                    {resources.map((res) => (
+                    {resources.map(res => (
                       <div
                         key={res.label}
                         className="bg-secondary/30 border border-border/50 px-2.5 py-2 text-center"
@@ -385,6 +508,17 @@ export default function PlansTab({ ctx }: { ctx: any }) {
                         variant="ghost"
                         size="sm"
                         className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => openBoostDialog(plan)}
+                        title="Manage resource boost"
+                      >
+                        <Gift className={`h-3.5 w-3.5 ${boost.active ? "text-amber-400" : ""}`} />
+                      </Button>
+                    )}
+                    {canManagePlans && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
                         onClick={() => openEditPlan(plan)}
                         title={t("actions.editPlan")}
                       >
@@ -411,7 +545,7 @@ export default function PlansTab({ ctx }: { ctx: any }) {
       )}
     </div>
 
-    <Dialog open={planDialogOpen} onOpenChange={(open) => !open && setPlanDialogOpen(false)}>
+    <Dialog open={planDialogOpen} onOpenChange={(open: boolean) => !open && setPlanDialogOpen(false)}>
       <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-foreground">{planEditTarget ? t("dialog.editTitle") : t("dialog.newTitle")}</DialogTitle>
@@ -539,6 +673,83 @@ export default function PlansTab({ ctx }: { ctx: any }) {
           <Button onClick={savePlan} disabled={planLoading} className="bg-primary text-primary-foreground">
             {planLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.saving")}</> : (planEditTarget ? t("actions.saveChanges") : t("actions.createPlan"))}
           </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={planBoostOpen} onOpenChange={(open: boolean) => !open && setPlanBoostOpen(false)}>
+      <DialogContent className="border-border bg-card sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-foreground flex items-center gap-2">
+            <Gift className="h-4 w-4 text-amber-400" />
+            Resource Boost — {planBoostTarget?.name || "Plan"}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-2">
+          <p className="text-xs text-muted-foreground">
+            Set a temporary virtual resource boost for all servers on this plan. Resources are displayed as boosted in the panel but not actually modified on the provider.
+          </p>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Boost percent</label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number" min="1" max="1000"
+                value={planBoostPercent}
+                onChange={(e) => setPlanBoostPercent(e.target.value)}
+                className="flex-1 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+              />
+              <span className="text-sm text-muted-foreground font-medium">%</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground">E.g. 20 = 20% extra virtual resources (memory, disk, CPU)</p>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duration</label>
+            <select
+              value={planBoostDurationDays}
+              onChange={(e) => setPlanBoostDurationDays(e.target.value)}
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+            >
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">1 month</option>
+              <option value="60">2 months</option>
+              <option value="90">3 months</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Reason (optional)</label>
+            <input
+              value={planBoostReason}
+              onChange={(e) => setPlanBoostReason(e.target.value)}
+              placeholder="e.g. Downtime compensation, promo, etc."
+              className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50"
+            />
+          </div>
+          {planBoostError && <p className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded">{planBoostError}</p>}
+        </div>
+        <DialogFooter className="flex items-center justify-between">
+          <div>
+            {planBoostTarget?.boostPercent && planBoostTarget.boostPercent > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  removePlanBoost(planBoostTarget)
+                  setPlanBoostOpen(false)
+                }}
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Remove boost
+              </Button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setPlanBoostOpen(false)} className="border-border">{t("actions.cancel")}</Button>
+            <Button onClick={savePlanBoost} disabled={planBoostSaving} className="bg-primary text-primary-foreground">
+              {planBoostSaving ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />Saving...</> : "Set Boost"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

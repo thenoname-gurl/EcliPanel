@@ -8570,10 +8570,10 @@ export async function adminRoutes(app: any, prefix = '') {
                 if (plan.serverLimit != null) limits.serverLimit = plan.serverLimit;
               }
 
-              const existingLimits = (user as any).limits || {};
+      const existingLimits = (user.limits as Record<string, unknown>) || {};
               if (Object.keys(limits).length) {
                 for (const key of Object.keys(limits)) {
-                  if ((existingLimits[key] ?? 0) < limits[key]) {
+                  if (Number(existingLimits[key] ?? 0) < Number(limits[key])) {
                     existingLimits[key] = limits[key];
                   }
                 }
@@ -9056,6 +9056,26 @@ export async function adminRoutes(app: any, prefix = '') {
       }
 
       const existingLimits = (user as any).limits || {};
+
+      const planBoostActive = plan.boostPercent > 0 && plan.boostStartsAt && plan.boostExpiresAt;
+      if (planBoostActive) {
+        existingLimits.boostPercent = plan.boostPercent;
+        existingLimits.boostStartsAt =
+          plan.boostStartsAt instanceof Date
+            ? plan.boostStartsAt.toISOString()
+            : String(plan.boostStartsAt);
+        existingLimits.boostExpiresAt =
+          plan.boostExpiresAt instanceof Date
+            ? plan.boostExpiresAt.toISOString()
+            : String(plan.boostExpiresAt);
+        existingLimits.boostReason = plan.boostReason || null;
+      } else {
+        delete existingLimits.boostPercent;
+        delete existingLimits.boostStartsAt;
+        delete existingLimits.boostExpiresAt;
+        delete existingLimits.boostReason;
+      }
+
       if (Object.keys(limits).length) {
         for (const key of Object.keys(limits)) {
           if ((existingLimits[key] ?? 0) < limits[key]) {

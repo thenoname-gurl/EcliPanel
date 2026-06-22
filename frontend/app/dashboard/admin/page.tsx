@@ -90,6 +90,7 @@ import {
   Code
 } from "lucide-react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import type { AdminPlan, PanelSettings } from "@/types/admin"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { applyTax, resolveTaxRate } from "@/lib/billing-display"
@@ -537,27 +538,6 @@ interface AdminServerAbuseReport {
   nodeName: string | null
   sourceIp: string | null
   targetIp: string | null
-}
-
-interface AdminPlan {
-  id: number
-  name: string
-  type: string
-  price: number
-  description?: string
-  memory?: number
-  disk?: number
-  cpu?: number
-  serverLimit?: number
-  databases?: number
-  backups?: number
-  emailSendDailyLimit?: number
-  emailSendQueueLimit?: number
-  portCount?: number
-  tunnelPortCount?: number
-  isDefault?: boolean
-  hiddenFromBilling?: boolean
-  features?: string[]
 }
 
 interface AdminOrder {
@@ -1327,6 +1307,13 @@ export default function AdminPanel() {
   const [planError, setPlanError] = useState("")
   const [planReapplyId, setPlanReapplyId] = useState<number | null>(null)
   const [planReapplyLoading, setPlanReapplyLoading] = useState(false)
+  const [planBoostOpen, setPlanBoostOpen] = useState(false)
+  const [planBoostTarget, setPlanBoostTarget] = useState<AdminPlan | null>(null)
+  const [planBoostPercent, setPlanBoostPercent] = useState("20")
+  const [planBoostDurationDays, setPlanBoostDurationDays] = useState("30")
+  const [planBoostReason, setPlanBoostReason] = useState("")
+  const [planBoostSaving, setPlanBoostSaving] = useState(false)
+  const [planBoostError, setPlanBoostError] = useState("")
   const [ensureLoading, setEnsureLoading] = useState(false)
   const portalMarkerByTier: Record<string, string> = {
     free: "Free Portal",
@@ -3195,6 +3182,47 @@ export default function AdminPanel() {
     } finally {
       setEnsureLoading(false)
     }
+  }
+
+  // ── Plan Boost ─────────────────────────────────────────────────────────────
+
+  function openBoostDialog(plan: AdminPlan) {
+    setPlanBoostTarget(plan)
+    setPlanBoostPercent(String(plan.boostPercent) || "20")
+    setPlanBoostDurationDays("30")
+    setPlanBoostReason(plan.boostReason || "")
+    setPlanBoostError("")
+    setPlanBoostOpen(true)
+  }
+
+  async function savePlanBoost() {
+    if (!planBoostTarget) return
+    const pct = Number(planBoostPercent)
+    if (!pct || pct < 1 || pct > 1000) { setPlanBoostError("Percent must be 1-1000"); return }
+    setPlanBoostSaving(true); setPlanBoostError("")
+    try {
+      const days = Math.max(1, Number(planBoostDurationDays) || 30)
+      const expiresAt = new Date(Date.now() + days * 24 * 3600 * 1000).toISOString()
+      const body: any = { percent: pct, expiresAt, reason: planBoostReason.trim() || null }
+      const updated = await apiFetch(`${API_ENDPOINTS.adminPlans}/${planBoostTarget.id}/boost`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      })
+      setPlans((prev) => prev.map((p) => p.id === planBoostTarget.id ? (updated.plan ?? updated) : p))
+      setPlanBoostOpen(false)
+    } catch (e: any) {
+      setPlanBoostError(e.message || "Failed to set boost")
+    } finally {
+      setPlanBoostSaving(false)
+    }
+  }
+
+  async function removePlanBoost(plan: AdminPlan) {
+    if (!confirm(`Remove resource boost from plan "${plan.name}"?`)) return
+    try {
+      await apiFetch(`${API_ENDPOINTS.adminPlans}/${plan.id}/boost`, { method: "DELETE" })
+      setPlans((prev) => prev.map((p) => p.id === plan.id ? { ...p, boostPercent: 0, boostStartsAt: undefined, boostExpiresAt: undefined, boostReason: undefined } : p))
+    } catch {}
   }
 
   // ── Issue Order ───────────────────────────────────────────────────────────
@@ -6217,6 +6245,20 @@ remote: ${panelUrl}`
                     planError,
                     planLoading,
                     savePlan,
+                    planBoostOpen,
+                    setPlanBoostOpen,
+                    planBoostTarget,
+                    planBoostPercent,
+                    setPlanBoostPercent,
+                    planBoostDurationDays,
+                    setPlanBoostDurationDays,
+                    planBoostReason,
+                    setPlanBoostReason,
+                    planBoostSaving,
+                    planBoostError,
+                    openBoostDialog,
+                    savePlanBoost,
+                    removePlanBoost,
                   }}
                 />
               ) : null}

@@ -5,6 +5,31 @@ import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
+import type { PlanBoostBody } from '../types/server';
+
+interface PlanCreateBody {
+  name: string;
+  type: string;
+  price?: number;
+  description?: string;
+  memory?: number | null;
+  disk?: number | null;
+  cpu?: number | null;
+  serverLimit?: number | null;
+  databases?: number | null;
+  backups?: number | null;
+  emailSendDailyLimit?: number | null;
+  emailSendQueueLimit?: number | null;
+  portCount?: number;
+  tunnelPortCount?: number;
+  isDefault?: boolean;
+  hiddenFromBilling?: boolean;
+  features?: Record<string, any> | null;
+  boostPercent?: number;
+  boostStartsAt?: string;
+  boostExpiresAt?: string;
+  boostReason?: string;
+}
 
 export async function planRoutes(app: any, prefix = '') {
   const planRepo = () => AppDataSource.getRepository(Plan);
@@ -80,6 +105,10 @@ export async function planRoutes(app: any, prefix = '') {
         isDefault,
         hiddenFromBilling,
         features,
+        boostPercent,
+        boostStartsAt,
+        boostExpiresAt,
+        boostReason,
       } = ctx.body as any;
       if (!name || !type) {
         ctx.set.status = 400;
@@ -104,6 +133,10 @@ export async function planRoutes(app: any, prefix = '') {
         isDefault: isDefault ?? false,
         hiddenFromBilling: hiddenFromBilling ?? false,
         features: features ?? undefined,
+        boostPercent: boostPercent != null ? Number(boostPercent) : 0,
+        boostStartsAt: boostStartsAt ? new Date(boostStartsAt) : undefined,
+        boostExpiresAt: boostExpiresAt ? new Date(boostExpiresAt) : undefined,
+        boostReason: boostReason || undefined,
       });
       await planRepo().save(plan);
       return { success: true, plan };
@@ -128,6 +161,7 @@ export async function planRoutes(app: any, prefix = '') {
         return { error: ctx.t('plan.notFound') };
       }
 
+      const body = ctx.body as PlanCreateBody;
       const {
         name,
         type,
@@ -146,7 +180,11 @@ export async function planRoutes(app: any, prefix = '') {
         isDefault,
         hiddenFromBilling,
         features,
-      } = ctx.body as any;
+        boostPercent,
+        boostStartsAt,
+        boostExpiresAt,
+        boostReason,
+      } = body;
 
       if (name !== undefined) plan.name = name;
       if (type !== undefined) plan.type = type;
@@ -171,6 +209,10 @@ export async function planRoutes(app: any, prefix = '') {
       if (isDefault !== undefined) plan.isDefault = Boolean(isDefault);
       if (hiddenFromBilling !== undefined) plan.hiddenFromBilling = Boolean(hiddenFromBilling);
       if (features !== undefined) plan.features = features ?? undefined;
+      if (boostPercent !== undefined) plan.boostPercent = Number(boostPercent);
+      if (boostStartsAt !== undefined) plan.boostStartsAt = boostStartsAt ? new Date(boostStartsAt) : undefined;
+      if (boostExpiresAt !== undefined) plan.boostExpiresAt = boostExpiresAt ? new Date(boostExpiresAt) : undefined;
+      if (boostReason !== undefined) plan.boostReason = boostReason || undefined;
 
       await planRepo().save(plan);
       return { success: true, plan };
@@ -203,7 +245,7 @@ export async function planRoutes(app: any, prefix = '') {
       const userRepo = AppDataSource.getRepository(User);
       const users = await userRepo.find({ where: { portalType: plan.type } });
 
-      const planLimits: Record<string, number> = {};
+      const planLimits: Record<string, any> = {};
       if (plan.memory != null) planLimits.memory = Number(plan.memory);
       if (plan.disk != null) planLimits.disk = Number(plan.disk);
       if (plan.cpu != null) planLimits.cpu = Number(plan.cpu);
@@ -220,9 +262,17 @@ export async function planRoutes(app: any, prefix = '') {
       }
       if (plan.tunnelPortCount != null) planLimits.tunnelPortCount = Number(plan.tunnelPortCount);
 
+      const planBoostActive = plan.boostPercent > 0 && plan.boostStartsAt && plan.boostExpiresAt;
+      if (planBoostActive) {
+        planLimits.boostPercent = plan.boostPercent;
+        planLimits.boostStartsAt = plan.boostStartsAt.toISOString();
+        planLimits.boostExpiresAt = plan.boostExpiresAt.toISOString();
+        planLimits.boostReason = plan.boostReason || null;
+      }
+
       const isCustomLimits = (
         userLimits: Record<string, any> | null | undefined,
-        planLimits: Record<string, number>
+        planLimits: Record<string, any>
       ) => {
         if (!userLimits || Object.keys(userLimits).length === 0) return false;
         if (Object.keys(planLimits).length === 0) return false;
@@ -232,7 +282,7 @@ export async function planRoutes(app: any, prefix = '') {
         for (const key of planKeys) {
           const userValue = userLimits[key];
           if (userValue == null) return true;
-          if (Number(userValue) !== Number(planLimits[key])) return true;
+          if (String(userValue) !== String(planLimits[key])) return true;
         }
 
         return false;
@@ -277,6 +327,72 @@ export async function planRoutes(app: any, prefix = '') {
       },
       response: {
         200: t.Object({ success: t.Boolean(), updated: t.Number() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/plans/:id/boost',
+    async ctx => {
+      const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
+      if (!plan) {
+        ctx.set.status = 404;
+        return { error: ctx.t('plan.notFound') };
+      }
+
+      const boostBody = ctx.body as PlanBoostBody;
+      const { percent, expiresAt, reason } = boostBody;
+      if (percent == null || percent < 0 || percent > 1000) {
+        ctx.set.status = 400;
+        return { error: 'Boost percent must be between 0 and 1000' };
+      }
+
+      plan.boostPercent = Number(percent);
+      plan.boostStartsAt = new Date();
+      plan.boostExpiresAt = expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 3600 * 1000);
+      plan.boostReason = reason || null;
+
+      await planRepo().save(plan);
+      return { success: true, plan };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:plans:manage')],
+      detail: { summary: 'Set boost for a plan (admin)', tags: ['Plans', 'Admin'] },
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/plans/:id/boost',
+    async ctx => {
+      const plan = await planRepo().findOneBy({ id: Number((ctx.params as any).id) });
+      if (!plan) {
+        ctx.set.status = 404;
+        return { error: ctx.t('plan.notFound') };
+      }
+
+      plan.boostPercent = 0;
+      plan.boostStartsAt = undefined;
+      plan.boostExpiresAt = undefined;
+      plan.boostReason = undefined;
+
+      await planRepo().save(plan);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:plans:manage')],
+      detail: { summary: 'Remove boost from a plan (admin)', tags: ['Plans', 'Admin'] },
+      response: {
+        200: t.Object({ success: t.Boolean() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),

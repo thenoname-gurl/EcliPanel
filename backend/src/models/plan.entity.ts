@@ -55,4 +55,16 @@ export class Plan {
 
   @Column('json', { nullable: true })
   features?: Record<string, any>;
+
+  @Column('float', { default: 0 })
+  boostPercent: number;
+
+  @Column({ nullable: true, type: 'datetime' })
+  boostStartsAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  boostExpiresAt?: Date;
+
+  @Column({ nullable: true, type: 'text' })
+  boostReason?: string;
 }
