@@ -4546,7 +4546,11 @@
       "failed": "Failed",
       "failedWithReason": "Failed: {reason}",
       "failedUpdateLock": "Failed to update lock: {reason}",
-      "confirmRemove": "Remove this subuser?"
+      "confirmRemove": "Remove this subuser?",
+      "editSubuser": "Edit subuser",
+      "editPermissions": "Edit Permissions",
+      "savePermissions": "Save",
+      "failedUpdatePerms": "Failed to update permissions: {reason}"
     },
     "settings": {
       "confirmReinstall": "Reinstall this server? All files will be wiped.",

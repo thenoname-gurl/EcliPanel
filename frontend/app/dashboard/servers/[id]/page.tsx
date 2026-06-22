@@ -1190,11 +1190,11 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
               </Button>
             </div>
           </div>
-        </div>
-      )
-    }
+    </div>
+  )
+}
 
-  const dmcaAlert = isDmcaProtected ? (
+const dmcaAlert = isDmcaProtected ? (
     <div className="border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive mb-3">
       <div className="font-semibold">DMCA takedown active</div>
       <div className="mt-2">
@@ -3439,6 +3439,9 @@ function SubusersTab({
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [locking, setLocking] = useState<Record<number, boolean>>({})
+  const [editingSubuser, setEditingSubuser] = useState<any | null>(null)
+  const [editingPerms, setEditingPerms] = useState<string[]>([])
+  const [savingPerms, setSavingPerms] = useState(false)
   const { user } = useAuth()
 
   const PERMISSIONS = [
@@ -3454,6 +3457,7 @@ function SubusersTab({
     { key: "network", label: t("tabs.network") },
     { key: "mounts", label: t("tabs.mounts") },
     { key: "file-sharing", label: "File Sharing" },
+    { key: "power", label: "Power" },
   ]
   const [selectedPerms, setSelectedPerms] = useState<string[]>(["console"])
 
@@ -3525,6 +3529,28 @@ function SubusersTab({
     }
   }
 
+  const handleEditSave = async () => {
+    if (!editingSubuser) return
+    setSavingPerms(true)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.serverSubuserDetail
+          .replace(":id", serverId)
+          .replace(":subId", String(editingSubuser.id)),
+        {
+          method: "PUT",
+          body: JSON.stringify({ permissions: editingPerms }),
+        }
+      )
+      setEditingSubuser(null)
+      loadSubusers()
+    } catch (e: any) {
+      alert(t("subusers.failedUpdatePerms", { reason: e?.message || e }))
+    } finally {
+      setSavingPerms(false)
+    }
+  }
+
   if (loading) return <LoadingState />
 
   const canAdd = !!(
@@ -3535,6 +3561,7 @@ function SubusersTab({
   )
 
   return (
+    <>
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
       <SectionHeader
         title={t("subusers.title")}
@@ -3682,6 +3709,20 @@ function SubusersTab({
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
+                  {(isOwnerOrAdmin || (subuserEntry?.permissions?.includes("subusersd"))) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEditingSubuser(su)
+                        setEditingPerms(su.permissions || [])
+                      }}
+                      className="h-9 w-9 p-0"
+                      aria-label={t("subusers.editSubuser")}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
                   {isOwnerOrAdmin && (
                     <Button
                       size="sm"
@@ -3717,6 +3758,50 @@ function SubusersTab({
         </div>
       )}
     </div>
+
+      <Dialog open={!!editingSubuser} onOpenChange={(open) => !open && setEditingSubuser(null)}>
+        <DialogContent className="border-border bg-card sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("subusers.editPermissions")}</DialogTitle>
+            <DialogDescription>
+              {editingSubuser?.user?.email || editingSubuser?.userEmail}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-1.5 py-2">
+            {PERMISSIONS.map((p) => (
+              <label
+                key={p.key}
+                className="flex items-center gap-2 text-xs text-foreground cursor-pointer p-2.5 border border-border hover:bg-secondary/30 active:bg-secondary/50 transition-colors min-w-0 touch-manipulation"
+              >
+                <input
+                  type="checkbox"
+                  checked={editingPerms.includes(p.key)}
+                  onChange={(e) => {
+                    setEditingPerms((prev) =>
+                      e.target.checked
+                        ? [...prev, p.key]
+                        : prev.filter((x) => x !== p.key)
+                    )
+                  }}
+                  className="accent-primary flex-shrink-0 h-4 w-4"
+                />
+                <span className="truncate">{p.label}</span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={() => setEditingSubuser(null)}>
+              {t("actions.cancel")}
+            </Button>
+            <Button size="sm" onClick={handleEditSave} disabled={savingPerms}>
+              {savingPerms && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
+              <Save className="h-4 w-4 mr-1.5" />
+              {t("subusers.savePermissions")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+  </>
   )
 }
 

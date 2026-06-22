@@ -4595,7 +4595,11 @@
       "failed": "Ошибка",
       "failedWithReason": "Ошибка: {reason}",
       "failedUpdateLock": "Не удалось обновить блокировку: {reason}",
-      "confirmRemove": "Удалить этого субпользователя?"
+      "confirmRemove": "Удалить этого субпользователя?",
+      "editSubuser": "Редактировать субпользователя",
+      "editPermissions": "Редактировать разрешения",
+      "savePermissions": "Сохранить",
+      "failedUpdatePerms": "Не удалось обновить разрешения: {reason}"
     },
     "settings": {
       "confirmReinstall": "Переустановить этот сервер? Все файлы будут удалены.",
