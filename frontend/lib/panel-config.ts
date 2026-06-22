@@ -398,8 +398,6 @@ export const API_ENDPOINTS = {
   // Identity / ID Verification
   identity: "/api/id-verification",
   identityStatus: "/api/id-verification/:id",
-  ageVerificationSelfie: "/api/id-verification/age-selfie",
-
   // Account
   account: "/api/account",
   accountUpdate: "/api/account/update",

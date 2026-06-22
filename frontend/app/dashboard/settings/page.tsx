@@ -3,7 +3,7 @@
 import { PanelHeader } from "@/components/panel/header"
 import { FeedbackSettingsCard } from "@/components/panel/feedback-settings-card"
 import { SlackBotSettings } from "@/components/panel/slack-bot-settings"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
@@ -1084,49 +1084,6 @@ export default function SettingsPage() {
   const [newKeyPerms, setNewKeyPerms] = useState<string[]>([])
   const [showApiForm, setShowApiForm] = useState(false)
   const [avatarUploading, setAvatarUploading] = useState(false)
-  const [cameraActive, setCameraActive] = useState(false)
-  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
-  const [videoDevices, setVideoDevices] = useState<MediaDeviceInfo[]>([])
-  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null)
-  const [capturedSelfie, setCapturedSelfie] = useState<Blob | null>(null)
-  const [capturedSelfieUrl, setCapturedSelfieUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!capturedSelfie) {
-      setCapturedSelfieUrl(null)
-      return
-    }
-
-    const url = URL.createObjectURL(capturedSelfie)
-    setCapturedSelfieUrl(url)
-
-    return () => {
-      URL.revokeObjectURL(url)
-    }
-  }, [capturedSelfie])
-
-  const [cameraError, setCameraError] = useState<string | null>(null)
-  const [selfieMessage, setSelfieMessage] = useState<string | null>(null)
-  const [selfieLoading, setSelfieLoading] = useState(false)
-  useEffect(() => {
-    return () => {
-      if (capturedSelfieUrl) {
-        URL.revokeObjectURL(capturedSelfieUrl)
-      }
-    }
-  }, [capturedSelfieUrl])
-
-  const safeSelfieSrc = useMemo(() => {
-    if (!capturedSelfieUrl) return undefined
-    try {
-      const parsed = new URL(capturedSelfieUrl)
-      if (parsed.protocol === "blob:") return capturedSelfieUrl
-    } catch (_) {}
-    return undefined
-  }, [capturedSelfieUrl])
-
-  const videoRef = useRef<HTMLVideoElement | null>(null)
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   const isAdmin = user?.role === "admin" || user?.role === "rootAdmin" || user?.role === "*"
   const canCreateAdminKey =
@@ -1285,153 +1242,6 @@ export default function SettingsPage() {
         dateOfBirth: user.dateOfBirth || "",
       })
   }, [user])
-
-  useEffect(() => {
-    const fetchVideoDevices = async () => {
-      if (!navigator?.mediaDevices?.enumerateDevices) return
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices()
-        const videoInputs = devices.filter((device) => device.kind === "videoinput")
-        setVideoDevices(videoInputs)
-        if (!selectedCameraId && videoInputs.length > 0) {
-          setSelectedCameraId(videoInputs[0].deviceId)
-        }
-      } catch {
-        // ignore
-      }
-    }
-
-    fetchVideoDevices()
-
-    return () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop())
-      }
-    }
-  }, [cameraStream, selectedCameraId])
-
-  useEffect(() => {
-    if (cameraStream && videoRef.current) {
-      videoRef.current.srcObject = cameraStream
-      videoRef.current.play().catch(() => {})
-    }
-  }, [cameraStream])
-
-  const startCamera = async () => {
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setCameraError("Camera access is not available in this browser.")
-      return
-    }
-
-    setCameraError(null)
-    try {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach((track) => track.stop())
-      }
-      const constraints: MediaStreamConstraints = {
-        video: selectedCameraId
-          ? { deviceId: { exact: selectedCameraId } }
-          : { facingMode: "user" },
-      }
-      const stream = await navigator.mediaDevices.getUserMedia(constraints)
-      setCameraStream(stream)
-      setCameraActive(true)
-    } catch (err: any) {
-      setCameraError(String(err?.message || "Unable to access the camera."))
-      setCameraActive(false)
-    }
-  }
-
-  const stopCamera = () => {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop())
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
-    setCameraStream(null)
-    setCameraActive(false)
-  }
-
-  const captureSelfie = () => {
-    if (!videoRef.current || !canvasRef.current) {
-      setCameraError("Camera is not ready.")
-      return
-    }
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const width = video.videoWidth
-    const height = video.videoHeight
-
-    if (width === 0 || height === 0) {
-      setCameraError("Camera is still initializing. Please try again in a moment.")
-      return
-    }
-
-    canvas.width = width
-    canvas.height = height
-    const ctx = canvas.getContext("2d")
-    if (!ctx) {
-      setCameraError("Unable to capture photo.")
-      return
-    }
-
-    ctx.drawImage(video, 0, 0, width, height)
-    canvas.toBlob(
-      (blob: Blob | null) => {
-        if (!blob) {
-          setCameraError("Unable to capture photo.")
-          return
-        }
-        setCapturedSelfie(blob)
-        setCameraError(null)
-        stopCamera()
-      },
-      "image/jpeg",
-      0.9
-    )
-  }
-
-  const selfieAttemptsUsed = Number(user?.settings?.ageVerificationSelfieAttempts ?? 0)
-  const selfieAttemptsRemaining = Math.max(0, 3 - selfieAttemptsUsed)
-
-  const verifySelfieAge = async () => {
-    if (!user?.id) return
-    if (!form.dateOfBirth) {
-      alert(t("messages.enterDateOfBirthSelfie"))
-      return
-    }
-    if (!capturedSelfie) {
-      alert(t("messages.takeSelfieBeforeVerify"))
-      return
-    }
-    setSelfieLoading(true)
-    setSelfieMessage(null)
-
-    try {
-      const formData = new FormData()
-      formData.append("selfie", capturedSelfie, "selfie.jpg")
-      formData.append("dateOfBirth", form.dateOfBirth)
-      const data = await apiFetch(API_ENDPOINTS.ageVerificationSelfie, {
-        method: "POST",
-        body: formData,
-      })
-
-      setSelfieMessage(
-        `Estimated age: ${data.age.toFixed(1)} years. Difference ${data.difference.toFixed(1)} years, within allowed ${data.maxError} years.`
-      )
-      setCapturedSelfie(null)
-      await refreshUser()
-    } catch (err: any) {
-      setSelfieMessage(
-        t("messages.selfieVerificationFailed", {
-          error: err.message || t("messages.unknown"),
-        })
-      )
-    } finally {
-      setSelfieLoading(false)
-    }
-  }
 
   useEffect(() => {
     const fromSettings = user?.settings?.locale
@@ -1727,7 +1537,7 @@ export default function SettingsPage() {
     }
 
     const hasDob = user?.dateOfBirth != null && String(user?.dateOfBirth).trim() !== ''
-    const dobLocked = hasDob && Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt)
+    const dobLocked = hasDob && Boolean(user?.idVerified)
 
     try {
       await apiFetch(
@@ -2013,7 +1823,7 @@ export default function SettingsPage() {
                   />
                   {(() => {
                     const hasDob = user?.dateOfBirth != null && String(user?.dateOfBirth).trim() !== '';
-                    const dobLocked = hasDob && Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt);
+                    const dobLocked = hasDob && Boolean(user?.idVerified);
                     return (
                       <FormInput
                         label="Date of Birth"
@@ -2023,164 +1833,14 @@ export default function SettingsPage() {
                         onChange={(v) => setForm({ ...form, dateOfBirth: v })}
                         hint={
                           dobLocked
-                            ? "Your date of birth is locked after identity or selfie verification and can only be changed by support."
-                            : "Enter your birth date to verify eligibility before managing servers."
+                          ? "Your date of birth is locked after identity verification and can only be changed by support."
+                          : "Enter your birth date to verify eligibility before managing servers."
                         }
                         disabled={dobLocked}
                       />
                     );
                   })()}
 
-                  {!Boolean(user?.idVerified || user?.settings?.ageVerificationSelfieVerifiedAt) && (
-                    <div className="md:col-span-3">
-                      <div className="border border-border bg-secondary/5 p-4 space-y-3">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="text-sm font-semibold text-foreground">
-                              Selfie age verification
-                            </p>
-                          </div>
-                          <span className="rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase text-muted-foreground">
-                            Attempts left: {selfieAttemptsRemaining}
-                          </span>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-[1fr_auto] items-end">
-                          <div className="space-y-2">
-                            <label className="text-xs font-medium text-muted-foreground">
-                              Camera
-                            </label>
-                            {videoDevices.length > 0 ? (
-                              <select
-                                value={selectedCameraId ?? ""}
-                                onChange={(e) => setSelectedCameraId(e.target.value || null)}
-                                className="w-full border border-border bg-secondary/30 px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                              >
-                                {videoDevices.map((device) => (
-                                  <option key={device.deviceId} value={device.deviceId}>
-                                    {device.label ||
-                                      `Camera ${videoDevices.indexOf(device) + 1}`}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <p className="text-xs text-muted-foreground">
-                                No camera detected yet.
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={startCamera}
-                              disabled={
-                                selfieLoading ||
-                                selfieAttemptsRemaining === 0 ||
-                                !!user?.idVerified
-                              }
-                              className="inline-flex items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              Open camera
-                            </button>
-                            <label className="inline-flex cursor-pointer items-center justify-center border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
-                              Upload image
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                disabled={
-                                  selfieLoading ||
-                                  selfieAttemptsRemaining === 0 ||
-                                  !!user?.idVerified
-                                }
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0]
-                                  if (!file) return
-                                  if (cameraStream) {
-                                    stopCamera()
-                                  }
-                                  setCapturedSelfie(file)
-                                  setCameraError(null)
-                                  setCameraActive(false)
-                                }}
-                              />
-                            </label>
-                          </div>
-                        </div>
-
-                        {cameraError && (
-                          <p className="text-xs text-destructive">{cameraError}</p>
-                        )}
-
-                        {cameraActive && (
-                          <div className="space-y-3">
-                            <video
-                              ref={videoRef}
-                              autoPlay
-                              playsInline
-                              muted
-                              className="h-64 w-full bg-black object-cover"
-                            />
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={captureSelfie}
-                                className="inline-flex items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                              >
-                                Capture photo
-                              </button>
-                              <button
-                                type="button"
-                                onClick={stopCamera}
-                                className="inline-flex items-center justify-center border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {capturedSelfie && (
-                          <div className="space-y-3">
-                            <img
-                              src={safeSelfieSrc}
-                              alt="Captured selfie preview"
-                              className="h-64 w-full object-cover"
-                            />
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                type="button"
-                                onClick={verifySelfieAge}
-                                disabled={
-                                  selfieLoading ||
-                                  selfieAttemptsRemaining === 0 ||
-                                  !!user?.idVerified
-                                }
-                                className="inline-flex items-center justify-center bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                {selfieLoading ? "Verifying..." : "Verify selfie age"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setCapturedSelfie(null)
-                                  setCameraError(null)
-                                }}
-                                className="inline-flex items-center justify-center border border-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
-                              >
-                                Retake
-                              </button>
-                            </div>
-                            {selfieMessage && (
-                              <p className="text-sm text-foreground">{selfieMessage}</p>
-                            )}
-                          </div>
-                        )}
-
-                        <canvas ref={canvasRef} className="hidden" />
-                      </div>
-                    </div>
-                  )}
                 </div>
               </SettingsCard>
 

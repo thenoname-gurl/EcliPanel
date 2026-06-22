@@ -1921,7 +1921,7 @@ export async function userRoutes(app: any, prefix = '') {
 
       if ('dateOfBirth' in payload) {
         const hasVerifiedDob = Boolean(
-          user.idVerified || user.settings?.ageVerificationSelfieVerifiedAt
+          user.idVerified
         );
         const hasExistingDob = user.dateOfBirth != null && String(user.dateOfBirth).trim() !== '';
         const dateOfBirth = parseDateOfBirth(payload.dateOfBirth);

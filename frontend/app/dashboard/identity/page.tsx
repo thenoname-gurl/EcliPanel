@@ -25,7 +25,6 @@ import {
   Shield,
   AlertTriangle,
   FileText,
-  Camera,
   User,
   KeyRound,
   Loader2,
@@ -41,7 +40,6 @@ function computeSteps(
   passkeyCount: number,
   twoFactorEnabled: boolean,
   emailVerified: boolean,
-  selfieVerified: boolean,
   studentVerified: boolean,
   portalType: string | undefined,
   euIdDisabled: boolean | undefined,
@@ -58,12 +56,6 @@ function computeSteps(
         ? t("steps.common.notApplicableEu")
         : t("steps.identityDocument.description"),
       icon: Upload,
-    },
-    {
-      id: 5,
-      title: t("steps.selfie.title"),
-      description: t("steps.selfie.description"),
-      icon: Camera,
     },
   ] as any[];
 
@@ -96,11 +88,6 @@ function computeSteps(
       if (failed) return { ...s, status: "failed" };
       return { ...s, status: "available" };
     }
-    if (s.id === 5) {
-      if (!emailVerified) return { ...s, status: "locked" };
-      if (selfieVerified || completed) return { ...s, status: "completed" };
-      return { ...s, status: "available" };
-    }
     return { ...s, status: "locked" };
   });
 }
@@ -112,10 +99,6 @@ export default function IdentityPage() {
   const [passkeyCount, setPasskeyCount] = useState(0)
   const [idDocFile, setIdDocFile] = useState<File | null>(null)
   const [selfieFile, setSelfieFile] = useState<File | null>(null)
-  const [selfieOnlyFile, setSelfieOnlyFile] = useState<File | null>(null)
-  const [selfieOnlyLoading, setSelfieOnlyLoading] = useState(false)
-  const [selfieOnlyMessage, setSelfieOnlyMessage] = useState<string | null>(null)
-  const [selfieVerified, setSelfieVerified] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [euIdDialogOpen, setEuIdDialogOpen] = useState(false)
   const euIdDisabled = !!user?.euIdVerificationDisabled
@@ -131,12 +114,6 @@ export default function IdentityPage() {
         .catch(() => setPasskeyCount(0));
     }
   }, [user])
-
-  useEffect(() => {
-    if (user?.settings?.ageVerificationSelfieVerifiedAt) {
-      setSelfieVerified(true);
-    }
-  }, [user?.settings?.ageVerificationSelfieVerifiedAt]);
 
   useEffect(() => {
     if (euIdDisabled) {
@@ -164,7 +141,7 @@ export default function IdentityPage() {
         <div className="flex flex-col gap-6 p-6">
           {/* Status Banner */}
           {(() => {
-            const s = computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, selfieVerified, !!user?.studentVerified, portalType, euIdDisabled, t);
+            const s = computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, !!user?.studentVerified, portalType, euIdDisabled, t);
             const requiredSteps = s.filter((x: any) => x.id === 1 || x.id === 2);
             const doneRequired = requiredSteps.filter((x: any) => x.status === 'completed' || x.status === 'notApplicable').length;
             const allRequired = doneRequired === requiredSteps.length;
@@ -257,17 +234,11 @@ export default function IdentityPage() {
               </div>
             </div>
           )}
-          {/* Selfie age verification disabled
-          {!selfieVerified && status?.status !== 'verified' && (
-            <div className="border border-border bg-card p-6">
-              ...
-            </div>
-          )}
-          */}
+
           <div className="border border-border bg-card p-6">
             <SectionHeader title={t("stepsSection.title")} description={t("stepsSection.description")} />
             <div className="mt-6 flex flex-col gap-4">
-          {computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, selfieVerified, !!user?.studentVerified, portalType, euIdDisabled, t).map((step, idx) => (
+          {computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, !!user?.studentVerified, portalType, euIdDisabled, t).map((step, idx) => (
                 <div
                   key={step.id}
                   className={`flex items-center gap-4 border p-4 transition-all ${
