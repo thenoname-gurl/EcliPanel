@@ -180,7 +180,50 @@ export default function TermsOfServicePage() {
 
         <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
-            5. Account Deletion Requests
+            5. Lifetime Products
+          </h2>
+          <ol className="mt-1 list-decimal pl-6 text-[16px] leading-10 text-white/70">
+            <li>
+              Products designated as lifetime products are paid for once instead
+              of recurring. No further payments are required after the initial
+              purchase.
+            </li>
+            <li>
+              The terms "lifetime", "infinite", or "lifelong" describe the right
+              to use the product until it becomes inactive as defined below.
+            </li>
+            <li>
+              Inactivity occurs if the customer does not access the lifetime
+              product through the customer web interface for a continuous period
+              of 3 months. EclipseSystems then reserves the right to block the
+              product. If the customer does not contact EclipseSystems within 4
+              weeks after the block (grace period), the product will be
+              permanently deleted and the entitlement to lifelong use is
+              cancelled. The customer expressly waives any right to a refund of
+              the purchase price. If the customer contacts EclipseSystems within
+              the grace or blocking period, the inactivity state will be
+              temporarily lifted and the product will be fully usable again.
+            </li>
+            <li>
+              Lifetime products may not be paid for using store credits, gift
+              cards, or promotional voucher codes unless explicitly stated
+              otherwise at the time of purchase.
+            </li>
+            <li>
+              EclipseSystems reserves the right to discontinue lifetime product
+              offerings, stop providing service for a specific product type, or
+              cease operations in a particular location at any time. In such
+              cases, EclipseSystems may, at its sole discretion, offer a
+              replacement product of comparable value, provide a pro-rata refund
+              based on the original purchase price and duration of use, or
+              terminate the lifetime entitlement without further liability.
+            </li>
+          </ol>
+        </section>
+
+        <section className="flex flex-col gap-0 mt-15">
+          <h2 className="text-2xl font-semibold leading-none text-foreground">
+            6. Account Deletion Requests
           </h2>
           <div className="mt-1 text-[16px] leading-10 text-white/70">
             <p>
@@ -208,7 +251,7 @@ export default function TermsOfServicePage() {
 
         <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
-            6. Acceptable Use
+            7. Acceptable Use
           </h2>
           <p className="mt-1 text-[16px] leading-10 text-white/70">
             You must not use EclipseSystems for illegal content, infringement,
@@ -225,7 +268,7 @@ export default function TermsOfServicePage() {
 
         <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
-            7. Customer Content & Backups
+            8. Customer Content & Backups
           </h2>
           <ul className="mt-1 text-[16px] leading-10 text-white/70">
             <li>
@@ -244,7 +287,7 @@ export default function TermsOfServicePage() {
 
         <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
-            8. Domains
+            9. Domains
           </h2>
           <p className="mt-1 text-[16px] leading-10 text-white/70">
             We act as an intermediary for domain registrations and do not
@@ -254,7 +297,7 @@ export default function TermsOfServicePage() {
 
         <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
-            9. Changes
+            10. Changes
           </h2>
           <p className="mt-1 text-[16px] leading-10 text-white/70">
             We may update these Terms. Continued use after changes indicates
@@ -264,7 +307,7 @@ export default function TermsOfServicePage() {
 
         <section className="flex flex-col gap-0 mt-15">
           <h2 className="text-2xl font-semibold leading-none text-foreground">
-            10. Contact
+            11. Contact
           </h2>
           <p className="mt-1 text-[16px] leading-10 text-white/70">
             If you have questions, contact{" "}

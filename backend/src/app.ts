@@ -23,6 +23,7 @@ import { scheduleServerSunsetPolicyJob } from './jobs/serverSunsetPolicyJob';
 import { scheduleGithubContributorsJob } from './jobs/githubContributorsJob';
 import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
 import { scheduleRenewalJob } from './jobs/renewalJob';
+import { scheduleLifetimeInactivityJob } from './jobs/lifetimeInactivityJob';
 import { scheduleEloDecayJob } from './jobs/eloDecayJob';
 import { initSlackBot } from './slack/index';
 import path from 'path';
@@ -738,6 +739,11 @@ export async function initApp() {
     scheduleRenewalJob();
   } catch (e) {
     console.error('Failed to schedule renewal job:', e);
+  }
+  try {
+    scheduleLifetimeInactivityJob();
+  } catch (e) {
+    console.error('Failed to schedule lifetime inactivity job:', e);
   }
   try {
     scheduleTunnelCleanupJob();

@@ -8466,7 +8466,7 @@ export async function adminRoutes(app: any, prefix = '') {
     async ctx => {
       const adminErr = requireAdminPermission(ctx, 'orders:issue');
       if (adminErr !== true) return adminErr;
-      const { userId, description, planId, amount, taxAmount, taxRate, items, expiresAt, notes } = ctx.body as any;
+      const { userId, description, planId, amount, taxAmount, taxRate, items, expiresAt, notes, billingType } = ctx.body as any;
       if (!userId) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.userIdRequired') };
@@ -8497,6 +8497,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const effectiveAmount = amount != null ? Number(amount) : 0;
       const effectivePlanId = planId ? Number(planId) : undefined;
       const isFreeOrder = effectiveAmount === 0;
+      const isLifetime = billingType === 'lifetime';
 
       const order = orderRepo.create({
         userId: Number(userId),
@@ -8508,8 +8509,9 @@ export async function adminRoutes(app: any, prefix = '') {
         items: orderItems,
         status: isFreeOrder ? 'active' : 'pending',
         notes: notes || undefined,
+        billingType: isLifetime ? 'lifetime' : undefined,
         createdAt: new Date(),
-        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 3600 * 1000),
+        expiresAt: expiresAt ? new Date(expiresAt) : isLifetime ? new Date(Date.now() + 100 * 365 * 24 * 3600 * 1000) : new Date(Date.now() + 30 * 24 * 3600 * 1000),
         // Fuck leap month atp.
       });
 
@@ -8603,6 +8605,7 @@ export async function adminRoutes(app: any, prefix = '') {
           items: t.Optional(t.String()),
           expiresAt: t.Optional(t.String()),
           notes: t.Optional(t.String()),
+          billingType: t.Optional(t.String()),
         }),
         response: {
           200: t.Object({ success: t.Boolean(), order: t.Any(), autoActivated: t.Optional(t.Boolean()) }),
@@ -9013,7 +9016,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const adminErr = requireAdminPermission(ctx, 'users:write');
       if (adminErr !== true) return adminErr;
       const userId = Number(ctx.params.id);
-      const { planId, temporary, expiresAt, notes, orgId, taxAmount, taxRate } = ctx.body as any;
+      const { planId, temporary, expiresAt, notes, orgId, taxAmount, taxRate, billingType } = ctx.body as any;
       if (!planId) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.planIdRequired') };
@@ -9108,6 +9111,8 @@ export async function adminRoutes(app: any, prefix = '') {
         }
       }
 
+      const isLifetime = billingType === 'lifetime';
+
       const order = orderRepo.create({
         userId,
         description: `${plan.name}${temporary ? ' (temporary)' : ''}`,
@@ -9119,9 +9124,10 @@ export async function adminRoutes(app: any, prefix = '') {
           { description: plan.name, quantity: 1, price: effectiveAmount }
         ]),
         status: 'active',
+        billingType: isLifetime ? 'lifetime' : undefined,
         notes: notes || undefined,
         createdAt: new Date(),
-        expiresAt: expiresAt ? new Date(expiresAt) : new Date(Date.now() + 30 * 24 * 3600 * 1000),
+        expiresAt: expiresAt ? new Date(expiresAt) : isLifetime ? new Date(Date.now() + 100 * 365 * 24 * 3600 * 1000) : new Date(Date.now() + 30 * 24 * 3600 * 1000),
       });
       await orderRepo.save(order);
 
@@ -9143,6 +9149,7 @@ export async function adminRoutes(app: any, prefix = '') {
           orgId: t.Optional(t.Any()),
           taxAmount: t.Optional(t.Number()),
           taxRate: t.Optional(t.Number()),
+          billingType: t.Optional(t.String()),
         }),
         response: {
           200: t.Object({ success: t.Boolean(), user: t.Any(), order: t.Any() }),

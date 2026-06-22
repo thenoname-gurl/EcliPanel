@@ -111,8 +111,66 @@ export function setupMiddleware(app: {
         await userRepo.update({ id: user.id }, { lastPanelActivityAt: now });
 
         user.lastPanelActivityAt = now;
+
+        try {
+          const orderRepo = AppDataSource.getRepository(
+            require('../models/order.entity').Order
+          );
+          const configRepo = AppDataSource.getRepository(
+            require('../models/serverConfig.entity').ServerConfig
+          );
+          const nodeRepo = AppDataSource.getRepository(
+            require('../models/node.entity').Node
+          );
+
+          const blockedOrders = await orderRepo
+            .createQueryBuilder('o')
+            .where('o.userId = :uid', { uid: user.id })
+            .andWhere('o.status = :status', { status: 'active' })
+            .andWhere('o.billingType = :lifetime', { lifetime: 'lifetime' })
+            .andWhere('o.lifetimeBlockedAt IS NOT NULL')
+            .getMany();
+
+          if (blockedOrders.length > 0) {
+            for (const order of blockedOrders) {
+              order.lifetimeBlockedAt = undefined as any;
+              order.lifetimeGraceEndsAt = undefined as any;
+              order.notes = order.notes
+                ? `${order.notes}; Lifetime unblocked on ${now.toISOString()}`
+                : `Lifetime unblocked on ${now.toISOString()}`;
+            }
+            await orderRepo.save(blockedOrders);
+
+            const suspendedServers = await configRepo
+              .createQueryBuilder('s')
+              .where('s.userId = :uid', { uid: user.id })
+              .andWhere('s.suspended = :suspended', { suspended: true })
+              .andWhere('s.suspendedBy = :suspendedBy', { suspendedBy: 'system' })
+              .andWhere('s.suspendedReason LIKE :reason', { reason: 'Lifetime product inactivity%' })
+              .getMany();
+
+            for (const cfg of suspendedServers) {
+              try {
+                const node = await nodeRepo.findOneBy({ id: cfg.nodeId });
+                if (node) {
+                  const { WingsApiService } = require('../services/wingsApiService');
+                  const svc = new WingsApiService(
+                    (node as any).backendWingsUrl || node.url,
+                    node.token
+                  );
+                  await svc.syncServer(cfg.uuid, {}).catch(() => {});
+                }
+              } catch {}
+              cfg.suspended = false;
+              cfg.suspendedBy = undefined as any;
+              cfg.suspendedReason = undefined as any;
+              cfg.suspendedAt = undefined as any;
+              await configRepo.save(cfg);
+            }
+          }
+        } catch {}
       } catch {
-        // ignore
+        // buh
       }
     }
   );

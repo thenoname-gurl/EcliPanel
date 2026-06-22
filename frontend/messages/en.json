@@ -1621,7 +1621,8 @@
       "planId": "Plan #{id}",
       "dash": "—",
       "none": "— none —",
-      "infinity": "∞"
+      "infinity": "∞",
+      "lifetime": "Lifetime"
     },
     "search": {
       "placeholder": "Search by user ID or email…"
@@ -1668,7 +1669,8 @@
       "taxPreview": "Tax preview",
       "expiresOptional": "Expires At (optional)",
       "notes": "Notes",
-      "notesPlaceholder": "Internal notes"
+      "notesPlaceholder": "Internal notes",
+      "lifetime": "Lifetime (paid once, no renewal)"
     },
     "applyPlanDialog": {
       "title": "Apply Plan to User #{id}",
@@ -1680,7 +1682,8 @@
       "assignOrgPlaceholder": "Leave blank for user-only",
       "assignOrgHint": "If set, the organisation's tier will also be upgraded to enterprise.",
       "notesInternal": "Notes (internal)",
-      "notesPlaceholder": "e.g. Trial period"
+      "notesPlaceholder": "e.g. Trial period",
+      "lifetime": "Lifetime (paid once, no renewal)"
     },
     "editDialog": {
       "editOrder": "Edit Order",
@@ -1703,6 +1706,9 @@
       "cancelOrder": "Cancel order",
       "deleteOrder": "Delete order",
       "confirmPayment": "Confirm Payment",
+      "rejectPayment": "Reject Payment",
+      "confirm": "Confirm",
+      "reject": "Reject",
       "suspendUser": "Suspend User",
       "edit": "Edit",
       "cancel": "Cancel",

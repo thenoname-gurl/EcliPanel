@@ -393,9 +393,13 @@ export async function paymentRoutes(app: any, prefix = '') {
 
       order.status = 'active';
       order.paymentTxId = txId || order.paymentTxId || undefined;
-      const nextMonth = new Date();
-      nextMonth.setMonth(nextMonth.getMonth() + 1);
-      order.expiresAt = nextMonth;
+      if (order.billingType === 'lifetime') {
+        order.expiresAt = new Date(Date.now() + 100 * 365 * 24 * 3600 * 1000);
+      } else {
+        const nextMonth = new Date();
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        order.expiresAt = nextMonth;
+      }
       if (notes) order.notes = order.notes ? `${order.notes}; ${notes}` : notes;
 
       const isQueuedForRenewal = (order.notes || '').includes('queue_for_renewal');

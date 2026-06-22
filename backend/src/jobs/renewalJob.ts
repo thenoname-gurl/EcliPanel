@@ -23,6 +23,7 @@ async function processRenewals() {
     .createQueryBuilder('o')
     .where('o.status = :status', { status: 'active' })
     .andWhere('o.planId IS NOT NULL')
+    .andWhere('(o.billingType IS NULL OR o.billingType != :lifetime)', { lifetime: 'lifetime' })
     .andWhere('o.expiresAt <= :upcomingWindow', { upcomingWindow: upcomingWindow.toISOString() })
     .andWhere('o.expiresAt > :now', { now: now.toISOString() })
     .orderBy('o.expiresAt', 'ASC')

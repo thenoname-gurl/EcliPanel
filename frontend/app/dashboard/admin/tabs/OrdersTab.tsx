@@ -70,6 +70,8 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     setIoAmount,
     ioExpiresAt,
     setIoExpiresAt,
+    ioLifetime,
+    setIoLifetime,
     ioNotes,
     setIoNotes,
     ioError,
@@ -90,6 +92,8 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     applyPlanError,
     submitApplyPlan,
     applyPlanLoading,
+    applyPlanLifetime,
+    setApplyPlanLifetime,
     editOrderOpen,
     setEditOrderOpen,
     editOrderTarget,
@@ -362,6 +366,11 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                                   {t("common.planId", { id: privateMode ? "████" : order.planId })}
                                 </p>
                               )}
+                              {order.billingType === 'lifetime' && (
+                                <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+                                  {t("common.lifetime")}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -517,6 +526,11 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                             {t("common.userId", { id: privateMode ? "████" : order.userId })}
                             {order.planId && ` · ${t("common.planId", { id: privateMode ? "████" : order.planId })}`}
                           </p>
+                          {order.billingType === 'lifetime' && (
+                            <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+                              {t("common.lifetime")}
+                            </span>
+                          )}
                         </div>
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium shrink-0 ${sc.class} bg-current/10 capitalize`}
@@ -729,6 +743,11 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
             <input type="date" value={ioExpiresAt} onChange={(e) => setIoExpiresAt(e.target.value)}
               className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={ioLifetime} onChange={(e) => setIoLifetime(e.target.checked)}
+              className="border border-border bg-secondary/50 rounded text-primary focus:ring-primary/30" />
+            <span className="text-sm text-foreground">{t("issueDialog.lifetime")}</span>
+          </label>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("issueDialog.notes")}</label>
             <input placeholder={t("issueDialog.notesPlaceholder")} value={ioNotes} onChange={(e) => setIoNotes(e.target.value)}
@@ -786,6 +805,11 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
             <input placeholder={t("applyPlanDialog.notesPlaceholder")} value={applyPlanNotes} onChange={(e) => setApplyPlanNotes(e.target.value)}
               className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={applyPlanLifetime} onChange={(e) => setApplyPlanLifetime(e.target.checked)}
+              className="border border-border bg-secondary/50 rounded text-primary focus:ring-primary/30" />
+            <span className="text-sm text-foreground">{t("applyPlanDialog.lifetime")}</span>
+          </label>
           {applyPlanError && <p className="text-xs text-destructive">{applyPlanError}</p>}
         </div>
         <DialogFooter>

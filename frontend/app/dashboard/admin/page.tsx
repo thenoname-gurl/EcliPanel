@@ -1353,6 +1353,7 @@ export default function AdminPanel() {
   const [ioAmount, setIoAmount] = useState("0")
   const [ioNotes, setIoNotes] = useState("")
   const [ioExpiresAt, setIoExpiresAt] = useState("")
+  const [ioLifetime, setIoLifetime] = useState(false)
   const [ioLoading, setIoLoading] = useState(false)
   const [ioError, setIoError] = useState("")
 
@@ -1382,6 +1383,7 @@ export default function AdminPanel() {
   const [applyPlanLoading, setApplyPlanLoading] = useState(false)
   const [applyPlanError, setApplyPlanError] = useState("")
   const [applyPlanOrgId, setApplyPlanOrgId] = useState("")
+  const [applyPlanLifetime, setApplyPlanLifetime] = useState(false)
 
   // ── Add Node dialog ──
   type AddNodeStep = "form" | "config" | "done"
@@ -3198,7 +3200,7 @@ export default function AdminPanel() {
   // ── Issue Order ───────────────────────────────────────────────────────────
 
   function openIssueOrder() {
-    setIoUserId(""); setIoDesc(""); setIoPlanId(""); setIoAmount("0"); setIoNotes(""); setIoExpiresAt(""); setIoError("")
+    setIoUserId(""); setIoDesc(""); setIoPlanId(""); setIoAmount("0"); setIoNotes(""); setIoExpiresAt(""); setIoError(""); setIoLifetime(false)
     setIssueOrderOpen(true)
   }
 
@@ -3226,6 +3228,7 @@ export default function AdminPanel() {
           taxRate,
           notes: ioNotes || undefined,
           expiresAt: ioExpiresAt || undefined,
+          billingType: ioLifetime ? 'lifetime' : undefined,
         }),
       })
       setAdminOrders((prev) => [...prev, created.order ?? created])
@@ -3301,7 +3304,7 @@ export default function AdminPanel() {
 
   function openApplyPlan(userId: number) {
     setApplyPlanUserId(userId)
-    setApplyPlanId(""); setApplyPlanNotes(""); setApplyPlanExpiry(""); setApplyPlanOrgId(""); setApplyPlanError("")
+    setApplyPlanId(""); setApplyPlanNotes(""); setApplyPlanExpiry(""); setApplyPlanOrgId(""); setApplyPlanError(""); setApplyPlanLifetime(false)
     if (plans.length === 0) apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => { })
     setApplyPlanOpen(true)
   }
@@ -3331,6 +3334,7 @@ export default function AdminPanel() {
           orgId: applyPlanOrgId ? Number(applyPlanOrgId) : undefined,
           taxAmount,
           taxRate,
+          billingType: applyPlanLifetime ? 'lifetime' : undefined,
         }),
       })
       if (plan) {
@@ -6248,6 +6252,8 @@ remote: ${panelUrl}`
                     setIoAmount,
                     ioExpiresAt,
                     setIoExpiresAt,
+                    ioLifetime,
+                    setIoLifetime,
                     ioNotes,
                     setIoNotes,
                     ioError,
@@ -6268,6 +6274,8 @@ remote: ${panelUrl}`
                     applyPlanError,
                     submitApplyPlan,
                     applyPlanLoading,
+                    applyPlanLifetime,
+                    setApplyPlanLifetime,
                     editOrderOpen,
                     setEditOrderOpen,
                     editOrderTarget,

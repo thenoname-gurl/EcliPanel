@@ -72,4 +72,13 @@ export class Order {
 
   @Column('datetime')
   expiresAt: Date;
+
+  @Column({ nullable: true })
+  billingType?: string;
+
+  @Column({ nullable: true, type: 'datetime' })
+  lifetimeBlockedAt?: Date;
+
+  @Column({ nullable: true, type: 'datetime' })
+  lifetimeGraceEndsAt?: Date;
 }
