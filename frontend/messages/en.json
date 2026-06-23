@@ -3479,6 +3479,11 @@
         "description": "Take a photo to match your ID (optional)"
       }
     },
+    "profileMissing": {
+      "title": "Profile Information Required",
+      "description": "Before submitting ID documents for verification, please fill in the following required fields:",
+      "goToSettings": "Go to Settings"
+    },
     "stepsSection": {
       "title": "Verification Steps",
       "description": "Complete each step to verify your identity"

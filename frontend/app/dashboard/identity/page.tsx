@@ -28,6 +28,7 @@ import {
   User,
   KeyRound,
   Loader2,
+  ExternalLink,
 } from "lucide-react"
 
 // Feature flags
@@ -103,6 +104,24 @@ export default function IdentityPage() {
   const [euIdDialogOpen, setEuIdDialogOpen] = useState(false)
   const euIdDisabled = !!user?.euIdVerificationDisabled
   const portalType = (user as any)?.portalType as string | undefined
+  const kycRequired = !!(user as any)?.kycRequired
+
+  const requiredProfileFields: Record<string, string> = {
+    firstName: "First Name",
+    lastName: "Last Name",
+    phone: "Phone",
+    address: "Street Address",
+    billingCity: "City",
+    billingZip: "ZIP / Postal",
+    billingCountry: "Country",
+  }
+
+  const missingFields = Object.entries(requiredProfileFields)
+    .filter(([key]) => {
+      const val = (user as any)?.[key]
+      return !val || String(val).trim() === ''
+    })
+    .map(([, label]) => label)
 
   useEffect(() => {
     if (user) {
@@ -143,6 +162,10 @@ export default function IdentityPage() {
           {(() => {
             const s = computeSteps(status, passkeyCount, !!user?.twoFactorEnabled, !!user?.emailVerified, !!user?.studentVerified, portalType, euIdDisabled, t);
             const requiredSteps = s.filter((x: any) => x.id === 1 || x.id === 2);
+            const profileComplete = missingFields.length === 0;
+            if (kycRequired) {
+              requiredSteps.push({ id: 5, status: profileComplete ? 'completed' : 'available' } as any);
+            }
             const doneRequired = requiredSteps.filter((x: any) => x.status === 'completed' || x.status === 'notApplicable').length;
             const allRequired = doneRequired === requiredSteps.length;
             const borderColor = allRequired ? 'border-success/30' : 'border-warning/30';
@@ -177,15 +200,41 @@ export default function IdentityPage() {
             <div className="border border-border bg-card p-6">
               <SectionHeader title={t("start.title")} description={t("start.description")} />
               <div className="mt-4 grid grid-cols-1 gap-4">
+                {kycRequired && missingFields.length > 0 && (
+                  <div className="border border-warning/30 bg-warning/5 p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-warning shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <h3 className="text-sm font-medium text-foreground">{t("profileMissing.title")}</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">{t("profileMissing.description")}</p>
+                        <ul className="mt-2 space-y-1">
+                          {missingFields.map((field) => (
+                            <li key={field} className="flex items-center gap-2 text-sm text-foreground">
+                              <span className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
+                              {field}
+                            </li>
+                          ))}
+                        </ul>
+                        <a
+                          href="/dashboard/settings"
+                          className="mt-3 inline-flex items-center gap-1.5 border border-border px-4 py-2 text-sm text-foreground hover:bg-secondary/20 transition-all"
+                        >
+                          {t("profileMissing.goToSettings")}
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-col gap-2">
                   <label className="text-sm font-medium text-foreground">{t("start.idDocumentLabel")}</label>
                   <p className="text-xs text-muted-foreground">{t("start.idDocumentHint")}</p>
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
-                    disabled={euIdDisabled}
+                    disabled={euIdDisabled || (kycRequired && missingFields.length > 0)}
                     onChange={(e) => setIdDocFile(e.target.files?.[0] ?? null)}
-                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
+                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   {idDocFile && <p className="text-xs text-success">{t("start.selected")}: {idDocFile.name}</p>}
                 </div>
@@ -195,14 +244,14 @@ export default function IdentityPage() {
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    disabled={euIdDisabled}
+                    disabled={euIdDisabled || (kycRequired && missingFields.length > 0)}
                     onChange={(e) => setSelfieFile(e.target.files?.[0] ?? null)}
-                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer"
+                    className="border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 transition-all file:mr-3 file:rounded file:border-0 file:bg-primary/10 file:px-3 file:py-1 file:text-xs file:text-primary file:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                   {selfieFile && <p className="text-xs text-success">{t("start.selected")}: {selfieFile.name}</p>}
                 </div>
                 <button
-                  disabled={euIdDisabled || submitting || !idDocFile || !selfieFile}
+                  disabled={euIdDisabled || submitting || !idDocFile || !selfieFile || (kycRequired && missingFields.length > 0)}
                   onClick={async () => {
                     if (!idDocFile || !selfieFile) { alert(t('errors.selectBothFiles')); return; }
                     setSubmitting(true);
