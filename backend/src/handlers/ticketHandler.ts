@@ -14,7 +14,10 @@ import { createActivityLog } from './logHandler';
 import { getGeoBlockRulesWithDefaults } from '../utils/eu';
 import { tForUser } from '../i18n';
 import { sanitizeError } from '../utils/sanitizeError';
+import { sanitizeForDb } from '../utils/sanitize';
 import { httpRequest } from '../utils/http';
+import path from 'path';
+import fs from 'fs';
 import type {
   TicketContext,
   TicketApp,
@@ -1107,7 +1110,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       if (!rlUser.allowed) { ctx.set.status = 429; ctx.set.headers = { ...(ctx.set.headers||{}), 'Retry-After': String(rlUser.retryAfterSeconds) }; return { error: 'rate_limited', retryAfter: rlUser.retryAfterSeconds }; }
     } catch (e) {/* srs */}
 
-    const { subject, message, priority, department } = (ctx.body || {}) as Record<string, unknown>;
+    const { subject, message, priority, department, attachments } = (ctx.body || {}) as Record<string, unknown>;
     if (typeof subject !== 'string' || !subject.trim() || typeof message !== 'string' || !message.trim()) {
       ctx.set.status = 400;
       return { error: ctx.t('validation.subjectAndMessageRequired') };
@@ -1122,6 +1125,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const safeSubject = sanitizeForDb(subject);
     const safeMessage = sanitizeForDb(message);
     const normalizedPriority = typeof priority === 'string' && priority.trim() ? priority : 'medium';
+    const msgAttachments = Array.isArray(attachments) ? attachments.filter((a: any) => typeof a === 'string') : undefined;
     const ticket = repo.create({
       userId: user.id,
       subject: safeSubject,
@@ -1129,7 +1133,12 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       priority: normalizedPriority,
       status: 'opened',
       department: typeof department === 'string' ? department : null,
-      messages: [{ sender: 'user', message: safeMessage, created: now }],
+      messages: [{
+        sender: 'user',
+        message: safeMessage,
+        created: now,
+        ...(msgAttachments ? { attachments: msgAttachments } : {}),
+      }],
     });
     const saved: Ticket = await repo.save(ticket);
     try {
@@ -1258,6 +1267,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       aiDisabled,
       aiTouched,
       archived,
+      attachments,
     } = (ctx.body || {}) as Record<string, unknown>;
     const isAdminApiKey = ctx.apiKey?.type === 'admin';
     const canAdminWrite = isAdminApiKey || hasPermissionSync(ctx, 'tickets:write');
@@ -1303,6 +1313,8 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
         } catch (e) { }
       }
 
+      const msgAttachments = Array.isArray(attachments) ? attachments.filter((a: any) => typeof a === 'string') : undefined;
+
       if (sender === 'staff') {
         const staffDisplayName = typeof user.displayName === 'string' ? user.displayName.trim() : '';
         const staffLegalName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
@@ -1316,9 +1328,15 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
           staffDisplayName: staffDisplayName || undefined,
           staffLegalName: staffLegalName || undefined,
           staffAvatar: user?.avatarUrl || undefined,
+          ...(msgAttachments ? { attachments: msgAttachments } : {}),
         } as TicketMessage);
       } else {
-        ticket.messages.push({ sender, message: txt, created: now });
+        ticket.messages.push({
+          sender,
+          message: txt,
+          created: now,
+          ...(msgAttachments ? { attachments: msgAttachments } : {}),
+        });
       }
       pushedSender = sender;
       lastMessageText = rawText;
@@ -1363,6 +1381,59 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     beforeHandle: authenticate,
     response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Update ticket (admin only)', tags: ['Tickets'] }
+  });
+
+  app.post(prefix + '/tickets/:id/screenshots', async (ctx: TicketContext) => {
+    const user = ctx.user;
+    const ticket = await repo.findOneBy({ id: Number(ctx.params.id) });
+    if (!ticket) {
+      ctx.set.status = 404;
+      return { error: ctx.t('ticket.notFound') };
+    }
+    const isAdminApiKey = ctx.apiKey?.type === 'admin';
+    const canWrite = isAdminApiKey || hasPermissionSync(ctx, 'tickets:write');
+    if (!canWrite && ticket.userId !== user.id) {
+      ctx.set.status = 403;
+      return { error: ctx.t('common.forbidden') };
+    }
+
+    const { file } = (ctx.body || {}) as any;
+    const uploadFile = Array.isArray(file) ? file[0] : file;
+    if (!uploadFile) {
+      ctx.set.status = 400;
+      return { error: 'No file provided' };
+    }
+
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
+    if (!allowed.includes(mime)) {
+      ctx.set.status = 400;
+      return { error: 'Invalid image type. Allowed: PNG, JPEG, WebP, GIF' };
+    }
+
+    const ab = await uploadFile.arrayBuffer();
+    const buffer = Buffer.from(ab);
+
+    const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : mime === 'image/gif' ? '.gif' : '.jpg';
+    const filename = `ticket_${ticket.id}_${Date.now()}${ext}`;
+    const uploadDir = path.join(process.cwd(), 'uploads');
+    await fs.promises.mkdir(uploadDir, { recursive: true });
+    const filepath = path.join(uploadDir, filename);
+    await Bun.write(filepath, buffer);
+
+    const backendBase =
+      (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
+      (() => {
+        const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
+        const host = (ctx.request.headers.get('host') || 'localhost') as string;
+        return `${proto}://${host}`;
+      })();
+
+    return { url: `${backendBase}/uploads/${filename}` };
+  }, {
+    beforeHandle: authenticate,
+    response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+    detail: { summary: 'Upload a screenshot for a ticket', tags: ['Tickets'] }
   });
 
   app.delete(prefix + '/tickets/:id', async (ctx: TicketContext) => {

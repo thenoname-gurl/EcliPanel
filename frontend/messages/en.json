@@ -4915,6 +4915,11 @@
         "label": "Message",
         "placeholder": "Describe your issue in as much detail as possible. Include any error messages, steps to reproduce, and what you expected to happen.",
         "characters": "{count} characters"
+      },
+      "screenshots": {
+        "label": "Screenshots",
+        "choose": "Choose screenshots…",
+        "selected": "{count} screenshot(s) selected"
       }
     },
     "actions": {
@@ -5009,7 +5014,8 @@
     "composer": {
       "staffPlaceholder": "Write your staff reply…",
       "userPlaceholder": "Add more information…",
-      "sendHint": "⌘+Enter to send"
+      "sendHint": "⌘+Enter to send",
+      "screenshots": "Screenshots"
     },
     "actions": {
       "backToTickets": "Back to tickets",

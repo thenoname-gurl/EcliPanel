@@ -72,6 +72,7 @@ export class Ticket {
     staffAvatar?: string;
     userAvatar?: string;
     avatarUrl?: string;
+    attachments?: string[];
   }>;
 
   @CreateDateColumn()

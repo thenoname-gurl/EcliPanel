@@ -35,6 +35,8 @@ import {
   BotOff,
   Building2,
   MessageSquare,
+  ImageUp,
+  X,
 } from "lucide-react"
 
 function MarkdownContent({ content }: { content: string }) {
@@ -81,6 +83,7 @@ function buildMessages(ticket: any, t?: any) {
             : "user",
       ai: !!m.ai,
       content: m.message,
+      attachments: m.attachments,
       timestamp: m.created || m.createdAt || ticket.created,
       avatar:
         m.sender === "staff"
@@ -98,6 +101,7 @@ function buildMessages(ticket: any, t?: any) {
       sender: userName,
       senderRole: "user",
       content: ticket.message,
+      attachments: undefined,
       timestamp: ticket.created,
       avatar:
         ticket.user?.avatarUrl || ticket.userAvatar || undefined,
@@ -209,6 +213,9 @@ export default function TicketDetailPage({
   const [sending, setSending] = useState(false)
   const [showMobileDetails, setShowMobileDetails] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
+  const [screenshots, setScreenshots] = useState<File[]>([])
+  const [uploadedUrls, setUploadedUrls] = useState<string[]>([])
+  const [uploadingScreenshots, setUploadingScreenshots] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const prevTicketRef = useRef<any>(null)
@@ -292,6 +299,30 @@ export default function TicketDetailPage({
     }
   }, [reply])
 
+  const uploadScreenshots = async (): Promise<string[]> => {
+    if (screenshots.length === 0) return uploadedUrls
+    setUploadingScreenshots(true)
+    const urls: string[] = []
+    try {
+      for (const file of screenshots) {
+        const formData = new FormData()
+        formData.append("file", file)
+        const res = await apiFetch(
+          `${API_ENDPOINTS.tickets}/${id}/screenshots`,
+          { method: "POST", body: formData }
+        )
+        if (res?.url) urls.push(res.url)
+      }
+      setUploadedUrls((prev) => [...prev, ...urls])
+      setScreenshots([])
+    } catch {
+      // silent
+    } finally {
+      setUploadingScreenshots(false)
+    }
+    return urls
+  }
+
   const handleSend = async () => {
     if (!reply.trim() || !ticket) return
     setSending(true)
@@ -301,10 +332,14 @@ export default function TicketDetailPage({
     }
 
     try {
+      const attUrls = screenshots.length > 0 ? await uploadScreenshots() : uploadedUrls
+      const allUrls = [...attUrls, ...uploadedUrls]
+
       const payload: any = {
         reply: reply.trim(),
         replyAs: canTicketStaff ? replyAs : "user",
         ...((canTicketWrite || canTicketStaff) ? { priority: replyPriority } : {}),
+        ...(allUrls.length > 0 ? { attachments: allUrls } : {}),
       }
 
       const updated = await apiFetch(
@@ -325,6 +360,8 @@ export default function TicketDetailPage({
       setTicket(updated)
       setMessages(buildMessages(updated, t))
       setReply("")
+      setScreenshots([])
+      setUploadedUrls([])
     } catch (e: any) {
       alert(t("alerts.failedSend", { reason: e.message }))
     } finally {
@@ -1073,13 +1110,32 @@ export default function TicketDetailPage({
                         </div>
                       )}
                       <div
-                        className={`px-3 py-2 sm:px-3.5 sm:py-2.5 text-[13px] sm:text-sm leading-relaxed w-fit ${
+                        className={`px-3 py-2 sm:px-3.5 sm:py-2.5 text-[13px] sm:text-sm leading-relaxed w-fit max-w-full ${
                           isStaff
                             ? "rounded-tl-md border border-primary/20 bg-primary/5 text-foreground"
                             : "rounded-tr-md border border-border bg-card text-foreground"
                         }`}
                       >
                         <MarkdownContent content={msg.content} />
+                        {msg.attachments?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-2">
+                            {msg.attachments.map((url: string, i: number) => (
+                              <a
+                                key={i}
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block"
+                              >
+                                <img
+                                  src={url}
+                                  alt={`Screenshot ${i + 1}`}
+                                  className="h-16 w-24 sm:h-20 sm:w-32 rounded border border-border/50 object-cover hover:border-primary/50 transition-colors"
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1117,6 +1173,41 @@ export default function TicketDetailPage({
                     style={{ minHeight: "40px" }}
                   />
 
+                  {/* Screenshot previews */}
+                  {(screenshots.length > 0 || uploadedUrls.length > 0) && (
+                    <div className="flex flex-wrap gap-2 px-2.5 pt-2 sm:px-3">
+                      {screenshots.map((file, idx) => (
+                        <div key={`pending-${idx}`} className="relative group">
+                          <img
+                            src={URL.createObjectURL(file)}
+                            alt={`Screenshot ${idx + 1}`}
+                            className="h-14 w-20 sm:h-16 sm:w-24 rounded border border-border object-cover"
+                          />
+                          <button
+                            onClick={() => setScreenshots((prev) => prev.filter((_, i) => i !== idx))}
+                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                      {uploadedUrls.map((url, idx) => (
+                        <div key={`uploaded-${idx}`} className="relative group">
+                          <img
+                            src={url}
+                            alt={`Uploaded ${idx + 1}`}
+                            className="h-14 w-20 sm:h-16 sm:w-24 rounded border border-border object-cover"
+                          />
+                          <button
+                            onClick={() => setUploadedUrls((prev) => prev.filter((_, i) => i !== idx))}
+                            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center justify-between border-t border-border/30 px-2.5 py-1.5 sm:px-3 sm:py-2 gap-2">
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
                       {canTicketStaff && (
@@ -1142,6 +1233,26 @@ export default function TicketDetailPage({
                           </span>
                         </button>
                       )}
+
+                      {/* Screenshot upload */}
+                      <label className="flex items-center gap-1 sm:gap-1.5 rounded-full px-2 py-1 sm:px-2.5 text-[10px] sm:text-[11px] font-medium border border-border bg-secondary/50 text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors cursor-pointer active:scale-95">
+                        <ImageUp className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                        <span className="hidden sm:inline">{t("composer.screenshots")}</span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          multiple
+                          className="hidden"
+                          disabled={uploadingScreenshots}
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || [])
+                            if (files.length > 0) {
+                              setScreenshots((prev) => [...prev, ...files])
+                            }
+                            e.target.value = ""
+                          }}
+                        />
+                      </label>
 
                       {(canTicketWrite || canTicketStaff) && (
                         <select

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Send } from "lucide-react"
+import { ArrowLeft, Send, ImageUp, X } from "lucide-react"
 import { PanelHeader } from "@/components/panel/header"
 import { FeatureGuard } from "@/components/panel/feature-guard"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -20,6 +20,8 @@ export default function NewTicketPage() {
   const [department, setDepartment] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [screenshots, setScreenshots] = useState<File[]>([])
+  const [uploadingScreenshots, setUploadingScreenshots] = useState(false)
   const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,9 +33,27 @@ export default function NewTicketPage() {
     setSubmitting(true)
     setError(null)
     try {
+      let attachmentUrls: string[] = []
+      if (screenshots.length > 0) {
+        setUploadingScreenshots(true)
+        for (const file of screenshots) {
+          const formData = new FormData()
+          formData.append("file", file)
+          const res = await apiFetch(`${API_ENDPOINTS.tickets}/screenshots`, { method: "POST", body: formData })
+          if (res?.url) attachmentUrls.push(res.url)
+        }
+        setUploadingScreenshots(false)
+      }
+
       await apiFetch(API_ENDPOINTS.tickets, {
         method: "POST",
-        body: JSON.stringify({ subject: subject.trim(), message: message.trim(), priority, department: department || undefined }),
+        body: JSON.stringify({
+          subject: subject.trim(),
+          message: message.trim(),
+          priority,
+          department: department || undefined,
+          ...(attachmentUrls.length > 0 ? { attachments: attachmentUrls } : {}),
+        }),
       })
       router.push("/dashboard/tickets")
     } catch (err: any) {
@@ -147,6 +167,47 @@ export default function NewTicketPage() {
                   className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
                 />
                 <p className="text-xs text-muted-foreground text-right">{t("fields.message.characters", { count: message.length })}</p>
+              </div>
+
+              {/* Screenshots */}
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-foreground">{t("fields.screenshots.label")}</label>
+                <label className="flex items-center gap-2 border border-border bg-input px-3 py-2.5 text-sm text-muted-foreground cursor-pointer hover:border-primary/50 transition-colors">
+                  <ImageUp className="h-4 w-4" />
+                  <span>{screenshots.length > 0 ? t("fields.screenshots.selected", { count: screenshots.length }) : t("fields.screenshots.choose")}</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    multiple
+                    className="hidden"
+                    disabled={uploadingScreenshots}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      if (files.length > 0) setScreenshots((prev) => [...prev, ...files])
+                      e.target.value = ""
+                    }}
+                  />
+                </label>
+                {screenshots.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {screenshots.map((file, idx) => (
+                      <div key={idx} className="relative group">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={`Screenshot ${idx + 1}`}
+                          className="h-14 w-20 sm:h-16 sm:w-24 rounded border border-border object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setScreenshots((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Submit */}
