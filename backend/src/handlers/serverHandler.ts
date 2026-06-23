@@ -31,7 +31,7 @@ import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ApplicationForm } from '../models/applicationForm.entity';
 import { ApplicationSubmission } from '../models/applicationSubmission.entity';
-import { In, LessThan, MoreThanOrEqual, Not } from 'typeorm';
+import { In, IsNull, LessThan, MoreThanOrEqual, Not } from 'typeorm';
 import { EloProject } from '../models/eloProject.entity';
 import { EloDevlog } from '../models/eloDevlog.entity';
 import { EloVote } from '../models/eloVote.entity';
@@ -1647,8 +1647,14 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         : [];
 
       if (!isAdmin) {
+        const eloUuids = (await eloProjectRepo().find({ where: { userId: ownerId, serverId: Not(IsNull()) } }))
+          .map((p: EloProject) => p.serverId)
+          .filter(Boolean) as string[];
+        const eloSet = new Set(eloUuids);
+        const nonEloServers = existingRegularServers.filter((s: ServerConfig) => !eloSet.has(s.uuid));
+
         if (limits.serverLimit != null && limits.serverLimit > 0) {
-          if (existingRegularServers.length >= limits.serverLimit) {
+          if (nonEloServers.length >= limits.serverLimit) {
             ctx.set.status = 403;
             return {
               error: `Server limit reached (${limits.serverLimit}). Delete an existing server to create a new one.`,
@@ -1656,15 +1662,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           }
         }
 
-        const existingMemory = existingRegularServers.reduce(
+        const existingMemory = nonEloServers.reduce(
           (sum: number, s: ServerConfig) => sum + (s.memory || 0),
           0
         );
-        const existingDisk = existingRegularServers.reduce(
+        const existingDisk = nonEloServers.reduce(
           (sum: number, s: ServerConfig) => sum + (s.disk || 0),
           0
         );
-        const existingCpu = existingRegularServers.reduce(
+        const existingCpu = nonEloServers.reduce(
           (sum: number, s: ServerConfig) => sum + (s.cpu || 0),
           0
         );

@@ -728,43 +728,47 @@ export async function orderRoutes(app: any, prefix = '') {
         where: { userId: user.id, status: 'active' },
       });
       if (remaining.length === 0) {
-        const planRepo = AppDataSource.getRepository(Plan);
-        const freePlan = await planRepo.findOneBy({ type: 'free', isDefault: true });
-        if (!freePlan) {
-          const fallback = await planRepo.findOneBy({ type: 'free' });
-          if (fallback) {
-            (ctx.user as any).portalType = 'free';
-            (ctx.user as any).limits = {
-              memory: fallback.memory ?? 1024,
-              disk: fallback.disk ?? 10240,
-              cpu: fallback.cpu ?? 1,
-              serverLimit: fallback.serverLimit ?? 1,
-              databases: fallback.databases ?? 1,
-              backups: fallback.backups ?? 1,
-              portCount: fallback.portCount ?? 1,
-              tunnelPortCount: fallback.tunnelPortCount ?? 1,
-              emailSendDailyLimit: fallback.emailSendDailyLimit ?? 3,
-              emailSendQueueLimit: fallback.emailSendQueueLimit ?? 3,
-            };
-          }
-        } else {
-          const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
-          const userEntity = await userRepo.findOneBy({ id: user.id });
-          if (userEntity) {
-            userEntity.portalType = 'free';
-            userEntity.limits = {
-              memory: freePlan.memory ?? 1024,
-              disk: freePlan.disk ?? 10240,
-              cpu: freePlan.cpu ?? 1,
-              serverLimit: freePlan.serverLimit ?? 1,
-              databases: freePlan.databases ?? 1,
-              backups: freePlan.backups ?? 1,
-              portCount: freePlan.portCount ?? 1,
-              tunnelPortCount: freePlan.tunnelPortCount ?? 1,
-              emailSendDailyLimit: freePlan.emailSendDailyLimit ?? 3,
-              emailSendQueueLimit: freePlan.emailSendQueueLimit ?? 3,
-            };
-            await userRepo.save(userEntity);
+        const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
+        const userEntity = await userRepo.findOneBy({ id: user.id });
+        if (userEntity) {
+          if (userEntity.portalType === 'educational') {
+            // uwu
+          } else {
+            const planRepo = AppDataSource.getRepository(Plan);
+            const freePlan = await planRepo.findOneBy({ type: 'free', isDefault: true });
+            if (!freePlan) {
+              const fallback = await planRepo.findOneBy({ type: 'free' });
+              if (fallback) {
+                (ctx.user as any).portalType = 'free';
+                (ctx.user as any).limits = {
+                  memory: fallback.memory ?? 1024,
+                  disk: fallback.disk ?? 10240,
+                  cpu: fallback.cpu ?? 1,
+                  serverLimit: fallback.serverLimit ?? 1,
+                  databases: fallback.databases ?? 1,
+                  backups: fallback.backups ?? 1,
+                  portCount: fallback.portCount ?? 1,
+                  tunnelPortCount: fallback.tunnelPortCount ?? 1,
+                  emailSendDailyLimit: fallback.emailSendDailyLimit ?? 3,
+                  emailSendQueueLimit: fallback.emailSendQueueLimit ?? 3,
+                };
+              }
+            } else {
+              userEntity.portalType = 'free';
+              userEntity.limits = {
+                memory: freePlan.memory ?? 1024,
+                disk: freePlan.disk ?? 10240,
+                cpu: freePlan.cpu ?? 1,
+                serverLimit: freePlan.serverLimit ?? 1,
+                databases: freePlan.databases ?? 1,
+                backups: freePlan.backups ?? 1,
+                portCount: freePlan.portCount ?? 1,
+                tunnelPortCount: freePlan.tunnelPortCount ?? 1,
+                emailSendDailyLimit: freePlan.emailSendDailyLimit ?? 3,
+                emailSendQueueLimit: freePlan.emailSendQueueLimit ?? 3,
+              };
+              await userRepo.save(userEntity);
+            }
           }
         }
       }

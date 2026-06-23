@@ -282,7 +282,7 @@ export async function eloRoutes(app: any, prefix = '') {
         node = await nodeRepo().findOneBy({ id: Number(nodeId) });
       }
       if (!node) {
-        const freeNode = await nodeRepo().findOne({ where: { nodeType: 'free' } });
+        const freeNode = await nodeRepo().findOne({ where: { nodeType: In(['free', 'free_and_paid']) } });
         if (!freeNode) {
           ctx.set.status = 503;
           return { error: 'No available nodes' };
