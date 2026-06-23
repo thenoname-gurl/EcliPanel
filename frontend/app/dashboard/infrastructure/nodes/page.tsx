@@ -370,18 +370,16 @@ export default function InfraNodesPage() {
 
         <div className="flex flex-col gap-6 p-6">
           {/* Header row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {t("states.nodesRegistered", { count: nodes.length })}
-              </span>
-            </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <span className="text-sm text-muted-foreground">
+              {t("states.nodesRegistered", { count: nodes.length })}
+            </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={loadNodes} className="border-border h-9 gap-1.5">
-                <RefreshCw className="h-3.5 w-3.5" /> {t("actions.refresh")}
+              <Button variant="outline" size="sm" onClick={loadNodes} className="flex-1 sm:flex-none border-border h-10 sm:h-9 gap-1.5">
+                <RefreshCw className="h-4 w-4" /> {t("actions.refresh")}
               </Button>
-              <Button size="sm" onClick={openNew} className="bg-primary text-primary-foreground h-9 gap-1.5">
-                <Plus className="h-3.5 w-3.5" /> {t("actions.addNode")}
+              <Button size="sm" onClick={openNew} className="flex-1 sm:flex-none bg-primary text-primary-foreground h-10 sm:h-9 gap-1.5">
+                <Plus className="h-4 w-4" /> {t("actions.addNode")}
               </Button>
             </div>
           </div>
@@ -416,7 +414,7 @@ export default function InfraNodesPage() {
                           <Server className="h-4 w-4 text-muted-foreground shrink-0" />
                           <h3 className="font-medium text-foreground truncate">{node.name}</h3>
                         </div>
-                        <p className="mt-1 font-mono text-xs text-muted-foreground break-all">{node.url}</p>
+                        <p className="mt-1 font-mono text-xs text-muted-foreground truncate" title={node.url}>{node.url}</p>
                         {node.fqdn ? (
                           <p className="mt-1 text-[12px] text-muted-foreground">{t("labels.fqdn")}: {node.fqdn}</p>
                         ) : null}
@@ -442,38 +440,34 @@ export default function InfraNodesPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex flex-wrap justify-end gap-2 pt-1 border-t border-border/50">
+                    <div className="grid grid-cols-2 gap-1.5 pt-2 border-t border-border/50 sm:flex sm:flex-wrap sm:justify-end sm:gap-2">
                       <Button
-                        size="sm"
                         variant="outline"
                         onClick={() => openMassAlloc(node)}
-                        className="border-border h-7 px-2 text-xs gap-1"
+                        className="border-border h-10 sm:h-7 px-2 text-xs gap-1.5 justify-center"
                       >
-                        <ArrowLeftRight className="h-3 w-3" /> Re-IP
+                        <ArrowLeftRight className="h-3.5 w-3.5" /> Re-IP
                       </Button>
                       <Button
-                        size="sm"
                         variant="outline"
                         onClick={() => { setRebootNode(node); setRebootResult(null) }}
-                        className="border-border h-7 px-2 text-xs gap-1"
+                        className="border-border h-10 sm:h-7 px-2 text-xs gap-1.5 justify-center"
                       >
-                        <RefreshCw className="h-3 w-3" /> Reboot
+                        <RefreshCw className="h-3.5 w-3.5" /> Reboot
                       </Button>
                       <Button
-                        size="sm"
                         variant="outline"
                         onClick={() => openEdit(node)}
-                        className="border-border h-7 px-2 text-xs gap-1"
+                        className="border-border h-10 sm:h-7 px-2 text-xs gap-1.5 justify-center"
                       >
-                        <Edit className="h-3 w-3" /> {t("actions.edit")}
+                        <Edit className="h-3.5 w-3.5" /> {t("actions.edit")}
                       </Button>
                       <Button
-                        size="sm"
                         variant="outline"
                         onClick={() => deleteNode(node)}
-                        className="border-destructive/50 text-destructive h-7 px-2 text-xs"
+                        className="border-destructive/50 text-destructive h-10 sm:h-7 px-2 text-xs justify-center"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -650,9 +644,9 @@ export default function InfraNodesPage() {
             )}
 
             {/* SFTP settings */}
-            <div className="border-t border-border pt-3 mt-1">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{t("sections.sftp")}</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="border-t border-border pt-3 mt-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{t("sections.sftp")}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-muted-foreground">{t("form.sftpPort")}</label>
                   <input
@@ -682,7 +676,7 @@ export default function InfraNodesPage() {
             {/* Resource limits section */}
             <div className="border-t border-border pt-3 mt-1">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">{t("sections.resourceLimits")}</p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div className="flex flex-col gap-1">
                   <label className="text-[10px] text-muted-foreground">{t("form.memoryMb")}</label>
                   <input
@@ -739,7 +733,7 @@ export default function InfraNodesPage() {
                     placeholder="0.0.0.0"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] text-muted-foreground">{t("form.portRangeStart")}</label>
                     <input
