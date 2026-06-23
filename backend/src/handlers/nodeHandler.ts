@@ -95,7 +95,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
 
       const effectivePortalType = user.portalType;
       const portalType =
-        effectivePortalType === 'educational' ? 'paid' : effectivePortalType || 'free';
+        effectivePortalType === 'educational' ? 'free' : effectivePortalType || 'free';
 
       const cacheKey = `nodes:available:${user.id}:${portalType}:${isAdmin ? 'admin' : 'user'}:v1`;
       return withRedisCache(cacheKey, 10, async () => {

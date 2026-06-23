@@ -625,7 +625,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     const isAdmin = hasPermissionSync(ctx, 'admin:access');
     const effectivePortalType = user.portalType;
     const portalType =
-      effectivePortalType === 'educational' ? 'paid' : effectivePortalType || 'free';
+      effectivePortalType === 'educational' ? 'free' : effectivePortalType || 'free';
     const unhealthyNodeIds = await getUnhealthyNodeIds();
 
     // Enterprise users with assigned nodes must use their assigned node

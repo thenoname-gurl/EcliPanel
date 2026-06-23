@@ -105,7 +105,7 @@ export async function tryReuseRecentPort(
 
 function normalizePortalType(portalType?: string): string {
   if (!portalType) return 'free';
-  if (portalType === 'educational') return 'paid';
+  if (portalType === 'educational') return 'free';
   return portalType;
 }
 
