@@ -1963,17 +1963,19 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       const user = await userRepo.findOneBy({ id: userId });
       if (user) {
         user.portalType = 'educational';
-        user.educationLimits = {
-          memory: eduPlan?.memory ?? 4096,
-          disk: eduPlan?.disk ?? 51200,
-          cpu: eduPlan?.cpu ?? 600,
-          serverLimit: eduPlan?.serverLimit ?? 3,
-          portCount: eduPlan?.portCount ?? 3,
-          portsPerServer: eduPlan?.portCount ?? 3,
-          tunnelPortCount: eduPlan?.tunnelPortCount ?? 10,
-          emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
-          emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
-        };
+        user.educationLimits = eduPlan ? {
+          memory: eduPlan.memory,
+          disk: eduPlan.disk,
+          cpu: eduPlan.cpu,
+          serverLimit: eduPlan.serverLimit,
+          portCount: eduPlan.portCount,
+          portsPerServer: eduPlan.portCount,
+          tunnelPortCount: eduPlan.tunnelPortCount,
+          emailSendDailyLimit: eduPlan.emailSendDailyLimit,
+          emailSendQueueLimit: eduPlan.emailSendQueueLimit,
+          databases: eduPlan.databases,
+          backups: eduPlan.backups,
+        } : null;
         user.limits = user.educationLimits ? { ...user.educationLimits } : null;
         ctx.log.info(
           { eduPlan: eduPlan?.id ?? null, limits: user.limits },
@@ -2130,66 +2132,24 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         user.studentVerified = true;
         user.studentVerifiedAt = new Date();
 
-        const defaultEduLimits = {
-          memory: eduPlan?.memory ?? 4096,
-          disk: eduPlan?.disk ?? 51200,
-          cpu: eduPlan?.cpu ?? 600,
-          serverLimit: eduPlan?.serverLimit ?? 3,
-          portCount: eduPlan?.portCount ?? 3,
-          portsPerServer: eduPlan?.portCount ?? 3,
-          tunnelPortCount: eduPlan?.tunnelPortCount ?? 0,
-          emailSendDailyLimit: eduPlan?.emailSendDailyLimit ?? 10,
-          emailSendQueueLimit: eduPlan?.emailSendQueueLimit ?? 10,
-        };
-
         const existingLimits = (user.educationLimits || {}) as NumericLimits;
         const currentBaseLimits = (user.limits || {}) as NumericLimits;
 
         const portLimitExisting = existingLimits.portsPerServer ?? existingLimits.portCount ?? 0;
         const portLimitBase = currentBaseLimits.portsPerServer ?? currentBaseLimits.portCount ?? 0;
-        user.educationLimits = {
-          memory: Math.max(
-            existingLimits.memory || 0,
-            currentBaseLimits.memory || 0,
-            defaultEduLimits.memory
-          ),
-          disk: Math.max(
-            existingLimits.disk || 0,
-            currentBaseLimits.disk || 0,
-            defaultEduLimits.disk
-          ),
-          cpu: Math.max(existingLimits.cpu || 0, currentBaseLimits.cpu || 0, defaultEduLimits.cpu),
-          serverLimit: Math.max(
-            existingLimits.serverLimit || 0,
-            currentBaseLimits.serverLimit || 0,
-            defaultEduLimits.serverLimit
-          ),
-          portCount: Math.max(
-            existingLimits.portCount || 0,
-            currentBaseLimits.portCount || 0,
-            defaultEduLimits.portCount
-          ),
-          portsPerServer: Math.max(
-            portLimitExisting,
-            portLimitBase,
-            defaultEduLimits.portsPerServer
-          ),
-          tunnelPortCount: Math.max(
-            existingLimits.tunnelPortCount || 0,
-            currentBaseLimits.tunnelPortCount || 0,
-            defaultEduLimits.tunnelPortCount
-          ),
-          emailSendDailyLimit: Math.max(
-            existingLimits.emailSendDailyLimit || 0,
-            currentBaseLimits.emailSendDailyLimit || 0,
-            defaultEduLimits.emailSendDailyLimit
-          ),
-          emailSendQueueLimit: Math.max(
-            existingLimits.emailSendQueueLimit || 0,
-            currentBaseLimits.emailSendQueueLimit || 0,
-            defaultEduLimits.emailSendQueueLimit
-          ),
-        };
+        user.educationLimits = eduPlan ? {
+          memory: Math.max(existingLimits.memory || 0, currentBaseLimits.memory || 0, eduPlan.memory || 0),
+          disk: Math.max(existingLimits.disk || 0, currentBaseLimits.disk || 0, eduPlan.disk || 0),
+          cpu: Math.max(existingLimits.cpu || 0, currentBaseLimits.cpu || 0, eduPlan.cpu || 0),
+          serverLimit: Math.max(existingLimits.serverLimit || 0, currentBaseLimits.serverLimit || 0, eduPlan.serverLimit || 0),
+          portCount: Math.max(existingLimits.portCount || 0, currentBaseLimits.portCount || 0, eduPlan.portCount || 0),
+          portsPerServer: Math.max(portLimitExisting, portLimitBase, eduPlan.portCount || 0),
+          tunnelPortCount: Math.max(existingLimits.tunnelPortCount || 0, currentBaseLimits.tunnelPortCount || 0, eduPlan.tunnelPortCount || 0),
+          emailSendDailyLimit: Math.max(existingLimits.emailSendDailyLimit || 0, currentBaseLimits.emailSendDailyLimit || 0, eduPlan.emailSendDailyLimit || 0),
+          emailSendQueueLimit: Math.max(existingLimits.emailSendQueueLimit || 0, currentBaseLimits.emailSendQueueLimit || 0, eduPlan.emailSendQueueLimit || 0),
+          databases: Math.max(existingLimits.databases || 0, currentBaseLimits.databases || 0, eduPlan.databases || 0),
+          backups: Math.max(existingLimits.backups || 0, currentBaseLimits.backups || 0, eduPlan.backups || 0),
+        } : Object.keys(existingLimits).length > 0 ? existingLimits : null;
 
         if (!keepExistingPaidTier) {
           user.portalType = 'educational';

@@ -281,8 +281,7 @@ export async function planRoutes(app: any, prefix = '') {
         if (extraKeys.length > 0) return true;
         for (const key of planKeys) {
           const userValue = userLimits[key];
-          if (userValue == null) return true;
-          if (String(userValue) !== String(planLimits[key])) return true;
+          if (userValue != null && String(userValue) !== String(planLimits[key])) return true;
         }
 
         return false;
@@ -297,8 +296,8 @@ export async function planRoutes(app: any, prefix = '') {
 
         if (Object.keys(planLimits).length > 0) {
           if (plan.type === 'educational') {
-            u.educationLimits = { ...planLimits };
-            u.limits = { ...planLimits };
+            u.educationLimits = { ...(u.educationLimits || {}), ...planLimits };
+            u.limits = { ...(u.limits || {}), ...planLimits };
           } else {
             u.limits = { ...planLimits };
           }
