@@ -353,4 +353,7 @@ export class User {
 
   @Column({ default: 0 })
   voteWarnings: number;
+
+  @Column({ nullable: true, length: 2 })
+  countryOverride?: string;
 }

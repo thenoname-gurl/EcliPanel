@@ -22,6 +22,7 @@ import { remoteRoutes } from '../handlers/remoteHandler';
 import { oauthRoutes, oauthWellKnownRoutes } from '../handlers/oauthHandler';
 import { databaseRoutes } from '../handlers/databaseHandler';
 import { planRoutes } from '../handlers/planHandler';
+import { regionalPriceRoutes } from '../handlers/regionalPriceHandler';
 import { serverSubuserRoutes } from '../handlers/serverSubuserHandler';
 import { wsProxyRoutes } from '../handlers/wsProxyHandler';
 import { tunnelRoutes } from '../handlers/tunnelHandler';
@@ -120,6 +121,7 @@ export function registerRoutes(app: any) {
   oauthWellKnownRoutes(app, '/api');
   databaseRoutes(app, '/api');
   planRoutes(app, '/api');
+  regionalPriceRoutes(app, '/api');
   wsProxyRoutes(app, '/api');
   tunnelRoutes(app, '/api');
   sshKeyRoutes(app, '/api');

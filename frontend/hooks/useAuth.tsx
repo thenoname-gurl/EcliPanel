@@ -36,6 +36,7 @@ export interface User {
   billingState?: string
   billingZip?: string
   billingCountry?: string
+  countryOverride?: string
   tier?: string
   role?: string
   permissions?: string[]

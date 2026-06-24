@@ -8494,7 +8494,30 @@ export async function adminRoutes(app: any, prefix = '') {
         } catch {}
       }
 
-      const effectiveAmount = amount != null ? Number(amount) : 0;
+      let effectiveAmount = amount != null ? Number(amount) : 0;
+      let effectiveTaxAmount = taxAmount != null ? Number(taxAmount) : 0;
+      let effectiveTaxRate = taxRate != null ? Number(taxRate) : 0;
+
+      // If no explicit amount but planId is set, check regional pricing
+      if (amount == null && planId) {
+        try {
+          const planRepo2 = AppDataSource.getRepository(Plan);
+          const plan = await planRepo2.findOneBy({ id: Number(planId) });
+          if (plan) {
+            effectiveAmount = plan.price ?? 0;
+            const { getEffectivePrice, calculateTax } = require('../utils/regionalPricing');
+            const pricing = await getEffectivePrice(plan, user);
+            if (pricing.regionalPrice != null) effectiveAmount = pricing.regionalPrice;
+            const effectiveCountry = user.countryOverride || user.billingCountry || null;
+            if (effectiveCountry && effectiveTaxAmount === 0 && effectiveTaxRate === 0) {
+              const tax = await calculateTax(effectiveAmount, effectiveCountry);
+              effectiveTaxRate = tax.taxRate;
+              effectiveTaxAmount = tax.taxAmount;
+            }
+          }
+        } catch {}
+      }
+
       const effectivePlanId = planId ? Number(planId) : undefined;
       const isFreeOrder = effectiveAmount === 0;
       const isLifetime = billingType === 'lifetime';
@@ -8504,8 +8527,8 @@ export async function adminRoutes(app: any, prefix = '') {
         description: description || undefined,
         planId: effectivePlanId,
         amount: effectiveAmount,
-        taxAmount: taxAmount != null ? Number(taxAmount) : 0,
-        taxRate: taxRate != null ? Number(taxRate) : 0,
+        taxAmount: effectiveTaxAmount,
+        taxRate: effectiveTaxRate,
         items: orderItems,
         status: isFreeOrder ? 'active' : 'pending',
         notes: notes || undefined,
@@ -9099,8 +9122,25 @@ export async function adminRoutes(app: any, prefix = '') {
       if (plan.type === 'enterprise' && user.nodeId) {
         const node = await nodeRepo.findOneBy({ id: user.nodeId });
         if (node?.cost != null) effectiveAmount = Number(node.cost);
+      } else {
+        const { getEffectivePrice } = require('../utils/regionalPricing');
+        const pricing = await getEffectivePrice(plan, user);
+        if (pricing.regionalPrice != null) effectiveAmount = pricing.regionalPrice;
       }
       const orderRepo = AppDataSource.getRepository(Order);
+
+      // Auto-calculate tax if not explicitly provided
+      let finalTaxAmount = taxAmount != null ? Number(taxAmount) : 0;
+      let finalTaxRate = taxRate != null ? Number(taxRate) : 0;
+      if (finalTaxAmount === 0 && finalTaxRate === 0) {
+        const countryCode = user.countryOverride || user.billingCountry || null;
+        if (countryCode) {
+          const { calculateTax } = require('../utils/regionalPricing');
+          const tax = await calculateTax(effectiveAmount, countryCode);
+          finalTaxRate = tax.taxRate;
+          finalTaxAmount = tax.taxAmount;
+        }
+      }
 
       const prevActive = await orderRepo.find({
         where: { userId, status: 'active' },
@@ -9138,8 +9178,8 @@ export async function adminRoutes(app: any, prefix = '') {
         description: `${plan.name}${temporary ? ' (temporary)' : ''}`,
         planId: plan.id,
         amount: effectiveAmount,
-        taxAmount: taxAmount != null ? Number(taxAmount) : 0,
-        taxRate: taxRate != null ? Number(taxRate) : 0,
+        taxAmount: finalTaxAmount,
+        taxRate: finalTaxRate,
         items: JSON.stringify([
           { description: plan.name, quantity: 1, price: effectiveAmount }
         ]),
@@ -9240,12 +9280,27 @@ export async function adminRoutes(app: any, prefix = '') {
         user.portalType = chosen.type;
         await userRepo.save(user);
 
-        const effectiveAmount = chosen.price ?? 0;
+        let effectiveAmount = chosen.price ?? 0;
+        let autoTaxAmount = 0;
+        let autoTaxRate = 0;
+        try {
+          const { getEffectivePrice, calculateTax } = require('../utils/regionalPricing');
+          const pricing = await getEffectivePrice(chosen, user);
+          if (pricing.regionalPrice != null) effectiveAmount = pricing.regionalPrice;
+          const effectiveCountry = user.countryOverride || user.billingCountry || null;
+          if (effectiveCountry) {
+            const tax = await calculateTax(effectiveAmount, effectiveCountry);
+            autoTaxRate = tax.taxRate;
+            autoTaxAmount = tax.taxAmount;
+          }
+        } catch {}
         const order = orderRepo.create({
           userId: user.id,
           description: `${chosen.name} (auto-assigned)`,
           planId: chosen.id,
           amount: effectiveAmount,
+          taxAmount: autoTaxAmount,
+          taxRate: autoTaxRate,
           items: `plan:${chosen.id}`,
           status: 'active',
           notes: 'Auto-assigned plan to match portal type',
@@ -9269,6 +9324,34 @@ export async function adminRoutes(app: any, prefix = '') {
         },
       },
       detail: { summary: 'Ensure users have a plan matching their portalType', tags: ['Admin'] },
+    }
+  );
+
+  // ── Country override ──────────────────────────────────────────────────────
+
+  app.put(
+    prefix + '/admin/users/:id/country-override',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
+      if (adminErr !== true) return adminErr;
+      const userRepo = AppDataSource.getRepository(User);
+      const user = await userRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!user) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      const { countryCode } = ctx.body as any;
+      if (countryCode !== null && (typeof countryCode !== 'string' || countryCode.length !== 2)) {
+        ctx.set.status = 400;
+        return { error: 'countryCode must be a 2-letter ISO code or null to clear' };
+      }
+      user.countryOverride = countryCode ? countryCode.toUpperCase() : null;
+      await userRepo.save(user);
+      return { success: true, countryOverride: user.countryOverride };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      detail: { summary: 'Override user country for regional pricing', tags: ['Admin'] },
     }
   );
 

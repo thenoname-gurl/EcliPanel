@@ -12,9 +12,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { formatMoney, sanitizeCurrencyCode } from "@/lib/billing-display"
-import { AlertTriangle, Bot, Check, ChevronDown, ChevronUp, Edit, Gift, Loader2, Plus, RefreshCw, Trash2, X, Zap } from "lucide-react"
+import { AlertTriangle, Bot, Check, ChevronDown, ChevronUp, Edit, Gift, Globe, Loader2, Plus, RefreshCw, Trash2, X, Zap } from "lucide-react"
 import { useTranslations } from "next-intl"
-import type { AdminPlan, PanelSettings } from "@/types/admin"
+import { COUNTRIES } from "@/lib/countries"
+import type { AdminPlan, PanelSettings, RegionalPrice } from "@/types/admin"
 
 interface PlansTabCtx {
   plans: AdminPlan[]
@@ -224,6 +225,157 @@ function PlanAiModels({ planId, canManage }: { planId: number; canManage: boolea
           )}
           {canManage && !loading && availableModels.length === 0 && allModels.length > 0 && (
             <p className="text-xs text-muted-foreground py-1">All available models are already assigned.</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PlanRegionalPricing({ planId, canManage, currencyCode }: { planId: number; canManage: boolean; currencyCode: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const [prices, setPrices] = useState<RegionalPrice[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [newCountry, setNewCountry] = useState("")
+  const [newPrice, setNewPrice] = useState("")
+
+  const fetchPrices = useCallback(async () => {
+    setLoading(true)
+    setError("")
+    try {
+      const data: RegionalPrice[] = await apiFetch(`/api/admin/regional-prices/${planId}`)
+      setPrices(Array.isArray(data) ? data : [])
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load regional prices")
+    }
+    setLoading(false)
+  }, [planId])
+
+  useEffect(() => {
+    if (expanded) fetchPrices()
+  }, [expanded, fetchPrices])
+
+  const handleAdd = async () => {
+    if (!newCountry || !newPrice) return
+    setAdding(true)
+    try {
+      await apiFetch(`/api/admin/regional-prices/${planId}`, {
+        method: "POST",
+        body: JSON.stringify({ countryCode: newCountry, price: Number(newPrice) }),
+      })
+      setNewCountry("")
+      setNewPrice("")
+      await fetchPrices()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to add regional price")
+    }
+    setAdding(false)
+  }
+
+  const handleDelete = async (countryCode: string) => {
+    try {
+      await apiFetch(`/api/admin/regional-prices/${planId}/${countryCode}`, { method: "DELETE" })
+      await fetchPrices()
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to delete regional price")
+    }
+  }
+
+  const usedCountries = new Set(prices.map(p => p.countryCode))
+  const availableCountries = COUNTRIES.filter(c => !usedCountries.has(c.code))
+
+  return (
+    <div className="border-t border-border">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-1.5 w-full px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Globe className="h-3 w-3" />
+        <span>Regional Pricing</span>
+        {prices.length > 0 && (
+          <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+            {prices.length}
+          </span>
+        )}
+        <span className="ml-auto">
+          {expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </span>
+      </button>
+      {expanded && (
+        <div className="px-4 pb-3 flex flex-col gap-2">
+          {error && (
+            <p className="text-xs text-destructive bg-destructive/10 px-2 py-1.5 rounded">{error}</p>
+          )}
+          {loading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Loading...
+            </div>
+          ) : prices.length === 0 ? (
+            <p className="text-xs text-muted-foreground py-1">No regional prices set. The plan&apos;s default price applies to all countries.</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {prices.map(rp => {
+                const country = COUNTRIES.find(c => c.code === rp.countryCode)
+                return (
+                  <div key={rp.id} className="flex items-center justify-between bg-secondary/30 border border-border/50 px-2.5 py-1.5">
+                    <span className="text-xs text-foreground truncate">
+                      {country?.name || rp.countryCode}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-foreground tabular-nums">
+                        {formatMoney(rp.price, currencyCode)}
+                      </span>
+                      {canManage && (
+                        <button
+                          onClick={() => handleDelete(rp.countryCode)}
+                          className="text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {canManage && (
+            <div className="flex items-center gap-2">
+              <select
+                value={newCountry}
+                onChange={(e) => setNewCountry(e.target.value)}
+                className="flex-1 border border-border bg-secondary/50 px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/50"
+              >
+                <option value="">Select country...</option>
+                {availableCountries.map(c => (
+                  <option key={c.code} value={c.code}>{c.name} ({c.code})</option>
+                ))}
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Price"
+                value={newPrice}
+                onChange={(e) => setNewPrice(e.target.value)}
+                className="w-24 border border-border bg-secondary/50 px-2 py-1.5 text-xs text-foreground outline-none focus:border-primary/50 tabular-nums"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 text-xs border-border"
+                onClick={handleAdd}
+                disabled={!newCountry || !newPrice || adding}
+              >
+                {adding ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+              </Button>
+            </div>
+          )}
+          {canManage && !loading && availableCountries.length === 0 && prices.length > 0 && (
+            <p className="text-xs text-muted-foreground py-1">All countries have a regional price set.</p>
           )}
         </div>
       )}
@@ -466,6 +618,7 @@ export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
                 </div>
 
                 <PlanAiModels planId={plan.id} canManage={canManagePlans} />
+                <PlanRegionalPricing planId={plan.id} canManage={canManagePlans} currencyCode={currencyCode} />
 
                 <div className="flex items-center justify-between border-t border-border px-4 py-2.5 bg-secondary/10 rounded-b-xl">
                   <div className="flex items-center gap-1">

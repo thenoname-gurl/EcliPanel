@@ -21,6 +21,14 @@ export interface AdminPlan {
   boostStartsAt?: string
   boostExpiresAt?: string
   boostReason?: string
+  regionalPrices?: RegionalPrice[]
+}
+
+export interface RegionalPrice {
+  id: number
+  planId: number
+  countryCode: string
+  price: number
 }
 
 export interface BoostInfo {

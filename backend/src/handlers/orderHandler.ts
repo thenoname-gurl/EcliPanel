@@ -374,7 +374,7 @@ export async function orderRoutes(app: any, prefix = '') {
 
       const { orgId, items, amount, description, planId, notes, activateMode } = body as any;
 
-      const effectiveAmount = amount != null ? Number(amount) : 0;
+      let effectiveAmount = amount != null ? Number(amount) : 0;
       const isQueuedForRenewal = activateMode === 'renewal';
       const isFree = effectiveAmount === 0;
 
@@ -391,6 +391,14 @@ export async function orderRoutes(app: any, prefix = '') {
           const planRepo = AppDataSource.getRepository(Plan);
           const plan = await planRepo.findOneBy({ id: Number(planId) });
           if (plan) {
+            if (amount == null) {
+              effectiveAmount = plan.price ?? 0;
+              try {
+                const { getEffectivePrice } = require('../utils/regionalPricing');
+                const pricing = await getEffectivePrice(plan, user);
+                if (pricing.regionalPrice != null) effectiveAmount = pricing.regionalPrice;
+              } catch {}
+            }
             const itemDesc = description || plan.name;
             if (items) {
               try {
@@ -409,10 +417,24 @@ export async function orderRoutes(app: any, prefix = '') {
         } catch {}
       }
 
+      let orderTaxAmount = 0;
+      let orderTaxRate = 0;
+      try {
+        const effectiveCountry = user.countryOverride || user.billingCountry || null;
+        if (effectiveCountry) {
+          const { calculateTax } = require('../utils/regionalPricing');
+          const tax = await calculateTax(effectiveAmount, effectiveCountry);
+          orderTaxRate = tax.taxRate;
+          orderTaxAmount = tax.taxAmount;
+        }
+      } catch {}
+
       const order = orderRepo.create({
         orgId,
         items: enrichedItems,
         amount: effectiveAmount,
+        taxAmount: orderTaxAmount,
+        taxRate: orderTaxRate,
         description,
         planId,
         notes: enrichedNotes,

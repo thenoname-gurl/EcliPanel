@@ -37,6 +37,7 @@ export default function BillingPage() {
   const currentUser = user as any
   const [orders, setOrders] = useState<any[]>([])
   const [plans, setPlans] = useState<any[]>([])
+  const [regionalPrices, setRegionalPrices] = useState<Record<number, Record<string, number>>>({})
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [activePlans, setActivePlans] = useState<Array<{ plan: any; order: any }>>([])
   const [latestOrder, setLatestOrder] = useState<any | null>(null)
@@ -57,6 +58,21 @@ export default function BillingPage() {
   const getPortalMarker = (tier?: string) => {
     if (!tier) return t("portal.free")
     return portalMarkerByTier[String(tier).toLowerCase()] ?? t("portal.free")
+  }
+
+  const getEffectiveCountry = () => currentUser?.countryOverride || currentUser?.billingCountry || null
+
+  const getRegionalPrice = (planId: number): number | null => {
+    const country = getEffectiveCountry()
+    if (!country) return null
+    const planPrices = regionalPrices[planId]
+    if (!planPrices) return null
+    return planPrices[country.toUpperCase()] ?? null
+  }
+
+  const getEffectivePlanPrice = (plan: any): number => {
+    const regional = getRegionalPrice(plan.id)
+    return regional ?? Number(plan.price ?? 0)
   }
 
   const primaryPlan = activePlans.length > 0 ? activePlans[0] : null
@@ -81,7 +97,7 @@ export default function BillingPage() {
       ? primaryPlan.order?.amount
         ? formatPrice(Number(primaryPlan.order.amount), true)
         : t("pricing.priceVaries")
-      : formatPrice(Number(primaryPlan.plan.price || primaryPlan.order?.amount || 0), true)
+      : formatPrice(Number(getEffectivePlanPrice(primaryPlan.plan) || primaryPlan.order?.amount || 0), true)
     : currentPlan.id === 'free'
       ? formatPrice(0, true)
       : currentPlan.id === 'paid'
@@ -90,12 +106,12 @@ export default function BillingPage() {
   const currentPlanPrice = primaryPlan
     ? primaryPlan.plan.type === 'enterprise'
       ? (primaryPlan.order?.amount != null ? Number(primaryPlan.order.amount) : null)
-      : Number(primaryPlan.plan.price || primaryPlan.order?.amount || 0)
+      : Number(getEffectivePlanPrice(primaryPlan.plan) || primaryPlan.order?.amount || 0)
     : null
   const activeBaseMonthly = primaryPlan
     ? primaryPlan.plan.type === 'enterprise'
       ? (primaryPlan.order?.amount != null ? Number(primaryPlan.order.amount) : null)
-      : Number(primaryPlan.plan.price || primaryPlan.order?.amount || 0)
+      : Number(getEffectivePlanPrice(primaryPlan.plan) || primaryPlan.order?.amount || 0)
     : currentPlan.id === 'free'
       ? 0
       : currentPlan.id === 'paid'
@@ -166,7 +182,7 @@ export default function BillingPage() {
         toast({ title: "Invalid plan", variant: "destructive" })
         return
       }
-      const targetAmount = Number(targetPlan?.price ?? targetCard.price ?? 0)
+      const targetAmount = targetCard.price ?? Number(targetPlan?.price ?? 0)
       const res = await apiFetch(API_ENDPOINTS.orders, {
         method: "POST",
         body: JSON.stringify({
@@ -211,6 +227,19 @@ export default function BillingPage() {
     apiFetch(API_ENDPOINTS.plans)
       .then((data) => setPlans(Array.isArray(data) ? data : []))
       .catch(() => setPlans([]))
+
+    apiFetch("/api/public/regional-prices")
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const map: Record<number, Record<string, number>> = {}
+          for (const rp of data) {
+            if (!map[rp.planId]) map[rp.planId] = {}
+            map[rp.planId][rp.countryCode] = rp.price
+          }
+          setRegionalPrices(map)
+        }
+      })
+      .catch(() => {})
 
     apiFetch(API_ENDPOINTS.orders)
       .then(async (data) => {
@@ -276,7 +305,7 @@ export default function BillingPage() {
       features: featuresFromPlan,
       color: portalConfig?.color,
       icon: portalConfig?.icon,
-      price: tier === 'enterprise' ? null : Number(plan?.price ?? 0),
+      price: tier === 'enterprise' ? null : getEffectivePlanPrice(plan),
       hiddenFromBilling: Boolean(plan?.hiddenFromBilling),
       isActive: activePlans.some(ap => Number(ap.plan?.id) === Number(plan.id)),
     }
@@ -410,7 +439,7 @@ export default function BillingPage() {
                       <p className="text-2xl font-bold text-primary">
                         {plan.type === 'enterprise'
                           ? (order?.amount ? formatPrice(Number(order.amount), true) : t("pricing.priceVaries"))
-                          : `${formatPrice(Number(plan.price || order?.amount || 0), true)}${t("common.perMonth")}`}
+                          : `${formatPrice(Number(getEffectivePlanPrice(plan) || order?.amount || 0), true)}${t("common.perMonth")}`}
                       </p>
                       {order?.expiresAt && (
                         <p className="text-xs text-muted-foreground mt-1">

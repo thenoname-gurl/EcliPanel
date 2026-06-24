@@ -24,6 +24,7 @@ import {
 } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
+import { getCountryFlagUrl } from "@/lib/country-flag"
 import { Badge } from "@/components/ui/badge"
 import {
   Tooltip,
@@ -385,6 +386,9 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
   }, [user, tSidebar])
 
   const userInitial = displayName.charAt(0).toUpperCase()
+  const countryFlagUrl = useMemo(() => {
+    return getCountryFlagUrl(user?.countryOverride || user?.billingCountry)
+  }, [user?.countryOverride, user?.billingCountry])
 
   useEffect(() => {
     if (mobileOpen) {
@@ -567,7 +571,10 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
               <p className="truncate text-sm font-medium text-foreground">
                 {displayName}
               </p>
-              <p className="truncate text-[11px] text-muted-foreground">
+              <p className="truncate text-[11px] text-muted-foreground flex items-center gap-1">
+                {countryFlagUrl && (
+                  <img src={countryFlagUrl} alt="" className="inline-block h-3.5 w-3.5 shrink-0" />
+                )}
                 {user?.email ?? ""}
               </p>
             </div>
@@ -623,7 +630,12 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             </TooltipTrigger>
             <TooltipContent side="right" sideOffset={12} className="bg-popover text-popover-foreground border-border">
               <p className="font-medium">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{user?.email ?? ""}</p>
+              <p className="text-xs text-muted-foreground">
+                {countryFlagUrl && (
+                  <img src={countryFlagUrl} alt="" className="inline-block h-3 w-3 mr-1 align-text-bottom" />
+                )}
+                {user?.email ?? ""}
+              </p>
               <div className="flex gap-2 mt-2 pt-2 border-t border-border">
                 <Link
                   href="/dashboard/settings"

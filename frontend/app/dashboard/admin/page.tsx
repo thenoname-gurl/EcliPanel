@@ -1230,6 +1230,7 @@ export default function AdminPanel() {
   const [editBillingState, setEditBillingState] = useState("")
   const [editBillingZip, setEditBillingZip] = useState("")
   const [editBillingCountry, setEditBillingCountry] = useState("")
+  const [editCountryOverride, setEditCountryOverride] = useState("")
   const [editAvatarUrl, setEditAvatarUrl] = useState("")
   const [editBadgesText, setEditBadgesText] = useState("")
 
@@ -2324,6 +2325,7 @@ export default function AdminPanel() {
     setEditBillingState((user as any).billingState || "")
     setEditBillingZip((user as any).billingZip || "")
     setEditBillingCountry((user as any).billingCountry || "")
+    setEditCountryOverride((user as any).countryOverride || "")
     setEditAvatarUrl((user as any).avatarUrl || "")
     const badges = Array.isArray((user as any)?.settings?.badges)
       ? (user as any).settings.badges
@@ -2378,6 +2380,14 @@ export default function AdminPanel() {
       if (editDatabaseLimit !== "") limits.databases = Number(editDatabaseLimit)
       if (editBackupLimit !== "") limits.backups = Number(editBackupLimit)
       const badges = parseBadgeText(editBadgesText)
+      if (editCountryOverride !== ((editUserDialog as any).countryOverride || "")) {
+        try {
+          await apiFetch(`/api/admin/users/${editUserDialog.id}/country-override`, {
+            method: "PUT",
+            body: JSON.stringify({ countryCode: asNullableText(editCountryOverride) || null }),
+          })
+        } catch {}
+      }
       await apiFetch(`${API_ENDPOINTS.adminUsers}/${editUserDialog.id}`, {
         method: "PUT",
         body: JSON.stringify({
@@ -6631,6 +6641,10 @@ remote: ${panelUrl}`
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Billing Country</label>
                   <input value={editBillingCountry} onChange={(e) => setEditBillingCountry(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Country Override <span className="text-[10px] text-muted-foreground/60 normal-case font-normal">(2-letter ISO, e.g. AQ for Antarctica)</span></label>
+                  <input value={editCountryOverride} onChange={(e) => setEditCountryOverride(e.target.value.toUpperCase())} maxLength={2} placeholder="e.g. AQ" className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 uppercase" />
                 </div>
               </div>
             </div>
