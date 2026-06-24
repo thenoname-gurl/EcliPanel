@@ -25,6 +25,7 @@ import { scheduleTunnelCleanupJob } from './jobs/tunnelCleanupJob';
 import { scheduleRenewalJob } from './jobs/renewalJob';
 import { scheduleLifetimeInactivityJob } from './jobs/lifetimeInactivityJob';
 import { scheduleEloDecayJob } from './jobs/eloDecayJob';
+import { scheduleTempEmailBlacklistSyncJob } from './jobs/tempEmailBlacklistSyncJob';
 import { initSlackBot } from './slack/index';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
@@ -759,6 +760,11 @@ export async function initApp() {
     scheduleGithubContributorsJob();
   } catch (e) {
     console.error('Failed to schedule GitHub contributors job:', e);
+  }
+  try {
+    scheduleTempEmailBlacklistSyncJob();
+  } catch (e) {
+    console.error('Failed to schedule temp email blacklist sync job:', e);
   }
   try {
     const { scheduleMailboxPasswordRotation } = require('./services/mailcowService');

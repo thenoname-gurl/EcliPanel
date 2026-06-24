@@ -82,6 +82,12 @@ export function isTempEmailDomain(domain: string): boolean {
   return false;
 }
 
+export function clearTempEmailCache() {
+  loaded = false;
+  tempDomains.clear();
+  wildcardDomains = [];
+}
+
 export function isTempEmail(email: string): boolean {
   if (!email || typeof email !== 'string') return false;
   const parts = email.trim().toLowerCase().split('@');
