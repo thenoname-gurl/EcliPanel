@@ -4853,6 +4853,38 @@ export async function adminRoutes(app: any, prefix = '') {
     }
   );
 
+  app.get(
+    prefix + '/admin/servers/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:read');
+      if (adminErr !== true) return adminErr;
+      const serverId = ctx.params.id as string;
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const cfg = await cfgRepo.findOneBy({ uuid: serverId });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      return { server: cfg };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ server: t.Any() }),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Get server configuration', tags: ['Admin'] },
+    }
+  );
+
   app.delete(
     prefix + '/admin/servers/:id',
     async ctx => {
@@ -5169,24 +5201,13 @@ export async function adminRoutes(app: any, prefix = '') {
         uuid: serverUuid,
         start_on_completion: hasInstallScript,
         skip_scripts: false,
-        environment: envObject,
-        build: {
-          memory_limit: Number(memory),
-          swap: 0,
-          disk_space: Number(disk),
-          io_weight: 500,
-          cpu_limit: Number(cpu),
-          threads: null,
-        },
-        container: { image: dockerImage, startup },
-        ...(name ? { name } : {}),
       };
 
+      const nodeSvc = nodeService;
+
       try {
-        const base = (node as any).backendWingsUrl || node.url;
-        const svc = new WingsApiService(base, node.token);
-        const res = await svc.createServer(wingsPayload);
-        const nodeSvc = nodeService;
+        // Persist config BEFORE telling Wings to create, so Wings can fetch it
+        // immediately via the remote API (matches the user-facing create flow).
         await nodeSvc.mapServer(serverUuid, node.id);
         await saveServerConfig({
           uuid: serverUuid,
@@ -5202,14 +5223,24 @@ export async function adminRoutes(app: any, prefix = '') {
           eggId: eggId ? Number(eggId) : undefined,
           installing: hasInstallScript,
         });
+
+        const base = (node as any).backendWingsUrl || node.url;
+        const svc = new WingsApiService(base, node.token);
+        const res = await svc.createServer(wingsPayload);
+
         const logRepo = AppDataSource.getRepository(UserLog);
         await logRepo.save(
           logRepo.create({ userId: ownerId, action: 'admin-create-server', timestamp: new Date() })
         );
         return { uuid: serverUuid, nodeId: node.id, ...res.data };
       } catch (e: any) {
+        await Promise.allSettled([removeServerConfig(serverUuid), nodeSvc.unmapServer(serverUuid)]);
         ctx.set.status = 502;
-        console.error('[adminHandler:admin-create-server]', e);
+        console.error('[adminHandler:admin-create-server] raw error:', e);
+        if (e?.response) {
+          console.error('[adminHandler:admin-create-server] Wings response status:', e.response.status);
+          console.error('[adminHandler:admin-create-server] Wings response data:', JSON.stringify(e.response.data));
+        }
         return { error: sanitizeError(e, 'adminHandler:admin-create-server') };
       }
     },

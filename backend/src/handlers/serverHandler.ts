@@ -2706,8 +2706,29 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       try {
         const svc = await serviceFor(id);
         const body = ctx.body as Record<string, unknown>;
-        const res = await svc.serverRequest(id, '/kvm', 'post', body);
-        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+        const enable = Boolean(body?.enable ?? body?.enabled ?? false);
+        if (svc instanceof WingsApiService) {
+          await svc.toggleKvm(id, enable);
+        } else {
+          await svc.serverRequest(id, '/kvm', 'post', body);
+        }
+        const cfgRepo = AppDataSource.getRepository(
+          require('../models/serverConfig.entity').ServerConfig
+        );
+        const existing = await cfgRepo.findOneBy({ uuid: id });
+        if (existing) {
+          existing.kvmPassthroughEnabled = enable;
+          await cfgRepo.save(existing);
+        }
+        const user = ctx.user;
+        await createActivityLog({
+          userId: user.id,
+          action: `server:kvm:${enable ? 'enable' : 'disable'}`,
+          targetId: id,
+          targetType: 'server',
+          ipAddress: ctx.ip,
+        });
+        return { success: true };
       } catch (e: unknown) {
         const err = e as Record<string, unknown>;
         const errResponse = err?.response as Record<string, unknown> | undefined;

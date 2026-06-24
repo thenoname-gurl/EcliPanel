@@ -39,6 +39,7 @@ export class WingsApiService {
       body?: any;
       params?: Record<string, any>;
       responseType?: 'json' | 'text' | 'arraybuffer';
+      timeoutMs?: number;
     } = {}
   ) {
     const headers = { ...this.getAuthHeaders(), ...(opts.headers || {}) };
@@ -46,7 +47,7 @@ export class WingsApiService {
       method: opts.method || 'GET',
       headers,
       body: opts.body,
-      timeoutMs: REQUEST_TIMEOUT,
+      timeoutMs: opts.timeoutMs ?? REQUEST_TIMEOUT,
       responseType: opts.responseType || 'json',
     });
   }
@@ -92,7 +93,7 @@ export class WingsApiService {
     if (Object.prototype.hasOwnProperty.call(payload ?? {}, 'skip_scripts')) {
       normalized.skip_scripts = Boolean(payload.skip_scripts);
     }
-    return this.request('/servers', { method: 'POST', body: normalized });
+    return this.request('/servers', { method: 'POST', body: normalized, timeoutMs: 60_000 });
   }
 
   async powerServer(serverId: string, action: string) {
