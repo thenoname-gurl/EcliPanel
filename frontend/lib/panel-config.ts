@@ -234,6 +234,10 @@ export const API_ENDPOINTS = {
   serverKvm: "/api/servers/v1/:id/kvm",
   serverVersion: "/api/servers/v1/:id/version",
   serverStartup: "/api/servers/v1/:id/startup",
+  serverPaperVersions: "/api/servers/v1/:id/paper/versions",
+  serverPaperApply: "/api/servers/v1/:id/paper/apply",
+  serverVanillaVersions: "/api/servers/v1/:id/versions/vanilla",
+  serverVanillaApply: "/api/servers/v1/:id/versions/vanilla/apply",
   serverInstallLogs: "/api/servers/v1/:id/logs/install",
 
   // Tunnel

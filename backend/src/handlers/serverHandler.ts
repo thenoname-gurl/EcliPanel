@@ -2654,6 +2654,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       try {
         const svc = await serviceFor(id);
+        if ((action === 'start' || action === 'restart') && cfg?.environment?.MINECRAFT_VERSION) {
+          try {
+            await (svc as WingsApiService).writeFile(id, 'eula.txt', 'eula=true');
+          } catch (e: unknown) {
+            console.warn('[power] failed to write eula.txt:', e);
+          }
+        }
         try {
           const res = await svc.powerServer(id, action as 'start' | 'stop' | 'restart' | 'shutdown' | 'kill');
           await handlePowerSuccess();
@@ -2663,9 +2670,14 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             await svc.syncServer(id, {}).catch(e =>
               console.warn('[power] sync failed', e?.message || e)
             );
-            for (const delay of [2000, 4000, 8000]) {
+              for (const delay of [2000, 4000, 8000]) {
               await new Promise(r => setTimeout(r, delay));
               try {
+                if ((action === 'start' || action === 'restart') && cfg?.environment?.MINECRAFT_VERSION) {
+                  try {
+                    await (svc as WingsApiService).writeFile(id, 'eula.txt', 'eula=true');
+                  } catch {}
+                }
                 const retryRes = await svc.powerServer(id, action as 'start' | 'stop' | 'restart' | 'shutdown' | 'kill');
                 await handlePowerSuccess();
                 const result = retryRes.data && typeof retryRes.data === 'object' ? retryRes.data : { success: true };
@@ -6101,6 +6113,344 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         404: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Update startup configuration', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/v1/:id/paper/versions',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const query = (ctx.query ?? {}) as Record<string, string>;
+      const requestedVersion = query.version;
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const currentVersion = cfg.environment?.MINECRAFT_VERSION ?? '';
+      const currentBuild = cfg.environment?.BUILD_NUMBER ?? '';
+
+      if (requestedVersion) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        try {
+          const res = await fetch(
+            `https://api.papermc.io/v2/projects/paper/versions/${encodeURIComponent(requestedVersion)}/builds`,
+            { signal: controller.signal }
+          );
+          if (!res.ok) {
+            ctx.set.status = 502;
+            return { error: 'Failed to fetch Paper builds' };
+          }
+          const data = await res.json();
+          const raw = Array.isArray(data) ? data : (Array.isArray(data.builds) ? data.builds : []);
+          return {
+            version: requestedVersion,
+            builds: raw,
+            currentVersion,
+            currentBuild,
+          };
+        } catch {
+          ctx.set.status = 502;
+          return { error: 'Failed to fetch Paper builds' };
+        } finally {
+          clearTimeout(timeout);
+        }
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch('https://api.papermc.io/v2/projects/paper', {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          ctx.set.status = 502;
+          return { error: 'Failed to fetch Paper versions' };
+        }
+        const data = (await res.json()) as Record<string, unknown>;
+        return {
+          versions: data.versions ?? [],
+          currentVersion,
+          currentBuild,
+        };
+      } catch {
+        ctx.set.status = 502;
+        return { error: 'Failed to fetch Paper versions' };
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get Paper versions and builds', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/paper/apply',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { version, build } = ctx.body as Record<string, unknown>;
+
+      if (!version) {
+        ctx.set.status = 400;
+        return { error: 'version is required' };
+      }
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const env = { ...(cfg.environment ?? {}) };
+      const isLatest = String(version) === 'latest';
+
+      if (isLatest) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 20000);
+        try {
+          const projRes = await fetch('https://api.papermc.io/v2/projects/paper', {
+            signal: controller.signal,
+          });
+          if (!projRes.ok) throw new Error('project fetch failed');
+          const projData = (await projRes.json()) as Record<string, unknown>;
+          const versionList = (projData.versions as string[]) ?? [];
+          if (versionList.length === 0) throw new Error('no versions');
+          const latestVer = versionList[versionList.length - 1];
+
+          const buildsRes = await fetch(
+            `https://api.papermc.io/v2/projects/paper/versions/${encodeURIComponent(latestVer)}/builds`,
+            { signal: controller.signal }
+          );
+          if (!buildsRes.ok) throw new Error('builds fetch failed');
+          const buildsBody = await buildsRes.json();
+          const rawBuilds: unknown[] = Array.isArray(buildsBody) ? buildsBody : (Array.isArray((buildsBody as Record<string, unknown>).builds) ? (buildsBody as Record<string, unknown>).builds as unknown[] : []);
+          if (rawBuilds.length === 0) throw new Error('no builds');
+
+          const lastBuild = rawBuilds[rawBuilds.length - 1] as Record<string, unknown>;
+          const buildNum = lastBuild?.build;
+          if (buildNum === undefined || buildNum === null) throw new Error('missing build number');
+
+          const buildNumStr = String(buildNum);
+          const dl = (lastBuild.downloads as Record<string, unknown>) ?? {};
+          const appDl = (dl.application as Record<string, unknown>) ?? (dl['server:default'] as Record<string, unknown>) ?? {};
+          const jarName = (appDl.name as string) ?? `paper-${latestVer}-${buildNumStr}.jar`;
+
+          env.MINECRAFT_VERSION = latestVer;
+          env.BUILD_NUMBER = buildNumStr;
+          env.SERVER_JARFILE = jarName;
+          env.DL_PATH = `https://api.papermc.io/v2/projects/paper/versions/${latestVer}/builds/${buildNumStr}/downloads/${jarName}`;
+        } catch (e) {
+          ctx.set.status = 502;
+          return { error: e instanceof Error ? e.message : 'Failed to resolve latest Paper version' };
+        } finally {
+          clearTimeout(timeout);
+        }
+      } else {
+        if (build === undefined || build === null) {
+          ctx.set.status = 400;
+          return { error: 'build is required for specific versions' };
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        let jarName: string;
+        try {
+          const res = await fetch(
+            `https://api.papermc.io/v2/projects/paper/versions/${encodeURIComponent(String(version))}/builds/${encodeURIComponent(String(build))}`,
+            { signal: controller.signal }
+          );
+          if (!res.ok) {
+            ctx.set.status = 400;
+            return { error: 'Invalid version or build number' };
+          }
+          const buildData = (await res.json()) as Record<string, unknown>;
+          const downloads = (buildData.downloads as Record<string, unknown>) ?? {};
+          const appDownload = (downloads.application as Record<string, unknown>) ?? {};
+          jarName = (appDownload.name as string) ?? `paper-${version}-${build}.jar`;
+        } catch {
+          ctx.set.status = 502;
+          return { error: 'Failed to validate Paper build' };
+        } finally {
+          clearTimeout(timeout);
+        }
+
+        env.MINECRAFT_VERSION = String(version);
+        env.BUILD_NUMBER = String(build);
+        env.SERVER_JARFILE = jarName;
+        env.DL_PATH = `https://api.papermc.io/v2/projects/paper/versions/${version}/builds/${build}/downloads/${jarName}`;
+      }
+
+      cfg.environment = env;
+
+      try {
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, {});
+      } catch {
+        // buh!
+      }
+
+      await cfgRepo().save(cfg);
+
+      return {
+        success: true,
+        environment: cfg.environment,
+      };
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Apply Paper version build', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/v1/:id/versions/vanilla',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      const currentVersion = cfg.environment?.MINECRAFT_VERSION ?? '';
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        const res = await fetch('https://piston-meta.mojang.com/mc/game/version_manifest.json', {
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          ctx.set.status = 502;
+          return { error: 'Failed to fetch Vanilla versions' };
+        }
+        const data = (await res.json()) as Record<string, unknown>;
+        return {
+          versions: data.versions ?? [],
+          currentVersion,
+        };
+      } catch {
+        ctx.set.status = 502;
+        return { error: 'Failed to fetch Vanilla versions' };
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get Vanilla versions', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/versions/vanilla/apply',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { version } = ctx.body as Record<string, unknown>;
+
+      if (!version) {
+        ctx.set.status = 400;
+        return { error: 'version is required' };
+      }
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      try {
+        let targetVersion = String(version);
+
+        const manifestRes = await fetch('https://piston-meta.mojang.com/mc/game/version_manifest.json', {
+          signal: controller.signal,
+        });
+        if (!manifestRes.ok) throw new Error('Failed to fetch version manifest');
+        const manifest = (await manifestRes.json()) as Record<string, unknown>;
+
+        if (targetVersion === 'latest') {
+          const latest = (manifest.latest as Record<string, unknown>) ?? {};
+          targetVersion = (latest.release as string) || '';
+          if (!targetVersion) throw new Error('Failed to resolve latest version');
+        }
+
+        const versions = (manifest.versions as Array<Record<string, unknown>>) ?? [];
+        const versionEntry = versions.find(v => v.id === targetVersion);
+        if (!versionEntry || !versionEntry.url) {
+          ctx.set.status = 400;
+          return { error: 'Invalid Minecraft version' };
+        }
+
+        const versionRes = await fetch(versionEntry.url as string, { signal: controller.signal });
+        if (!versionRes.ok) throw new Error('Failed to fetch version details');
+        const versionData = (await versionRes.json()) as Record<string, unknown>;
+        const downloads = (versionData.downloads as Record<string, unknown>) ?? {};
+        const serverDl = (downloads.server as Record<string, unknown>) ?? {};
+        const dlUrl = serverDl.url as string;
+        if (!dlUrl) {
+          ctx.set.status = 502;
+          return { error: 'No server download available for this version' };
+        }
+
+        const env = { ...(cfg.environment ?? {}) };
+        env.MINECRAFT_VERSION = targetVersion;
+        env.SERVER_JARFILE = 'server.jar';
+        env.DL_PATH = dlUrl;
+        delete env.BUILD_NUMBER;
+        delete env.FORGE_VERSION;
+        cfg.environment = env;
+
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, {});
+
+        await cfgRepo().save(cfg);
+        return { success: true, environment: cfg.environment };
+      } catch (e) {
+        ctx.set.status = 502;
+        return { error: e instanceof Error ? e.message : 'Failed to apply Vanilla version' };
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Apply Vanilla version', tags: ['Servers'] },
     }
   );
 

@@ -88,6 +88,7 @@ import {
   Server,
   Star,
   Edit,
+  GitBranch,
 } from "lucide-react"
 
 const ConsoleTabLazy = lazy(() => import("./ConsoleTab").then((m) => ({ default: m.ConsoleTab })))
@@ -1075,6 +1076,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       { id: "files", label: t("tabs.files"), icon: Folder },
       { id: "shares", label: t("tabs.shares"), icon: Link2 },
       { id: "startup", label: t("tabs.startup"), icon: Variable },
+      ...(server?.environment?.MINECRAFT_VERSION
+        ? [{ id: "versions", label: "Versions", icon: GitBranch }]
+        : []),
       { id: "databases", label: t("tabs.databases"), icon: Database, shortLabel: t("tabs.dbShort") },
       { id: "schedules", label: t("tabs.schedules"), icon: Clock },
       { id: "network", label: t("tabs.network"), icon: Network, shortLabel: t("tabs.netShort") },
@@ -1088,7 +1092,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       baseTabs.splice(baseTabs.length - 1, 0, { id: "mounts", label: t("tabs.mounts"), icon: Box })
     }
     return baseTabs
-  }, [t, isKvm, mounts])
+  }, [t, isKvm, mounts, server])
 
   const tabPermissionMap: Record<string, string | null> = useMemo(
     () => ({
@@ -1097,6 +1101,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       shares: "file-sharing",
       backups: "backups",
       startup: "startup",
+      versions: "startup",
       settings: "settings",
       databases: "databases",
       schedules: "schedules",
@@ -1443,6 +1448,7 @@ const dmcaAlert = isDmcaProtected ? (
               </Suspense>
             )}
             {activeTab === "startup" && <StartupTab serverId={id} />}
+            {activeTab === "versions" && <VersionsTab serverId={id} server={server} />}
             {activeTab === "databases" && <DatabasesTab serverId={id} />}
             {activeTab === "schedules" && <SchedulesTab serverId={id} />}
             {activeTab === "network" && <NetworkTab serverId={id} server={server} />}
@@ -3258,6 +3264,457 @@ function StartupTab({ serverId }: { serverId: string }) {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+type ServerType = 'paper' | 'vanilla'
+
+function VersionsTab({ serverId, server }: { serverId: string; server: any }) {
+  const t = useTranslations("serverDetailPage")
+
+  const detectedType: ServerType = server?.environment?.BUILD_NUMBER ? 'paper' : 'vanilla'
+  const [serverType, setServerType] = useState<ServerType>(detectedType)
+  const [applying, setApplying] = useState(false)
+  const [error, setError] = useState("")
+  const [showReinstall, setShowReinstall] = useState(false)
+  const [reinstallWipe, setReinstallWipe] = useState(false)
+  const [reinstalling, setReinstalling] = useState(false)
+
+  const isInstalling = server?.installing
+  const serverStatus = server?.status || ""
+
+  // ─── Paper state ──────────────────────────────────────────────────────
+  const [paperVersions, setPaperVersions] = useState<string[]>([])
+  const [paperBuilds, setPaperBuilds] = useState<any[]>([])
+  const [paperSelectedVersion, setPaperSelectedVersion] = useState("")
+  const [paperSelectedBuild, setPaperSelectedBuild] = useState<number | null>(null)
+  const [paperCurrentVersion, setPaperCurrentVersion] = useState("")
+  const [paperCurrentBuild, setPaperCurrentBuild] = useState("")
+  const [paperLoading, setPaperLoading] = useState(true)
+  const [paperBuildsLoading, setPaperBuildsLoading] = useState(false)
+  const [expandedBuild, setExpandedBuild] = useState<number | null>(null)
+
+  // ─── Vanilla state ────────────────────────────────────────────────────
+  const [vanillaVersions, setVanillaVersions] = useState<any[]>([])
+  const [vanillaSelectedVersion, setVanillaSelectedVersion] = useState("")
+  const [vanillaCurrentVersion, setVanillaCurrentVersion] = useState("")
+  const [vanillaLoading, setVanillaLoading] = useState(false)
+
+  // ─── Paper effects ────────────────────────────────────────────────────
+  useEffect(() => {
+    if (serverType !== 'paper') return
+    setPaperLoading(true)
+    apiFetch(API_ENDPOINTS.serverPaperVersions.replace(":id", serverId))
+      .then((data: any) => {
+        const list: string[] = data.versions || []
+        setPaperVersions(list)
+        setPaperCurrentVersion(data.currentVersion || "")
+        setPaperCurrentBuild(data.currentBuild || "")
+        const cv = data.currentVersion || ""
+        if (cv === "latest") {
+          setPaperSelectedVersion("latest")
+        } else if (cv && /^\d/.test(cv) && list.includes(cv)) {
+          setPaperSelectedVersion(cv)
+        } else if (list.length > 0) {
+          setPaperSelectedVersion(list[list.length - 1])
+        }
+      })
+      .catch(() => setError("Failed to load Paper versions"))
+      .finally(() => setPaperLoading(false))
+  }, [serverId, serverType])
+
+  useEffect(() => {
+    if (serverType !== 'paper') return
+    if (!paperSelectedVersion) return
+    if (paperSelectedVersion === "latest") {
+      setPaperBuilds([])
+      setPaperSelectedBuild(null)
+      return
+    }
+    if (!/^\d/.test(paperSelectedVersion)) return
+    setPaperBuildsLoading(true)
+    setPaperBuilds([])
+    setPaperSelectedBuild(null)
+    const params = new URLSearchParams({ version: paperSelectedVersion })
+    apiFetch(`${API_ENDPOINTS.serverPaperVersions.replace(":id", serverId)}?${params.toString()}`)
+      .then((data: any) => {
+        const raw = data.builds || []
+        if (!Array.isArray(raw)) {
+          setError("Unexpected response format from PaperMC API")
+          return
+        }
+        const mapped = raw
+          .map((b: any) => (typeof b === "number" ? { build: b, channel: "default", downloads: null, changes: [] } : b))
+          .filter((b: any) => b && typeof b.build === "number")
+        const sorted = [...mapped].sort((a: any, b: any) => b.build - a.build)
+        setPaperBuilds(sorted)
+        const current = Number(paperCurrentBuild)
+        if (current && sorted.some((b: any) => b.build === current)) {
+          setPaperSelectedBuild(current)
+        } else if (sorted.length > 0) {
+          setPaperSelectedBuild(sorted[0].build)
+        }
+      })
+      .catch((err: any) => setError(err?.message || "Failed to load builds"))
+      .finally(() => setPaperBuildsLoading(false))
+  }, [paperSelectedVersion, serverId, paperCurrentBuild, serverType])
+
+  // ─── Vanilla effects ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (serverType !== 'vanilla') return
+    setVanillaLoading(true)
+    apiFetch(API_ENDPOINTS.serverVanillaVersions.replace(":id", serverId))
+      .then((data: any) => {
+        setVanillaVersions(data.versions || [])
+        setVanillaCurrentVersion(data.currentVersion || "")
+        const cv = data.currentVersion || ""
+        if (cv && cv !== "latest") {
+          setVanillaSelectedVersion(cv)
+        }
+      })
+      .catch(() => setError("Failed to load Vanilla versions"))
+      .finally(() => setVanillaLoading(false))
+  }, [serverId, serverType])
+
+  // ─── Apply handler ────────────────────────────────────────────────────
+  const handleApply = async () => {
+    setApplying(true)
+    setError("")
+    try {
+      if (serverType === 'paper') {
+        if (!paperSelectedVersion) return
+        if (paperSelectedVersion !== "latest" && paperSelectedBuild === null) return
+        await apiFetch(API_ENDPOINTS.serverPaperApply.replace(":id", serverId), {
+          method: "POST",
+          body: JSON.stringify({
+            version: paperSelectedVersion,
+            build: paperSelectedVersion === "latest" ? "latest" : paperSelectedBuild,
+          }),
+        })
+      } else if (serverType === 'vanilla') {
+        if (!vanillaSelectedVersion) return
+        await apiFetch(API_ENDPOINTS.serverVanillaApply.replace(":id", serverId), {
+          method: "POST",
+          body: JSON.stringify({ version: vanillaSelectedVersion }),
+        })
+      }
+      setShowReinstall(true)
+    } catch (e: any) {
+      setError(e.message || "Failed to apply version")
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const handleReinstallAction = async (wipe: boolean) => {
+    setReinstalling(true)
+    try {
+      await apiFetch(API_ENDPOINTS.serverReinstall.replace(":id", serverId), {
+        method: "POST",
+        body: JSON.stringify({ truncate_directory: wipe }),
+      })
+      alert("Reinstall initiated – the server will be reinstalled with the new version.")
+      setShowReinstall(false)
+    } catch (e: any) {
+      alert("Failed to initiate reinstall: " + (e.message || "Unknown error"))
+    } finally {
+      setReinstalling(false)
+    }
+  }
+
+  const typeLabel = serverType === 'paper' ? 'Paper' : 'Vanilla'
+
+  if ((serverType === 'paper' && paperLoading) || (serverType === 'vanilla' && vanillaLoading)) {
+    return <LoadingState message={`Loading ${typeLabel} versions...`} />
+  }
+
+  return (
+    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 min-w-0 overflow-hidden">
+      <SectionHeader title="Versions" icon={GitBranch} />
+
+      {isInstalling && (
+        <div className="border border-yellow-500/30 bg-yellow-500/5 p-4">
+          <div className="flex items-start gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-yellow-500 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Server is installing</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                This server is currently being installed. You can change versions below and reinstall, but changes will take effect on the next installation attempt.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isInstalling && (serverStatus === "suspended" || serverStatus === "dmca") && (
+        <div className="border border-red-500/30 bg-red-500/5 p-3">
+          <p className="text-sm font-semibold text-destructive">
+            Server is {serverStatus}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            This server cannot be modified while it is {serverStatus}.
+          </p>
+        </div>
+      )}
+
+      {/* Type selector */}
+      <div className="flex gap-0.5 border-b border-border pb-px">
+        {(['paper', 'vanilla'] as ServerType[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setServerType(t)}
+            className={cn(
+              "px-3 py-1.5 text-xs font-medium transition-colors rounded-t-sm border border-b-0 -mb-px",
+              serverType === t
+                ? "bg-card border-border text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {t === 'paper' ? 'Paper' : 'Vanilla'}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {/* ─── Paper UI ─────────────────────────────────────────────────── */}
+      {serverType === 'paper' && (
+        <>
+          <CollapsibleSection title="Current Configuration" icon={Info} defaultOpen>
+            <div className="space-y-3 min-w-0 pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <InfoRow label="Minecraft Version" value={paperCurrentVersion && /^\d/.test(paperCurrentVersion) ? paperCurrentVersion : "—"} />
+                <InfoRow label="Build Number" value={paperCurrentBuild && /^\d/.test(paperCurrentBuild) ? `#${paperCurrentBuild}` : "—"} />
+              </div>
+              {(!paperCurrentVersion || !/^\d/.test(paperCurrentVersion)) && (
+                <div className="border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-600 dark:text-amber-400">
+                  Server is using the <span className="font-semibold">{paperCurrentVersion || "default"}</span> channel. Select a specific version below to pin to a stable build.
+                </div>
+              )}
+            </div>
+          </CollapsibleSection>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Minecraft Version
+              </label>
+              <Select value={paperSelectedVersion} onValueChange={setPaperSelectedVersion}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a version" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="latest">
+                    <div className="flex items-center gap-2">
+                      <span>Latest</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">auto-update</Badge>
+                    </div>
+                  </SelectItem>
+                  {paperVersions.map((v) => (
+                    <SelectItem key={v} value={v}>{v}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {paperSelectedVersion === "latest" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Automatically uses the latest stable Paper build. Reinstall required to update.
+                </p>
+              )}
+            </div>
+
+            {paperSelectedVersion && paperSelectedVersion !== "latest" && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Build
+                </label>
+                {paperBuildsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-3">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading builds...
+                  </div>
+                ) : paperBuilds.length > 0 ? (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto border border-border divide-y divide-border">
+                    {paperBuilds.map((b: any) => (
+                      <div key={b.build} className="min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setPaperSelectedBuild(b.build)}
+                          className={cn(
+                            "w-full text-left px-3 py-2.5 text-sm transition-colors",
+                            paperSelectedBuild === b.build
+                              ? "bg-primary/10 border-l-2 border-primary"
+                              : "hover:bg-secondary/20"
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-medium text-foreground">Build #{b.build}</span>
+                              {b.channel && b.channel !== "default" && (
+                                <Badge variant="secondary" className="text-[10px] px-1.5 py-0 uppercase">{b.channel}</Badge>
+                              )}
+                              {String(paperCurrentBuild) === String(b.build) && /^\d/.test(paperCurrentBuild) && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-primary border-primary/30">current</Badge>
+                              )}
+                            </div>
+                            {b.changes && b.changes.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); setExpandedBuild(expandedBuild === b.build ? null : b.build) }}
+                                className="text-xs text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                              >
+                                {expandedBuild === b.build ? "Hide notes" : `${b.changes.length} change${b.changes.length > 1 ? "s" : ""}`}
+                              </button>
+                            )}
+                          </div>
+                        </button>
+                        {expandedBuild === b.build && b.changes && b.changes.length > 0 && (
+                          <div className="px-3 py-2 bg-secondary/10 border-t border-border space-y-2">
+                            {b.changes.map((change: any, idx: number) => (
+                              <div key={idx} className="text-xs space-y-1">
+                                {change.summary && <p className="font-medium text-foreground">{change.summary}</p>}
+                                {change.message && change.message !== change.summary && (
+                                  <p className="text-muted-foreground whitespace-pre-wrap break-words">{change.message}</p>
+                                )}
+                                {change.commit && (
+                                  <p className="text-[10px] text-muted-foreground/70 font-mono">{change.commit.slice(0, 8)}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-3">No builds available for {paperSelectedVersion}.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ─── Vanilla UI ───────────────────────────────────────────────── */}
+      {serverType === 'vanilla' && (
+        <>
+          <CollapsibleSection title="Current Configuration" icon={Info} defaultOpen>
+            <div className="space-y-3 min-w-0 pt-3">
+              <InfoRow label="Minecraft Version" value={vanillaCurrentVersion || "—"} />
+            </div>
+          </CollapsibleSection>
+
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Minecraft Version
+              </label>
+              <Select value={vanillaSelectedVersion} onValueChange={setVanillaSelectedVersion}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a version" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="latest">
+                    <div className="flex items-center gap-2">
+                      <span>Latest Release</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">auto</Badge>
+                    </div>
+                  </SelectItem>
+                  {vanillaVersions
+                    .filter((v: any) => v.type === 'release' || v.id === vanillaCurrentVersion)
+                    .map((v: any) => (
+                      <SelectItem key={v.id} value={v.id}>{v.id}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {vanillaSelectedVersion === "latest" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Automatically uses the latest stable Minecraft release. Reinstall required to update.
+                </p>
+              )}
+              {vanillaSelectedVersion && vanillaSelectedVersion !== "latest" && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Server jar will be downloaded from Mojang's official launcher meta.
+                </p>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ─── Apply button ─────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <Button
+          onClick={handleApply}
+          disabled={
+            applying || isInstalling || serverStatus === "suspended" || serverStatus === "dmca" ||
+            (serverType === 'paper' && (!paperSelectedVersion || (paperSelectedVersion !== "latest" && paperSelectedBuild === null))) ||
+            (serverType === 'vanilla' && !vanillaSelectedVersion)
+          }
+        >
+          {applying && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+          {isInstalling ? "Cannot modify while installing" : `Apply ${typeLabel} Version`}
+        </Button>
+      </div>
+
+      {/* ─── Reinstall dialog ─────────────────────────────────────────── */}
+      <Dialog open={showReinstall} onOpenChange={setShowReinstall}>
+        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Version Applied</DialogTitle>
+            <DialogDescription className="text-sm text-muted-foreground">
+              {serverType === 'paper' && `Paper ${paperSelectedVersion === "latest" ? "(latest)" : `${paperSelectedVersion} (build #${paperSelectedBuild})`} has been applied.`}
+              {serverType === 'vanilla' && `Vanilla ${vanillaSelectedVersion === "latest" ? "(latest release)" : vanillaSelectedVersion} has been applied.`}
+              Would you like to reinstall now to complete the update?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2 space-y-3">
+            <div className="flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={() => setReinstallWipe(false)}
+                className={cn(
+                  "border p-3 text-left transition-colors",
+                  !reinstallWipe ? "border-primary/40 bg-primary/10" : "border-border bg-secondary/20 hover:bg-secondary/30"
+                )}
+              >
+                <p className="text-sm font-medium text-foreground">Reinstall (Keep Files)</p>
+                <p className="text-xs text-muted-foreground mt-1">Reinstall while preserving existing server files and data.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setReinstallWipe(true)}
+                className={cn(
+                  "border p-3 text-left transition-colors",
+                  reinstallWipe ? "border-red-500/40 bg-red-500/10" : "border-border bg-secondary/20 hover:bg-secondary/30"
+                )}
+              >
+                <p className="text-sm font-medium text-foreground">Reinstall & Wipe All Files</p>
+                <p className="text-xs text-muted-foreground mt-1">Fully reinstall server – all existing files will be deleted.</p>
+              </button>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setShowReinstall(false)} disabled={reinstalling} className="w-full sm:w-auto">
+              Later
+            </Button>
+            <Button
+              variant={reinstallWipe ? "destructive" : "default"}
+              onClick={() => handleReinstallAction(reinstallWipe)}
+              disabled={reinstalling}
+              className="w-full sm:w-auto"
+            >
+              {reinstalling && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Reinstall Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
