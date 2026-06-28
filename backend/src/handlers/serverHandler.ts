@@ -56,6 +56,7 @@ import {
   parseIpv6Cidr,
 } from '../utils/ipv6';
 import { t } from 'elysia';
+import { httpRequest } from '../utils/http';
 import {
   DEFAULT_STARTUP_DETECTION_PATTERN,
   normalizeStartupDonePatterns,
@@ -5964,8 +5965,8 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     prefix + '/servers/v1/:id/startup',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
-      const { environment, processConfig: incomingProcCfg, dockerImage } = ctx.body as Record<string, unknown>;
-      if (!environment && !incomingProcCfg && dockerImage === undefined) {
+      const { environment, processConfig: incomingProcCfg, dockerImage, startup } = ctx.body as Record<string, unknown>;
+      if (!environment && !incomingProcCfg && dockerImage === undefined && startup === undefined) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.environmentRequired') };
       }
@@ -6007,6 +6008,10 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         }
 
         cfg.dockerImage = String(dockerImage);
+      }
+
+      if (startup !== undefined && typeof startup === 'string') {
+        cfg.startup = startup;
       }
 
       if (environment && typeof environment === 'object') {
@@ -6101,12 +6106,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         success: true,
         environment: cfg.environment,
         processConfig: cfg.processConfig,
+        startup: cfg.startup,
       };
     },
     {
       beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
       response: {
-        200: t.Object({ success: t.Boolean(), environment: t.Any(), processConfig: t.Any() }),
+         200: t.Object({ success: t.Boolean(), environment: t.Any(), processConfig: t.Any(), startup: t.Optional(t.String()) }),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
@@ -6850,6 +6856,754 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Get Proxmox server configuration', tags: ['Servers'] },
+    }
+  );
+
+  function isMcUser(v: string) {
+    return /^[a-zA-Z0-9_]{1,16}$/.test(v);
+  }
+
+  async function mcExecCmd(svc: WingsApiService, id: string, cmd: string) {
+    try {
+      await svc.executeServerCommand(id, cmd);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function mcReadJson(svc: WingsApiService, id: string, path: string) {
+    try {
+      const res = await svc.readFile(id, path);
+      const raw = res.data ?? res ?? '';
+      return JSON.parse(typeof raw === 'string' ? raw : String(raw));
+    } catch { return null; }
+  }
+
+  async function mcWriteJson(svc: WingsApiService, id: string, path: string, data: any) {
+    await svc.writeFile(id, path, JSON.stringify(data, null, 2));
+  }
+
+  function mcNames(data: any): { name: string; uuid?: string }[] {
+    if (!Array.isArray(data)) return [];
+    return data.map((e: any) => ({ name: String(e.name || ''), uuid: e.uuid ? String(e.uuid) : undefined })).filter(p => p.name);
+  }
+
+  async function mcExec(id: string, cmd: string, ctx: AuthenticatedHandlerContext) {
+    const svc = await serviceFor(id);
+    if (svc instanceof ProxmoxApiService) {
+      ctx.set.status = 400;
+      return { error: 'Player management not supported for Proxmox nodes' };
+    }
+    if (!(await mcExecCmd(svc as WingsApiService, id, cmd))) {
+      ctx.set.status = 400;
+      return { error: 'Server must be online for console commands' };
+    }
+    return { success: true, method: 'console' };
+  }
+
+  async function mcPingServer(ip: string, port: number): Promise<{ players: { name: string; uuid?: string }[]; online: number; max: number }> {
+    const { createConnection } = await import('net');
+    return new Promise((resolve, reject) => {
+      const socket = createConnection(port, ip, () => {
+        const wv = (v: number) => { const b: number[] = []; do { let t = v & 127; v >>>= 7; if (v) t |= 128; b.push(t); } while (v); return Buffer.from(b); };
+
+        const hostB = Buffer.from(ip, 'utf8');
+        const pBE = Buffer.alloc(2); pBE.writeUInt16BE(port, 0);
+        const handshake = Buffer.concat([wv(0), wv(767), wv(hostB.length), hostB, pBE, wv(1)]);
+        socket.write(Buffer.concat([wv(handshake.length), handshake]));
+        socket.write(Buffer.concat([wv(1), wv(0)]));
+      });
+
+      const to = setTimeout(() => { socket.destroy(); reject(new Error('timeout')); }, 5000);
+      socket.setTimeout(5000);
+      socket.on('error', (e) => { clearTimeout(to); reject(e); });
+      socket.on('timeout', () => { clearTimeout(to); reject(new Error('timeout')); });
+
+      let buf = Buffer.alloc(0);
+      socket.on('data', (data: Buffer) => {
+        buf = Buffer.concat([buf, data]);
+        try {
+          const rv = (off: number) => { let v = 0, b = 0; while (true) { const byte = buf[off + b]; v |= (byte & 127) << (b * 7); b++; if (!(byte & 128)) break; } return { v, b }; };
+          let off = rv(0).b;
+          off += rv(off).b;
+          const sl = rv(off); off += sl.b;
+          const json = buf.subarray(off, off + sl.v).toString('utf8');
+          clearTimeout(to); socket.destroy();
+          const d = JSON.parse(json);
+          const sample = d?.players?.sample;
+          const players = Array.isArray(sample)
+            ? sample.map((p: any) => ({ name: String(p.name || ''), uuid: p.id ? String(p.id) : undefined })).filter(p => p.name)
+            : [];
+          resolve({ players, online: d?.players?.online ?? 0, max: d?.players?.max ?? 0 });
+        } catch { /* creeper */ }
+      });
+    });
+  }
+
+  async function mcListFromLog(svc: WingsApiService, id: string): Promise<{ players: { name: string; uuid?: string }[]; online: number; max: number }> {
+    const fileLines = async () => {
+      const res = await svc.readFile(id, 'logs/latest.log');
+      const text = typeof res.data === 'string' ? res.data : String(res.data ?? '');
+      return text.split('\n');
+    };
+
+    let existingLines: string[];
+    try { existingLines = await fileLines(); } catch { existingLines = []; }
+    const beforeLen = existingLines.length;
+
+    await svc.executeServerCommand(id, 'list');
+
+    let fullLines: string[] = [];
+    for (const delay of [600, 900, 1200]) {
+      await new Promise(r => setTimeout(r, delay));
+      try {
+        const lines = await fileLines();
+        const newCount = lines.length - beforeLen;
+        if (newCount > 0) {
+          fullLines = lines;
+          break;
+        }
+      } catch {}
+    }
+    if (!fullLines.length) fullLines = existingLines;
+
+    const newLines = fullLines.slice(Math.max(0, beforeLen - 1));
+    const listLine = newLines.find(l => l.includes('of a max of') && l.includes('players online'))
+      || fullLines.slice(-20).reverse().find(l => l.includes('of a max of') && l.includes('players online'));
+
+    if (!listLine) throw new Error('Could not find /list output in server log');
+
+    const m = listLine.match(/There are (\d+) of a max of (\d+) players online:?\s*(.*)/);
+    if (!m) throw new Error('Could not parse /list output');
+
+    const online = parseInt(m[1], 10);
+    const mx = parseInt(m[2], 10);
+    const playerStr = m[3].trim();
+    const names = playerStr ? playerStr.split(/,\s*/).filter(Boolean) : [];
+    return { players: names.map(n => ({ name: n })), online, max: mx };
+  }
+
+  app.get(
+    prefix + '/servers/:id/players',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const wings = svc as WingsApiService;
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) { ctx.set.status = 404; return { error: ctx.t('server.notFound') }; }
+
+      let isRunning = false;
+      try {
+        const info = await wings.getServer(id);
+        const body = info?.data;
+        const rawStatus = body?.status ?? body?.state ?? body?.attributes?.status ?? body?.server_state ?? '';
+        isRunning = ['running', 'online', 'up', 'active'].includes(String(rawStatus).toLowerCase().trim());
+      } catch {}
+
+      if (!isRunning) return { players: [], online: 0, max: 0, reachable: false, reason: 'Server is not running' };
+
+      const alloc = (cfg.allocations || {}) as Record<string, any>;
+      const ip = alloc.default?.ip;
+      const port = alloc.default?.port;
+
+      if (ip && port) {
+        try {
+          return await mcPingServer(ip, Number(port));
+        } catch {
+          // mcdonalds
+        }
+      }
+
+      try {
+        return await mcListFromLog(wings, id);
+      } catch {
+        return { players: [], online: 0, max: 0, reachable: false, reason: 'Could not reach server port or read server log' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+      detail: { summary: 'List online Minecraft players via server ping', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/players/whitelist',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const data = await mcReadJson(svc as WingsApiService, id, 'whitelist.json');
+      return { players: mcNames(data) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List whitelisted players', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/players/whitelist/status',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      try {
+        const res = await (svc as WingsApiService).readFile(id, 'server.properties');
+        const text = typeof res.data === 'string' ? res.data : String(res.data ?? '');
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const m = line.trim().match(/^white-list\s*=\s*(true|false)\s*$/i);
+          if (m) return { enabled: m[1].toLowerCase() === 'true' };
+        }
+      } catch {}
+      return { enabled: false };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Check if whitelist is enabled', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/whitelist/toggle',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { enabled } = ctx.body as Record<string, boolean>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      return mcExec(id, enabled ? 'whitelist on' : 'whitelist off', ctx);
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Toggle whitelist on/off', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/players/bans',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const data = await mcReadJson(svc as WingsApiService, id, 'banned-players.json');
+      return { players: mcNames(data) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List banned players', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/whitelist',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { player } = ctx.body as Record<string, string>;
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+
+      if (await mcExecCmd(ws, id, `whitelist add ${player}`)) {
+        try { let d = await mcReadJson(ws, id, 'whitelist.json'); if (!Array.isArray(d)) d = []; if (!d.some((e: any) => e.name === player)) d.push({ name: player, uuid: '' }); await mcWriteJson(ws, id, 'whitelist.json', d); } catch {}
+        return { success: true, method: 'console' };
+      }
+      let data = await mcReadJson(ws, id, 'whitelist.json');
+      if (!Array.isArray(data)) data = [];
+      if (!data.some((e: any) => e.name === player)) data.push({ name: player, uuid: '' });
+      await mcWriteJson(ws, id, 'whitelist.json', data);
+      return { success: true, method: 'file' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Add player to whitelist', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/:id/players/whitelist/:player',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, player } = (ctx.params ?? {}) as Record<string, string>;
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+
+      if (await mcExecCmd(ws, id, `whitelist remove ${player}`)) {
+        try { let d = await mcReadJson(ws, id, 'whitelist.json'); if (Array.isArray(d)) { d = d.filter((e: any) => e.name !== player); await mcWriteJson(ws, id, 'whitelist.json', d); } } catch {}
+        return { success: true, method: 'console' };
+      }
+      let data = await mcReadJson(ws, id, 'whitelist.json');
+      if (!Array.isArray(data)) data = [];
+      data = data.filter((e: any) => e.name !== player);
+      await mcWriteJson(ws, id, 'whitelist.json', data);
+      return { success: true, method: 'file' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Remove player from whitelist', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/ban',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { player, reason } = ctx.body as Record<string, string>;
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+
+      if (await mcExecCmd(ws, id, reason ? `ban ${player} ${reason}` : `ban ${player}`)) {
+        try { let d = await mcReadJson(ws, id, 'banned-players.json'); if (!Array.isArray(d)) d = []; if (!d.some((e: any) => e.name === player)) d.push({ name: player, uuid: '', reason: reason || 'Banned by panel', created: new Date().toISOString(), source: 'Panel', expires: 'forever' }); await mcWriteJson(ws, id, 'banned-players.json', d); } catch {}
+        return { success: true, method: 'console' };
+      }
+      let data = await mcReadJson(ws, id, 'banned-players.json');
+      if (!Array.isArray(data)) data = [];
+      if (!data.some((e: any) => e.name === player)) {
+        data.push({ name: player, uuid: '', reason: reason || 'Banned by panel', created: new Date().toISOString(), source: 'Panel', expires: 'forever' });
+      }
+      await mcWriteJson(ws, id, 'banned-players.json', data);
+      return { success: true, method: 'file' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Ban a player', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/pardon',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { player } = ctx.body as Record<string, string>;
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+
+      if (await mcExecCmd(ws, id, `pardon ${player}`)) {
+        try { let d = await mcReadJson(ws, id, 'banned-players.json'); if (Array.isArray(d)) { d = d.filter((e: any) => e.name !== player); await mcWriteJson(ws, id, 'banned-players.json', d); } } catch {}
+        return { success: true, method: 'console' };
+      }
+      let data = await mcReadJson(ws, id, 'banned-players.json');
+      if (!Array.isArray(data)) data = [];
+      data = data.filter((e: any) => e.name !== player);
+      await mcWriteJson(ws, id, 'banned-players.json', data);
+      return { success: true, method: 'file' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Pardon/unban a player', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/kick',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { player, reason } = ctx.body as Record<string, string>;
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      return mcExec(id, reason ? `kick ${player} ${reason}` : `kick ${player}`, ctx);
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Kick a player', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/players/ops',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const data = await mcReadJson(svc as WingsApiService, id, 'ops.json');
+      return { players: mcNames(data) };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List opped players', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/op',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { player } = ctx.body as Record<string, string>;
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+
+      if (await mcExecCmd(ws, id, `op ${player}`)) {
+        try { let d = await mcReadJson(ws, id, 'ops.json'); if (!Array.isArray(d)) d = []; if (!d.some((e: any) => e.name === player)) d.push({ name: player, uuid: '', level: 4, bypassesPlayerLimit: false }); await mcWriteJson(ws, id, 'ops.json', d); } catch {}
+        return { success: true, method: 'console' };
+      }
+      let data = await mcReadJson(ws, id, 'ops.json');
+      if (!Array.isArray(data)) data = [];
+      if (!data.some((e: any) => e.name === player)) {
+        data.push({ name: player, uuid: '', level: 4, bypassesPlayerLimit: false });
+      }
+      await mcWriteJson(ws, id, 'ops.json', data);
+      return { success: true, method: 'file' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Op a player', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/deop',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { player } = ctx.body as Record<string, string>;
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+
+      if (await mcExecCmd(ws, id, `deop ${player}`)) {
+        try { let d = await mcReadJson(ws, id, 'ops.json'); if (Array.isArray(d)) { d = d.filter((e: any) => e.name !== player); await mcWriteJson(ws, id, 'ops.json', d); } } catch {}
+        return { success: true, method: 'console' };
+      }
+      let data = await mcReadJson(ws, id, 'ops.json');
+      if (!Array.isArray(data)) data = [];
+      data = data.filter((e: any) => e.name !== player);
+      await mcWriteJson(ws, id, 'ops.json', data);
+      return { success: true, method: 'file' };
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Deop a player', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/players/settings',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+      try {
+        const res = await ws.readFile(id, 'server.properties');
+        const text = typeof res.data === 'string' ? res.data : String(res.data ?? '');
+        const lines = text.split('\n');
+        const entries: { key: string; value: string }[] = [];
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) continue;
+          const eq = trimmed.indexOf('=');
+          if (eq > 0) entries.push({ key: trimmed.slice(0, eq).trim(), value: trimmed.slice(eq + 1).trim() });
+        }
+        return { entries, raw: text };
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: e?.message || 'Failed to read server.properties' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Read Minecraft server.properties', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/players/settings',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { entries } = ctx.body as { entries: { key: string; value: string }[] };
+      if (!Array.isArray(entries)) { ctx.set.status = 400; return { error: 'Invalid entries' }; }
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const ws = svc as WingsApiService;
+
+      try {
+        const res = await ws.readFile(id, 'server.properties');
+        const text = typeof res.data === 'string' ? res.data : String(res.data ?? '');
+        const lines = text.split('\n');
+        const updated = new Set(entries.map(e => e.key));
+        const out = lines.map(line => {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('!')) return line;
+          const eq = trimmed.indexOf('=');
+          if (eq > 0) {
+            const k = trimmed.slice(0, eq).trim();
+            if (updated.has(k)) {
+              const v = entries.find(e => e.key === k)?.value ?? '';
+              return `${k}=${v}`;
+            }
+          }
+          return line;
+        });
+        const existingKeys = new Set(lines.map(l => { const t = l.trim(); const e = t.indexOf('='); return e > 0 && !t.startsWith('#') && !t.startsWith('!') ? t.slice(0, e).trim() : null; }).filter(Boolean));
+        for (const e of entries) {
+          if (!existingKeys.has(e.key)) out.push(`${e.key}=${e.value}`);
+        }
+        await ws.writeFile(id, 'server.properties', out.join('\n'));
+        return { success: true };
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: e?.message || 'Failed to write server.properties' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('servers:console')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Write Minecraft server.properties', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/plugins',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const ws = await serviceFor(id) as WingsApiService;
+      try {
+        const [listRes, metaRes] = await Promise.all([
+          ws.listServerFiles(id, 'plugins/'),
+          ws.readFile(id, 'plugins/.plugins.json').catch(() => ({ data: null })),
+        ]);
+        const files = Array.isArray(listRes?.data) ? listRes.data : Array.isArray(listRes) ? listRes : [];
+
+        let meta: Record<string, any> = {};
+        try { meta = JSON.parse(typeof metaRes?.data === 'string' ? metaRes.data : String(metaRes?.data ?? '{}')); } catch { meta = {}; }
+
+        const jars = files
+          .filter((f: any) => f.name?.endsWith('.jar'))
+          .map((f: any) => {
+            const name = f.name?.replace(/\.jar$/, '');
+            const entry = meta?.[name];
+            return {
+              name,
+              filename: f.name,
+              size: f.size ?? f.file_size ?? 0,
+              lastModified: f.modified ?? f.last_modified ?? null,
+              slug: entry?.slug ?? null,
+              version: entry?.version ?? null,
+              versionId: entry?.versionId ?? null,
+              installedAt: entry?.installedAt ?? null,
+            };
+          });
+        return { plugins: jars };
+      } catch {
+        return { plugins: [] };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List installed Minecraft plugins', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/plugins/search',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { q } = (ctx.query ?? {}) as Record<string, string>;
+      if (!q || q.length < 2) { ctx.set.status = 400; return { error: 'Query too short' }; }
+
+      try {
+        const url = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(q)}&facets=${encodeURIComponent('[["project_type:plugin"]]')}&limit=20`;
+        const res = await httpRequest<any>(url, { timeoutMs: 10000 });
+        const hits = res?.data?.hits ?? [];
+        const plugins = hits.map((h: any) => ({
+          name: h.title,
+          slug: h.slug,
+          description: h.description,
+          author: h.author,
+          downloads: h.downloads,
+          version: h.latest_version,
+          iconUrl: h.icon_url,
+          source: 'modrinth' as const,
+          downloadUrl: `https://api.modrinth.com/v2/project/${h.slug}/version`,
+          projectId: h.project_id,
+        }));
+        return { plugins };
+      } catch (e: any) {
+        ctx.set.status = 502;
+        return { error: e?.message || 'Failed to search plugins' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Search Minecraft plugins from Modrinth', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/:id/plugins/preview/:slug',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { slug } = (ctx.params ?? {}) as Record<string, string>;
+      if (!slug) { ctx.set.status = 400; return { error: 'Missing slug' }; }
+      try {
+        const [projRes, verRes] = await Promise.all([
+          httpRequest<any>(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}`, { timeoutMs: 10000 }),
+          httpRequest<any>(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version`, { timeoutMs: 10000 }),
+        ]);
+        const p = projRes?.data;
+        const versions = Array.isArray(verRes?.data) ? verRes.data : [];
+        return {
+          name: p?.title ?? slug,
+          slug: p?.slug ?? slug,
+          description: p?.description ?? '',
+          body: p?.body ?? '',
+          author: p?.author ?? '',
+          downloads: p?.downloads ?? 0,
+          iconUrl: p?.icon_url ?? null,
+          issuesUrl: p?.issues_url ?? null,
+          sourceUrl: p?.source_url ?? null,
+          wikiUrl: p?.wiki_url ?? null,
+          discordUrl: p?.discord_url ?? null,
+          versions: versions.map((v: any) => ({
+            id: v.id,
+            name: v.name,
+            versionNumber: v.version_number,
+            gameVersions: v.game_versions ?? [],
+            loaders: v.loaders ?? [],
+            datePublished: v.date_published,
+            downloadUrl: v.files?.find((f: any) => f.primary)?.url ?? v.files?.[0]?.url ?? null,
+          })),
+        };
+      } catch (e: any) {
+        ctx.set.status = 502;
+        return { error: e?.message || 'Failed to load plugin details' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Get full Modrinth project details for a plugin', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/:id/plugins/install',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const { slug, filename, versionId } = (ctx.body ?? {}) as { slug: string; filename: string; versionId?: string };
+      if (!slug || !filename) { ctx.set.status = 400; return { error: 'Missing slug or filename' }; }
+
+      const ws = await serviceFor(id) as WingsApiService;
+
+      try {
+        let jarUrl: string;
+        if (versionId) {
+          const verRes = await httpRequest<any>(`https://api.modrinth.com/v2/version/${encodeURIComponent(versionId)}`, { timeoutMs: 10000 });
+          const v = verRes?.data;
+          const file = v?.files?.find((f: any) => f.primary) || v?.files?.[0];
+          if (!file?.url) { ctx.set.status = 502; return { error: 'Could not resolve download URL for this version' }; }
+          jarUrl = file.url;
+        } else {
+          const verRes = await httpRequest<any>(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version`, { timeoutMs: 10000 });
+          const versions = Array.isArray(verRes?.data) ? verRes.data : [];
+          const primary = versions.find((v: any) => v.files?.some((f: any) => f.primary)) || versions[0];
+          const file = primary?.files?.find((f: any) => f.primary) || primary?.files?.[0];
+          if (!file?.url) { ctx.set.status = 502; return { error: 'Could not resolve download URL' }; }
+          jarUrl = file.url;
+        }
+
+        const jarRes = await httpRequest<ArrayBuffer>(jarUrl, { responseType: 'arraybuffer', timeoutMs: 30000 });
+        const jarData = jarRes.data;
+        if (!jarData) { ctx.set.status = 502; return { error: 'Failed to download plugin' }; }
+
+        try { await ws.createDirectory(id, '/', 'plugins'); } catch {}
+
+        let versionNumber = '';
+        let resolvedVersionId = versionId || '';
+        try {
+          const vRes = await httpRequest<any>(`https://api.modrinth.com/v2/version/${encodeURIComponent(resolvedVersionId)}`, { timeoutMs: 5000 });
+          versionNumber = vRes?.data?.version_number ?? '';
+        } catch {}
+        if (!resolvedVersionId) {
+          try {
+            const vRes = await httpRequest<any>(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version`, { timeoutMs: 5000 });
+            const versions = Array.isArray(vRes?.data) ? vRes.data : [];
+            const primary = versions[0];
+            if (primary) {
+              resolvedVersionId = primary.id;
+              versionNumber = primary.version_number;
+            }
+          } catch {}
+        }
+
+        await ws.writeFile(id, `plugins/${filename}`, new Uint8Array(jarData as ArrayBuffer));
+
+        const name = filename.replace(/\.jar$/, '');
+        try {
+          const metaRes = await ws.readFile(id, 'plugins/.plugins.json').catch(() => ({ data: null }));
+          let meta: Record<string, any> = {};
+          try { meta = JSON.parse(typeof metaRes?.data === 'string' ? metaRes.data : String(metaRes?.data ?? '{}')); } catch {}
+          meta[name] = { slug, version: versionNumber, versionId: resolvedVersionId, installedAt: new Date().toISOString(), filename };
+          await ws.writeFile(id, 'plugins/.plugins.json', JSON.stringify(meta, null, 2));
+        } catch {}
+
+        return { success: true, filename, version: versionNumber };
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: e?.message || 'Failed to install plugin' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:files')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Install a Minecraft plugin from Modrinth', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/:id/plugins/:filename',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, filename } = (ctx.params ?? {}) as Record<string, string>;
+      const ws = await serviceFor(id) as WingsApiService;
+      try {
+        await ws.deleteFile(id, '/', [`plugins/${filename}`]);
+
+        const name = filename.replace(/\.jar$/, '');
+        try {
+          const metaRes = await ws.readFile(id, 'plugins/.plugins.json').catch(() => ({ data: null }));
+          let meta: Record<string, any> = {};
+          try { meta = JSON.parse(typeof metaRes?.data === 'string' ? metaRes.data : String(metaRes?.data ?? '{}')); } catch {}
+          if (meta[name]) {
+            delete meta[name];
+            await ws.writeFile(id, 'plugins/.plugins.json', JSON.stringify(meta, null, 2));
+          }
+        } catch {}
+
+        return { success: true };
+      } catch (e: any) {
+        ctx.set.status = 500;
+        return { error: e?.message || 'Failed to delete plugin' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:files')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Delete an installed plugin', tags: ['Servers', 'Minecraft'] },
     }
   );
 }

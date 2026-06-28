@@ -243,6 +243,7 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'backups:create', category: 'Backups', admin: false },
   { value: 'backups:write', category: 'Backups', admin: false },
   { value: 'commands:execute', category: 'Commands', admin: false },
+  { value: 'servers:console', category: 'Servers', admin: false },
   { value: 'reinstall:execute', category: 'Reinstall', admin: false },
   { value: 'schedules:read', category: 'Schedules', admin: false },
   { value: 'schedules:create', category: 'Schedules', admin: false },

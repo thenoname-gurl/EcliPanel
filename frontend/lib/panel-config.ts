@@ -240,6 +240,25 @@ export const API_ENDPOINTS = {
   serverVanillaApply: "/api/servers/v1/:id/versions/vanilla/apply",
   serverInstallLogs: "/api/servers/v1/:id/logs/install",
 
+  // Minecraft Player Management
+  serverPlayers: "/api/servers/:id/players",
+  serverPlayersWhitelist: "/api/servers/:id/players/whitelist",
+  serverPlayersWhitelistStatus: "/api/servers/:id/players/whitelist/status",
+  serverPlayersWhitelistToggle: "/api/servers/:id/players/whitelist/toggle",
+  serverPlayersBan: "/api/servers/:id/players/ban",
+  serverPlayersPardon: "/api/servers/:id/players/pardon",
+  serverPlayersKick: "/api/servers/:id/players/kick",
+  serverPlayersOps: "/api/servers/:id/players/ops",
+  serverPlayersOp: "/api/servers/:id/players/op",
+  serverPlayersDeop: "/api/servers/:id/players/deop",
+  serverPlayersSettings: "/api/servers/:id/players/settings",
+
+  // Minecraft Plugins
+  serverPlugins: "/api/servers/:id/plugins",
+  serverPluginsSearch: "/api/servers/:id/plugins/search",
+  serverPluginsInstall: "/api/servers/:id/plugins/install",
+  serverPluginsPreview: "/api/servers/:id/plugins/preview",
+
   // Tunnel
   tunnels: "/api/tunnel/allocations",
   tunnelDevices: "/api/tunnel/devices",
