@@ -49,6 +49,7 @@ async function requireEloRollout(ctx: any): Promise<true | { error: string }> {
 }
 
 export async function syncEloResources(project: EloProject) {
+  if (!project.serverId) return;
   const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: project.serverId });
   if (!cfg) return;
 
@@ -980,9 +981,17 @@ export async function eloRoutes(app: any, prefix = '') {
       const votesCast = ctx.user.limits?.votesCast || 0;
       const votesForNextSlot = VOTES_TO_UNLOCK - (votesCast % VOTES_TO_UNLOCK);
 
-      const enriched = await Promise.all(
+      const results = await Promise.all(
         projects.map(async p => {
+          if (!p.serverId) {
+            await eloProjectRepo().remove(p);
+            return null;
+          }
           const cfg = await cfgRepo().findOneBy({ uuid: p.serverId });
+          if (!cfg) {
+            await eloProjectRepo().remove(p);
+            return null;
+          }
           const resources = calculateEloResources(p.eloScore, ctx.user?.studentVerified || false);
           return {
             id: p.id,
@@ -1000,8 +1009,8 @@ export async function eloRoutes(app: any, prefix = '') {
             demoUrl: p.demoUrl,
             orphanedAt: p.orphanedAt,
             screenshots: p.screenshots,
-            serverName: cfg?.name,
-            serverStatus: cfg?.suspended ? 'suspended' : 'active',
+            serverName: cfg.name,
+            serverStatus: cfg.suspended ? 'suspended' : 'active',
             resources,
             createdAt: p.createdAt,
             ownerName: (ctx.user.displayName || `${ctx.user.firstName} ${ctx.user.lastName}`),
@@ -1009,6 +1018,7 @@ export async function eloRoutes(app: any, prefix = '') {
           };
         })
       );
+      const enriched = results.filter(Boolean);
 
       return {
         projects: enriched,

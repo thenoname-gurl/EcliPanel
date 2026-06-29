@@ -9419,7 +9419,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
       const enriched = await Promise.all(projects.map(async p => {
         const owner = userMap.get(p.userId) as User | undefined;
-        const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: p.serverId });
+        const cfg = p.serverId ? await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: p.serverId }) : null;
         return {
           id: p.id,
           serverId: p.serverId,
@@ -9463,7 +9463,7 @@ export async function adminRoutes(app: any, prefix = '') {
       if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
 
       const owner = await AppDataSource.getRepository(User).findOneBy({ id: project.userId });
-      const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: project.serverId });
+      const cfg = project.serverId ? await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: project.serverId }) : null;
       const devlogs = await eloDevlogRepo().find({ where: { projectId: project.id }, order: { publishedAt: 'DESC' } });
       const voteCount = await eloVoteRepo().count({ where: [{ projectAId: project.id }, { projectBId: project.id }] });
 
