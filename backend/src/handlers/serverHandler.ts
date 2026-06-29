@@ -1042,6 +1042,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
                   for (const s of servers) {
                     const uuid: string = ((s.configuration as Record<string, unknown>)?.uuid as string) || (s.uuid as string) || '';
                     const cfg = cfgMap.get(uuid);
+                    if (!cfg) continue;
                     const norm = applyStartupStatusOverride(
                       normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg) ?? {},
                       cfg
