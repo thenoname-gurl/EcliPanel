@@ -1030,35 +1030,150 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             for (const s of initial) sendServer(s as any);
 
             const unhealthyNodeIds = await getUnhealthyNodeIds();
-            const batches = nodes
-              .filter(n => !unhealthyNodeIds.includes(n.id))
-              .map(async n => {
-                try {
-                  const svc = await nodeService.getServiceForNode(n.id);
-                  const res = svc instanceof ProxmoxApiService
-                    ? await svc.getServers()
-                    : await (svc as WingsApiService).getServers();
-                  const servers = (res.data || []) as Record<string, unknown>[];
-                  for (const s of servers) {
-                    const uuid: string = ((s.configuration as Record<string, unknown>)?.uuid as string) || (s.uuid as string) || '';
-                    const cfg = cfgMap.get(uuid);
-                    if (!cfg) continue;
-                    const norm = applyStartupStatusOverride(
-                      normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg) ?? {},
-                      cfg
-                    );
+
+            if (isAdmin) {
+              const batches = nodes
+                .filter(n => !unhealthyNodeIds.includes(n.id))
+                .map(async n => {
+                  try {
+                    const svc = await nodeService.getServiceForNode(n.id);
+                    const res = svc instanceof ProxmoxApiService
+                      ? await svc.getServers()
+                      : await (svc as WingsApiService).getServers();
+                    const servers = (res.data || []) as Record<string, unknown>[];
+                    for (const s of servers) {
+                      const uuid: string = ((s.configuration as Record<string, unknown>)?.uuid as string) || (s.uuid as string) || '';
+                      const cfg = cfgMap.get(uuid);
+                      if (!cfg) continue;
+                      const norm = applyStartupStatusOverride(
+                        normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg) ?? {},
+                        cfg
+                      );
+                      sendServer({
+                        ...norm,
+                        name: cfg?.name || norm.name,
+                        nodeId: n.id,
+                        nodeName: n.name,
+                        userId: cfg?.userId,
+                      });
+                    }
+                  } catch { /* blah blah blah */ }
+                });
+              await Promise.allSettled(batches);
+            } else {
+              const nodeMap2 = new Map(nodes.map(n => [n.id, n]));
+              const configsByNode = new Map<number, ServerConfig[]>();
+              for (const c of configs) {
+                const list = configsByNode.get(c.nodeId) ?? [];
+                list.push(c);
+                configsByNode.set(c.nodeId, list);
+              }
+
+              const nodePromises: Promise<void>[] = [];
+              for (const [nodeId, cfgList] of configsByNode.entries()) {
+                if (unhealthyNodeIds.includes(nodeId)) {
+                  for (const c of cfgList) {
                     sendServer({
-                      ...norm,
-                      name: cfg?.name || norm.name,
-                      nodeId: n.id,
-                      nodeName: n.name,
-                      userId: cfg?.userId,
+                      uuid: c.uuid,
+                      name: c.name || c.uuid,
+                      status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unavailable',
+                      hibernated: !!c.hibernated,
+                      is_suspended: c.suspended || c.dmca,
+                      is_dmca: !!c.dmca,
+                      resources: null,
+                      build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                      container: { image: c.dockerImage },
+                      nodeId: c.nodeId,
+                      nodeName: nodeMap2.get(nodeId)?.name || null,
+                      userId: c.userId,
                     });
                   }
-                } catch { /* blah blah blah */ }
-              });
+                  continue;
+                }
+                const node = nodeMap2.get(nodeId);
+                if (!node) continue;
 
-            await Promise.allSettled(batches);
+                nodePromises.push(
+                  (async () => {
+                    let svc: ProviderService;
+                    try {
+                      svc = await nodeService.getServiceForNode(node.id);
+                    } catch {
+                      for (const c of cfgList) {
+                        sendServer({
+                          uuid: c.uuid,
+                          name: c.name || c.uuid,
+                          status: c.hibernated ? 'hibernated' : 'unknown',
+                          hibernated: !!c.hibernated,
+                          is_suspended: c.suspended,
+                          resources: null,
+                          build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                          container: { image: c.dockerImage },
+                          nodeId: c.nodeId,
+                          userId: c.userId,
+                        });
+                      }
+                      return;
+                    }
+                    const promises = cfgList.map(async c => {
+                      try {
+                        const res = await svc.getServer(c.uuid);
+                        const s = res.data as Record<string, unknown>;
+                        const norm = applyStartupStatusOverride(
+                          normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c) ?? {},
+                          c
+                        );
+                        sendServer({
+                          ...norm,
+                          name: c.name || (norm.name as string),
+                          nodeId: node.id,
+                          nodeName: node.name,
+                          userId: c.userId,
+                        });
+                        return;
+                      } catch {
+                        /* skip */
+                      }
+
+                      try {
+                        await svc.syncServer(c.uuid, {});
+                        const retry = await svc.getServer(c.uuid);
+                        const s2 = retry.data as Record<string, unknown>;
+                        const norm2 = applyStartupStatusOverride(
+                          normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c) ?? {},
+                          c
+                        );
+                        sendServer({
+                          ...norm2,
+                          name: c.name || (norm2.name as string),
+                          nodeId: node.id,
+                          nodeName: node.name,
+                          userId: c.userId,
+                        });
+                        return;
+                      } catch {
+                        /* skip */
+                      }
+
+                      sendServer({
+                        uuid: c.uuid,
+                        name: c.name || c.uuid,
+                        status: c.hibernated ? 'hibernated' : 'unknown',
+                        hibernated: !!c.hibernated,
+                        is_suspended: c.suspended,
+                        resources: null,
+                        build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                        container: { image: c.dockerImage },
+                        nodeId: c.nodeId,
+                        userId: c.userId,
+                      });
+                    });
+                    await Promise.allSettled(promises);
+                  })()
+                );
+              }
+              await Promise.allSettled(nodePromises);
+            }
             enc({ complete: true }, 'done');
             controller.close();
           },
