@@ -62,6 +62,7 @@ import {
   normalizeStartupDonePatterns,
 } from '../utils/startupDetection';
 import { sanitizeError } from '../utils/sanitizeError';
+import { withRedisCache } from '../config/redis';
 import type { AuthenticatedHandlerContext, ServerApp } from '../types';
 import type {
   MetricsData,
@@ -727,19 +728,266 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   app.get(
     prefix + '/servers',
     async (ctx: AuthenticatedHandlerContext) => {
-      try {
-        await mergeDuplicateServerConfigs();
-      } catch (e) {
-        /* skip */
-      }
-      const nodes = await nodeRepo().find();
-      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      const user = ctx.user;
+      const isAdmin = hasPermissionSync(ctx, 'servers:list');
+      const cacheKey = `servers:list:${isAdmin ? 'admin' : `user:${user.id}`}`;
 
+      const result = await withRedisCache(cacheKey, 30, async () => {
+        try {
+          await mergeDuplicateServerConfigs();
+        } catch (e) {
+          /* skip */
+        }
+        const nodes = await nodeRepo().find();
+        const cfgRepo = AppDataSource.getRepository(ServerConfig);
+
+        const configs = (isAdmin
+          ? await cfgRepo.find()
+          : await (async () => {
+              const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
+                where: { userId: user.id },
+              });
+              const subuserUuids = subuserEntries.map(s => s.serverUuid);
+              const where: Record<string, unknown>[] = [{ userId: user.id }];
+              if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
+              const found = await cfgRepo.find({ where });
+              return found;
+            })()) as ServerConfig[];
+
+        const cfgMap = new Map(configs.map((c: ServerConfig) => [c.uuid, c]));
+        const all: Record<string, unknown>[] = [];
+
+        if (isAdmin) {
+          const unhealthyNodeIds = await getUnhealthyNodeIds();
+          const nodeResults = await Promise.allSettled(
+            nodes.map(async n => {
+              if (unhealthyNodeIds.includes(n.id)) return null;
+              try {
+                const svc = await nodeService.getServiceForNode(n.id);
+                if (svc instanceof ProxmoxApiService) {
+                  const res = await svc.getServers();
+                  return { node: n, servers: res.data || [] };
+                }
+                const wsvc = svc as WingsApiService;
+                const res = await wsvc.getServers();
+                return { node: n, servers: res.data || [] };
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          for (const nodeResult of nodeResults) {
+            if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
+            const { node, servers } = nodeResult.value;
+            for (const s of servers) {
+              const uuid: string = s.configuration?.uuid || s.uuid;
+              const cfg = cfgMap.get(uuid);
+              const norm = applyStartupStatusOverride(
+                normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg),
+                cfg
+              );
+              all.push({
+                ...norm,
+                name: cfg?.name || norm.name,
+                nodeId: node.id,
+                nodeName: node.name,
+                userId: cfg?.userId,
+              });
+            }
+          }
+
+          for (const c of configs) {
+            if (!all.some((s: Record<string, unknown>) => s.uuid === c.uuid)) {
+              all.push({
+                uuid: c.uuid,
+                name: c.name || c.uuid,
+                status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : unhealthyNodeIds.includes(c.nodeId) ? 'unavailable' : 'unknown',
+                hibernated: !!c.hibernated,
+                is_suspended: c.suspended || c.dmca,
+                is_dmca: !!c.dmca,
+                resources: null,
+                build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                container: { image: c.dockerImage },
+                nodeId: c.nodeId,
+                userId: c.userId,
+              });
+            }
+          }
+        } else {
+          const allowedUuids = new Set(configs.map((c: ServerConfig) => c.uuid));
+
+          const nodeMap = new Map(nodes.map(n => [n.id, n]));
+          const unhealthyNodeIds = await getUnhealthyNodeIds();
+
+          const configsByNode = new Map<number, ServerConfig[]>();
+          for (const c of configs) {
+            if (!allowedUuids.has(c.uuid)) continue;
+            const node = nodeMap.get(c.nodeId);
+            if (!node) {
+              all.push({
+                uuid: c.uuid,
+                name: c.name || c.uuid,
+                status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
+                hibernated: !!c.hibernated,
+                is_suspended: c.suspended || c.dmca,
+                is_dmca: !!c.dmca,
+                resources: null,
+                build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                container: { image: c.dockerImage },
+                nodeId: c.nodeId,
+              });
+              continue;
+            }
+
+            const list = configsByNode.get(node.id) ?? [];
+            list.push(c);
+            configsByNode.set(node.id, list);
+          }
+
+          const nodePromises: Promise<void>[] = [];
+          for (const [nodeId, cfgList] of configsByNode.entries()) {
+            const node = nodeMap.get(nodeId);
+            if (!node) continue;
+                if (unhealthyNodeIds.includes(nodeId)) {
+                  for (const c of cfgList) {
+                    all.push({
+                      uuid: c.uuid,
+                      name: c.name || c.uuid,
+                      status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unavailable',
+                  hibernated: !!c.hibernated,
+                  is_suspended: c.suspended || c.dmca,
+                  is_dmca: !!c.dmca,
+                  resources: null,
+                  build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                  container: { image: c.dockerImage },
+                  nodeId: c.nodeId,
+                  nodeName: node.name,
+                  userId: c.userId,
+                });
+              }
+              continue;
+            }
+
+            nodePromises.push(
+              (async () => {
+                let svc: ProviderService;
+                try {
+                  svc = await nodeService.getServiceForNode(node.id);
+                } catch {
+                  for (const c of cfgList) {
+                    all.push({ uuid: c.uuid, name: c.name || c.uuid, status: c.hibernated ? 'hibernated' : 'unknown', hibernated: !!c.hibernated, is_suspended: c.suspended, resources: null, build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu }, container: { image: c.dockerImage }, nodeId: c.nodeId, userId: c.userId });
+                  }
+                  return;
+                }
+                const promises = cfgList.map(async c => {
+                  try {
+                    const res = await svc.getServer(c.uuid);
+                    const s = res.data as Record<string, unknown>;
+                    const norm = applyStartupStatusOverride(
+                      normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c) ?? {},
+                      c
+                    );
+                    all.push({
+                      ...norm,
+                      name: c.name || (norm.name as string),
+                      nodeId: node.id,
+                      nodeName: node.name,
+                      userId: c.userId,
+                    });
+                    return;
+                  } catch {
+                    // try sync + retry
+                  }
+
+                  try {
+                    await svc.syncServer(c.uuid, {});
+                    const retry = await svc.getServer(c.uuid);
+                    const s2 = retry.data as Record<string, unknown>;
+                    const norm2 = applyStartupStatusOverride(
+                      normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c) ?? {},
+                      c
+                    );
+                    all.push({
+                      ...norm2,
+                      name: c.name || (norm2.name as string),
+                      nodeId: node.id,
+                      nodeName: node.name,
+                      userId: c.userId,
+                    });
+                    return;
+                  } catch {
+                    // skip
+                  }
+
+                  all.push({
+                    uuid: c.uuid,
+                    name: c.name || c.uuid,
+                    status: c.hibernated ? 'hibernated' : 'unknown',
+                    hibernated: !!c.hibernated,
+                    is_suspended: c.suspended,
+                    resources: null,
+                    build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
+                    container: { image: c.dockerImage },
+                    nodeId: c.nodeId,
+                    userId: c.userId,
+                  });
+                });
+                await Promise.allSettled(promises);
+              })()
+            );
+          }
+
+          await Promise.allSettled(nodePromises);
+        }
+
+        const seen = new Set<string>();
+        const unique = all.filter((s: Record<string, unknown>) => {
+          const uuid = String(s?.uuid || s?.id || '');
+          if (!uuid) return false;
+          if (seen.has(uuid)) return false;
+          seen.add(uuid);
+          return true;
+        });
+
+        return unique;
+      });
+
+      const page = Math.max(1, Number(ctx.query?.page) || 1);
+      const perPage = Math.min(200, Math.max(1, Number(ctx.query?.per_page) || Number(ctx.query?.limit) || 100));
+      const total = result.length;
+      const paginated = result.slice((page - 1) * perPage, page * perPage);
+
+      return Object.assign(paginated, {
+        total,
+        page,
+        per_page: perPage,
+        total_pages: Math.ceil(total / perPage),
+      }) as any;
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List all servers', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/stream',
+    async (ctx: AuthenticatedHandlerContext) => {
       const user = ctx.user;
       const isAdmin = hasPermissionSync(ctx, 'servers:list');
 
+      const cfgRepo = () => AppDataSource.getRepository(ServerConfig);
+      const nodes = await nodeRepo().find();
+      const nodeMap = new Map(nodes.map(n => [n.id, n]));
+
       const configs = (isAdmin
-        ? await cfgRepo.find()
+        ? await cfgRepo().find()
         : await (async () => {
             const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
               where: { userId: user.id },
@@ -747,59 +995,26 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             const subuserUuids = subuserEntries.map(s => s.serverUuid);
             const where: Record<string, unknown>[] = [{ userId: user.id }];
             if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
-            const found = await cfgRepo.find({ where });
-            return found;
+            return await cfgRepo().find({ where });
           })()) as ServerConfig[];
 
-      const cfgMap = new Map(configs.map((c: ServerConfig) => [c.uuid, c]));
-      const all: Record<string, unknown>[] = [];
+      const cfgMap = new Map(configs.map(c => [c.uuid, c]));
 
-      if (isAdmin) {
-        const unhealthyNodeIds = await getUnhealthyNodeIds();
-        const nodeResults = await Promise.allSettled(
-          nodes.map(async n => {
-            if (unhealthyNodeIds.includes(n.id)) return null;
-            try {
-              const svc = await nodeService.getServiceForNode(n.id);
-              if (svc instanceof ProxmoxApiService) {
-                const res = await svc.getServers();
-                return { node: n, servers: res.data || [] };
-              }
-              const wsvc = svc as WingsApiService;
-              const res = await wsvc.getServers();
-              return { node: n, servers: res.data || [] };
-            } catch {
-              return null;
-            }
-          })
-        );
+      return new Response(
+        new ReadableStream({
+          async start(controller) {
+            const enc = (data: unknown, event?: string) => {
+              const lines = [`data: ${JSON.stringify(data)}`];
+              if (event) lines.unshift(`event: ${event}`);
+              controller.enqueue(new TextEncoder().encode(lines.join('\n') + '\n\n'));
+            };
 
-        for (const nodeResult of nodeResults) {
-          if (nodeResult.status !== 'fulfilled' || !nodeResult.value) continue;
-          const { node, servers } = nodeResult.value;
-          for (const s of servers) {
-            const uuid: string = s.configuration?.uuid || s.uuid;
-            const cfg = cfgMap.get(uuid);
-            const norm = applyStartupStatusOverride(
-              normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg),
-              cfg
-            );
-            all.push({
-              ...norm,
-              name: cfg?.name || norm.name,
-              nodeId: node.id,
-              nodeName: node.name,
-              userId: cfg?.userId,
-            });
-          }
-        }
+            const sendServer = (s: Record<string, unknown>) => enc(s, 'server');
 
-        for (const c of configs) {
-          if (!all.some((s: Record<string, unknown>) => s.uuid === c.uuid)) {
-            all.push({
+            const initial = configs.map(c => ({
               uuid: c.uuid,
               name: c.name || c.uuid,
-              status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : unhealthyNodeIds.includes(c.nodeId) ? 'unavailable' : 'unknown',
+              status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'loading',
               hibernated: !!c.hibernated,
               is_suspended: c.suspended || c.dmca,
               is_dmca: !!c.dmca,
@@ -808,155 +1023,57 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
               container: { image: c.dockerImage },
               nodeId: c.nodeId,
               userId: c.userId,
-            });
-          }
-        }
-      } else {
-        const allowedUuids = new Set(configs.map((c: ServerConfig) => c.uuid));
+              nodeName: nodeMap.get(c.nodeId)?.name || null,
+              provider: 'wings',
+            }));
 
-        const nodeMap = new Map(nodes.map(n => [n.id, n]));
-        const unhealthyNodeIds = await getUnhealthyNodeIds();
+            for (const s of initial) sendServer(s as any);
 
-        const configsByNode = new Map<number, ServerConfig[]>();
-        for (const c of configs) {
-          if (!allowedUuids.has(c.uuid)) continue;
-          const node = nodeMap.get(c.nodeId);
-          if (!node) {
-            all.push({
-              uuid: c.uuid,
-              name: c.name || c.uuid,
-              status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unknown',
-              hibernated: !!c.hibernated,
-              is_suspended: c.suspended || c.dmca,
-              is_dmca: !!c.dmca,
-              resources: null,
-              build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-              container: { image: c.dockerImage },
-              nodeId: c.nodeId,
-            });
-            continue;
-          }
-
-          const list = configsByNode.get(node.id) ?? [];
-          list.push(c);
-          configsByNode.set(node.id, list);
-        }
-
-        const nodePromises: Promise<void>[] = [];
-        for (const [nodeId, cfgList] of configsByNode.entries()) {
-          const node = nodeMap.get(nodeId);
-          if (!node) continue;
-              if (unhealthyNodeIds.includes(nodeId)) {
-                for (const c of cfgList) {
-                  all.push({
-                    uuid: c.uuid,
-                    name: c.name || c.uuid,
-                    status: c.dmca ? 'dmca' : c.hibernated ? 'hibernated' : 'unavailable',
-                hibernated: !!c.hibernated,
-                is_suspended: c.suspended || c.dmca,
-                is_dmca: !!c.dmca,
-                resources: null,
-                build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-                container: { image: c.dockerImage },
-                nodeId: c.nodeId,
-                nodeName: node.name,
-                userId: c.userId,
-              });
-            }
-            continue;
-          }
-
-          nodePromises.push(
-            (async () => {
-              let svc: ProviderService;
-              try {
-                svc = await nodeService.getServiceForNode(node.id);
-              } catch {
-                for (const c of cfgList) {
-                  all.push({ uuid: c.uuid, name: c.name || c.uuid, status: c.hibernated ? 'hibernated' : 'unknown', hibernated: !!c.hibernated, is_suspended: c.suspended, resources: null, build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu }, container: { image: c.dockerImage }, nodeId: c.nodeId, userId: c.userId });
-                }
-                return;
-              }
-              const promises = cfgList.map(async c => {
+            const unhealthyNodeIds = await getUnhealthyNodeIds();
+            const batches = nodes
+              .filter(n => !unhealthyNodeIds.includes(n.id))
+              .map(async n => {
                 try {
-                  const res = await svc.getServer(c.uuid);
-                  const s = res.data as Record<string, unknown>;
-                  const norm = applyStartupStatusOverride(
-                    normalizeServer(s, c.hibernated ? 'hibernated' : undefined, c) ?? {},
-                    c
-                  );
-                  all.push({
-                    ...norm,
-                    name: c.name || (norm.name as string),
-                    nodeId: node.id,
-                    nodeName: node.name,
-                    userId: c.userId,
-                  });
-                  return;
-                } catch {
-                  // try sync + retry
-                }
-
-                try {
-                  await svc.syncServer(c.uuid, {});
-                  const retry = await svc.getServer(c.uuid);
-                  const s2 = retry.data as Record<string, unknown>;
-                  const norm2 = applyStartupStatusOverride(
-                    normalizeServer(s2, c.hibernated ? 'hibernated' : undefined, c) ?? {},
-                    c
-                  );
-                  all.push({
-                    ...norm2,
-                    name: c.name || (norm2.name as string),
-                    nodeId: node.id,
-                    nodeName: node.name,
-                    userId: c.userId,
-                  });
-                  return;
-                } catch {
-                  // skip
-                }
-
-                all.push({
-                  uuid: c.uuid,
-                  name: c.name || c.uuid,
-                  status: c.hibernated ? 'hibernated' : 'unknown',
-                  hibernated: !!c.hibernated,
-                  is_suspended: c.suspended,
-                  resources: null,
-                  build: { memory_limit: c.memory, disk_space: c.disk, cpu_limit: c.cpu },
-                  container: { image: c.dockerImage },
-                  nodeId: c.nodeId,
-                  userId: c.userId,
-                });
+                  const svc = await nodeService.getServiceForNode(n.id);
+                  const res = svc instanceof ProxmoxApiService
+                    ? await svc.getServers()
+                    : await (svc as WingsApiService).getServers();
+                  const servers = (res.data || []) as Record<string, unknown>[];
+                  for (const s of servers) {
+                    const uuid: string = ((s.configuration as Record<string, unknown>)?.uuid as string) || (s.uuid as string) || '';
+                    const cfg = cfgMap.get(uuid);
+                    const norm = applyStartupStatusOverride(
+                      normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg) ?? {},
+                      cfg
+                    );
+                    sendServer({
+                      ...norm,
+                      name: cfg?.name || norm.name,
+                      nodeId: n.id,
+                      nodeName: n.name,
+                      userId: cfg?.userId,
+                    });
+                  }
+                } catch { /* blah blah blah */ }
               });
-              await Promise.allSettled(promises);
-            })()
-          );
+
+            await Promise.allSettled(batches);
+            enc({ complete: true }, 'done');
+            controller.close();
+          },
+        }),
+        {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            Connection: 'keep-alive',
+          },
         }
-
-        await Promise.allSettled(nodePromises);
-      }
-
-      const seen = new Set<string>();
-      const unique = all.filter((s: Record<string, unknown>) => {
-        const uuid = String(s?.uuid || s?.id || '');
-        if (!uuid) return false;
-        if (seen.has(uuid)) return false;
-        seen.add(uuid);
-        return true;
-      });
-
-      return unique;
+      );
     },
     {
-      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
-      response: {
-        200: t.Array(t.Any()),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
-      },
-      detail: { summary: 'List all servers', tags: ['Servers'] },
+      beforeHandle: [authenticate, authorize('servers:read')],
+      detail: { summary: 'Stream servers progressively', tags: ['Servers'] },
     }
   );
 
@@ -5274,7 +5391,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         }
       },
       {
-        beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      beforeHandle: [authenticate, authorize('servers:read')],
         response: {
           200: t.Array(t.Any()),
           401: t.Object({ error: t.String() }),

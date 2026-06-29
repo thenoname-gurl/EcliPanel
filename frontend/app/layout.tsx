@@ -16,11 +16,12 @@ function getBackendBaseUrl(): string {
   ).replace(/\/+$/, "");
 }
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+const _geist = Geist({ subsets: ["latin"], display: "swap" });
+const _geistMono = Geist_Mono({ subsets: ["latin"], display: "swap" });
 const _didactGothic = Didact_Gothic({
   variable: "--font-didact-gothic",
   weight: ["400"],
+  display: "swap",
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -63,9 +64,11 @@ import Guide from "@/components/Guide";
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const hdrs = await headers();
-  const locale = await getLocale();
-  const messages = await getMessages();
+  const [hdrs, locale, messages] = await Promise.all([
+    headers(),
+    getLocale(),
+    getMessages(),
+  ]);
   const cookieHeader = hdrs.get("cookie") || "";
 
   const themesMap = Object.fromEntries(
@@ -99,24 +102,29 @@ export default async function RootLayout({
   let initialUser: User | null = null;
 
   if (cookieHeader) {
-    try {
-      const backendBase = getBackendBaseUrl();
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 3000);
-      const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
-        headers: { cookie: cookieHeader },
-        cache: "no-store",
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const data = await res.json();
-        themeName = data?.user?.settings?.theme?.name || null;
-        initialUser = data?.user || null;
-      }
-    } catch (_e) {
-      // Timed out or failed — AuthProvider will fetch session client-side
-    }
+    const backendBase = getBackendBaseUrl();
+    await Promise.race([
+      (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1500);
+        try {
+          const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
+            headers: { cookie: cookieHeader },
+            cache: "no-store",
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (res.ok) {
+            const data = await res.json();
+            themeName = data?.user?.settings?.theme?.name || null;
+            initialUser = data?.user || null;
+          }
+        } catch {
+          clearTimeout(timeout);
+        }
+      })(),
+      new Promise(resolve => setTimeout(resolve, 2000)),
+    ]);
   }
 
   const inlineScript = `(() => {
@@ -137,7 +145,10 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
-        <link rel="preconnect" href="https://backend.ecli.app" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={getBackendBaseUrl()} />
+        <link rel="preconnect" href={getBackendBaseUrl()} />
         <script dangerouslySetInnerHTML={{ __html: inlineScript }} />
       </head>
       <body

@@ -119,6 +119,7 @@ export const API_ENDPOINTS = {
 
   // Servers
   servers: "/api/servers",
+  serversStream: "/api/servers/stream",
 
   // Nodes
   nodes: "/api/nodes",

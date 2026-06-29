@@ -1,16 +1,15 @@
 "use client"
 
-import { PanelSidebar } from "@/components/panel/sidebar"
-import { EnforcementBanner } from "@/components/panel/enforcement-banner"
-import { PasswordUpgradeBanner } from "@/components/panel/password-upgrade-banner"
-import { SunsetNoticeBanner } from "@/components/panel/sunset-notice-banner"
-import { KycBanner } from "@/components/panel/kyc-banner"
-import { FeedbackDialog } from "@/components/panel/feedback-dialog"
-import { Footer } from "@/components/Footer"
-
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { PanelSidebar } from "@/components/panel/sidebar";
+import { EnforcementBanner } from "@/components/panel/enforcement-banner";
+import { PasswordUpgradeBanner } from "@/components/panel/password-upgrade-banner";
+import { SunsetNoticeBanner } from "@/components/panel/sunset-notice-banner";
+import { KycBanner } from "@/components/panel/kyc-banner";
+import { FeedbackDialog } from "@/components/panel/feedback-dialog";
+import { Footer } from "@/components/Footer";
 
 export default function DashboardLayout({
   children,

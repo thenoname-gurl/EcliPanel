@@ -636,6 +636,62 @@ app.onBeforeHandle(async (ctx: any) => {
   if (csrfResult) return csrfResult;
 });
 
+const _cacheSafeMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
+const _compressibleTypes = /^(text\/|application\/(json|javascript|xml|yaml|toml|protobuf|grpc|x-protobuf))/;
+const _minCompressBytes = 1024;
+
+app.onAfterHandle(async (rawCtx: any) => {
+  const req = rawCtx.request as Request;
+  const res = rawCtx.response as Response | undefined;
+  if (!res || !(res instanceof Response)) return;
+
+  if (_cacheSafeMethods.has(req.method)) {
+    const url = new URL(req.url);
+    const path = url.pathname;
+
+    if (path.endsWith('/stream')) {
+      res.headers.set('Cache-Control', 'no-cache');
+    } else if (path.startsWith('/api/servers/v2/') || path.startsWith('/api/servers/v1/')) {
+      res.headers.set('Cache-Control', 'private, max-age=0, must-revalidate');
+    } else if (path.startsWith('/api/servers/') && path.match(/\/api\/servers\/\d+/)) {
+      res.headers.set('Cache-Control', 'private, max-age=0, must-revalidate');
+    } else if (path.startsWith('/api/servers')) {
+      res.headers.set('Cache-Control', 'private, max-age=5, stale-while-revalidate=10');
+    } else if (path === '/health') {
+      res.headers.set('Cache-Control', 'public, max-age=5');
+    } else if (path.startsWith('/api/nodes/health') || path.startsWith('/api/public/')) {
+      res.headers.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
+    } else if (path.startsWith('/api/plans') || path.startsWith('/api/eggs')) {
+      res.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    }
+
+    if (path.startsWith('/api/')) {
+      res.headers.set('Vary', 'Authorization, Accept-Encoding');
+    }
+  }
+
+  const acceptEncoding = req.headers.get('Accept-Encoding') || '';
+  const ct = res.headers.get('Content-Type') || '';
+  if (acceptEncoding.includes('gzip') && res.ok && _compressibleTypes.test(ct) && !ct.includes('event-stream') && res.headers.get('Transfer-Encoding') !== 'chunked') {
+    try {
+      const body = await res.arrayBuffer();
+      if (!body || body.byteLength === 0) return;
+      const raw = new Uint8Array(body);
+      let finalBody: Uint8Array;
+      const newHeaders = new Headers(res.headers);
+      if (raw.length >= _minCompressBytes) {
+        finalBody = Bun.gzipSync(raw);
+        newHeaders.set('Content-Encoding', 'gzip');
+      } else {
+        finalBody = raw;
+      }
+      newHeaders.set('Content-Length', String(finalBody.length));
+      newHeaders.delete('Content-Range');
+      rawCtx.response = new Response(Buffer.from(finalBody), { status: res.status as any, statusText: res.statusText, headers: newHeaders });
+    } catch { /* skip compression */ }
+  }
+});
+
 export async function initApp() {
   await preloadAll();
   await setupConfig(app);
@@ -1095,7 +1151,7 @@ app.get(
         headers: {
           'Content-Type': mimeTypes[ext] || 'application/octet-stream',
           'Content-Length': String(buf.length),
-          'Cache-Control': 'public, max-age=300',
+          'Cache-Control': 'public, max-age=86400',
         },
       });
     } catch {

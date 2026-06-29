@@ -1664,7 +1664,57 @@ export default function ServersPage() {
     }
   }
 
-  useEffect(() => { loadServers() }, [loadServers])
+  useEffect(() => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    if (!token) {
+      loadServers()
+      return
+    }
+
+    apiFetch(API_ENDPOINTS.eloMy).then(data => {
+      if (data?.projects) {
+        setEloServers(new Set(data.projects.map((p: any) => p.serverId)))
+      }
+    }).catch(() => {})
+
+    const baseUrl = API_ENDPOINTS.serversStream
+    const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`
+    const es = new EventSource(url)
+    let receivedDone = false
+
+    es.addEventListener('server', (e) => {
+      try {
+        const s = JSON.parse(e.data)
+        if (s.complete) return
+        setServers(prev => {
+          const sid = String(s.uuid || s.id || '')
+          if (!sid) return prev
+          const idx = prev.findIndex(p => String(p.uuid || p.id || '') === sid)
+          if (idx >= 0) {
+            const next = [...prev]
+            next[idx] = { ...next[idx], ...s }
+            return next
+          }
+          return [...prev, s]
+        })
+        setLoading(false)
+      } catch { /* malfrm */ }
+    })
+
+    es.addEventListener('done', () => {
+      receivedDone = true
+      es.close()
+    })
+
+    es.onerror = () => {
+      es.close()
+      if (!receivedDone) loadServers()
+    }
+
+    return () => {
+      es.close()
+    }
+  }, [loadServers])
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.nodesMyHealth)

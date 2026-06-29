@@ -10,7 +10,9 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   images: {
-    unoptimized: true,
+    deviceSizes: [640, 750, 1080, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    formats: ["image/webp", "image/avif"],
   },
   async redirects() {
     return [];
@@ -54,8 +56,20 @@ const nextConfig = {
         ],
       },
       {
+        source: "/favicon/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400",
+          },
+        ],
+      },
+      {
         source: "/:path*",
-        headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }],
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-DNS-Prefetch-Control", value: "on" },
+        ],
       },
     ];
   },

@@ -41,6 +41,11 @@ function getDataSourceOptions() {
     username: process.env.DB_USER || 'root',
     password: process.env.DB_PASS || '',
     database: process.env.DB_NAME || 'panel',
+    extra: {
+      connectionLimit: Number(process.env.DB_POOL_SIZE) || 20,
+      queueLimit: 0,
+      waitForConnections: true,
+    },
   };
 
   if (base.type === 'mysql' || base.type === 'mariadb') {
