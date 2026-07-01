@@ -1533,10 +1533,13 @@ export default function ServersPage() {
   )
 
   const needsLegalInfo = needsAgeVerification || needsProfileCompletion
-  const [servers, setServers] = useState<any[]>([])
+  const [allServers, setAllServers] = useState<any[]>([])
   const [eloServers, setEloServers] = useState<Set<string>>(new Set())
   const [favoriteServerIds, setFavoriteServerIds] = useState<string[]>([])
   const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
+  const [page, setPage] = useState(1)
+  const perPage = 20
+  const totalServers = allServers.length
 
   useEffect(() => {
     if (user?.settings?.serverFavorites && Array.isArray(user.settings.serverFavorites)) {
@@ -1577,21 +1580,35 @@ export default function ServersPage() {
   const loadServers = useCallback(async () => {
     setLoading(true)
     try {
-      const [data, eloData] = await Promise.all([
-        apiFetch(API_ENDPOINTS.servers),
-        apiFetch(API_ENDPOINTS.eloMy).catch(() => null),
-      ])
-      const list = Array.isArray(data) ? data : []
+      let allItems: any[] = []
+      let page = 1
+      const perPage = 200
+      while (true) {
+        const data = await apiFetch(`${API_ENDPOINTS.servers}?page=${page}&per_page=${perPage}`)
+        const list = Array.isArray(data) ? data : []
+        if (list.length === 0) break
+        allItems = allItems.concat(list)
+        const total = (data as any)?.total
+        if (total && allItems.length >= total) break
+        page++
+      }
       const seen = new Set<string>()
       const deduped: any[] = []
-      for (const s of list) {
+      for (const s of allItems) {
         const norm = String(s.uuid || s.id || "").replace(/-/g, "").toLowerCase()
         const key = `${norm}::${s.nodeId ?? ""}`
         if (seen.has(key)) continue
         seen.add(key)
         deduped.push(s)
       }
-      setServers(deduped)
+      setAllServers(prev => {
+        const map = new Map(prev.map(s => [String(s.uuid || s.id), s]))
+        for (const s of deduped) map.set(String(s.uuid || s.id), s)
+        return Array.from(map.values())
+      })
+      const [eloData] = await Promise.all([
+        apiFetch(API_ENDPOINTS.eloMy).catch(() => null),
+      ])
       if (eloData?.projects) {
         setEloServers(new Set(eloData.projects.map((p: any) => p.serverId)))
       }
@@ -1665,11 +1682,12 @@ export default function ServersPage() {
   }
 
   useEffect(() => {
+    loadServers()
+  }, [])
+
+  useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
-    if (!token) {
-      loadServers()
-      return
-    }
+    if (!token) return
 
     apiFetch(API_ENDPOINTS.eloMy).then(data => {
       if (data?.projects) {
@@ -1686,7 +1704,7 @@ export default function ServersPage() {
       try {
         const s = JSON.parse(e.data)
         if (s.complete) return
-        setServers(prev => {
+        setAllServers(prev => {
           const sid = String(s.uuid || s.id || '')
           if (!sid) return prev
           const idx = prev.findIndex(p => String(p.uuid || p.id || '') === sid)
@@ -1733,7 +1751,7 @@ export default function ServersPage() {
       const shouldTrigger = Math.random() < RANDOM_SHUTDOWN_CHANCE
       if (!shouldTrigger) return
 
-      const candidates = servers.filter((s) => {
+      const candidates = allServers.filter((s) => {
         const sid = String(s.uuid || s.id || "")
         if (!sid) return false
         const owned = Number(s.userId) === Number(user.id)
@@ -1783,30 +1801,42 @@ export default function ServersPage() {
     }, RANDOM_SHUTDOWN_INTERVAL_MS)
 
     return () => window.clearInterval(interval)
-  }, [gamblingModeEnabled, servers, user, loadServers])
+  }, [gamblingModeEnabled, allServers, user, loadServers])
 
-  const filtered = servers.filter(
+  const searched = allServers.filter(
     (s) =>
       s.name?.toLowerCase().includes(search.toLowerCase()) ||
       s.game?.toLowerCase().includes(search.toLowerCase())
   )
 
-  const favoriteServers = filtered.filter((s) => {
+  const favoriteServers = searched.filter((s) => {
     const sid = String(s.uuid || s.id)
     return favoriteServerIds.includes(sid)
   })
 
-  const nonFavoriteServers = filtered.filter((s) => {
+  const nonFavAll = searched.filter((s) => {
     const sid = String(s.uuid || s.id)
     return !favoriteServerIds.includes(sid)
   })
 
-  const myServers = nonFavoriteServers.filter((s) => (user ? s.userId === user.id : true))
-  const otherServers = nonFavoriteServers.filter((s) => (user ? s.userId && s.userId !== user.id : false))
-  const onlineCount = servers.filter((s) => s.status === "online" || s.status === "running").length
+  const myServersAll = nonFavAll.filter((s) => (user ? s.userId === user.id : true))
+  const otherServersAll = nonFavAll.filter((s) => (user ? s.userId !== user.id : false))
+
+  const sortedNonFav = [...myServersAll, ...otherServersAll]
+  const totalPaginated = sortedNonFav.length
+  const totalPaginationPages = Math.max(1, Math.ceil(totalPaginated / perPage))
+  const paginatedNonFav = sortedNonFav.slice((page - 1) * perPage, page * perPage)
+  const myServers = paginatedNonFav.filter((s) => (user ? s.userId === user.id : true))
+  const otherServers = paginatedNonFav.filter((s) => (user ? s.userId !== user.id : false))
+
+  const onlineCount = allServers.filter((s) => s.status === "online" || s.status === "running").length
+
+  useEffect(() => {
+    if (allServers.length > 0) setLoading(false)
+  }, [allServers])
 
   return (
-    <>
+    <div className="pb-16">
       {powerToast && (
         <div className="fixed inset-x-0 bottom-0 sm:bottom-4 z-[9999] px-3 sm:px-4 pointer-events-none pb-safe">
           <div
@@ -1887,11 +1917,11 @@ export default function ServersPage() {
         <div className="flex flex-col gap-4 sm:gap-5 p-3 sm:p-5 md:p-6 max-w-[100vw] w-full min-w-0 box-border pb-safe">
 
           {/* Quick stats */}
-          {!loading && servers.length > 0 && (
+          {!loading && allServers.length > 0 && (
             <div className="grid grid-cols-3 gap-2 sm:gap-3">
               <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.total")}</p>
-                <p className="text-lg sm:text-2xl font-bold text-foreground tabular-nums mt-0.5">{servers.length}</p>
+                <p className="text-lg sm:text-2xl font-bold text-foreground tabular-nums mt-0.5">{totalServers}</p>
               </div>
               <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.online")}</p>
@@ -1899,7 +1929,7 @@ export default function ServersPage() {
               </div>
               <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.offline")}</p>
-                <p className="text-lg sm:text-2xl font-bold text-muted-foreground tabular-nums mt-0.5">{servers.length - onlineCount}</p>
+                <p className="text-lg sm:text-2xl font-bold text-muted-foreground tabular-nums mt-0.5">{allServers.length - onlineCount}</p>
               </div>
             </div>
           )}
@@ -2028,8 +2058,51 @@ export default function ServersPage() {
             </div>
           )}
 
+          {/* Pagination */}
+          {!loading && totalPaginationPages > 1 && (
+            <div className="flex items-center justify-between gap-4 border-t border-border/50 pt-4">
+              <p className="text-xs text-muted-foreground tabular-nums">
+                Page {page} of {totalPaginationPages} ({totalPaginated} servers)
+              </p>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => { const p = page - 1; if (p >= 1) { setPage(p); } }}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 text-xs font-medium border border-border/50 bg-card text-foreground hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                >
+                  Prev
+                </button>
+                {Array.from({ length: Math.min(totalPaginationPages, 7) }, (_, i) => {
+                  const start = Math.max(1, Math.min(page - 3, totalPaginationPages - 6))
+                  const p = start + i
+                  if (p > totalPaginationPages) return null
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`min-w-[2rem] px-2 py-1.5 text-xs font-medium border transition-all active:scale-95 ${
+                        p === page
+                          ? 'border-primary/50 bg-primary/10 text-primary'
+                          : 'border-border/50 bg-card text-foreground hover:bg-muted/50'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                })}
+                <button
+                  onClick={() => { const p = page + 1; if (p <= totalPaginationPages) { setPage(p); } }}
+                  disabled={page >= totalPaginationPages}
+                  className="px-3 py-1.5 text-xs font-medium border border-border/50 bg-card text-foreground hover:bg-muted/50 disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Empty state */}
-          {!loading && filtered.length === 0 && (
+          {!loading && searched.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6">
               <div className="h-16 w-16 bg-muted/30 flex items-center justify-center mb-5">
                 <Server className="h-7 w-7 text-muted-foreground/40" />
@@ -2055,6 +2128,6 @@ export default function ServersPage() {
           )}
         </div>
       </ScrollArea>
-    </>
+    </div>
   )
 }

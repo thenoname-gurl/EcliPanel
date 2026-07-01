@@ -1044,7 +1044,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
                     for (const s of servers) {
                       const uuid: string = ((s.configuration as Record<string, unknown>)?.uuid as string) || (s.uuid as string) || '';
                       const cfg = cfgMap.get(uuid);
-                      if (!cfg) continue;
+                      const ownerId = Number(s.owner ?? s.ownerId ?? s.user ?? s.userId ?? NaN);
                       const norm = applyStartupStatusOverride(
                         normalizeServer(s, cfg?.hibernated ? 'hibernated' : undefined, cfg) ?? {},
                         cfg
@@ -1054,7 +1054,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
                         name: cfg?.name || norm.name,
                         nodeId: n.id,
                         nodeName: n.name,
-                        userId: cfg?.userId,
+                        userId: cfg?.userId ?? (Number.isNaN(ownerId) ? undefined : ownerId),
                       });
                     }
                   } catch { /* blah blah blah */ }
