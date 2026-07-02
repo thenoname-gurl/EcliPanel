@@ -26,6 +26,7 @@ import { scheduleRenewalJob } from './jobs/renewalJob';
 import { scheduleLifetimeInactivityJob } from './jobs/lifetimeInactivityJob';
 import { scheduleEloDecayJob } from './jobs/eloDecayJob';
 import { scheduleTempEmailBlacklistSyncJob } from './jobs/tempEmailBlacklistSyncJob';
+import { scheduleWingsSyncJob } from './jobs/wingsSyncJob';
 import { initSlackBot } from './slack/index';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
@@ -821,6 +822,11 @@ export async function initApp() {
     scheduleTempEmailBlacklistSyncJob();
   } catch (e) {
     console.error('Failed to schedule temp email blacklist sync job:', e);
+  }
+  try {
+    scheduleWingsSyncJob();
+  } catch (e) {
+    console.error('Failed to schedule Wings sync job:', e);
   }
   try {
     const { scheduleMailboxPasswordRotation } = require('./services/mailcowService');

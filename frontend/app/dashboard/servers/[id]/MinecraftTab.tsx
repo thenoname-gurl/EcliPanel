@@ -64,7 +64,7 @@ function mcAvatar(p: { name: string; uuid?: string }, size = 32) {
 
 interface Player { name: string; uuid?: string }
 
-type McTabView = "online" | "whitelist" | "bans" | "ops" | "versions" | "plugins" | "settings"
+type McTabView = "online" | "whitelist" | "bans" | "ops" | "versions" | "plugins" | "playerdat" | "settings"
 
 interface MinecraftTabProps {
   serverId: string
@@ -193,6 +193,12 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
   const [previewData, setPreviewData] = useState<any>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [selectedVersionId, setSelectedVersionId] = useState("")
+
+  // ─── Player data state ────────────────────────────────────────────────────────
+
+  const [knownPlayers, setKnownPlayers] = useState<Player[]>([])
+  const [knownPlayersTotal, setKnownPlayersTotal] = useState(0)
+  const [knownPlayersLoading, setKnownPlayersLoading] = useState(false)
 
   // ─── Load players ───────────────────────────────────────────────────────────
 
@@ -459,6 +465,22 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
     setInstallingPlugin(null)
   }
 
+  // ─── Load known players ───────────────────────────────────────────────────────
+
+  const loadKnownPlayers = useCallback(async () => {
+    setKnownPlayersLoading(true)
+    try {
+      const data = await apiFetch(API_ENDPOINTS.serverPlayerData.replace(":id", serverId))
+      setKnownPlayers(data?.players || [])
+      setKnownPlayersTotal(data?.total ?? 0)
+    } catch { setKnownPlayers([]) }
+    setKnownPlayersLoading(false)
+  }, [serverId])
+
+  useEffect(() => {
+    if (tab === "playerdat") loadKnownPlayers()
+  }, [tab, loadKnownPlayers])
+
   // ─── Derived ────────────────────────────────────────────────────────────────
 
   const filteredPlayers = players.filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
@@ -472,6 +494,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
     { id: "ops", label: t("tabs.ops"), icon: Crown },
     { id: "versions", label: t("tabs.versions"), icon: GitBranch },
     { id: "plugins", label: t("tabs.plugins"), icon: Package },
+    { id: "playerdat", label: "Players", icon: Users },
     { id: "settings", label: t("tabs.settings"), icon: Settings },
   ]
 
@@ -1044,6 +1067,94 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
               </div>
               <p className="text-sm text-muted-foreground">{t("plugins.noResults", { query: pluginSearch })}</p>
               <p className="text-xs text-muted-foreground mt-1">{t("plugins.noResultsHint")}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === "playerdat" && (
+        <div className="flex flex-col gap-4 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              {knownPlayersTotal} total player{knownPlayersTotal !== 1 ? 's' : ''}
+            </p>
+            <Button variant="outline" size="sm" onClick={loadKnownPlayers} disabled={knownPlayersLoading} className="h-8 text-xs">
+              <RefreshCw className={`h-3 w-3 mr-1.5 ${knownPlayersLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {knownPlayersLoading ? (
+            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+          ) : knownPlayers.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Users className="h-10 w-10 text-muted-foreground/30 mb-3" />
+              <p className="text-sm text-muted-foreground">No player data found</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Players need to join the server at least once</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {knownPlayers.map((p) => {
+                const isWhitelisted = whitelistNames.has(p.name);
+                const isBanned = banNames.has(p.name);
+                const isOpped = opNames.has(p.name);
+                return (
+                  <div key={p.uuid} className="flex items-center gap-3 border border-border bg-card p-3 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-muted/30 flex-shrink-0 overflow-hidden">
+                      <img src={mcAvatar(p, 32)} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium text-foreground truncate">{p.name}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        {isWhitelisted && <Badge variant="outline" className="text-[9px] px-1 py-0 text-green-600 dark:text-green-400 border-green-500/30">Whitelisted</Badge>}
+                        {isBanned && <Badge variant="outline" className="text-[9px] px-1 py-0 text-red-600 dark:text-red-400 border-red-500/30">Banned</Badge>}
+                        {isOpped && <Badge variant="outline" className="text-[9px] px-1 py-0 text-yellow-600 dark:text-yellow-400 border-yellow-500/30">OP</Badge>}
+                        {!isWhitelisted && !isBanned && !isOpped && (
+                          <span className="text-[10px] text-muted-foreground/50">No status</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {!isWhitelisted && !isBanned && (
+                        <button onClick={() => { setActionTarget(p.name); setActionDialog({ type: "whitelist" }) }}
+                          className="p-1.5 text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors" title="Whitelist">
+                          <UserPlus className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {isWhitelisted && (
+                        <button onClick={() => { setActionTarget(p.name); setActionDialog({ type: "unwhitelist" }) }}
+                          className="p-1.5 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors" title="Un-whitelist">
+                          <UserMinus className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {!isBanned && (
+                        <button onClick={() => { setActionTarget(p.name); setActionDialog({ type: "ban" }) }}
+                          className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors" title="Ban">
+                          <Ban className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {isBanned && (
+                        <button onClick={() => { setActionTarget(p.name); setActionDialog({ type: "pardon" }) }}
+                          className="p-1.5 text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors" title="Pardon">
+                          <Undo2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {!isOpped && (
+                        <button onClick={() => { setActionTarget(p.name); setActionDialog({ type: "op" }) }}
+                          className="p-1.5 text-muted-foreground hover:text-yellow-500 hover:bg-yellow-500/10 transition-colors" title="Op">
+                          <Crown className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                      {isOpped && (
+                        <button onClick={() => { setActionTarget(p.name); setActionDialog({ type: "deop" }) }}
+                          className="p-1.5 text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors" title="Deop">
+                          <ShieldOff className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

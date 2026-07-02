@@ -254,6 +254,9 @@ export const API_ENDPOINTS = {
   serverPlayersDeop: "/api/servers/:id/players/deop",
   serverPlayersSettings: "/api/servers/:id/players/settings",
 
+  // Minecraft Player Data (known players from playerdata/)
+  serverPlayerData: "/api/servers/:id/players/data",
+
   // Minecraft Plugins
   serverPlugins: "/api/servers/:id/plugins",
   serverPluginsSearch: "/api/servers/:id/plugins/search",

@@ -7839,4 +7839,56 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       detail: { summary: 'Delete an installed plugin', tags: ['Servers', 'Minecraft'] },
     }
   );
+
+  app.get(
+    prefix + '/servers/:id/players/data',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const svc = await serviceFor(id);
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      const wings = svc as WingsApiService;
+
+      let userCache: { name: string; uuid: string }[] = [];
+      try {
+        const uc = await mcReadJson(wings, id, 'usercache.json');
+        if (Array.isArray(uc)) userCache = uc;
+      } catch {}
+
+      let playerFiles: any[] = [];
+      const paths = ['world/playerdata/', 'world/players/data/'];
+      for (const p of paths) {
+        try {
+          const listRes = await wings.listServerFiles(id, p);
+          const files = Array.isArray(listRes?.data) ? listRes.data : Array.isArray(listRes) ? listRes : [];
+          if (files.length > 0) {
+            playerFiles = files;
+            break;
+          }
+        } catch {}
+      }
+
+      const seen = new Set<string>();
+      const players: { name: string; uuid: string }[] = [];
+
+      for (const f of playerFiles) {
+        if (!f.name?.endsWith('.dat')) continue;
+        const uuid = f.name.replace(/\.dat$/, '');
+        const key = uuid.replace(/-/g, '').toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const entry = userCache.find((u: any) => {
+          const cuuid = (u.uuid ?? '').replace(/-/g, '').toLowerCase();
+          return cuuid === key;
+        });
+        players.push({ name: entry?.name ?? uuid, uuid });
+      }
+
+      return { players, total: players.length };
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List all known players (from world/playerdata/ or world/players/data/)', tags: ['Servers', 'Minecraft'] },
+    }
+  );
 }
