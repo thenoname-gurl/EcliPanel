@@ -103,22 +103,22 @@ const QUESTION_TYPES: Array<FormQuestion["type"]> = [
 ]
 
 const FORM_STATUS_CONFIG: Record<string, { badge: string; dot: string; label: string }> = {
-  active:   { badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400", label: "Active"   },
-  closed:   { badge: "border-red-500/30 bg-red-500/10 text-red-400",             dot: "bg-red-400",     label: "Closed"   },
+  active:   { badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400", label: "Active"   },
+  closed:   { badge: "border-red-500/30 bg-red-500/10 text-red-600",             dot: "bg-red-400",     label: "Closed"   },
   archived: { badge: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",          dot: "bg-zinc-400",    label: "Archived" },
 }
 
 const SUBMISSION_STATUS_CONFIG: Record<string, { badge: string; dot: string; label: string }> = {
-  pending:  { badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400",    dot: "bg-yellow-400",  label: "Pending"  },
-  accepted: { badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400", label: "Accepted" },
-  rejected: { badge: "border-red-500/30 bg-red-500/10 text-red-400",             dot: "bg-red-400",     label: "Rejected" },
+  pending:  { badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-600",    dot: "bg-yellow-400",  label: "Pending"  },
+  accepted: { badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400", label: "Accepted" },
+  rejected: { badge: "border-red-500/30 bg-red-500/10 text-red-600",             dot: "bg-red-400",     label: "Rejected" },
   archived: { badge: "border-zinc-500/30 bg-zinc-500/10 text-zinc-400",          dot: "bg-zinc-400",    label: "Archived" },
 }
 
 const VISIBILITY_CONFIG: Record<FormVisibility, { icon: React.ElementType; label: string; badge: string }> = {
-  public_anonymous: { icon: Globe, label: "Public",      badge: "border-blue-500/30 bg-blue-500/10 text-blue-400"         },
-  public_users:     { icon: Users, label: "Users only",  badge: "border-purple-500/30 bg-purple-500/10 text-purple-400"   },
-  private_invite:   { icon: Lock,  label: "Invite only", badge: "border-orange-500/30 bg-orange-500/10 text-orange-400"   },
+  public_anonymous: { icon: Globe, label: "Public",      badge: "border-blue-500/30 bg-blue-500/10 text-blue-600"         },
+  public_users:     { icon: Users, label: "Users only",  badge: "border-purple-500/30 bg-purple-500/10 text-purple-600"   },
+  private_invite:   { icon: Lock,  label: "Invite only", badge: "border-orange-500/30 bg-orange-500/10 text-orange-600"   },
 }
 
 const VISIBILITY_LABEL_KEYS: Record<FormVisibility, string> = {
@@ -755,7 +755,7 @@ export default function ApplicationsTab() {
                             <div className="flex items-center gap-1 mt-0.5">
                               <span className="text-[10px] font-mono text-muted-foreground truncate">/forms/{form.slug}</span>
                               <button onClick={() => copy(publicLink, `link-${form.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
-                                {copiedId === `link-${form.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                                {copiedId === `link-${form.id}` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                               </button>
                             </div>
                           )}
@@ -771,7 +771,7 @@ export default function ApplicationsTab() {
                       <td className="px-4 py-3">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-sm font-medium text-foreground">{formSubs.length}</span>
-                          {pending > 0 && <span className="text-[10px] text-yellow-400">{pending} {t("labels.pending")}</span>}
+                          {pending > 0 && <span className="text-[10px] text-yellow-600">{pending} {t("labels.pending")}</span>}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -839,7 +839,7 @@ export default function ApplicationsTab() {
                         {form.kind === "staff_application" ? t("builder.types.staffApplication") : t("builder.types.abuseReport")}
                       </Badge>
                       {pending > 0 && (
-                        <Badge variant="outline" className="text-[10px] border-yellow-500/30 bg-yellow-500/10 text-yellow-400 whitespace-nowrap shrink-0">
+                        <Badge variant="outline" className="text-[10px] border-yellow-500/30 bg-yellow-500/10 text-yellow-600 whitespace-nowrap shrink-0">
                           {pending} {t("labels.pending")}
                         </Badge>
                       )}
@@ -859,7 +859,7 @@ export default function ApplicationsTab() {
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="text-[10px] font-mono text-muted-foreground truncate min-w-0 flex-1">/{form.slug}</span>
                         <button onClick={() => copy(publicLink, `link-${form.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
-                          {copiedId === `link-${form.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                          {copiedId === `link-${form.id}` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                         </button>
                       </div>
                     ) : (
@@ -1072,7 +1072,7 @@ export default function ApplicationsTab() {
                             <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
                               <span className="text-[10px] font-mono text-muted-foreground truncate min-w-0">{link}</span>
                               <button onClick={() => copy(link, `inv-${inv.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
-                                {copiedId === `inv-${inv.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                                {copiedId === `inv-${inv.id}` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                               </button>
                             </div>
                           </td>
@@ -1118,7 +1118,7 @@ export default function ApplicationsTab() {
                             <Link2 className="h-3 w-3 text-muted-foreground/60 shrink-0" />
                             <span className="text-[10px] font-mono text-muted-foreground truncate min-w-0 flex-1">{link}</span>
                             <button onClick={() => copy(link, `inv-${inv.id}`)} className="shrink-0 text-muted-foreground/60 hover:text-foreground transition-colors">
-                              {copiedId === `inv-${inv.id}` ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+                              {copiedId === `inv-${inv.id}` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                             </button>
                           </div>
                         </div>
@@ -1216,7 +1216,7 @@ export default function ApplicationsTab() {
           <div className="flex items-center gap-2 flex-wrap px-3 sm:px-4 py-3 border-t border-border">
             <span className="text-xs font-semibold text-foreground shrink-0">{selectedSubIds.length} {t("bulk.selected")}</span>
             <button onClick={bulkDeleteSubs}
-              className="flex items-center gap-1.5 h-7 px-3 border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 transition-colors">
+              className="flex items-center gap-1.5 h-7 px-3 border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-600 hover:bg-red-500/20 transition-colors">
               <Trash2 className="h-3.5 w-3.5" />{t("actions.bulkDeleteSubmissions", { count: selectedSubIds.length })}
             </button>
             <button onClick={() => setSelectedSubIds([])} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors shrink-0">

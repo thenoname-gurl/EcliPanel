@@ -32,7 +32,7 @@ import {
 
 function MarkdownContent({ content }: { content: string }) {
   return (
-    <div className="prose prose-invert max-w-full break-words">
+    <div className="prose max-w-full break-words">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   )

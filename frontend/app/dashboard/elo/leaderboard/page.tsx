@@ -62,7 +62,7 @@ export default function EloLeaderboardPage() {
           ) : !data?.leaderboard?.length ? (
             <section className="border border-border/50 bg-card shadow-sm p-6 sm:p-8 text-center">
               <div className="flex flex-col items-center justify-center py-16 text-center px-6 gap-3">
-                <div className="h-14 w-14 bg-muted/50 flex items-center justify-center">
+                <div className="h-14 w-14 bg-secondary/50 flex items-center justify-center">
                   <Trophy className="h-7 w-7 text-muted-foreground/40" />
                 </div>
                 <div>

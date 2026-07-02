@@ -393,7 +393,7 @@ export default function EloDashboard() {
 
               {(!myProjects?.projects || myProjects.projects.length === 0) ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
-                  <div className="h-16 w-16 bg-muted/50 flex items-center justify-center">
+                  <div className="h-16 w-16 bg-secondary/50 flex items-center justify-center">
                     <Star className="h-8 w-8 text-muted-foreground/40" />
                   </div>
                   <div>

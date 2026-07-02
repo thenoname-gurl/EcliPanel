@@ -50,27 +50,27 @@ const typeIcons: Record<string, typeof Server> = {
 }
 
 const typeColors: Record<string, string> = {
-  server: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  server: "text-blue-600 bg-blue-400/10 border-blue-400/20",
   auth: "text-primary bg-primary/10 border-primary/20",
-  login: "text-green-400 bg-green-400/10 border-green-400/20",
-  logout: "text-orange-400 bg-orange-400/10 border-orange-400/20",
-  register: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
-  billing: "text-yellow-400 bg-yellow-400/10 border-yellow-400/20",
-  security: "text-red-400 bg-red-400/10 border-red-400/20",
-  support: "text-purple-400 bg-purple-400/10 border-purple-400/20",
-  compute: "text-cyan-400 bg-cyan-400/10 border-cyan-400/20",
+  login: "text-green-600 bg-green-400/10 border-green-400/20",
+  logout: "text-orange-600 bg-orange-400/10 border-orange-400/20",
+  register: "text-emerald-600 bg-emerald-400/10 border-emerald-400/20",
+  billing: "text-yellow-600 bg-yellow-400/10 border-yellow-400/20",
+  security: "text-red-600 bg-red-400/10 border-red-400/20",
+  support: "text-purple-600 bg-purple-400/10 border-purple-400/20",
+  compute: "text-cyan-600 bg-cyan-400/10 border-cyan-400/20",
 }
 
 const typeBadgeColors: Record<string, string> = {
-  server: "border-blue-500/30 text-blue-400 bg-blue-500/5",
+  server: "border-blue-500/30 text-blue-600 bg-blue-500/5",
   auth: "border-primary/30 text-primary bg-primary/5",
-  login: "border-green-500/30 text-green-400 bg-green-500/5",
-  logout: "border-orange-500/30 text-orange-400 bg-orange-500/5",
-  register: "border-emerald-500/30 text-emerald-400 bg-emerald-500/5",
-  billing: "border-yellow-500/30 text-yellow-400 bg-yellow-500/5",
-  security: "border-red-500/30 text-red-400 bg-red-500/5",
-  support: "border-purple-500/30 text-purple-400 bg-purple-500/5",
-  compute: "border-cyan-500/30 text-cyan-400 bg-cyan-500/5",
+  login: "border-green-500/30 text-green-600 bg-green-500/5",
+  logout: "border-orange-500/30 text-orange-600 bg-orange-500/5",
+  register: "border-emerald-500/30 text-emerald-600 bg-emerald-500/5",
+  billing: "border-yellow-500/30 text-yellow-600 bg-yellow-500/5",
+  security: "border-red-500/30 text-red-600 bg-red-500/5",
+  support: "border-purple-500/30 text-purple-600 bg-purple-500/5",
+  compute: "border-cyan-500/30 text-cyan-600 bg-cyan-500/5",
 }
 
 function guessType(action: string): string {
@@ -398,7 +398,7 @@ export default function AccountActivity() {
             </div>
             <div className="border border-border bg-card p-3 sm:p-4 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <Clock className="h-4 w-4 text-blue-400 flex-shrink-0" />
+                <Clock className="h-4 w-4 text-blue-600 flex-shrink-0" />
                 <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{t("stats.today")}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.today}</p>
@@ -406,7 +406,7 @@ export default function AccountActivity() {
             </div>
             <div className="border border-border bg-card p-3 sm:p-4 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <LogIn className="h-4 w-4 text-green-400 flex-shrink-0" />
+                <LogIn className="h-4 w-4 text-green-600 flex-shrink-0" />
                 <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{t("stats.logins")}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.logins}</p>
@@ -414,7 +414,7 @@ export default function AccountActivity() {
             </div>
             <div className="border border-border bg-card p-3 sm:p-4 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <Server className="h-4 w-4 text-purple-400 flex-shrink-0" />
+                <Server className="h-4 w-4 text-purple-600 flex-shrink-0" />
                 <span className="text-[10px] sm:text-xs text-muted-foreground truncate">{t("stats.serverEvents")}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{pageStats.servers}</p>

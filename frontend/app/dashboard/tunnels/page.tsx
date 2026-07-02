@@ -74,7 +74,7 @@ function SectionCard({ children, className = "" }: { children: React.ReactNode; 
 function EmptyState({ icon: Icon, title, description }: { icon: any; title: string; description: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center px-6 gap-3">
-      <div className="h-14 w-14 bg-muted/50 flex items-center justify-center">
+      <div className="h-14 w-14 bg-secondary/50 flex items-center justify-center">
         <Icon className="h-7 w-7 text-muted-foreground/40" />
       </div>
       <div>
@@ -107,7 +107,7 @@ function CopyButton({ value, className = "", titleText }: { value: string; class
       title={titleText}
       className={`rounded p-1 text-muted-foreground/60 hover:text-primary hover:bg-primary/10 transition-all active:scale-90 ${className}`}
     >
-      {copied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
     </button>
   )
 }
@@ -299,7 +299,7 @@ export default function TunnelsPage() {
     <FeatureGuard feature="tunnels">
       <RolloutGuard rolloutKey="tunnel_feature" fallback={
         <div className="flex flex-col items-center justify-center py-24 px-6 gap-4 max-w-md mx-auto text-center">
-          <div className="h-16 w-16 bg-muted/50 flex items-center justify-center">
+          <div className="h-16 w-16 bg-secondary/50 flex items-center justify-center">
             <Globe className="h-8 w-8 text-muted-foreground/30" />
           </div>
           <div>
@@ -342,7 +342,7 @@ export default function TunnelsPage() {
                     <div className="space-y-3">
                       <div className="border border-emerald-500/30 bg-emerald-500/10 px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <CheckCircle className="h-4 w-4 text-emerald-500" />
+                          <CheckCircle className="h-4 w-4 text-emerald-600" />
                           <p className="text-sm font-medium text-foreground">
                             Device <code className="text-xs bg-muted/50 px-1 rounded">{clientSetup.name}</code> created
                           </p>
@@ -864,7 +864,7 @@ function InfoTile({
           {dot && (
             <span
               className={`h-2 w-2 shrink-0 rounded-full ${
-                dot === "emerald" ? "bg-emerald-500" : "bg-amber-400"
+                dot === "emerald" ? "bg-emerald-500" : "bg-amber-500"
               }`}
             />
           )}

@@ -50,10 +50,10 @@ function getInitialMessages(t: any): Message[] {
 
 function getSuggestions(t: any) {
   return [
-    { icon: Zap, text: t("suggestions.optimize"), color: "text-yellow-400" },
-    { icon: MessageSquare, text: t("suggestions.debug"), color: "text-blue-400" },
-    { icon: Bot, text: t("suggestions.configure"), color: "text-green-400" },
-    { icon: Sparkles, text: t("suggestions.bestPractices"), color: "text-purple-400" },
+    { icon: Zap, text: t("suggestions.optimize"), color: "text-yellow-600" },
+    { icon: MessageSquare, text: t("suggestions.debug"), color: "text-blue-600" },
+    { icon: Bot, text: t("suggestions.configure"), color: "text-green-600" },
+    { icon: Sparkles, text: t("suggestions.bestPractices"), color: "text-purple-600" },
   ]
 }
 
@@ -337,14 +337,14 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                           {modelOptions?.map((opt) => {
                             const sourceColors: Record<string, string> = {
                               BYO: "bg-primary/15 text-primary",
-                              OpenAI: "bg-green-500/15 text-green-400",
-                              Anthropic: "bg-amber-500/15 text-amber-400",
-                              Google: "bg-blue-500/15 text-blue-400",
-                              DeepSeek: "bg-cyan-500/15 text-cyan-400",
-                              Meta: "bg-sky-500/15 text-sky-400",
-                              Groq: "bg-orange-500/15 text-orange-400",
-                              Mistral: "bg-indigo-500/15 text-indigo-400",
-                              "OpenCode Go": "bg-purple-500/15 text-purple-400",
+                              OpenAI: "bg-green-500/15 text-green-600",
+                              Anthropic: "bg-amber-500/15 text-amber-600",
+                              Google: "bg-blue-500/15 text-blue-600",
+                              DeepSeek: "bg-cyan-500/15 text-cyan-600",
+                              Meta: "bg-sky-500/15 text-sky-600",
+                              Groq: "bg-orange-500/15 text-orange-600",
+                              Mistral: "bg-indigo-500/15 text-indigo-600",
+                              "OpenCode Go": "bg-purple-500/15 text-purple-600",
                             }
                             const sourceColor = sourceColors[opt.source] || "bg-muted text-muted-foreground"
                             return (
@@ -434,7 +434,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                     >
                       <div
                         className={`text-[13px] sm:text-sm leading-relaxed break-words ${msg.role === "assistant"
-                            ? "prose prose-invert prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none"
+                            ? "prose prose-sm max-w-none prose-p:my-1 sm:prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none"
                             : ""
                           }`}
                       >
@@ -467,7 +467,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                             title={t("messageActions.copy")}
                           >
                             {copiedId === msg.id ? (
-                              <Check className="h-3 w-3 text-green-500" />
+                              <Check className="h-3 w-3 text-green-600" />
                             ) : (
                               <Copy className="h-3 w-3" />
                             )}

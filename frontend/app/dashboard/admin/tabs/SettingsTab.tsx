@@ -58,19 +58,19 @@ function ToggleCard({
     success: {
       active: "bg-green-500/10 border-green-500/30",
       inactive: "bg-secondary/20 border-border",
-      iconActive: "text-green-400",
+      iconActive: "text-green-600",
       iconInactive: "text-muted-foreground",
     },
     warning: {
       active: "bg-yellow-500/10 border-yellow-500/30",
       inactive: "bg-secondary/20 border-border",
-      iconActive: "text-yellow-400",
+      iconActive: "text-yellow-600",
       iconInactive: "text-muted-foreground",
     },
     danger: {
       active: "bg-red-500/10 border-red-500/30",
       inactive: "bg-secondary/20 border-border",
-      iconActive: "text-red-400",
+      iconActive: "text-red-600",
       iconInactive: "text-muted-foreground",
     },
   }
@@ -157,7 +157,7 @@ function StatCard({
           <div
             className={cn(
               "flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 mb-0.5",
-              trend.positive ? "text-green-400 bg-green-500/10" : "text-red-400 bg-red-500/10"
+              trend.positive ? "text-green-600 bg-green-500/10" : "text-red-600 bg-red-500/10"
             )}
           >
             <TrendingUp className={cn("h-3 w-3", !trend.positive && "rotate-180")} />
@@ -245,7 +245,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         </div>
         <div className="flex items-center gap-3">
           {settingsSaved && (
-            <div className="flex items-center gap-2 text-sm text-green-400 animate-in fade-in slide-in-from-right-2">
+            <div className="flex items-center gap-2 text-sm text-green-600 animate-in fade-in slide-in-from-right-2">
               <CheckCircle2 className="h-4 w-4" />
               <span className="hidden sm:inline">{t("states.changesSaved")}</span>
             </div>
@@ -444,16 +444,16 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       {panelSettings.gamblingEnabled && (
         <div className="border border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2">
           <div className="flex items-center gap-2 border-b border-amber-500/20 px-5 py-4">
-            <BarChart3 className="h-4 w-4 text-amber-400" />
+            <BarChart3 className="h-4 w-4 text-amber-600" />
             <h3 className="text-sm font-semibold text-foreground">{t("gambling.title")}</h3>
-            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded-full bg-amber-500/20 text-amber-600 border border-amber-500/30">
               {t("common.advanced")}
             </span>
           </div>
           <div className="p-5">
             <div className="flex items-start gap-2 mb-4 p-3 bg-amber-500/10 border border-amber-500/20">
-              <Info className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-200/90 leading-relaxed">
+              <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-600/90 leading-relaxed">
                 {t("gambling.info")}
               </p>
             </div>
@@ -461,7 +461,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                   <span>{t("gambling.luckyRollChance")}</span>
-                  <span className="text-amber-400 font-mono">{((panelSettings.gamblingResourceLuckyChance ?? 0.0777) * 100).toFixed(2)}%</span>
+                  <span className="text-amber-600 font-mono">{((panelSettings.gamblingResourceLuckyChance ?? 0.0777) * 100).toFixed(2)}%</span>
                 </label>
                 <input
                   type="range"
@@ -482,7 +482,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               <div className="space-y-2">
                 <label className="flex items-center justify-between text-xs font-medium text-muted-foreground">
                   <span>{t("gambling.powerDenyChance")}</span>
-                  <span className="text-red-400 font-mono">{((panelSettings.gamblingPowerDenyChance ?? 0.5) * 100).toFixed(2)}%</span>
+                  <span className="text-red-600 font-mono">{((panelSettings.gamblingPowerDenyChance ?? 0.5) * 100).toFixed(2)}%</span>
                 </label>
                 <input
                   type="range"
@@ -513,7 +513,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
             {panelSettings.registrationEnabled ? t("registration.titleEnabled") : t("registration.titleDisabled")}
           </h3>
           {!panelSettings.registrationEnabled && (
-            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded-full bg-red-500/20 text-red-300 border border-red-500/30">
+            <span className="ml-auto text-[10px] font-medium uppercase tracking-wider px-2 py-1 rounded-full bg-red-500/20 text-red-600 border border-red-500/30">
               {t("common.required")}
             </span>
           )}
@@ -547,9 +547,9 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               </div>
               {!panelSettings.registrationEnabled ? (
                 <div className="flex items-start gap-3 border border-yellow-500/40 bg-yellow-500/10 px-4 py-3 animate-in fade-in slide-in-from-bottom-1">
-                  <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-400 mt-0.5" />
+                  <AlertTriangle className="h-5 w-5 shrink-0 text-yellow-600 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-yellow-300">{t("registration.unavailableTitle")}</p>
+                    <p className="text-sm font-semibold text-yellow-600">{t("registration.unavailableTitle")}</p>
                     {panelSettings.registrationNotice && (
                       <p className="mt-1.5 text-sm text-yellow-200/90 leading-relaxed">{panelSettings.registrationNotice}</p>
                     )}
@@ -557,7 +557,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 </div>
               ) : panelSettings.registrationNotice ? (
                 <div className="flex items-start gap-3 border border-blue-500/30 bg-blue-500/10 px-4 py-3 animate-in fade-in slide-in-from-bottom-1">
-                  <Info className="h-5 w-5 shrink-0 text-blue-400 mt-0.5" />
+                  <Info className="h-5 w-5 shrink-0 text-blue-600 mt-0.5" />
                   <p className="text-sm text-blue-300 leading-relaxed">{panelSettings.registrationNotice}</p>
                 </div>
               ) : null}
@@ -657,7 +657,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               ? panelSettings.geoBlockCountries.split(",").map((s: string) => s.trim()).filter(Boolean)
               : []
             return entries.length > 0 ? (
-              <span className="text-[10px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-300 border border-orange-500/30">
+              <span className="text-[10px] font-medium uppercase tracking-wider px-2.5 py-1 rounded-full bg-orange-500/20 text-orange-600 border border-orange-500/30">
                 {t("geoRules.ruleCount", { count: entries.length })}
               </span>
             ) : (
@@ -687,7 +687,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               "1": {
                 label: "ID Verification Block",
                 shortLabel: "ID",
-                color: "text-blue-400",
+                color: "text-blue-600",
                 bgColor: "bg-blue-500/10",
                 borderColor: "border-blue-500/30",
                 description: "Blocks identity verification services",
@@ -695,7 +695,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               "2": {
                 label: "Free Tier Block",
                 shortLabel: "Free",
-                color: "text-yellow-400",
+                color: "text-yellow-600",
                 bgColor: "bg-yellow-500/10",
                 borderColor: "border-yellow-500/30",
                 description: "Blocks access to free tier services",
@@ -703,7 +703,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               "3": {
                 label: "Educational + Free Block",
                 shortLabel: "Edu+Free",
-                color: "text-orange-400",
+                color: "text-orange-600",
                 bgColor: "bg-orange-500/10",
                 borderColor: "border-orange-500/30",
                 description: "Blocks educational and free tier access",
@@ -711,7 +711,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
               "4": {
                 label: "All Services (Subuser Only)",
                 shortLabel: "All Svc",
-                color: "text-red-400",
+                color: "text-red-600",
                 bgColor: "bg-red-500/10",
                 borderColor: "border-red-500/30",
                 description: "Blocks all services except subuser access",
@@ -827,8 +827,8 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                   </div>
                   {newCountry.length === 2 && entries.some((e) => e.country === newCountry.toUpperCase()) && (
                     <div className="flex items-center gap-2 mt-3 p-2.5 bg-yellow-500/10 border border-yellow-500/20">
-                      <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0" />
-                      <p className="text-xs text-yellow-300">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0" />
+                      <p className="text-xs text-yellow-600">
                         {t("geoRules.updateExisting", { country: newCountry.toUpperCase() })}
                       </p>
                     </div>
@@ -1018,26 +1018,26 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                       label={t("geoMetrics.cards.regBlocked")}
                       sublabel={t("geoMetrics.levelGte5")}
                       value={geoBlockMetrics.blocked.registration}
-                      color="text-red-400"
+                      color="text-red-600"
                     />
                     <StatCard
                       label={t("geoMetrics.cards.idBlocked")}
                       sublabel={t("geoMetrics.levelGte1")}
                       value={geoBlockMetrics.blocked.idVerification}
-                      color="text-blue-400"
+                      color="text-blue-600"
                     />
-                    <StatCard label={t("geoMetrics.cards.freeBlocked")} sublabel={t("geoMetrics.levelGte2")} value={geoBlockMetrics.blocked.free} color="text-yellow-400" />
+                    <StatCard label={t("geoMetrics.cards.freeBlocked")} sublabel={t("geoMetrics.levelGte2")} value={geoBlockMetrics.blocked.free} color="text-yellow-600" />
                     <StatCard
                       label={t("geoMetrics.cards.eduBlocked")}
                       sublabel={t("geoMetrics.levelGte3")}
                       value={geoBlockMetrics.blocked.educational}
-                      color="text-orange-400"
+                      color="text-orange-600"
                     />
                     <StatCard
                       label={t("geoMetrics.cards.subuserOnly")}
                       sublabel={t("geoMetrics.level4")}
                       value={geoBlockMetrics.blocked.subuserOnly}
-                      color="text-red-400"
+                      color="text-red-600"
                     />
                   </div>
 
@@ -1116,7 +1116,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 p-4 bg-gradient-to-t from-background via-background to-transparent pointer-events-none">
         <div className="flex items-center justify-between border border-border bg-card/95 backdrop-blur-xl px-4 py-3 shadow-2xl pointer-events-auto">
           {settingsSaved && (
-            <div className="flex items-center gap-2 text-sm text-green-400 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2 text-sm text-green-600 animate-in fade-in slide-in-from-bottom-2">
               <CheckCircle2 className="h-4 w-4" />
               <span>{t("states.saved")}</span>
             </div>

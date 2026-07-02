@@ -185,12 +185,9 @@ export default function PublicEloProjectProfile() {
             {project.description && (
               <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
                 <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">About</h2>
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  className="text-sm text-zinc-400 leading-relaxed prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400"
-                >
-                  {project.description}
-                </ReactMarkdown>
+                <div className="text-sm text-zinc-400 leading-relaxed prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.description}</ReactMarkdown>
+                </div>
               </div>
             )}
 
@@ -242,12 +239,9 @@ export default function PublicEloProjectProfile() {
               <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
                 <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">README</h2>
                 <div className="max-h-96 overflow-y-auto">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    className="text-sm text-zinc-500 prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400 prose-code:text-zinc-400 prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/10"
-                  >
-                    {project.readme}
-                  </ReactMarkdown>
+                  <div className="text-sm text-zinc-500 prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400 prose-code:text-zinc-400 prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/10">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.readme}</ReactMarkdown>
+                  </div>
                 </div>
               </div>
             )}
@@ -286,12 +280,9 @@ export default function PublicEloProjectProfile() {
                               ))}
                             </div>
                           )}
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            className="text-sm text-zinc-500 prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400"
-                          >
-                            {dl.content}
-                          </ReactMarkdown>
+                          <div className="text-sm text-zinc-500 prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{dl.content}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
                     </div>

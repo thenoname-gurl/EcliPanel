@@ -8,6 +8,8 @@ import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "@/lib/editor-setti
 import { useAuth } from "@/hooks/useAuth"
 import { isByoaiConfigured, type ByoaiConfig } from "@/lib/byoai-config"
 import { cn } from "@/lib/utils"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import {
   Loader2,
   WrapText,
@@ -29,9 +31,60 @@ import {
   Play,
   Minus,
   Plus,
+  GitCompare,
 } from "lucide-react"
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react").then((m) => ({ default: m.default })))
+
+// ---------------------------------------------------------------------------
+// Inject VSCode-style diff decoration CSS once
+// ---------------------------------------------------------------------------
+const DIFF_STYLE_ID = "monaco-diff-decorations"
+function injectDiffStyles() {
+  if (typeof document === "undefined") return
+  if (document.getElementById(DIFF_STYLE_ID)) return
+  const style = document.createElement("style")
+  style.id = DIFF_STYLE_ID
+  style.textContent = `
+    /* Added lines */
+    .monaco-diff-added-line {
+      background: rgba(40, 167, 69, 0.15) !important;
+      border-left: 3px solid #28a745 !important;
+    }
+    .monaco-diff-added-line-glyph::before {
+      content: '+';
+      color: #28a745;
+      font-weight: bold;
+      font-size: 11px;
+      line-height: 1;
+    }
+    /* Removed lines */
+    .monaco-diff-removed-line {
+      background: rgba(220, 53, 69, 0.15) !important;
+      border-left: 3px solid #dc3545 !important;
+    }
+    .monaco-diff-removed-line-glyph::before {
+      content: '-';
+      color: #dc3545;
+      font-weight: bold;
+      font-size: 11px;
+      line-height: 1;
+    }
+    /* Modified lines */
+    .monaco-diff-modified-line {
+      background: rgba(255, 193, 7, 0.12) !important;
+      border-left: 3px solid #ffc107 !important;
+    }
+    .monaco-diff-modified-line-glyph::before {
+      content: '~';
+      color: #ffc107;
+      font-weight: bold;
+      font-size: 11px;
+      line-height: 1;
+    }
+  `
+  document.head.appendChild(style)
+}
 
 interface MonacoFileEditorProps {
   value: string
@@ -53,6 +106,9 @@ interface ChatMessage {
   content: string
 }
 
+// ---------------------------------------------------------------------------
+// Toolbar
+// ---------------------------------------------------------------------------
 interface EditorToolbarProps {
   language: string
   fileName?: string
@@ -88,11 +144,11 @@ function EditorToolbar({
   onRedo,
   onSearch,
   onCopy,
-  copied
+  copied,
 }: EditorToolbarProps) {
   const t = useTranslations("serverMonacoEditor")
   return (
-    <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-2 py-1.5 sm:px-3 overflow-x-auto">
+    <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-2 py-1.5 sm:px-3 overflow-x-auto shrink-0">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <FileCode className="h-3.5 w-3.5 flex-shrink-0" />
@@ -106,122 +162,68 @@ function EditorToolbar({
             </span>
           </>
         )}
-
         <div className="hidden sm:block h-4 w-px bg-border" />
-
         <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
           <AlignLeft className="h-3.5 w-3.5" />
           <span>{t("position.lineCol", { line: cursorPosition.line, col: cursorPosition.column })}</span>
         </div>
-
         <div className="hidden sm:block h-4 w-px bg-border" />
-
         <span className="hidden sm:inline text-xs text-muted-foreground">
           {t("position.lines", { count: lineCount })}
         </span>
       </div>
-
       <div className="flex items-center gap-1">
         {aiEnabled && (
           <button
             onClick={onToggleAiChat}
             className={cn(
               "p-1.5 rounded transition-colors flex items-center gap-1",
-              aiChatOpen
-                ? "text-primary bg-primary/10"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              aiChatOpen ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}
             title={aiChatOpen ? "Close AI chat" : "Open AI chat"}
           >
             <Sparkles className="h-4 w-4" />
           </button>
         )}
-
-        <button
-          onClick={onUndo}
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden"
-          title={t("actions.undo")}
-        >
+        <button onClick={onUndo} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden" title={t("actions.undo")}>
           <Undo className="h-4 w-4" />
         </button>
-        <button
-          onClick={onRedo}
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden"
-          title={t("actions.redo")}
-        >
+        <button onClick={onRedo} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden" title={t("actions.redo")}>
           <Redo className="h-4 w-4" />
         </button>
-
         <div className="h-4 w-px bg-border sm:hidden mx-1" />
-
         <div className="hidden sm:flex items-center gap-1 mr-1">
-          <button
-            onClick={() => onFontSizeChange(Math.max(10, fontSize - 1))}
-            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            title={t("actions.decreaseFont")}
-          >
+          <button onClick={() => onFontSizeChange(Math.max(10, fontSize - 1))} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.decreaseFont")}>
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
-          <span className="text-xs text-muted-foreground w-6 text-center font-mono">
-            {fontSize}
-          </span>
-          <button
-            onClick={() => onFontSizeChange(Math.min(24, fontSize + 1))}
-            className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            title={t("actions.increaseFont")}
-          >
+          <span className="text-xs text-muted-foreground w-6 text-center font-mono">{fontSize}</span>
+          <button onClick={() => onFontSizeChange(Math.min(24, fontSize + 1))} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.increaseFont")}>
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
         </div>
-
         <div className="hidden sm:block h-4 w-px bg-border mx-1" />
-
         <button
           onClick={onWordWrapToggle}
-          className={cn(
-            "p-1.5 rounded transition-colors",
-            wordWrap
-              ? "text-primary bg-primary/10"
-              : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-          )}
+          className={cn("p-1.5 rounded transition-colors", wordWrap ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-secondary")}
           title={wordWrap ? t("actions.disableWrap") : t("actions.enableWrap")}
         >
           <WrapText className="h-4 w-4" />
         </button>
-
-        <button
-          onClick={onSearch}
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title={t("actions.search")}
-        >
+        <button onClick={onSearch} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.search")}>
           <Search className="h-4 w-4" />
         </button>
-
-        <button
-          onClick={onCopy}
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          title={t("actions.copyAll")}
-        >
-          {copied ? (
-            <Check className="h-4 w-4 text-green-400" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
+        <button onClick={onCopy} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.copyAll")}>
+          {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
         </button>
       </div>
     </div>
   )
 }
 
-interface MobilePositionBarProps {
-  cursorPosition: CursorPosition
-  lineCount: number
-}
-
-function MobilePositionBar({ cursorPosition, lineCount }: MobilePositionBarProps) {
+function MobilePositionBar({ cursorPosition, lineCount }: { cursorPosition: CursorPosition; lineCount: number }) {
   const t = useTranslations("serverMonacoEditor")
   return (
-    <div className="flex sm:hidden items-center justify-between border-t border-border bg-secondary/30 px-3 py-1.5 text-xs text-muted-foreground">
+    <div className="flex sm:hidden items-center justify-between border-t border-border bg-secondary/30 px-3 py-1.5 text-xs text-muted-foreground shrink-0">
       <span>{t("position.lineCol", { line: cursorPosition.line, col: cursorPosition.column })}</span>
       <span>{t("position.lines", { count: lineCount })}</span>
     </div>
@@ -231,16 +233,21 @@ function MobilePositionBar({ cursorPosition, lineCount }: MobilePositionBarProps
 function EditorLoadingFallback() {
   const t = useTranslations("serverMonacoEditor")
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[300px] bg-[#1e1e1e]">
-      <Loader2 className="h-6 w-6 rounded-full animate-spin text-muted-foreground mb-3" />
+    <div className="flex flex-col items-center justify-center h-full w-full bg-[#1e1e1e]">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-3" />
       <p className="text-sm text-muted-foreground">{t("states.loadingEditor")}</p>
     </div>
   )
 }
 
+// ---------------------------------------------------------------------------
+// Diff utilities
+// ---------------------------------------------------------------------------
 interface DiffHunkLine {
   type: "context" | "added" | "removed"
   content: string
+  oldLineNo: number | null
+  newLineNo: number | null
 }
 
 interface DiffHunk {
@@ -261,42 +268,53 @@ function parseUnifiedDiff(diffText: string): ParsedDiff {
   const hunks: DiffHunk[] = []
   const lines = diffText.split("\n")
   let currentHunk: DiffHunk | null = null
+  let oldLine = 0
+  let newLine = 0
 
   for (const line of lines) {
     if (line.startsWith("--- ") || line.startsWith("+++ ")) continue
+
     const hunkMatch = line.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/)
     if (hunkMatch) {
       if (currentHunk) hunks.push(currentHunk)
+      oldLine = parseInt(hunkMatch[1])
+      newLine = parseInt(hunkMatch[3])
       currentHunk = {
         header: line,
         oldStart: parseInt(hunkMatch[1]),
-        oldCount: parseInt(hunkMatch[2] || "1"),
+        oldCount: hunkMatch[2] !== undefined ? parseInt(hunkMatch[2]) : 1,
         newStart: parseInt(hunkMatch[3]),
-        newCount: parseInt(hunkMatch[4] || "1"),
+        newCount: hunkMatch[4] !== undefined ? parseInt(hunkMatch[4]) : 1,
         lines: [],
       }
       continue
     }
+
     if (!currentHunk) continue
+
     if (line.startsWith("+")) {
-      currentHunk.lines.push({ type: "added", content: line.slice(1) })
+      currentHunk.lines.push({ type: "added", content: line.slice(1), oldLineNo: null, newLineNo: newLine++ })
     } else if (line.startsWith("-")) {
-      currentHunk.lines.push({ type: "removed", content: line.slice(1) })
-    } else if (line.startsWith(" ") || line === "") {
-      currentHunk.lines.push({ type: "context", content: line.startsWith(" ") ? line.slice(1) : line })
+      currentHunk.lines.push({ type: "removed", content: line.slice(1), oldLineNo: oldLine++, newLineNo: null })
+    } else {
+      const content = line.startsWith(" ") ? line.slice(1) : line
+      currentHunk.lines.push({ type: "context", content, oldLineNo: oldLine++, newLineNo: newLine++ })
     }
   }
+
   if (currentHunk) hunks.push(currentHunk)
   return { hunks, raw: diffText }
 }
 
 function applyUnifiedDiff(original: string, diff: ParsedDiff): string {
+  if (diff.hunks.length === 0) return original
   const origLines = original.split("\n")
   const result: string[] = []
   let origIdx = 0
 
   for (const hunk of diff.hunks) {
-    while (origIdx < hunk.oldStart - 1) {
+    const hunkStart = hunk.oldStart - 1
+    while (origIdx < hunkStart) {
       result.push(origLines[origIdx] ?? "")
       origIdx++
     }
@@ -311,13 +329,16 @@ function applyUnifiedDiff(original: string, diff: ParsedDiff): string {
       }
     }
   }
+
   while (origIdx < origLines.length) {
-    result.push(origLines[origIdx])
-    origIdx++
+    result.push(origLines[origIdx++])
   }
   return result.join("\n")
 }
 
+// ---------------------------------------------------------------------------
+// Block extraction
+// ---------------------------------------------------------------------------
 interface ContentBlock {
   type: "code" | "diff"
   lang: string
@@ -335,9 +356,9 @@ function extractBlocks(md: string): ContentBlock[] {
     const isDiff =
       lang === "diff" ||
       lang === "patch" ||
-      code.includes("\n@@ -") ||
-      code.startsWith("@@ -") ||
-      (code.includes("\n--- ") && code.includes("\n+++ "))
+      /^@@\s+-\d/.test(code) ||
+      /\n@@\s+-\d/.test(code) ||
+      (code.includes("--- ") && code.includes("+++ ") && code.includes("@@"))
     blocks.push({
       type: isDiff ? "diff" : "code",
       lang: isDiff ? "diff" : lang,
@@ -348,6 +369,130 @@ function extractBlocks(md: string): ContentBlock[] {
   return blocks
 }
 
+// ---------------------------------------------------------------------------
+// Diff block viewer — GitHub / VSCode style
+// ---------------------------------------------------------------------------
+function DiffBlockView({
+  msgId,
+  block,
+  justApplied,
+  onPreview,
+  onApply,
+}: {
+  msgId: string
+  block: ContentBlock
+  justApplied: boolean
+  onPreview: () => void
+  onApply: () => void
+}) {
+  const parsed = parseUnifiedDiff(block.content)
+  const totalAdded = parsed.hunks.reduce((s, h) => s + h.lines.filter((l) => l.type === "added").length, 0)
+  const totalRemoved = parsed.hunks.reduce((s, h) => s + h.lines.filter((l) => l.type === "removed").length, 0)
+
+  return (
+    <div className="my-2 rounded overflow-hidden border border-[#30363d] bg-[#0d1117] text-[11px] font-mono">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[#161b22] border-b border-[#30363d]">
+        <div className="flex items-center gap-3">
+          <GitCompare className="h-3 w-3 text-muted-foreground/60" />
+          <span className="text-green-400 font-semibold">+{totalAdded}</span>
+          <span className="text-red-400 font-semibold">-{totalRemoved}</span>
+          <span className="text-muted-foreground/50 text-[10px]">
+            {parsed.hunks.length} hunk{parsed.hunks.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        {justApplied ? (
+          <span className="flex items-center gap-1 text-[10px] font-medium text-green-400">
+            <Check className="h-2.5 w-2.5" /> Applied
+          </span>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button onClick={onPreview} className="px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-white/5 rounded transition-colors">
+              Preview
+            </button>
+            <button onClick={onApply} className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-primary hover:text-primary/80 hover:bg-primary/10 rounded transition-colors">
+              <Play className="h-2.5 w-2.5" /> Apply
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Hunks */}
+      <div className="overflow-x-auto">
+        {parsed.hunks.map((hunk, hi) => (
+          <div key={`${msgId}-h${hi}`}>
+            {/* Hunk header */}
+            <div className="flex items-center gap-0 bg-[#1f2938] border-y border-[#30363d] select-none">
+              {/* gutter placeholders */}
+              <span className="w-10 shrink-0 border-r border-[#30363d]" />
+              <span className="w-10 shrink-0 border-r border-[#30363d]" />
+              <span className="w-5 shrink-0" />
+              <span className="px-2 py-0.5 text-[10px] text-blue-400/80 font-mono">{hunk.header}</span>
+            </div>
+
+            {/* Lines */}
+            {hunk.lines.map((line, li) => {
+              const isAdded = line.type === "added"
+              const isRemoved = line.type === "removed"
+              return (
+                <div
+                  key={`${msgId}-h${hi}-l${li}`}
+                  className={cn(
+                    "flex items-stretch min-w-0 leading-5",
+                    isAdded && "bg-[rgba(46,160,67,0.15)]",
+                    isRemoved && "bg-[rgba(248,81,73,0.15)]",
+                  )}
+                >
+                  {/* Old line number */}
+                  <span className={cn(
+                    "select-none w-10 shrink-0 text-right pr-2 py-px border-r border-[#30363d] text-[10px] leading-5",
+                    isAdded ? "bg-transparent text-transparent" : "text-[#6e7681]",
+                    isRemoved && "bg-[rgba(248,81,73,0.08)]"
+                  )}>
+                    {line.oldLineNo ?? ""}
+                  </span>
+
+                  {/* New line number */}
+                  <span className={cn(
+                    "select-none w-10 shrink-0 text-right pr-2 py-px border-r border-[#30363d] text-[10px] leading-5",
+                    isRemoved ? "bg-transparent text-transparent" : "text-[#6e7681]",
+                    isAdded && "bg-[rgba(46,160,67,0.08)]"
+                  )}>
+                    {line.newLineNo ?? ""}
+                  </span>
+
+                  {/* Sign column */}
+                  <span className={cn(
+                    "select-none w-5 shrink-0 text-center py-px leading-5 font-bold",
+                    isAdded && "text-green-500 bg-[rgba(46,160,67,0.2)]",
+                    isRemoved && "text-red-400 bg-[rgba(248,81,73,0.2)]",
+                    !isAdded && !isRemoved && "text-[#6e7681]"
+                  )}>
+                    {isAdded ? "+" : isRemoved ? "-" : " "}
+                  </span>
+
+                  {/* Code */}
+                  <span className={cn(
+                    "flex-1 py-px pl-2 pr-4 whitespace-pre leading-5",
+                    isAdded && "text-[#aff5b4]",
+                    isRemoved && "text-[#ffdcd7]",
+                    !isAdded && !isRemoved && "text-[#e6edf3]"
+                  )}>
+                    {line.content || " "}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// AI Chat Panel
+// ---------------------------------------------------------------------------
 function AIChatPanel({
   open,
   filePath,
@@ -357,6 +502,7 @@ function AIChatPanel({
   onChange,
   useByoai,
   onClose,
+  onPreview,
 }: {
   open: boolean
   filePath?: string
@@ -366,6 +512,7 @@ function AIChatPanel({
   onChange: (v: string | undefined) => void
   useByoai: boolean
   onClose: () => void
+  onPreview?: (content: string) => void
 }) {
   const t = useTranslations("serverMonacoEditor")
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -373,114 +520,97 @@ function AIChatPanel({
   const [sending, setSending] = useState(false)
   const [appliedBlock, setAppliedBlock] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  }, [messages, sending])
 
   const displayName = fileName || filePath?.split("/").pop() || "file"
 
   const SYSTEM_PROMPT = [
     `You are an AI code editor agent. You have access to the file the user is editing.`,
-    ``,
     `File: ${filePath || "unknown"}`,
     `Language: ${language}`,
     `Current file content:`,
     `\`\`\`${language}`,
     value,
     `\`\`\``,
-    ``,
     `Rules:`,
-    `- For TARGETED edits (changing a few lines, fixing a function, adding a block), return a UNIFIED DIFF block. Use \`\`\`diff with proper @@ -l,c +l,c @@ hunk headers. Only include the changed lines and surrounding context.`,
-    `- For LARGE changes (rewriting most of the file, complete refactors), return the COMPLETE updated file in a \`\`\`${language} code block.`,
+    `- For TARGETED edits, return a UNIFIED DIFF. Use \`\`\`diff with proper @@ -l,c +l,c @@ hunk headers.`,
+    `  Always include at least 3 lines of context around changes. Lines starting with ' ' are context, '-' are removed, '+' are added.`,
+    `- For LARGE changes (rewriting most of the file), return the COMPLETE updated file in a \`\`\`${language} block.`,
     `- Unified diff format:`,
     `  \`\`\`diff`,
     `  --- a/${fileName || "file"}`,
     `  +++ b/${fileName || "file"}`,
     `  @@ -10,6 +10,8 @@`,
-    `   unchanged context line`,
+    `   context line`,
     `  -removed line`,
     `  +added line`,
-    `   unchanged context line`,
+    `   context line`,
     `  \`\`\``,
-    `- Explain your changes briefly before the diff or code block`,
-    `- If the user asks a question, answer helpfully and include code examples if relevant`,
-    `- Keep responses concise and actionable`,
+    `- Explain changes briefly before the code block.`,
+    `- Keep responses concise and actionable.`,
   ].join("\n")
 
   const send = async () => {
     if (!input.trim() || sending) return
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
-    }
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: "user", content: input.trim() }
     const newMessages = [...messages, userMsg]
     setMessages(newMessages)
     setInput("")
     setSending(true)
-
     try {
-      const payload: { role: string; content: string }[] = [
-        { role: "system", content: SYSTEM_PROMPT },
-        ...newMessages.map((m) => ({
-          role: m.role === "assistant" ? "assistant" as const : "user" as const,
-          content: m.content,
-        })),
+      const payload = [
+        { role: "system" as const, content: SYSTEM_PROMPT },
+        ...newMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       ]
-
       const endpoint = useByoai ? API_ENDPOINTS.byoaiChatCompletions : API_ENDPOINTS.openaiChat
-      const res = await apiFetch(endpoint, {
-        method: "POST",
-        body: JSON.stringify({ messages: payload }),
-        timeout: 120000,
-      })
-
-      const aiText =
-        res?.choices?.[0]?.message?.content ||
-        res?.choices?.[0]?.text ||
-        res?.reply ||
-        JSON.stringify(res)
+      const res = await apiFetch(endpoint, { method: "POST", body: JSON.stringify({ messages: payload }), timeout: 120000 })
+      const aiText = res?.choices?.[0]?.message?.content || res?.choices?.[0]?.text || res?.reply || JSON.stringify(res)
       setMessages([...newMessages, { id: (Date.now() + 1).toString(), role: "assistant", content: String(aiText) }])
     } catch (err: any) {
-      setMessages([
-        ...newMessages,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: `Error: ${err?.message || "Failed to get response"}`,
-        },
-      ])
+      setMessages([...newMessages, { id: (Date.now() + 1).toString(), role: "assistant", content: `Error: ${err?.message || "Failed to get response"}` }])
     } finally {
       setSending(false)
     }
   }
 
-  const applyBlock = (block: ContentBlock) => {
+  const previewBlock = useCallback((block: ContentBlock) => {
+    if (!onPreview) return
     if (block.type === "diff") {
       const parsed = parseUnifiedDiff(block.content)
       if (parsed.hunks.length === 0) return
-      const result = applyUnifiedDiff(value, parsed)
-      onChange(result)
-      setAppliedBlock(block.content)
-      setTimeout(() => setAppliedBlock(null), 2000)
+      onPreview(applyUnifiedDiff(value, parsed))
+    } else {
+      onPreview(block.content)
+    }
+  }, [onPreview, value])
+
+  const applyBlock = useCallback((block: ContentBlock) => {
+    if (block.type === "diff") {
+      const parsed = parseUnifiedDiff(block.content)
+      if (parsed.hunks.length === 0) return
+      onChange(applyUnifiedDiff(value, parsed))
     } else {
       onChange(block.content)
-      setAppliedBlock(block.content)
-      setTimeout(() => setAppliedBlock(null), 2000)
     }
-  }
+    setAppliedBlock(block.content)
+    setTimeout(() => setAppliedBlock(null), 2000)
+  }, [onChange, value])
 
   return (
-    <div
-      className={cn(
-        "flex flex-col border-l border-border bg-card/80 backdrop-blur-sm transition-all duration-200 overflow-hidden",
-        open ? "w-80 sm:w-96" : "w-0 border-l-0"
-      )}
-    >
-      <div className="flex items-center justify-between border-b border-border px-3 py-2.5 bg-secondary/20 shrink-0">
+    <div className={cn(
+      "flex flex-col border-l border-border bg-card/80 backdrop-blur-sm transition-all duration-200",
+      // CRITICAL: these ensure the panel never grows taller than its flex parent
+      "h-full max-h-full overflow-hidden",
+      open ? "w-80 sm:w-96 min-w-[300px]" : "w-0 border-l-0 min-w-0"
+    )}>
+      {/* Header — fixed height */}
+      <div className="flex items-center justify-between border-b border-border px-3 py-2 bg-secondary/20 shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="flex h-6 w-6 items-center justify-center bg-primary/10 rounded">
+          <div className="flex h-6 w-6 items-center justify-center bg-primary/10 rounded shrink-0">
             <Sparkles className="h-3 w-3 text-primary" />
           </div>
           <div className="min-w-0">
@@ -488,38 +618,29 @@ function AIChatPanel({
             <p className="text-[10px] text-muted-foreground">AI Agent</p>
           </div>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors"
-        >
+        <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors shrink-0">
           <X className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
+      {/* Messages — ONLY this div scrolls */}
+      <div ref={scrollAreaRef} className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-3 min-h-0">
         {messages.length === 0 && !sending && (
           <div className="flex flex-col items-center justify-center h-full text-center gap-3 px-2">
             <Bot className="h-8 w-8 text-muted-foreground/30" />
             <div>
               <p className="text-xs font-medium text-foreground">AI Code Agent</p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Ask me to edit, fix, or explain this file. I can see the full code and will return the updated file.
-              </p>
+              <p className="text-[11px] text-muted-foreground mt-1">Ask me to edit, fix, or explain this file.</p>
             </div>
             <div className="flex flex-col gap-1.5 w-full">
-              {[
-                "Fix all errors in this file",
-                "Add error handling",
-                "Refactor for better performance",
-                "Explain what this code does",
-              ].map((suggestion) => (
+              {["Fix all errors in this file", "Add error handling", "Refactor for better performance", "Explain what this code does"].map((s) => (
                 <button
-                  key={suggestion}
-                  onClick={() => { setInput(suggestion); setTimeout(() => document.getElementById("ai-chat-input")?.focus(), 50) }}
-                  className="text-left text-[11px] text-muted-foreground hover:text-foreground bg-secondary/30 hover:bg-secondary/50 border border-border/50 px-2.5 py-1.5 transition-colors truncate"
+                  key={s}
+                  onClick={() => { setInput(s); setTimeout(() => document.getElementById("ai-chat-input")?.focus(), 50) }}
+                  className="text-left text-[11px] text-muted-foreground hover:text-foreground bg-secondary/30 hover:bg-secondary/50 border border-border/50 px-2.5 py-1.5 rounded-sm transition-colors"
                 >
                   <ArrowRight className="h-3 w-3 inline mr-1.5 text-primary/50" />
-                  {suggestion}
+                  {s}
                 </button>
               ))}
             </div>
@@ -528,134 +649,79 @@ function AIChatPanel({
 
         {messages.map((msg) => {
           const blocks = msg.role === "assistant" ? extractBlocks(msg.content) : []
-
           return (
             <div key={msg.id} className={cn("flex gap-1.5", msg.role === "user" && "flex-row-reverse")}>
-              <div className={cn(
-                "flex h-5 w-5 items-center justify-center rounded-full shrink-0 mt-0.5",
-                msg.role === "assistant" ? "bg-primary/10" : "bg-secondary/50"
-              )}>
-                {msg.role === "assistant"
-                  ? <Bot className="h-3 w-3 text-primary" />
-                  : <User className="h-3 w-3 text-foreground" />
-                }
+              <div className={cn("flex h-5 w-5 items-center justify-center rounded-full shrink-0 mt-0.5", msg.role === "assistant" ? "bg-primary/10" : "bg-secondary/50")}>
+                {msg.role === "assistant" ? <Bot className="h-3 w-3 text-primary" /> : <User className="h-3 w-3 text-foreground" />}
               </div>
               <div className={cn(
-                "min-w-0 max-w-[90%] px-2.5 py-2 text-xs leading-relaxed",
-                msg.role === "assistant"
-                  ? "bg-secondary/30 border border-border/50"
-                  : "bg-primary/10 border border-primary/20 text-foreground"
+                "min-w-0 max-w-[90%] px-2.5 py-2 text-xs leading-relaxed rounded-sm",
+                msg.role === "assistant" ? "bg-secondary/30 border border-border/50" : "bg-primary/10 border border-primary/20"
               )}>
-                <div className="whitespace-pre-wrap break-words">
-                  {blocks.length > 0 ? (
-                    (() => {
-                      let remaining = msg.content
-                      const parts: React.ReactNode[] = []
-                      let blockIndex = 0
-
-                      for (const block of blocks) {
-                        const idx = remaining.indexOf(block.fullMatch)
-                        if (idx === -1) continue
-                        if (idx > 0) {
-                          parts.push(<span key={`${msg.id}-text-${blockIndex}`}>{remaining.slice(0, idx)}</span>)
-                        }
-                        const justApplied = appliedBlock === block.content
-                        if (block.type === "diff") {
-                          const parsed = parseUnifiedDiff(block.content)
-                          const totalChanges = parsed.hunks.reduce((sum, h) =>
-                            sum + h.lines.filter(l => l.type === "added" || l.type === "removed").length, 0
-                          )
-                          parts.push(
-                            <div key={`${msg.id}-diff-${blockIndex}`} className="my-1.5 border border-border bg-background/50 overflow-hidden">
-                              <div className="flex items-center justify-between px-2 py-0.5 bg-secondary/50 border-b border-border">
-                                <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-mono">
-                                  <span className="text-green-400/70"><Plus className="h-2.5 w-2.5 inline" /></span>
-                                  <span className="text-red-400/70"><Minus className="h-2.5 w-2.5 inline" /></span>
-                                  {parsed.hunks.length} hunk{parsed.hunks.length !== 1 ? "s" : ""} &middot; {totalChanges} change{totalChanges !== 1 ? "s" : ""}
-                                </span>
-                                <button
-                                  onClick={() => applyBlock(block)}
-                                  className={cn(
-                                    "flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium transition-colors",
-                                    justApplied
-                                      ? "text-green-400"
-                                      : "text-primary hover:text-primary/80"
-                                  )}
-                                >
-                                  {justApplied ? (
-                                    <><Check className="h-2.5 w-2.5" /> Applied</>
-                                  ) : (
-                                    <><Play className="h-2.5 w-2.5" /> Apply</>
-                                  )}
-                                </button>
-                              </div>
-                              <div className="overflow-x-auto text-[11px] font-mono leading-relaxed">
-                                {parsed.hunks.flatMap((hunk, hi) => {
-                                  const result: React.ReactNode[] = [
-                                    <div key={`${msg.id}-hunk-${hi}-hdr`} className="px-2 py-0.5 bg-primary/5 text-[10px] text-primary/60 border-b border-border/50">
-                                      {hunk.header}
-                                    </div>,
-                                  ]
-                                  hunk.lines.forEach((line, li) => {
-                                    const bg =
-                                      line.type === "added" ? "bg-green-500/10 text-green-300/80" :
-                                      line.type === "removed" ? "bg-red-500/10 text-red-300/80" :
-                                      ""
-                                    const prefix =
-                                      line.type === "added" ? "+" :
-                                      line.type === "removed" ? "-" :
-                                      " "
-                                    result.push(
-                                      <div key={`${msg.id}-hunk-${hi}-l${li}`} className={cn("px-2 py-px whitespace-pre", bg)}>
-                                        <span className="select-none w-4 inline-block text-muted-foreground/50">{prefix}</span>
-                                        {line.content}
-                                      </div>
-                                    )
-                                  })
-                                  return result
-                                })}
-                              </div>
-                            </div>
-                          )
-                        } else {
-                          parts.push(
-                            <div key={`${msg.id}-code-${blockIndex}`} className="my-1.5 border border-border bg-background/50 overflow-hidden">
-                              {block.lang && (
-                                <div className="flex items-center justify-between px-2 py-0.5 bg-secondary/50 border-b border-border">
-                                  <span className="text-[10px] text-muted-foreground font-mono uppercase">{block.lang}</span>
-                                  <button
-                                    onClick={() => applyBlock(block)}
-                                    className={cn(
-                                      "flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium transition-colors",
-                                      justApplied
-                                        ? "text-green-400"
-                                        : "text-primary hover:text-primary/80"
-                                    )}
-                                  >
-                                    {justApplied ? (
-                                      <><Check className="h-2.5 w-2.5" /> Applied</>
-                                    ) : (
-                                      <><Play className="h-2.5 w-2.5" /> Apply</>
-                                    )}
+                {blocks.length > 0 ? (() => {
+                  let remaining = msg.content
+                  const parts: React.ReactNode[] = []
+                  let bi = 0
+                  for (const block of blocks) {
+                    const idx = remaining.indexOf(block.fullMatch)
+                    if (idx === -1) continue
+                    if (idx > 0) {
+                      parts.push(
+                        <div key={`${msg.id}-t${bi}`} className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{remaining.slice(0, idx)}</ReactMarkdown>
+                        </div>
+                      )
+                    }
+                    const justApplied = appliedBlock === block.content
+                    if (block.type === "diff") {
+                      parts.push(
+                        <DiffBlockView
+                          key={`${msg.id}-d${bi}`}
+                          msgId={`${msg.id}-${bi}`}
+                          block={block}
+                          justApplied={justApplied}
+                          onPreview={() => previewBlock(block)}
+                          onApply={() => applyBlock(block)}
+                        />
+                      )
+                    } else {
+                      parts.push(
+                        <div key={`${msg.id}-c${bi}`} className="my-1.5 border border-[#30363d] bg-[#0d1117] overflow-hidden rounded">
+                          {block.lang && (
+                            <div className="flex items-center justify-between px-3 py-1 bg-[#161b22] border-b border-[#30363d]">
+                              <span className="text-[10px] text-muted-foreground font-mono uppercase">{block.lang}</span>
+                              {justApplied ? (
+                                <span className="flex items-center gap-1 text-[10px] text-green-400"><Check className="h-2.5 w-2.5" /> Applied</span>
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <button onClick={() => previewBlock(block)} className="px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors">Preview</button>
+                                  <button onClick={() => applyBlock(block)} className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-primary hover:text-primary/80 transition-colors">
+                                    <Play className="h-2.5 w-2.5" /> Apply
                                   </button>
                                 </div>
                               )}
-                              <pre className="p-2 overflow-x-auto text-[11px] font-mono text-foreground/80 whitespace-pre">{block.content}</pre>
                             </div>
-                          )
-                        }
-                        remaining = remaining.slice(idx + block.fullMatch.length)
-                        blockIndex++
-                      }
-                      if (remaining.trim()) {
-                        parts.push(<span key={`${msg.id}-text-end`}>{remaining}</span>)
-                      }
-                      return parts
-                    })()
-                  ) : (
-                    msg.content
-                  )}
-                </div>
+                          )}
+                          <pre className="p-3 overflow-x-auto text-[11px] font-mono text-[#e6edf3] whitespace-pre leading-5">{block.content}</pre>
+                        </div>
+                      )
+                    }
+                    remaining = remaining.slice(idx + block.fullMatch.length)
+                    bi++
+                  }
+                  if (remaining.trim()) {
+                    parts.push(
+                      <div key={`${msg.id}-tend`} className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{remaining}</ReactMarkdown>
+                      </div>
+                    )
+                  }
+                  return parts
+                })() : (
+                  <div className="prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0.5">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.content}</ReactMarkdown>
+                  </div>
+                )}
               </div>
             </div>
           )
@@ -666,40 +732,32 @@ function AIChatPanel({
             <div className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 shrink-0 mt-0.5">
               <Bot className="h-3 w-3 text-primary" />
             </div>
-            <div className="bg-secondary/30 border border-border/50 px-2.5 py-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3 w-3 inline animate-spin mr-1.5" />
-              Thinking...
+            <div className="bg-secondary/30 border border-border/50 rounded-sm px-2.5 py-2 text-xs text-muted-foreground flex items-center gap-1.5">
+              <Loader2 className="h-3 w-3 animate-spin" /> Thinking...
             </div>
           </div>
         )}
-
         <div ref={bottomRef} />
       </div>
 
-      <div className="border-t border-border p-2.5 shrink-0">
+      {/* Input — fixed at bottom */}
+      <div className="border-t border-border p-2 shrink-0">
         <div className="flex gap-1.5">
           <input
             id="ai-chat-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault()
-                send()
-              }
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send() } }}
             placeholder="Ask AI to edit this file..."
-            className="flex-1 border border-border bg-background/80 px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/40 transition-colors"
+            className="flex-1 border border-border bg-background/80 px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/40 transition-colors rounded-sm"
             disabled={sending}
           />
           <button
             onClick={send}
             disabled={sending || !input.trim()}
             className={cn(
-              "flex h-8 w-8 shrink-0 items-center justify-center transition-all",
-              input.trim() && !sending
-                ? "bg-primary/20 text-primary hover:bg-primary/30"
-                : "bg-secondary/30 text-muted-foreground/40"
+              "flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-all",
+              input.trim() && !sending ? "bg-primary/20 text-primary hover:bg-primary/30" : "bg-secondary/30 text-muted-foreground/40"
             )}
           >
             <Send className="h-3.5 w-3.5" />
@@ -710,14 +768,10 @@ function AIChatPanel({
   )
 }
 
-export function MonacoFileEditor({
-  value,
-  onChange,
-  language,
-  editorSettings,
-  filePath,
-  fileName
-}: MonacoFileEditorProps) {
+// ---------------------------------------------------------------------------
+// Main editor
+// ---------------------------------------------------------------------------
+export function MonacoFileEditor({ value, onChange, language, editorSettings, filePath, fileName }: MonacoFileEditorProps) {
   const settings = { ...DEFAULT_EDITOR_SETTINGS, ...(editorSettings || {}) }
   const { user } = useAuth()
   const byoaiConfig = user?.settings?.byoai as ByoaiConfig | undefined
@@ -727,114 +781,154 @@ export function MonacoFileEditor({
   const monacoRef = useRef<any>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const [editorReady, setEditorReady] = useState(false)
   const [cursorPosition, setCursorPosition] = useState<CursorPosition>({ line: 1, column: 1 })
   const [lineCount, setLineCount] = useState(1)
   const [wordWrap, setWordWrap] = useState(true)
   const [fontSize, setFontSize] = useState<number>(settings.fontSize ?? DEFAULT_EDITOR_SETTINGS.fontSize ?? 14)
   const [copied, setCopied] = useState(false)
-  const [editorHeight, setEditorHeight] = useState("500px")
   const [aiChatOpen, setAiChatOpen] = useState(false)
+  const [previewMode, setPreviewMode] = useState(false)
+  const [previewContent, setPreviewContent] = useState<string | null>(null)
+  const previewDecorationsRef = useRef<string[]>([])
 
-  useEffect(() => {
-    const updateHeight = () => {
-      if (containerRef.current) {
-        const viewportHeight = window.innerHeight
-        const containerTop = containerRef.current.getBoundingClientRect().top
-        const padding = 120
-        const minHeight = 250
-        const maxHeight = 800
+  // Inject diff CSS on mount
+  useEffect(() => { injectDiffStyles() }, [])
 
-        const calculatedHeight = Math.min(
-          maxHeight,
-          Math.max(minHeight, viewportHeight - containerTop - padding)
-        )
+  // ------------------------------------------------------------------
+  // VSCode-style diff decorations using Monaco decoration API
+  // ------------------------------------------------------------------
+  const applyDiffDecorations = useCallback((original: string, modified: string) => {
+    const editor = editorRef.current
+    const monaco = monacoRef.current
+    if (!editor || !monaco) return
 
-        setEditorHeight(`${calculatedHeight}px`)
+    const origLines = original.split("\n")
+    const modLines = modified.split("\n")
+    const decorations: any[] = []
+
+    const maxLen = Math.max(origLines.length, modLines.length)
+
+    // Simple line-by-line comparison to highlight changed lines
+    // The editor shows `modified` content, so we decorate based on modLines positions
+    for (let i = 0; i < modLines.length; i++) {
+      const modLine = modLines[i]
+      const origLine = origLines[i]
+
+      if (origLine === undefined) {
+        // Line was added
+        decorations.push({
+          range: new monaco.Range(i + 1, 1, i + 1, 1),
+          options: {
+            isWholeLine: true,
+            className: "monaco-diff-added-line",
+            glyphMarginClassName: "monaco-diff-added-line-glyph",
+            overviewRuler: { color: "rgba(40,167,69,0.7)", position: monaco.editor.OverviewRulerLane.Full },
+            minimap: { color: "rgba(40,167,69,0.6)", position: 1 },
+            linesDecorationsClassName: "border-l-2 border-green-500",
+          },
+        })
+      } else if (modLine !== origLine) {
+        // Line was modified
+        decorations.push({
+          range: new monaco.Range(i + 1, 1, i + 1, 1),
+          options: {
+            isWholeLine: true,
+            className: "monaco-diff-modified-line",
+            glyphMarginClassName: "monaco-diff-modified-line-glyph",
+            overviewRuler: { color: "rgba(255,193,7,0.7)", position: monaco.editor.OverviewRulerLane.Full },
+            minimap: { color: "rgba(255,193,7,0.6)", position: 1 },
+          },
+        })
       }
     }
 
-    updateHeight()
-    window.addEventListener("resize", updateHeight)
-    window.addEventListener("orientationchange", () => {
-      setTimeout(updateHeight, 100)
-    })
+    // Mark lines that were removed (can't show in the editor directly since they don't exist,
+    // but we mark the line before where they were removed with a special decoration)
+    for (let i = modLines.length; i < origLines.length; i++) {
+      const markAt = Math.max(1, modLines.length)
+      const exists = decorations.find(d => d.range.startLineNumber === markAt && d.options.afterContentClassName)
+      if (!exists) {
+        decorations.push({
+          range: new monaco.Range(markAt, 1, markAt, 1),
+          options: {
+            isWholeLine: false,
+            afterContentClassName: "monaco-diff-deleted-marker",
+            overviewRuler: { color: "rgba(220,53,69,0.7)", position: monaco.editor.OverviewRulerLane.Full },
+          },
+        })
+      }
+    }
 
-    return () => {
-      window.removeEventListener("resize", updateHeight)
-      window.removeEventListener("orientationchange", updateHeight)
+    previewDecorationsRef.current = editor.deltaDecorations(previewDecorationsRef.current, decorations)
+  }, [])
+
+  const clearPreviewDecorations = useCallback(() => {
+    if (editorRef.current) {
+      previewDecorationsRef.current = editorRef.current.deltaDecorations(previewDecorationsRef.current, [])
     }
   }, [])
 
+  useEffect(() => { setLineCount(value.split("\n").length) }, [value])
+
   useEffect(() => {
-    setLineCount(value.split('\n').length)
-  }, [value])
+    if (previewMode && previewContent !== null) {
+      // Small delay to let Monaco re-render with the new content first
+      const t = setTimeout(() => applyDiffDecorations(value, previewContent), 50)
+      return () => clearTimeout(t)
+    } else {
+      clearPreviewDecorations()
+    }
+  }, [previewMode, previewContent, value, applyDiffDecorations, clearPreviewDecorations])
 
   const handleWordWrapToggle = useCallback(() => {
-    setWordWrap(prev => {
-      const newValue = !prev
-      editorRef.current?.updateOptions({ wordWrap: newValue ? "on" : "off" })
-      return newValue
-    })
+    setWordWrap((p) => { const n = !p; editorRef.current?.updateOptions({ wordWrap: n ? "on" : "off" }); return n })
   }, [])
 
   const handleFontSizeChange = useCallback((size: number) => {
-    setFontSize(size)
-    editorRef.current?.updateOptions({ fontSize: size })
+    setFontSize(size); editorRef.current?.updateOptions({ fontSize: size })
   }, [])
 
-  const handleUndo = useCallback(() => {
-    editorRef.current?.trigger('keyboard', 'undo', {})
-  }, [])
-
-  const handleRedo = useCallback(() => {
-    editorRef.current?.trigger('keyboard', 'redo', {})
-  }, [])
-
-  const handleSearch = useCallback(() => {
-    editorRef.current?.trigger('keyboard', 'actions.find', {})
-  }, [])
+  const handleUndo = useCallback(() => editorRef.current?.trigger("keyboard", "undo", {}), [])
+  const handleRedo = useCallback(() => editorRef.current?.trigger("keyboard", "redo", {}), [])
+  const handleSearch = useCallback(() => editorRef.current?.trigger("keyboard", "actions.find", {}), [])
 
   const handleCopy = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(value)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      const textarea = document.createElement("textarea")
-      textarea.value = value
-      document.body.appendChild(textarea)
-      textarea.select()
-      document.execCommand("copy")
-      document.body.removeChild(textarea)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+    try { await navigator.clipboard.writeText(value) } catch {
+      const ta = document.createElement("textarea"); ta.value = value
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta)
     }
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
   }, [value])
+
+  const handlePreview = useCallback((content: string) => {
+    setPreviewContent(content); setPreviewMode(true)
+  }, [])
+
+  const handleApplyPreview = useCallback(() => {
+    if (previewContent !== null) onChange(previewContent)
+    clearPreviewDecorations(); setPreviewMode(false); setPreviewContent(null)
+  }, [previewContent, onChange, clearPreviewDecorations])
+
+  const handleRevertPreview = useCallback(() => {
+    clearPreviewDecorations(); setPreviewMode(false); setPreviewContent(null)
+  }, [clearPreviewDecorations])
 
   const handleEditorMount = useCallback((editor: any, monaco: any) => {
     editorRef.current = editor
     monacoRef.current = monaco
-    setEditorReady(true)
-
     editor.onDidChangeCursorPosition((e: any) => {
-      setCursorPosition({
-        line: e.position.lineNumber,
-        column: e.position.column
-      })
+      setCursorPosition({ line: e.position.lineNumber, column: e.position.column })
     })
-
     editor.onDidChangeModelContent(() => {
       setLineCount(editor.getModel()?.getLineCount() || 1)
     })
-
-    if (window.innerWidth >= 640) {
-      editor.focus()
-    }
+    if (typeof window !== "undefined" && window.innerWidth >= 640) editor.focus()
   }, [])
 
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640
+
   return (
-    <div ref={containerRef} className="flex flex-col flex-1 min-h-0">
+    <div ref={containerRef} className="flex flex-col h-full min-h-0 overflow-hidden">
       <EditorToolbar
         language={language}
         fileName={fileName}
@@ -854,20 +948,47 @@ export function MonacoFileEditor({
         copied={copied}
       />
 
-      <div className="flex-1 flex min-h-0 overflow-hidden">
-        <div className="flex-1 min-h-0 min-w-0">
+      {previewMode && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/30 shrink-0">
+          <span className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
+            <GitCompare className="h-3 w-3" /> Previewing AI changes — highlighted lines show modifications
+          </span>
+          <div className="flex items-center gap-2">
+            <button onClick={handleRevertPreview} className="text-xs px-2 py-1 rounded text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary transition-colors">
+              Revert
+            </button>
+            <button onClick={handleApplyPreview} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+              Apply Changes
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/*
+        THE KEY FIX:
+        - `flex-1 min-h-0` lets this row fill remaining space without overflowing the parent column
+        - `overflow-hidden` hard-clips anything that tries to escape (AI panel content, etc.)
+        - Monaco gets `height="100%"` — no JS measurement needed, pure CSS sizing
+        - AIChatPanel gets `h-full` so it matches the row exactly
+      */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Monaco wrapper — flex-1 so it takes remaining width, overflow-hidden to clip */}
+        <div className="flex-1 min-w-0 overflow-hidden">
           <Suspense fallback={<EditorLoadingFallback />}>
             <MonacoEditor
-              height={editorHeight}
+              height="100%"
               language={language}
-              value={value}
-              onChange={onChange}
+              value={previewMode ? (previewContent ?? value) : value}
+              onChange={(v) => {
+                if (previewMode) { setPreviewMode(false); setPreviewContent(null) }
+                onChange(v)
+              }}
               theme="vs-dark"
               onMount={handleEditorMount}
               loading={<EditorLoadingFallback />}
               options={{
-                minimap: { enabled: window.innerWidth >= 768 && !!settings.minimap },
-                fontSize: fontSize,
+                minimap: { enabled: !isMobile && !!settings.minimap },
+                fontSize,
                 fontFamily: settings.fontFamily,
                 scrollBeyondLastLine: false,
                 wordWrap: wordWrap ? "on" : "off",
@@ -879,17 +1000,17 @@ export function MonacoFileEditor({
                 formatOnType: settings.formatOnType,
                 formatOnPaste: settings.formatOnPaste,
                 padding: { top: 12, bottom: 12 },
-                lineNumbersMinChars: window.innerWidth < 640 ? 3 : 5,
-                folding: window.innerWidth >= 640,
-                glyphMargin: window.innerWidth >= 640,
-                lineDecorationsWidth: window.innerWidth < 640 ? 0 : 10,
+                lineNumbersMinChars: isMobile ? 3 : 5,
+                folding: !isMobile,
+                glyphMargin: !isMobile,
+                lineDecorationsWidth: isMobile ? 0 : 10,
                 scrollbar: {
-                  verticalScrollbarSize: window.innerWidth < 640 ? 8 : 14,
-                  horizontalScrollbarSize: window.innerWidth < 640 ? 8 : 14,
+                  verticalScrollbarSize: isMobile ? 8 : 14,
+                  horizontalScrollbarSize: isMobile ? 8 : 14,
                   useShadows: false,
                 },
-                overviewRulerLanes: window.innerWidth < 640 ? 0 : 3,
-                hideCursorInOverviewRuler: window.innerWidth < 640,
+                overviewRulerLanes: isMobile ? 0 : 3,
+                hideCursorInOverviewRuler: isMobile,
                 renderLineHighlight: "line",
                 cursorBlinking: "smooth",
                 smoothScrolling: true,
@@ -911,13 +1032,11 @@ export function MonacoFileEditor({
           onChange={onChange}
           useByoai={useByoai}
           onClose={() => setAiChatOpen(false)}
+          onPreview={handlePreview}
         />
       </div>
 
-      <MobilePositionBar
-        cursorPosition={cursorPosition}
-        lineCount={lineCount}
-      />
+      <MobilePositionBar cursorPosition={cursorPosition} lineCount={lineCount} />
     </div>
   )
 }

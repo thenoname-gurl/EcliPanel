@@ -29,7 +29,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 bg-indigo-500/10 flex items-center justify-center shrink-0">
-                <ScrollText className="h-4 w-4 text-indigo-400" />
+                <ScrollText className="h-4 w-4 text-indigo-600" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">
@@ -76,10 +76,10 @@ export default function LogsTab({ ctx }: { ctx: any }) {
           <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
             {(["audit", "requests", "slow", "serverErrors"] as const).map((tKey) => {
               const config: Record<string, { label: string; icon: any; color: string }> = {
-                audit: { label: t("types.audit"), icon: Shield, color: "text-indigo-400" },
-                requests: { label: t("types.apiRequests"), icon: Globe, color: "text-blue-400" },
-                slow: { label: t("types.slowQueries"), icon: Timer, color: "text-orange-400" },
-                serverErrors: { label: t("types.serverErrors"), icon: AlertTriangle, color: "text-red-400" },
+                audit: { label: t("types.audit"), icon: Shield, color: "text-indigo-600" },
+                requests: { label: t("types.apiRequests"), icon: Globe, color: "text-blue-600" },
+                slow: { label: t("types.slowQueries"), icon: Timer, color: "text-orange-600" },
+                serverErrors: { label: t("types.serverErrors"), icon: AlertTriangle, color: "text-red-600" },
               }
               const c = config[tKey]
               const Icon = c.icon
@@ -270,7 +270,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                               ? "bg-destructive/10 text-destructive"
                               : isSlowWarning
                                 ? "bg-warning/10 text-warning"
-                                : "bg-orange-500/10 text-orange-400"
+                                : "bg-orange-500/10 text-orange-600"
                               }`}>
                               {log.durationMs >= 1000
                                 ? `${(log.durationMs / 1000).toFixed(1)}s`
@@ -344,7 +344,7 @@ export default function LogsTab({ ctx }: { ctx: any }) {
                         ? "bg-destructive/10 text-destructive"
                         : isSlowWarning
                           ? "bg-warning/10 text-warning"
-                          : "bg-orange-500/10 text-orange-400"
+                          : "bg-orange-500/10 text-orange-600"
                         }`}>
                         {log.durationMs >= 1000
                           ? `${(log.durationMs / 1000).toFixed(1)}s`

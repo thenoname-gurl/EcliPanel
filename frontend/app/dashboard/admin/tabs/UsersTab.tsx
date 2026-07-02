@@ -213,7 +213,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                         ].map((v) => (
                           <span
                             key={v.label}
-                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${v.verified ? "bg-emerald-500/10 text-emerald-400" : "bg-secondary/50 text-muted-foreground"}`}
+                            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium ${v.verified ? "bg-emerald-500/10 text-emerald-600" : "bg-secondary/50 text-muted-foreground"}`}
                           >
                             {v.verified ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
                             {v.label}
@@ -226,7 +226,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                         {user.suspended ? (
                           <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">{t("status.suspended")}</Badge>
                         ) : (
-                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">{t("status.active")}</Badge>
+                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600">{t("status.active")}</Badge>
                         )}
                         {user.supportBanned && (
                           <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive text-[10px]">{t("status.supportBanned")}</Badge>
@@ -261,7 +261,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                               {exportJobs[userExportJobId[user.id]].status} {exportJobs[userExportJobId[user.id]].progress}%
                             </span>
                             {exportJobs[userExportJobId[user.id]].status === "completed" && exportJobs[userExportJobId[user.id]].downloadUrl && (
-                              <a href={exportJobs[userExportJobId[user.id]].downloadUrl} className="text-xs text-sky-400 hover:text-sky-300 ml-2" target="_blank" rel="noreferrer">
+                              <a href={exportJobs[userExportJobId[user.id]].downloadUrl} className="text-xs text-sky-600 hover:text-sky-300 ml-2" target="_blank" rel="noreferrer">
                                 {t("actions.download")}
                               </a>
                             )}
@@ -329,7 +329,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                     {user.suspended ? (
                       <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive shrink-0 text-[10px]">{t("status.suspended")}</Badge>
                     ) : (
-                      <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shrink-0 text-[10px]">{t("status.active")}</Badge>
+                      <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 shrink-0 text-[10px]">{t("status.active")}</Badge>
                     )}
                   </div>
                 </div>
@@ -356,7 +356,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                   { label: t("verification.student"), verified: user.studentVerified },
                   { label: t("verification.id"), verified: user.idVerified },
                 ].map((v) => (
-                  <span key={v.label} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${v.verified ? "bg-emerald-500/10 text-emerald-400" : "bg-secondary/80 text-muted-foreground"}`}>
+                  <span key={v.label} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${v.verified ? "bg-emerald-500/10 text-emerald-600" : "bg-secondary/80 text-muted-foreground"}`}>
                     {v.verified ? <Check className="h-2.5 w-2.5" /> : <X className="h-2.5 w-2.5" />}
                     {v.label}
                   </span>

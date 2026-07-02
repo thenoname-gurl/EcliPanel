@@ -51,7 +51,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
           const config: Record<string, { label: string; icon: any; activeColor: string }> = {
             all: { label: t("filters.all"), icon: List, activeColor: "bg-secondary text-foreground" },
             pending: { label: t("filters.pending"), icon: Clock, activeColor: "bg-warning/15 text-warning" },
-            verified: { label: t("filters.verified"), icon: CheckCircle, activeColor: "bg-emerald-500/15 text-emerald-400" },
+            verified: { label: t("filters.verified"), icon: CheckCircle, activeColor: "bg-emerald-500/15 text-emerald-600" },
             failed: { label: t("filters.failed"), icon: XCircle, activeColor: "bg-destructive/15 text-destructive" },
           }
           const c = config[f]
@@ -103,7 +103,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
                 return filtered.map((v: any, i: number) => {
                   const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
                     pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning", label: t("status.pending") },
-                    verified: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400", label: t("status.verified") },
+                    verified: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400", label: t("status.verified") },
                     failed: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive", label: t("status.failed") },
                   }
                   const sc = statusConfig[v.status] || statusConfig.pending
@@ -166,7 +166,7 @@ export default function VerificationsTab({ ctx }: { ctx: any }) {
           return filtered.map((v: any, i: number) => {
             const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
               pending: { class: "text-warning", dot: "bg-warning", label: t("status.pendingReview") },
-              verified: { class: "text-emerald-400", dot: "bg-emerald-400", label: t("status.verified") },
+              verified: { class: "text-emerald-600", dot: "bg-emerald-400", label: t("status.verified") },
               failed: { class: "text-destructive", dot: "bg-destructive", label: t("status.failed") },
             }
             const sc = statusConfig[v.status] || statusConfig.pending

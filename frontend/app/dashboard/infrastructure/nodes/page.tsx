@@ -69,7 +69,7 @@ interface Organisation {
 
 function getNodeTypeMeta(t: any): Record<string, { label: string; color: string }> {
   return {
-    free: { label: t("nodeTypes.free"), color: "border-green-500/30 bg-green-500/10 text-green-400" },
+    free: { label: t("nodeTypes.free"), color: "border-green-500/30 bg-green-500/10 text-green-600" },
     paid: { label: t("nodeTypes.paid"), color: "border-blue-500/30 bg-blue-500/10 text-blue-400" },
     free_and_paid: { label: t("nodeTypes.freeAndPaid"), color: "border-purple-500/30 bg-purple-500/10 text-purple-400" },
     enterprise: { label: t("nodeTypes.enterprise"), color: "border-orange-500/30 bg-orange-500/10 text-orange-400" },
@@ -429,7 +429,7 @@ export default function InfraNodesPage() {
                       <Badge variant="outline" className={`text-xs ${meta.color}`}>
                         {meta.label}
                       </Badge>
-                      <Badge variant="outline" className={`text-xs ${node.useSSL !== false ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400'}`}>
+                      <Badge variant="outline" className={`text-xs ${node.useSSL !== false ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600' : 'border-yellow-500/30 bg-yellow-500/10 text-yellow-600'}`}>
                         {node.useSSL !== false ? t("labels.ssl") : t("labels.noSslProxied")}
                       </Badge>
                       {node.organisation && (
@@ -868,8 +868,8 @@ export default function InfraNodesPage() {
               </div>
 
               <div className="border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-yellow-300">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-yellow-600">
                   This will immediately update and sync all affected servers with Wings.
                   Servers may briefly restart or experience a network interruption.
                 </p>
@@ -885,7 +885,7 @@ export default function InfraNodesPage() {
               ) : (
                 <>
                   <div className="border border-green-500/30 bg-green-500/10 p-3">
-                    <p className="text-sm font-medium text-green-400">Completed successfully</p>
+                    <p className="text-sm font-medium text-green-600">Completed successfully</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="border border-border bg-secondary/30 p-3 text-center">
@@ -968,8 +968,8 @@ export default function InfraNodesPage() {
                 <li>Send <strong>start</strong> to all servers (in parallel)</li>
               </ol>
               <div className="border border-yellow-500/30 bg-yellow-500/10 p-3 flex gap-2">
-                <AlertTriangle className="h-4 w-4 text-yellow-400 shrink-0 mt-0.5" />
-                <p className="text-xs text-yellow-300">
+                <AlertTriangle className="h-4 w-4 text-yellow-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-yellow-600">
                   All servers on this node will briefly go offline. This operation
                   may take 15&ndash;30 seconds to complete.
                 </p>
@@ -1003,7 +1003,7 @@ export default function InfraNodesPage() {
               ) : (
                 <>
                   <div className="border border-green-500/30 bg-green-500/10 p-3">
-                    <p className="text-sm font-medium text-green-400">
+                    <p className="text-sm font-medium text-green-600">
                       Rebooted {rebootResult.servers?.length || 0} server{(rebootResult.servers?.length || 0) !== 1 ? "s" : ""}
                     </p>
                     <p className="text-xs text-green-400/70 mt-1">
@@ -1022,13 +1022,13 @@ export default function InfraNodesPage() {
                             <span className="font-mono text-foreground truncate flex-1">
                               {s.name || s.uuid}
                             </span>
-                            <span className={s.stop === "stopped" ? "text-green-400" : "text-destructive"} title={`Stop: ${s.stop}`}>
+                            <span className={s.stop === "stopped" ? "text-green-600" : "text-destructive"} title={`Stop: ${s.stop}`}>
                               {s.stop === "stopped" ? "\u2713" : "\u2717"}
                             </span>
                             {s.kill && (
-                              <span className="text-yellow-400" title="Had to be killed">\u26a0</span>
+                              <span className="text-yellow-600" title="Had to be killed">\u26a0</span>
                             )}
-                            <span className={s.start === "started" ? "text-green-400" : "text-destructive"} title={`Start: ${s.start}`}>
+                            <span className={s.start === "started" ? "text-green-600" : "text-destructive"} title={`Start: ${s.start}`}>
                               {s.start === "started" ? "\u2713" : "\u2717"}
                             </span>
                           </div>

@@ -109,7 +109,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
         <div className="flex items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 bg-amber-500/10 flex items-center justify-center shrink-0">
-              <Shield className="h-4 w-4 text-amber-400" />
+              <Shield className="h-4 w-4 text-amber-600" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
@@ -151,7 +151,7 @@ export default function RolesTab({ ctx }: { ctx: any }) {
           {roles.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 p-8">
               <div className="h-10 w-10 bg-amber-500/10 flex items-center justify-center">
-                <Shield className="h-5 w-5 text-amber-400/60" />
+                <Shield className="h-5 w-5 text-amber-600/60" />
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-foreground">{t("roles.emptyTitle")}</p>
@@ -420,16 +420,16 @@ export default function RolesTab({ ctx }: { ctx: any }) {
 
                       const categoryColors: Record<string, string> = {
                         Global: "text-destructive",
-                        Servers: "text-blue-400",
-                        Nodes: "text-emerald-400",
-                        Ai: "text-violet-400",
-                        Soc: "text-orange-400",
-                        Orders: "text-amber-400",
-                        Roles: "text-pink-400",
-                        Permissions: "text-pink-400",
-                        Wings: "text-cyan-400",
+                        Servers: "text-blue-600",
+                        Nodes: "text-emerald-600",
+                        Ai: "text-violet-600",
+                        Soc: "text-orange-600",
+                        Orders: "text-amber-600",
+                        Roles: "text-pink-600",
+                        Permissions: "text-pink-600",
+                        Wings: "text-cyan-600",
                         Dns: "text-teal-400",
-                        Tickets: "text-indigo-400",
+                        Tickets: "text-indigo-600",
                       }
 
                       return (

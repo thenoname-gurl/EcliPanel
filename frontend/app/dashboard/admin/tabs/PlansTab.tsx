@@ -550,17 +550,17 @@ export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-semibold text-foreground truncate">{plan.name}</h3>
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium border ${plan.type === "free"
-                        ? "bg-green-500/10 text-green-400 border-green-500/20"
+                        ? "bg-green-500/10 text-green-600 border-green-500/20"
                         : plan.type === "premium"
-                          ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                          ? "bg-purple-500/10 text-purple-600 border-purple-500/20"
                           : plan.type === "educational"
-                            ? "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                            ? "bg-blue-500/10 text-blue-600 border-blue-500/20"
                             : "bg-secondary text-muted-foreground border-border"
                         }`}>
                         {getPortalMarker(plan.type)}
                       </span>
                       {plan.isDefault && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-400 border border-green-500/20">
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-600 border border-green-500/20">
                           <Check className="h-2.5 w-2.5" />
                           {t("badges.default")}
                         </span>
@@ -571,7 +571,7 @@ export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
                         </span>
                       )}
                       {boost.active && (
-                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-amber-500/10 text-amber-600 border border-amber-500/20">
                           <Gift className="h-2.5 w-2.5" />
                           +{plan.boostPercent}% boost
                         </span>
@@ -581,7 +581,7 @@ export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
                       <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{plan.description}</p>
                     )}
                     {boost.active && (
-                      <p className="text-[11px] text-amber-400/70 mt-1.5">
+                      <p className="text-[11px] text-amber-600/70 mt-1.5">
                         +{plan.boostPercent}% resource boost · {boost.remaining}{plan.boostReason ? ` · ${plan.boostReason}` : ""}
                       </p>
                     )}
@@ -642,7 +642,7 @@ export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-orange-400/70 hover:text-orange-400 hover:bg-orange-500/10 gap-1"
+                        className="h-7 text-xs text-orange-600/70 hover:text-orange-400 hover:bg-orange-500/10 gap-1"
                         disabled={isReapplying}
                         onClick={() => reapplyPlanLimits(plan.id, true)}
                       >
@@ -664,7 +664,7 @@ export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
                         onClick={() => openBoostDialog(plan)}
                         title="Manage resource boost"
                       >
-                        <Gift className={`h-3.5 w-3.5 ${boost.active ? "text-amber-400" : ""}`} />
+                        <Gift className={`h-3.5 w-3.5 ${boost.active ? "text-amber-600" : ""}`} />
                       </Button>
                     )}
                     {canManagePlans && (
@@ -834,7 +834,7 @@ export default function PlansTab({ ctx }: { ctx: PlansTabCtx }) {
       <DialogContent className="border-border bg-card sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-foreground flex items-center gap-2">
-            <Gift className="h-4 w-4 text-amber-400" />
+            <Gift className="h-4 w-4 text-amber-600" />
             Resource Boost — {planBoostTarget?.name || "Plan"}
           </DialogTitle>
         </DialogHeader>

@@ -41,7 +41,7 @@ import {
 
 function MarkdownContent({ content }: { content: string }) {
   return (
-    <div className="prose prose-invert prose-sm max-w-full break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+    <div className="prose prose-sm max-w-full break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 prose-p:my-1 prose-pre:my-2 prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50 prose-pre:prose-pre:overflow-x-auto prose-pre:text-xs prose-code:text-primary prose-code:bg-primary/10 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   )
@@ -457,12 +457,12 @@ export default function TicketDetailPage({
 
   const priorityDot = (p: string) => {
     switch (p) {
-      case "urgent":
-        return "bg-red-400"
+        case "urgent":
+        return "bg-red-500"
       case "high":
-        return "bg-orange-400"
+        return "bg-orange-500"
       case "medium":
-        return "bg-blue-400"
+        return "bg-blue-500"
       default:
         return "bg-muted-foreground"
     }
@@ -599,7 +599,7 @@ export default function TicketDetailPage({
               setStatus("closed")
               setShowMobileDetails(false)
             }}
-            className="flex items-center justify-center gap-2 border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all w-full"
+              className="flex items-center justify-center gap-2 border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-red-600 hover:bg-red-500/20 active:scale-[0.98] transition-all w-full"
           >
             <XCircle className="h-4 w-4" />
             {t("actions.closeTicket")}
@@ -610,7 +610,7 @@ export default function TicketDetailPage({
               setStatus("open")
               setShowMobileDetails(false)
             }}
-            className="flex items-center justify-center gap-2 border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all w-full"
+            className="flex items-center justify-center gap-2 border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs sm:text-sm font-medium text-green-600 hover:bg-green-500/20 active:scale-[0.98] transition-all w-full"
           >
             <CheckCircle className="h-4 w-4" />
             {t("actions.reopenTicket")}
@@ -681,7 +681,7 @@ export default function TicketDetailPage({
             onClick={() => setAdminAiDisabled(!adminAiDisabled)}
             className={`flex items-center gap-2 border px-2.5 py-2 sm:px-3 sm:py-2.5 text-left transition-colors active:scale-[0.98] ${
               adminAiDisabled
-                ? "border-orange-500/30 bg-orange-500/10 text-orange-400"
+                ? "border-orange-500/30 bg-orange-500/10 text-orange-600"
                 : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
             }`}
           >
@@ -703,7 +703,7 @@ export default function TicketDetailPage({
             onClick={() => setAdminAiTouched(!adminAiTouched)}
             className={`flex items-center gap-2 border px-2.5 py-2 sm:px-3 sm:py-2.5 text-left transition-colors active:scale-[0.98] ${
               adminAiTouched
-                ? "border-blue-500/30 bg-blue-500/10 text-blue-400"
+                ? "border-blue-500/30 bg-blue-500/10 text-blue-600"
                 : "border-border bg-secondary/30 text-muted-foreground hover:bg-secondary/50"
             }`}
           >
@@ -737,7 +737,7 @@ export default function TicketDetailPage({
       </Button>
 
       <div className="border-t border-border pt-3 sm:pt-4">
-        <p className="text-[9px] sm:text-[10px] font-medium text-red-400 uppercase tracking-wider mb-2 sm:mb-3">
+        <p className="text-[9px] sm:text-[10px] font-medium text-red-600 uppercase tracking-wider mb-2 sm:mb-3">
           {t("admin.dangerZone")}
         </p>
         <div className="flex flex-col gap-2">
@@ -763,7 +763,7 @@ export default function TicketDetailPage({
                   alert(t("alerts.failedBan", { reason: e.message }))
                 }
               }}
-              className="flex items-center justify-center gap-1.5 border border-red-500/30 bg-red-500/5 px-2 py-2 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/15 active:scale-[0.98] transition-all"
+              className="flex items-center justify-center gap-1.5 border border-red-500/30 bg-red-500/5 px-2 py-2 text-[11px] sm:text-xs font-medium text-red-600 hover:bg-red-500/15 active:scale-[0.98] transition-all"
             >
               <Ban className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {t("actions.ban")}
@@ -797,7 +797,7 @@ export default function TicketDetailPage({
           <button
             onClick={deleteTicket}
             disabled={deleting}
-            className="flex items-center justify-center gap-1.5 border border-red-500/30 px-3 py-2 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/15 active:scale-[0.98] transition-all disabled:opacity-50"
+            className="flex items-center justify-center gap-1.5 border border-red-500/30 px-3 py-2 text-[11px] sm:text-xs font-medium text-red-600 hover:bg-red-500/15 active:scale-[0.98] transition-all disabled:opacity-50"
           >
             {deleting ? (
               <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
@@ -851,7 +851,7 @@ export default function TicketDetailPage({
                 {!isClosed ? (
                   <button
                     onClick={() => setStatus("closed")}
-                    className="flex items-center gap-1.5 border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-red-400 hover:bg-red-500/20 active:scale-[0.98] transition-all"
+                    className="flex items-center gap-1.5 border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-red-600 hover:bg-red-500/20 active:scale-[0.98] transition-all"
                   >
                     <XCircle className="h-3.5 w-3.5" />
                     {t("actions.close")}
@@ -859,7 +859,7 @@ export default function TicketDetailPage({
                 ) : (
                   <button
                     onClick={() => setStatus("open")}
-                    className="flex items-center gap-1.5 border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-green-400 hover:bg-green-500/20 active:scale-[0.98] transition-all"
+                    className="flex items-center gap-1.5 border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-[11px] sm:text-xs font-medium text-green-600 hover:bg-green-500/20 active:scale-[0.98] transition-all"
                   >
                     <CheckCircle className="h-3.5 w-3.5" />
                     {t("actions.reopen")}
@@ -1120,7 +1120,7 @@ export default function TicketDetailPage({
                             </Badge>
                           )}
                           {msg.ai && (
-                            <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0">
+                            <Badge className="bg-purple-500/10 text-purple-600 border-purple-500/20 text-[8px] sm:text-[9px] px-1 sm:px-1.5 py-0">
                               {t("common.ai")}
                             </Badge>
                           )}

@@ -251,7 +251,7 @@ function ProjectsPanel() {
         </div>
       ) : projects.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-3">
-          <div className="h-14 w-14 bg-muted/50 flex items-center justify-center">
+          <div className="h-14 w-14 bg-secondary/50 flex items-center justify-center">
             <Trophy className="h-7 w-7 text-muted-foreground/40" />
           </div>
           <p className="text-sm font-semibold text-foreground">No ELO projects found</p>

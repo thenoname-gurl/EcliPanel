@@ -224,7 +224,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                         <button
                           onClick={() => toggleEggVisible(egg)}
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${egg.visible
-                            ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20"
+                            ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
                             : "bg-secondary/50 text-muted-foreground hover:bg-secondary"
                             }`}
                         >
@@ -286,7 +286,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
                       <button
                         onClick={() => toggleEggVisible(egg)}
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors shrink-0 ${egg.visible
-                          ? "bg-emerald-500/10 text-emerald-400"
+                          ? "bg-emerald-500/10 text-emerald-600"
                           : "bg-secondary/50 text-muted-foreground"
                           }`}
                       >
@@ -356,14 +356,14 @@ export default function EggsTab({ ctx }: { ctx: any }) {
         {importEggPreview ? (
           <div className="flex flex-col gap-4 py-2">
             <div className="border border-green-500/30 bg-green-500/10 p-4 flex flex-col gap-2">
-              <p className="text-sm font-medium text-green-400">{t("importDialog.importedSuccessfully")}</p>
+              <p className="text-sm font-medium text-green-600">{t("importDialog.importedSuccessfully")}</p>
               <p className="text-sm text-foreground font-semibold">{importEggPreview.name}</p>
               {importEggPreview.description && <p className="text-xs text-muted-foreground">{importEggPreview.description}</p>}
               <div className="mt-1 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span>{t("importDialog.preview.image")}: <span className="font-mono text-foreground">{importEggPreview.dockerImage}</span></span>
                 <span>{t("importDialog.preview.envVars")}: <span className="text-foreground">{(importEggPreview.envVars ?? []).length}</span></span>
-                {importEggPreview.installScript && <span className="text-green-400">✓ {t("importDialog.preview.installIncluded")}</span>}
-                {importEggPreview.processConfig && <span className="text-green-400">✓ {t("importDialog.preview.processIncluded")}</span>}
+                {importEggPreview.installScript && <span className="text-green-600">✓ {t("importDialog.preview.installIncluded")}</span>}
+                {importEggPreview.processConfig && <span className="text-green-600">✓ {t("importDialog.preview.processIncluded")}</span>}
               </div>
             </div>
             <DialogFooter>
@@ -412,7 +412,7 @@ export default function EggsTab({ ctx }: { ctx: any }) {
             )}
 
             {importEggError && (
-              <p className="border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">{importEggError}</p>
+              <p className="border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-600">{importEggError}</p>
             )}
 
             <DialogFooter>

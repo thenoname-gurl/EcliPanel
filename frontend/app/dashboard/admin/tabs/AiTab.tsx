@@ -66,7 +66,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 bg-violet-500/10 flex items-center justify-center shrink-0">
-                <Brain className="h-4 w-4 text-violet-400" />
+                <Brain className="h-4 w-4 text-violet-600" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
@@ -100,7 +100,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
       {aiModels.length === 0 ? (
         <div className="border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
           <div className="h-12 w-12 bg-violet-500/10 flex items-center justify-center">
-            <Brain className="h-6 w-6 text-violet-400/60" />
+            <Brain className="h-6 w-6 text-violet-600/60" />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">{t("states.noModels")}</p>
@@ -128,16 +128,16 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 <tbody>
                   {aiModels.map((m: any, i: number) => {
                     const statusConfig: Record<string, { class: string; dot: string }> = {
-                      active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                      active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400" },
                       beta: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
                       disabled: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
                     }
                     const sc = statusConfig[m.config?.status || "active"] || statusConfig.active
 
                     const typeConfig: Record<string, { class: string; icon: any }> = {
-                      text: { class: "border-blue-500/30 bg-blue-500/10 text-blue-400", icon: MessageSquare },
-                      image: { class: "border-purple-500/30 bg-purple-500/10 text-purple-400", icon: Image },
-                      code: { class: "border-amber-500/30 bg-amber-500/10 text-amber-400", icon: FileCode },
+                      text: { class: "border-blue-500/30 bg-blue-500/10 text-blue-600", icon: MessageSquare },
+                      image: { class: "border-purple-500/30 bg-purple-500/10 text-purple-600", icon: Image },
+                      code: { class: "border-amber-500/30 bg-amber-500/10 text-amber-600", icon: FileCode },
                     }
                     const tc = typeConfig[m.config?.type || "text"] || typeConfig.text
                     const TypeIcon = tc.icon
@@ -149,7 +149,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 bg-violet-500/10 flex items-center justify-center shrink-0">
-                              <Brain className="h-3.5 w-3.5 text-violet-400" />
+                              <Brain className="h-3.5 w-3.5 text-violet-600" />
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
@@ -229,7 +229,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 <tbody>
                   {aiModels.map((m: any, i: number) => {
                     const statusConfig: Record<string, { class: string; dot: string }> = {
-                      active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                      active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400" },
                       beta: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
                       disabled: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
                     }
@@ -241,7 +241,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2.5">
                             <div className="h-8 w-8 bg-violet-500/10 flex items-center justify-center shrink-0">
-                              <Brain className="h-3.5 w-3.5 text-violet-400" />
+                              <Brain className="h-3.5 w-3.5 text-violet-600" />
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
@@ -286,7 +286,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-3 md:hidden">
             {aiModels.map((m: any, i: number) => {
               const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
-                active: { class: "text-emerald-400", dot: "bg-emerald-400", label: t("status.active") },
+                active: { class: "text-emerald-600", dot: "bg-emerald-400", label: t("status.active") },
                 beta: { class: "text-warning", dot: "bg-warning", label: t("status.beta") },
                 disabled: { class: "text-destructive", dot: "bg-destructive", label: t("status.disabled") },
               }
@@ -297,7 +297,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                 <div key={m.id ?? i} className="border border-border bg-card overflow-hidden">
                   <div className="flex items-start gap-3 p-4 pb-3">
                     <div className="relative h-10 w-10 bg-violet-500/10 flex items-center justify-center shrink-0">
-                      <Brain className="h-4 w-4 text-violet-400" />
+                      <Brain className="h-4 w-4 text-violet-600" />
                       <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -379,7 +379,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
         <div className="flex items-center justify-between gap-3 p-4 border-b border-border">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 bg-orange-500/10 flex items-center justify-center shrink-0">
-              <Timer className="h-4 w-4 text-orange-400" />
+              <Timer className="h-4 w-4 text-orange-600" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">{t("cooldowns.title")}</p>
@@ -397,7 +397,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
 
         {aiModelCooldowns.length === 0 ? (
           <div className="flex items-center gap-3 px-4 py-6 justify-center">
-            <CheckCircle className="h-4 w-4 text-emerald-400" />
+            <CheckCircle className="h-4 w-4 text-emerald-600" />
             <p className="text-sm text-muted-foreground">{t("cooldowns.empty")}</p>
           </div>
         ) : (
@@ -411,7 +411,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                   <div key={i} className="flex items-center gap-4 px-4 py-3 hover:bg-secondary/20 transition-colors">
                     <div className={`h-8 w-8 flex items-center justify-center shrink-0 ${isLong ? "bg-destructive/10" : "bg-orange-500/10"
                       }`}>
-                      <Timer className={`h-3.5 w-3.5 ${isLong ? "text-destructive" : "text-orange-400"}`} />
+                      <Timer className={`h-3.5 w-3.5 ${isLong ? "text-destructive" : "text-orange-600"}`} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
@@ -420,7 +420,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                         </p>
                         <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium ${isLong
                           ? "bg-destructive/10 text-destructive"
-                          : "bg-orange-500/10 text-orange-400"
+                          : "bg-orange-500/10 text-orange-600"
                           }`}>
                           {t("cooldowns.wait", { seconds: waitSec })}
                         </span>
@@ -449,7 +449,7 @@ export default function AiTab({ ctx }: { ctx: any }) {
                       </p>
                       <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-mono font-medium shrink-0 ${isLong
                         ? "bg-destructive/10 text-destructive"
-                        : "bg-orange-500/10 text-orange-400"
+                        : "bg-orange-500/10 text-orange-600"
                         }`}>
                         {waitSec}s
                       </span>

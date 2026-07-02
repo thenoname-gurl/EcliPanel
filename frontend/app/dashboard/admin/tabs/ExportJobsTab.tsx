@@ -62,8 +62,8 @@ export default function ExportJobsTab({ ctx }: { ctx: any }) {
                   {job.status === "completed" ? (
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-3">
-                        <a href={API_ENDPOINTS.adminExportJobDownload.replace(":id", job.id)} className="text-xs text-sky-400 hover:text-sky-300" target="_blank" rel="noreferrer">{t("actions.download")}</a>
-                        <button type="button" onClick={() => createExportShareLink(job.id)} disabled={!!exportShareLoading[job.id]} className="text-xs text-emerald-400 hover:text-emerald-300 disabled:text-muted-foreground">
+                        <a href={API_ENDPOINTS.adminExportJobDownload.replace(":id", job.id)} className="text-xs text-sky-600 hover:text-sky-300" target="_blank" rel="noreferrer">{t("actions.download")}</a>
+                        <button type="button" onClick={() => createExportShareLink(job.id)} disabled={!!exportShareLoading[job.id]} className="text-xs text-emerald-600 hover:text-emerald-300 disabled:text-muted-foreground">
                           {exportShareLoading[job.id] ? t("actions.generating") : t("actions.createShareLink")}
                         </button>
                       </div>
@@ -85,7 +85,7 @@ export default function ExportJobsTab({ ctx }: { ctx: any }) {
                     <button
                       type="button"
                       onClick={() => deleteExportJob(job.id)}
-                      className="text-xs text-red-400 hover:text-red-300"
+                      className="text-xs text-red-600 hover:text-red-300"
                       title="Delete job"
                     >
                       <Trash2 className="h-3.5 w-3.5" />

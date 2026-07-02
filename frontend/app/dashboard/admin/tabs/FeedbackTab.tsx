@@ -43,7 +43,7 @@ function StarDisplay({ rating, size = "sm" }: { rating: number; size?: "sm" | "m
       {[1, 2, 3, 4, 5].map((s) => (
         <svg
           key={s}
-          className={`${cls} ${s <= rating ? "text-yellow-400" : "text-muted-foreground/20"}`}
+          className={`${cls} ${s <= rating ? "text-yellow-600" : "text-muted-foreground/20"}`}
           fill="currentColor"
           viewBox="0 0 20 20"
         >

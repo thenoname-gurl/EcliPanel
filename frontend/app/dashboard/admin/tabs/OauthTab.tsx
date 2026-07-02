@@ -124,10 +124,10 @@ export default function OauthTab({ ctx }: { ctx: any }) {
                   ].map((ep) => (
                     <tr key={ep.path + ep.method} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                       <td className="px-4 py-2.5">
-                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold font-mono ${ep.method === "GET" ? "bg-blue-500/15 text-blue-400" :
-                          ep.method === "POST" ? "bg-green-500/15 text-green-400" :
-                            ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-400" :
-                              "bg-red-500/15 text-red-400"
+                        <span className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-bold font-mono ${ep.method === "GET" ? "bg-blue-500/15 text-blue-600" :
+                          ep.method === "POST" ? "bg-green-500/15 text-green-600" :
+                            ep.method === "PUT" ? "bg-yellow-500/15 text-yellow-600" :
+                              "bg-red-500/15 text-red-600"
                           }`}>{ep.method}</span>
                       </td>
                       <td className="px-4 py-2.5 font-mono text-xs text-foreground">{ep.path}</td>
@@ -529,7 +529,7 @@ Content-Type: application/json
           <DialogTitle className="text-foreground">{t("newSecretDialog.title")}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-4 py-1">
-          <div className="border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5 text-xs text-yellow-300">
+          <div className="border border-yellow-500/30 bg-yellow-500/10 px-3 py-2.5 text-xs text-yellow-600">
             This is the <strong>only time</strong> the client secret is shown. Copy it now — it cannot be retrieved later.
           </div>
           <div className="flex flex-col gap-3">
@@ -550,7 +550,7 @@ Content-Type: application/json
               <div className="flex items-center gap-2">
                 <code className="flex-1 border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-xs font-mono text-yellow-200 break-all">{oauthNewSecret?.clientSecret}</code>
                 <button onClick={() => navigator.clipboard.writeText(oauthNewSecret?.clientSecret || "")}
-                  className="shrink-0 border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-xs text-yellow-300 hover:bg-yellow-500/20 transition-colors">{t("actions.copy")}</button>
+                  className="shrink-0 border border-yellow-500/30 bg-yellow-500/10 px-2 py-1.5 text-xs text-yellow-600 hover:bg-yellow-500/20 transition-colors">{t("actions.copy")}</button>
               </div>
             </div>
           </div>

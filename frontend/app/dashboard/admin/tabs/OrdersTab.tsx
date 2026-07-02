@@ -238,7 +238,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 bg-emerald-500/10 flex items-center justify-center shrink-0">
-                <Receipt className="h-4 w-4 text-emerald-400" />
+                <Receipt className="h-4 w-4 text-emerald-600" />
               </div>
               <div>
                 <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
@@ -310,7 +310,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
       ) : adminOrders.length === 0 ? (
         <div className="border border-dashed border-border bg-card/50 p-10 text-center flex flex-col items-center gap-3">
           <div className="h-12 w-12 bg-emerald-500/10 flex items-center justify-center">
-            <Receipt className="h-6 w-6 text-emerald-400/60" />
+            <Receipt className="h-6 w-6 text-emerald-600/60" />
           </div>
           <div>
             <p className="text-sm font-medium text-foreground">{t("states.emptyTitle")}</p>
@@ -341,7 +341,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                 <tbody>
                   {adminOrders.map((order: any) => {
                     const statusConfig: Record<string, { class: string; dot: string }> = {
-                      active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                      active: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400" },
                       pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
                       awaiting_payment: { class: "border-info/30 bg-info/10 text-info", dot: "bg-info" },
                       payment_sent: { class: "border-info/30 bg-info/10 text-info", dot: "bg-info" },
@@ -355,7 +355,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className="h-8 w-8 bg-emerald-500/10 flex items-center justify-center shrink-0">
-                              <Receipt className="h-3.5 w-3.5 text-emerald-400" />
+                              <Receipt className="h-3.5 w-3.5 text-emerald-600" />
                             </div>
                             <div className="min-w-0">
                               <p className="text-sm font-medium text-foreground truncate">
@@ -367,7 +367,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                                 </p>
                               )}
                               {order.billingType === 'lifetime' && (
-                                <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+                                <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-600">
                                   {t("common.lifetime")}
                                 </span>
                               )}
@@ -496,7 +496,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           <div className="flex flex-col gap-3 md:hidden">
             {adminOrders.map((order: any) => {
               const statusConfig: Record<string, { class: string; dot: string; borderTint: string }> = {
-                active: { class: "text-emerald-400", dot: "bg-emerald-400", borderTint: "border-emerald-500/20" },
+                active: { class: "text-emerald-600", dot: "bg-emerald-400", borderTint: "border-emerald-500/20" },
                 pending: { class: "text-warning", dot: "bg-warning", borderTint: "border-warning/20" },
                 awaiting_payment: { class: "text-info", dot: "bg-info", borderTint: "border-info/20" },
                 payment_sent: { class: "text-info", dot: "bg-info", borderTint: "border-info/20" },
@@ -513,7 +513,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                   {/* Card Header */}
                   <div className="flex items-start gap-3 p-4 pb-3">
                     <div className="relative h-10 w-10 bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <Receipt className="h-4 w-4 text-emerald-400" />
+                      <Receipt className="h-4 w-4 text-emerald-600" />
                       <span className={`absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card ${sc.dot}`} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -527,7 +527,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                             {order.planId && ` · ${t("common.planId", { id: privateMode ? "████" : order.planId })}`}
                           </p>
                           {order.billingType === 'lifetime' && (
-                            <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-400">
+                            <span className="inline-flex items-center gap-1 mt-1 rounded-full bg-purple-500/10 px-2 py-0.5 text-[10px] font-medium text-purple-600">
                               {t("common.lifetime")}
                             </span>
                           )}

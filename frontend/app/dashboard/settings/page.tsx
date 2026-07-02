@@ -603,7 +603,7 @@ function SshKeyManager() {
         </div>
       ) : keys.length === 0 && !showForm ? (
         <div className="flex flex-col items-center gap-3 border border-dashed border-border bg-secondary/10 p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center">
             <Key className="h-6 w-6 text-muted-foreground" />
           </div>
           <div>
@@ -2414,7 +2414,7 @@ export default function SettingsPage() {
                   </div>
                 ) : apiKeys.length === 0 ? (
                   <div className="flex flex-col items-center gap-3 border border-dashed border-border bg-secondary/10 p-8 text-center">
-                    <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-secondary/50 flex items-center justify-center">
                       <Code className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>

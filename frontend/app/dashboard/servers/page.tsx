@@ -442,11 +442,11 @@ function NodeSelector({
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{getNodeTypeLabel(node.nodeType, t, true)}</p>
                           )}
                           {disabled && (
-                            <p className="text-xs text-amber-400 truncate mt-0.5">{node.deploymentNotice || "Deployments temporarily disabled"}</p>
+                            <p className="text-xs text-amber-600 truncate mt-0.5">{node.deploymentNotice || "Deployments temporarily disabled"}</p>
                           )}
                         </div>
                         {disabled ? (
-                          <span className="text-[10px] uppercase tracking-wide text-amber-400">Disabled</span>
+                          <span className="text-[10px] uppercase tracking-wide text-amber-600">Disabled</span>
                         ) : isSelected ? <Check className="h-4 w-4 text-primary flex-shrink-0" /> : null}
                       </button>
                     )
@@ -763,13 +763,13 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
             )}
             {user && !user.emailVerified && (
               <div className="flex items-start gap-3 border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-                <ShieldCheck className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <ShieldCheck className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">{t("alerts.verifyEmail")}</p>
               </div>
             )}
             {user && (user.passkeyCount ?? 0) === 0 && !user.twoFactorEnabled && (
               <div className="flex items-start gap-3 border border-amber-500/20 bg-amber-500/5 px-4 py-3">
-                <KeyRound className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                <KeyRound className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-amber-600 dark:text-amber-400 leading-relaxed">{t("alerts.securityRequirement")}</p>
               </div>
             )}
@@ -860,12 +860,12 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                     type="checkbox"
                     checked={isEloServer}
                     onChange={(e) => setIsEloServer(e.target.checked)}
-                    className="mt-0.5 h-4 w-4 border-border bg-secondary/50 text-amber-500 focus:ring-amber-500"
+                    className="mt-0.5 h-4 w-4 border-border bg-secondary/50 text-amber-600 focus:ring-amber-500"
                   />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-foreground">Enable ELO Features</span>
-                      <span className="border border-amber-500/30 bg-amber-500/10 text-amber-500 px-1.5 py-0.5 text-[10px] font-medium">New</span>
+                      <span className="border border-amber-500/30 bg-amber-500/10 text-amber-600 px-1.5 py-0.5 text-[10px] font-medium">New</span>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       Community voting, devlogs, and ELO-based resource scaling.
@@ -1048,7 +1048,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                       step={128}
                       onChange={setMemory}
                       format={(v) => `${v} MB`}
-                      color="text-blue-500"
+                      color="text-blue-600"
                       disabled={gamblingModeEnabled}
                     />
                   )}
@@ -1063,7 +1063,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                       onChange={setDisk}
                       format={(v) => v >= 1024 ? `${(v / 1024).toFixed(1)} GB` : `${v} MB`}
                       formatMax={(v) => v >= 1024 ? `${(v / 1024).toFixed(0)} GB` : `${v} MB`}
-                      color="text-emerald-500"
+                      color="text-emerald-600"
                       disabled={gamblingModeEnabled}
                     />
                   )}
@@ -1077,7 +1077,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                       step={10}
                       onChange={setCpu}
                       format={(v) => `${v}%`}
-                      color="text-amber-500"
+                      color="text-amber-600"
                       disabled={gamblingModeEnabled}
                     />
                   )}
@@ -1120,7 +1120,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   {t("fields.legalConfirmLabel")} <Link href="/legal/terms-of-service" className="font-semibold text-primary hover:underline">{t("fields.termsLink")}</Link>, <Link href="/legal/acceptable-use-policy" className="font-semibold text-primary hover:underline">{t("fields.aupLink")}</Link>, <Link href="/docs/sunset" className="font-semibold text-primary hover:underline">{t("fields.sunsetLink")}</Link>.
                 </span>
               </label>
-              <p className={`mt-3 text-xs ${isFreePlan ? "text-amber-400" : "text-muted-foreground"}`}>
+              <p className={`mt-3 text-xs ${isFreePlan ? "text-amber-600" : "text-muted-foreground"}`}>
                 {isFreePlan ? t("fields.freePlanWarning") : t("fields.planWarning")}
               </p>
             </div>
@@ -1217,7 +1217,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 {createResult.rolled && (
                 <div className="border border-border/60 bg-muted/30 px-3 py-2">
                   <p className="text-muted-foreground mb-1">{t("result.luckyRoll")}</p>
-                  <p className={`font-semibold ${createResult.luckyRoll ? "text-emerald-500 animate-pulse" : "text-amber-500"}`}>
+                   <p className={`font-semibold ${createResult.luckyRoll ? "text-emerald-600 animate-pulse" : "text-amber-600"}`}>
                     {createResult.luckyRoll ? t("result.luckyTriggered") : t("result.luckyMissed")}
                   </p>
                 </div>
@@ -1235,7 +1235,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                     })}
                   </p>
                   <p className="text-muted-foreground mt-1">{t("result.standTarget", { value: Number(createResult.blackjack.playerStandAt || 17) })}</p>
-                  <p className={`mt-1 font-semibold ${createResult.blackjack.outcome === "player" ? "text-emerald-500" : createResult.blackjack.outcome === "dealer" ? "text-amber-500" : "text-blue-500"}`}>
+                  <p className={`mt-1 font-semibold ${createResult.blackjack.outcome === "player" ? "text-emerald-600" : createResult.blackjack.outcome === "dealer" ? "text-amber-600" : "text-blue-600"}`}>
                     {createResult.blackjack.outcome === "player"
                       ? t("result.outcomeMessage.player")
                       : createResult.blackjack.outcome === "dealer"
@@ -1261,7 +1261,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 {createResult.isEloServer && (
                   <Link
                     href={`/dashboard/elo`}
-                    className="flex items-center justify-center gap-2 border border-amber-500/30 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-500 hover:bg-amber-500/20 transition-all"
+                    className="flex items-center justify-center gap-2 border border-amber-500/30 bg-amber-500/10 py-2.5 text-sm font-semibold text-amber-600 hover:bg-amber-500/20 transition-all"
                   >
                     <Star className="h-4 w-4" />
                     ELO Dashboard
@@ -1380,7 +1380,7 @@ function ServerCard({
                 {server.name}
               </h3>
               {isElo && (
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30 leading-none flex-shrink-0">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-600 border border-purple-500/30 leading-none flex-shrink-0">
                   ELO
                 </span>
               )}
@@ -1407,7 +1407,7 @@ function ServerCard({
                 if (sid) onToggleFavorite(String(sid))
               }}
               aria-label={isFavorite ? t("serverCard.unfavorite") : t("serverCard.favorite")}
-              className={`p-2 transition-all active:scale-90 ${isFavorite ? 'text-yellow-400 hover:text-yellow-500' : 'text-muted-foreground hover:text-foreground'}`}
+               className={`p-2 transition-all active:scale-90 ${isFavorite ? 'text-yellow-600 hover:text-yellow-500' : 'text-muted-foreground hover:text-foreground'}`}
             >
               <Star className={`h-4 w-4 ${isFavorite ? 'fill-yellow-400 stroke-yellow-400' : ''}`} />
             </button>
@@ -1471,7 +1471,7 @@ function ServerCard({
           <button
             onClick={() => onPower(sid, "stop")}
             disabled={powerLoading === sid}
-            className="flex items-center justify-center gap-1.5 bg-red-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-red-500 transition-all hover:bg-red-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
+            className="flex items-center justify-center gap-1.5 bg-red-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-red-600 transition-all hover:bg-red-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
           >
             <Square className="h-3 w-3" />
             <span>{t("actions.stop")}</span>
@@ -1480,7 +1480,7 @@ function ServerCard({
           <button
             onClick={() => onPower(sid, "start")}
             disabled={powerLoading === sid}
-            className="flex items-center justify-center gap-1.5 bg-emerald-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-emerald-500 transition-all hover:bg-emerald-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
+            className="flex items-center justify-center gap-1.5 bg-emerald-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-emerald-600 transition-all hover:bg-emerald-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
           >
             <Play className="h-3 w-3" />
             <span>{t("actions.start")}</span>
@@ -1489,7 +1489,7 @@ function ServerCard({
         <button
           onClick={() => onPower(sid, "restart")}
           disabled={powerLoading === sid}
-          className="flex items-center justify-center gap-1.5 bg-amber-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-amber-500 transition-all hover:bg-amber-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
+          className="flex items-center justify-center gap-1.5 bg-amber-500/10 px-3 sm:px-3.5 py-2.5 sm:py-1.5 text-xs font-medium text-amber-600 transition-all hover:bg-amber-500/15 active:scale-95 disabled:opacity-50 min-h-[40px] sm:min-h-0 flex-1 sm:flex-initial"
         >
           <RotateCcw className="h-3 w-3" />
           <span>{t("actions.restart")}</span>
@@ -1925,7 +1925,7 @@ export default function ServersPage() {
               </div>
               <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.online")}</p>
-                <p className="text-lg sm:text-2xl font-bold text-emerald-500 tabular-nums mt-0.5">{onlineCount}</p>
+                <p className="text-lg sm:text-2xl font-bold text-emerald-600 tabular-nums mt-0.5">{onlineCount}</p>
               </div>
               <div className="border border-border/50 bg-card p-3 sm:p-4">
                 <p className="text-[10px] sm:text-xs text-muted-foreground">{t("stats.offline")}</p>
@@ -1939,7 +1939,7 @@ export default function ServersPage() {
             <section className="sticky top-0 z-20 border border-border/50 bg-card p-3 sm:p-4 shadow-sm shadow-black/5">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-foreground">{t("sections.favorites")}</h3>
-                <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{favoriteServers.length}</span>
+                <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-secondary/50">{favoriteServers.length}</span>
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {favoriteServers.map((server) => (
@@ -2010,7 +2010,7 @@ export default function ServersPage() {
                 <section>
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
                     <h3 className="text-sm font-semibold text-foreground">{t("sections.yourServers")}</h3>
-                    <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{myServers.length}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-secondary/50">{myServers.length}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
                     {myServers.map((server) => {
@@ -2035,7 +2035,7 @@ export default function ServersPage() {
                 <section>
                   <div className="flex items-center justify-between mb-3 sm:mb-4">
                     <h3 className="text-sm font-semibold text-foreground">{t("sections.sharedWithYou")}</h3>
-                    <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-muted/50">{otherServers.length}</span>
+                    <span className="text-xs text-muted-foreground tabular-nums px-2 py-0.5 rounded-full bg-secondary/50">{otherServers.length}</span>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
                     {otherServers.map((server) => {
@@ -2104,7 +2104,7 @@ export default function ServersPage() {
           {/* Empty state */}
           {!loading && searched.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6">
-              <div className="h-16 w-16 bg-muted/30 flex items-center justify-center mb-5">
+              <div className="h-16 w-16 bg-secondary/30 flex items-center justify-center mb-5">
                 <Server className="h-7 w-7 text-muted-foreground/40" />
               </div>
               <h3 className="text-base font-semibold text-foreground mb-1.5">

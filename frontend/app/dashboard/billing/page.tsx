@@ -418,7 +418,7 @@ export default function BillingPage() {
                             : plan.name}
                         </h3>
                         {order.status === "active" && (
-                          <Badge className="bg-emerald-500/20 text-emerald-400 border-0 text-xs">{t("activeSubscription.activeBadge")}</Badge>
+                          <Badge className="bg-emerald-500/20 text-emerald-600 border-0 text-xs">{t("activeSubscription.activeBadge")}</Badge>
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">

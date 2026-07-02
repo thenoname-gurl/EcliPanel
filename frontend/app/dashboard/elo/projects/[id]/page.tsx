@@ -125,7 +125,7 @@ export default function EloProjectProfile() {
             </div>
           ) : !project ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
-              <div className="h-16 w-16 bg-muted/50 flex items-center justify-center">
+              <div className="h-16 w-16 bg-secondary/50 flex items-center justify-center">
                 <Star className="h-8 w-8 text-muted-foreground/40" />
               </div>
               <p className="text-base font-semibold text-foreground">Project not found</p>
@@ -203,12 +203,9 @@ export default function EloProjectProfile() {
               {project.description && (
                 <div className="border border-border/50 bg-card p-6">
                   <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">About</h2>
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    className="text-sm text-muted-foreground leading-relaxed prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary"
-                  >
-                    {project.description}
-                  </ReactMarkdown>
+                  <div className="text-sm text-muted-foreground leading-relaxed prose max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.description}</ReactMarkdown>
+                  </div>
                 </div>
               )}
 
@@ -267,12 +264,9 @@ export default function EloProjectProfile() {
                     <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">README</h2>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm]}
-                      className="text-sm text-muted-foreground prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary prose-code:text-muted-foreground prose-pre:bg-black/40"
-                    >
-                      {project.readme}
-                    </ReactMarkdown>
+                    <div className="text-sm text-muted-foreground prose max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary prose-code:text-muted-foreground prose-pre:bg-black/40">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.readme}</ReactMarkdown>
+                    </div>
                   </div>
                 </div>
               )}
@@ -311,12 +305,9 @@ export default function EloProjectProfile() {
                                 ))}
                               </div>
                             )}
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              className="text-sm text-muted-foreground prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary"
-                            >
-                              {dl.content}
-                            </ReactMarkdown>
+                            <div className="text-sm text-muted-foreground prose max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{dl.content}</ReactMarkdown>
+                            </div>
                           </div>
                         )}
                       </div>

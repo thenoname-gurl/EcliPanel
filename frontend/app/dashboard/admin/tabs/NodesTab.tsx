@@ -143,17 +143,17 @@ export default function NodesTab({ ctx }: { ctx: any }) {
         ) : (
           nodes.map((node: any) => {
             const typeColors: Record<string, string> = {
-              free: "border-green-500/30 bg-green-500/10 text-green-400",
-              paid: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-              free_and_paid: "border-purple-500/30 bg-purple-500/10 text-purple-400",
-              enterprise: "border-orange-500/30 bg-orange-500/10 text-orange-400",
+              free: "border-green-500/30 bg-green-500/10 text-green-600",
+              paid: "border-blue-500/30 bg-blue-500/10 text-blue-600",
+              free_and_paid: "border-purple-500/30 bg-purple-500/10 text-purple-600",
+              enterprise: "border-orange-500/30 bg-orange-500/10 text-orange-600",
             }
             const typeLabel: Record<string, string> = {
               free: "Free", paid: "Paid", free_and_paid: "Free + Paid", enterprise: "Enterprise",
             }
             const providerColors: Record<string, string> = {
-              wings: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400",
-              proxmox: "border-amber-500/30 bg-amber-500/10 text-amber-400",
+              wings: "border-cyan-500/30 bg-cyan-500/10 text-cyan-600",
+              proxmox: "border-amber-500/30 bg-amber-500/10 text-amber-600",
             }
             return (
               <div key={node.id} className="border border-border bg-card p-5 transition-all hover:border-primary/30">
@@ -163,9 +163,9 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                     <p className="mt-0.5 font-mono text-xs text-muted-foreground">{redact(node.url)}</p>
                     {node.organisation && <p className="mt-1 text-xs text-muted-foreground">{t("fields.org")}: {redact(node.organisation.name)}</p>}
                     {node.deploymentsDisabled && (
-                      <div className="mt-2 border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                      <div className="mt-2 border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-600">
                         <p className="font-medium uppercase tracking-wide">Deployments paused</p>
-                        <p className="mt-1 text-amber-200/90">{node.deploymentNotice || "This node is temporarily unavailable for new deployments."}</p>
+                        <p className="mt-1 text-amber-600/90">{node.deploymentNotice || "This node is temporarily unavailable for new deployments."}</p>
                       </div>
                     )}
                   </div>
@@ -175,7 +175,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                     </Badge>
                     <Badge variant="outline" className={`text-xs ${providerColors[node.provider || 'wings']}`}>{node.provider || 'wings'}</Badge>
                     <Badge variant="outline" className={`text-xs ${typeColors[node.nodeType] || typeColors.free}`}>{typeLabel[node.nodeType] || node.nodeType}</Badge>
-                    {node.deploymentsDisabled && <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-xs">Disabled</Badge>}
+                    {node.deploymentsDisabled && <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 text-xs">Disabled</Badge>}
                     <div className="flex gap-1">
                       <Button size="sm" variant="outline" onClick={() => openEditNode(node)} className="border-border h-7 px-2 text-xs gap-1"><Edit className="h-3 w-3" /> {t("actions.classify")}</Button>
                       {(!node.provider || node.provider === 'wings') && (
@@ -369,8 +369,8 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                   </div>
                   {addNodeToken && (
                     <div className="flex items-center gap-2 border border-green-500/30 bg-green-500/10 px-3 py-1.5">
-                      <span className="flex-1 font-mono text-xs text-green-400 break-all truncate">{addNodeToken}</span>
-                      <button onClick={() => navigator.clipboard.writeText(addNodeToken)} className="text-green-400 hover:text-green-300 shrink-0">
+                      <span className="flex-1 font-mono text-xs text-green-600 break-all truncate">{addNodeToken}</span>
+                      <button onClick={() => navigator.clipboard.writeText(addNodeToken)} className="text-green-600 hover:text-green-300 shrink-0">
                         {t("actions.copy")}
                       </button>
                     </div>
@@ -383,7 +383,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
 
         {addNodeStep === "config" && (
           <div className="flex flex-col gap-3 py-1">
-            <div className="border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs text-green-400">
+            <div className="border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-xs text-green-600">
               ✓ {t("addDialog.configReady", { name: addNodeCreated?.name })}
               <code className="font-mono">/etc/eclipanel/config.yml</code> on your Wings server.
             </div>
@@ -407,7 +407,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
 
         {addNodeStep === "done" && (
           <div className="flex flex-col gap-3 py-3 text-center">
-            <div className="border border-green-500/30 bg-green-500/10 px-4 py-3 text-xs text-green-400">
+            <div className="border border-green-500/30 bg-green-500/10 px-4 py-3 text-xs text-green-600">
               ✓ Proxmox node <strong>{addNodeCreated?.name}</strong> created successfully.
             </div>
             <p className="text-xs text-muted-foreground">
@@ -564,9 +564,9 @@ export default function NodesTab({ ctx }: { ctx: any }) {
             <div className="grid grid-cols-3 gap-3">
               <div className="border border-border bg-secondary/30 p-3 text-center">
                 <p className="text-xs text-muted-foreground mb-1">{t("heartbeatDialog.cards.uptime")}</p>
-                <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-400"
-                  : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-400"
-                    : "text-red-400"
+                <p className={`text-xl font-bold ${heartbeatDialogData.summary.uptime_pct >= 99 ? "text-green-600"
+                  : heartbeatDialogData.summary.uptime_pct >= 95 ? "text-yellow-600"
+                    : "text-red-600"
                 }`}>
                   {heartbeatDialogData.summary.uptime_pct}%
                 </p>

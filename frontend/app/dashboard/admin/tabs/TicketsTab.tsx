@@ -293,7 +293,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <p className="text-sm font-medium text-foreground truncate">{ticket.subject}</p>
-                            {ticket.aiTouched && <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">AI</span>}
+                            {ticket.aiTouched && <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-600 border border-violet-500/20 shrink-0">AI</span>}
                             {ticket.archived && <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-secondary text-muted-foreground border border-border shrink-0">{t("status.archived")}</span>}
                           </div>
                           {((ticket.messages && ticket.messages.length) || ticket.adminReply) && (
@@ -393,7 +393,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                         <div className="flex items-center gap-1.5">
                           <span className="font-mono text-[11px] text-muted-foreground">#{ticket.id}</span>
                           <p className="text-sm font-medium text-foreground truncate">{ticket.subject}</p>
-                          {ticket.aiTouched && <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-400 shrink-0">AI</span>}
+                          {ticket.aiTouched && <span className="rounded px-1 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-600 shrink-0">AI</span>}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {ticket.user ? redactName(ticket.user.firstName, ticket.user.lastName) : redact(ticket.userId)}
@@ -476,7 +476,7 @@ export default function TicketsTab({ ctx }: { ctx: any }) {
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-mono text-[11px] text-muted-foreground">#{ticket.id}</span>
-                          {ticket.aiTouched && <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-400 border border-violet-500/20">AI</span>}
+                          {ticket.aiTouched && <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-violet-500/10 text-violet-600 border border-violet-500/20">AI</span>}
                           {ticket.archived && <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-secondary text-muted-foreground border border-border">{t("status.archived")}</span>}
                         </div>
                         <p className="text-sm font-semibold text-foreground mt-0.5 line-clamp-2">{ticket.subject}</p>

@@ -226,7 +226,7 @@ export default function PaymentMethodsTab() {
           <button
             onClick={() => handleToggle(method.id)}
             className={`flex items-center gap-1.5 text-xs transition-colors ${
-              method.enabled ? "text-emerald-400" : "text-muted-foreground"
+              method.enabled ? "text-emerald-600" : "text-muted-foreground"
             }`}
           >
             <div className={`h-3 w-3 rounded-full ${method.enabled ? "bg-emerald-400" : "bg-muted-foreground/30"}`} />

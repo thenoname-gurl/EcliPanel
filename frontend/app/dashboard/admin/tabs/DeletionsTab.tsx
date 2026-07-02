@@ -52,11 +52,11 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
           const config: Record<string, { label: string; icon: any; activeColor: string }> = {
             all: { label: t("filters.all"), icon: List, activeColor: "bg-secondary text-foreground" },
             pending: { label: t("filters.pending"), icon: Clock, activeColor: "bg-warning/15 text-warning" },
-            pending_deletion: { label: t("filters.pendingDeletion"), icon: Timer, activeColor: "bg-amber-500/15 text-amber-400" },
-            approved: { label: t("filters.approved"), icon: CheckCircle, activeColor: "bg-emerald-500/15 text-emerald-400" },
+            pending_deletion: { label: t("filters.pendingDeletion"), icon: Timer, activeColor: "bg-amber-500/15 text-amber-600" },
+            approved: { label: t("filters.approved"), icon: CheckCircle, activeColor: "bg-emerald-500/15 text-emerald-600" },
             rejected: { label: t("filters.rejected"), icon: XCircle, activeColor: "bg-destructive/15 text-destructive" },
             cancelled: { label: t("filters.cancelled"), icon: RotateCcw, activeColor: "bg-slate-500/15 text-slate-300" },
-            deleted: { label: t("filters.deleted"), icon: Trash2, activeColor: "bg-red-500/15 text-red-300" },
+            deleted: { label: t("filters.deleted"), icon: Trash2, activeColor: "bg-red-500/15 text-red-600" },
           }
           const c = config[f]
           const Icon = c.icon
@@ -102,11 +102,11 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
                 return filtered.map((d: any, i: number) => {
                   const statusConfig: Record<string, { class: string; dot: string; label: string }> = {
                     pending: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning", label: t("status.pending") },
-                    pending_deletion: { class: "border-amber-500/30 bg-amber-500/10 text-amber-300", dot: "bg-amber-300", label: t("status.pendingDeletion") },
-                    approved: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400", label: t("status.approved") },
+                    pending_deletion: { class: "border-amber-500/30 bg-amber-500/10 text-amber-600", dot: "bg-amber-300", label: t("status.pendingDeletion") },
+                    approved: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400", label: t("status.approved") },
                     rejected: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive", label: t("status.rejected") },
                     cancelled: { class: "border-slate-500/30 bg-slate-500/10 text-slate-300", dot: "bg-slate-300", label: t("status.cancelled") },
-                    deleted: { class: "border-red-500/30 bg-red-500/10 text-red-300", dot: "bg-red-300", label: t("status.deleted") },
+                    deleted: { class: "border-red-500/30 bg-red-500/10 text-red-600", dot: "bg-red-300", label: t("status.deleted") },
                   }
                   const sc = statusConfig[d.status] || statusConfig.pending
                   const requestedDate = new Date(d.requestedAt)
@@ -130,7 +130,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
                           {(d.scheduledDeletionAt) && (() => {
                             const countdown = formatDeletionCountdown(d.scheduledDeletionAt)
                             if (!countdown) return null
-                            return <span className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${countdown.urgent ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}><Timer className="h-2.5 w-2.5" />{countdown.label}</span>
+                            return <span className={`mt-1 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${countdown.urgent ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-500/30 bg-amber-500/10 text-amber-600"}`}><Timer className="h-2.5 w-2.5" />{countdown.label}</span>
                           })()}
                         </div>
                       </td>
@@ -140,7 +140,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
                           {(d.scheduledDeletionAt) && (() => {
                             const countdown = formatDeletionCountdown(d.scheduledDeletionAt)
                             if (!countdown) return null
-                            return <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${countdown.urgent ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-500/30 bg-amber-500/10 text-amber-300"}`}><Timer className="h-2.5 w-2.5" />{countdown.label}</span>
+                            return <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${countdown.urgent ? "border-destructive/30 bg-destructive/10 text-destructive" : "border-amber-500/30 bg-amber-500/10 text-amber-600"}`}><Timer className="h-2.5 w-2.5" />{countdown.label}</span>
                           })()}
                         </div>
                       </td>
@@ -193,11 +193,11 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
           return filtered.map((d: any, i: number) => {
             const statusConfig: Record<string, { class: string; dot: string; label: string; borderTint: string }> = {
               pending: { class: "text-warning", dot: "bg-warning", label: t("status.pendingReview"), borderTint: "border-warning/20" },
-              pending_deletion: { class: "text-amber-300", dot: "bg-amber-300", label: t("status.pendingDeletion"), borderTint: "border-amber-500/20" },
-              approved: { class: "text-emerald-400", dot: "bg-emerald-400", label: t("status.approved"), borderTint: "border-emerald-500/20" },
+              pending_deletion: { class: "text-amber-600", dot: "bg-amber-300", label: t("status.pendingDeletion"), borderTint: "border-amber-500/20" },
+              approved: { class: "text-emerald-600", dot: "bg-emerald-400", label: t("status.approved"), borderTint: "border-emerald-500/20" },
               rejected: { class: "text-destructive", dot: "bg-destructive", label: t("status.rejected"), borderTint: "border-border" },
               cancelled: { class: "text-slate-300", dot: "bg-slate-300", label: t("status.cancelled"), borderTint: "border-border" },
-              deleted: { class: "text-red-300", dot: "bg-red-300", label: t("status.deleted"), borderTint: "border-red-500/20" },
+              deleted: { class: "text-red-600", dot: "bg-red-300", label: t("status.deleted"), borderTint: "border-red-500/20" },
             }
             const sc = statusConfig[d.status] || statusConfig.pending
             const requestedDate = new Date(d.requestedAt)
@@ -231,7 +231,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
                     {d.status === "pending_deletion" && (() => {
                       const countdown = formatDeletionCountdown(d.scheduledDeletionAt)
                       if (!countdown) return null
-                      return <p className={`mt-1 text-[10px] font-medium ${countdown.urgent ? "text-destructive" : "text-amber-300"}`}>{countdown.label}</p>
+                      return <p className={`mt-1 text-[10px] font-medium ${countdown.urgent ? "text-destructive" : "text-amber-600"}`}>{countdown.label}</p>
                     })()}
                   </div>
                 </div>
@@ -254,7 +254,7 @@ export default function DeletionsTab({ ctx }: { ctx: any }) {
                       <button onClick={() => cancelPendingDeletion(d.id)} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-foreground hover:bg-secondary/40 transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.dontDelete")}</span></button>
                     </>
                   )}
-                  {d.status === "approved" && <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5 text-emerald-400" /><span>{t("status.deletionProcessed")}</span></div>}
+                  {d.status === "approved" && <div className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground"><Check className="h-3.5 w-3.5 text-emerald-600" /><span>{t("status.deletionProcessed")}</span></div>}
                   {d.status === "rejected" && <button onClick={() => reviewDeletion(d.id, "approved")} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><RotateCcw className="h-3.5 w-3.5" /><span>{t("actions.reconsiderApprove")}</span></button>}
                 </div>
               </div>

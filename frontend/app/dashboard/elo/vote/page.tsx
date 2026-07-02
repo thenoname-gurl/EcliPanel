@@ -315,12 +315,9 @@ export default function EloVotePage() {
 
                       {project.description && (
                         <div className="border-t border-border/30 pt-3">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            className="text-xs text-muted-foreground leading-relaxed prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary"
-                          >
-                            {project.description}
-                          </ReactMarkdown>
+                          <div className="text-xs text-muted-foreground leading-relaxed prose max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.description}</ReactMarkdown>
+                          </div>
                         </div>
                       )}
 
@@ -339,12 +336,9 @@ export default function EloVotePage() {
                           </button>
                           {expandedReadme === project.id && (
                             <div className="mt-2 max-h-48 overflow-y-auto border border-border/30 bg-secondary/20 p-3">
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                className="text-xs text-muted-foreground prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary"
-                              >
-                                {project.readme}
-                              </ReactMarkdown>
+                              <div className="text-xs text-muted-foreground prose max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.readme}</ReactMarkdown>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -390,12 +384,9 @@ export default function EloVotePage() {
                                           ))}
                                         </div>
                                       )}
-                                      <ReactMarkdown
-                                        remarkPlugins={[remarkGfm]}
-                                        className="text-[11px] text-muted-foreground prose prose-invert max-w-none prose-p:my-0.5 prose-headings:my-1 prose-a:text-primary"
-                                      >
-                                        {dl.content}
-                                      </ReactMarkdown>
+                                      <div className="text-[11px] text-muted-foreground prose max-w-none prose-p:my-0.5 prose-headings:my-1 prose-a:text-primary">
+                                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{dl.content}</ReactMarkdown>
+                                      </div>
                                     </div>
                                   )}
                                 </div>

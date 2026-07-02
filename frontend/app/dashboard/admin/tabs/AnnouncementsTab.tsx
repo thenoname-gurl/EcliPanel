@@ -33,7 +33,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 bg-blue-500/10 flex items-center justify-center shrink-0">
-              <Megaphone className="h-4 w-4 text-blue-400" />
+              <Megaphone className="h-4 w-4 text-blue-600" />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
@@ -232,7 +232,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                     <span>{t("preview.justNow")}</span>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-400 shrink-0">
+                <Badge variant="outline" className="text-[10px] border-blue-500/30 bg-blue-500/10 text-blue-600 shrink-0">
                   {t("preview.badge")}
                 </Badge>
               </div>

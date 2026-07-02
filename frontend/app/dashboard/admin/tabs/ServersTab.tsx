@@ -238,12 +238,12 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               ) : (
                 filteredServers.map((srv: any, i: number) => {
                   const statusConfig: Record<string, { class: string; dot: string }> = {
-                    running: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+                    running: { class: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-400" },
                     starting: { class: "border-warning/30 bg-warning/10 text-warning", dot: "bg-warning" },
                     suspended: { class: "border-destructive/30 bg-destructive/10 text-destructive", dot: "bg-destructive" },
-                    stopping: { class: "border-orange-500/30 bg-orange-500/10 text-orange-400", dot: "bg-orange-400" },
-                    unavailable: { class: "border-red-500/40 bg-red-500/10 text-red-400", dot: "bg-red-400" },
-                    unknown: { class: "border-amber-500/30 bg-amber-500/10 text-amber-400", dot: "bg-amber-400" },
+                    stopping: { class: "border-orange-500/30 bg-orange-500/10 text-orange-600", dot: "bg-orange-400" },
+                    unavailable: { class: "border-red-500/40 bg-red-500/10 text-red-600", dot: "bg-red-400" },
+                    unknown: { class: "border-amber-500/30 bg-amber-500/10 text-amber-600", dot: "bg-amber-400" },
                   }
                   const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "border-border bg-secondary/50 text-muted-foreground", dot: "bg-muted-foreground" }
                   const nodeHb = srv.nodeId != null ? (nodeHeartbeats?.[srv.nodeId] || []) : []
@@ -303,7 +303,7 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                               onClick={() => resyncServer(srv.uuid)}
                               disabled={resyncingServer === srv.uuid}
                               title="Resync server config to Wings"
-                              className="p-1.5 text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 transition-colors"
+                              className="p-1.5 text-amber-600 hover:bg-amber-500/10 hover:text-amber-300 transition-colors"
                             >
                               {resyncingServer === srv.uuid ? (
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -349,10 +349,10 @@ export default function ServersTab({ ctx }: { ctx: any }) {
         ) : (
           filteredServers.map((srv: any, i: number) => {
             const statusConfig: Record<string, { class: string; dot: string; bg: string }> = {
-              running: { class: "text-emerald-400", dot: "bg-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
+              running: { class: "text-emerald-600", dot: "bg-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/30" },
               starting: { class: "text-warning", dot: "bg-warning", bg: "bg-warning/10 border-warning/30" },
               suspended: { class: "text-destructive", dot: "bg-destructive", bg: "bg-destructive/10 border-destructive/30" },
-              stopping: { class: "text-orange-400", dot: "bg-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
+              stopping: { class: "text-orange-600", dot: "bg-orange-400", bg: "bg-orange-500/10 border-orange-500/30" },
             }
             const sc = srv.status && statusConfig[srv.status] ? statusConfig[srv.status] : { class: "text-muted-foreground", dot: "bg-muted-foreground", bg: "bg-secondary/50 border-border" }
 
@@ -592,10 +592,10 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                   <div key={i} className="flex items-center gap-2 border border-purple-500/20 bg-purple-500/5 px-3 py-1.5">
                     <div className="flex-1 min-w-0">
                       <span className="font-mono text-sm text-foreground">{d.ip}</span>
-                      <span className="ml-2 text-[10px] font-semibold uppercase text-purple-400">{d.type}</span>
+                      <span className="ml-2 text-[10px] font-semibold uppercase text-purple-600">{d.type}</span>
                       {d.fqdn && <span className="ml-2 text-xs text-muted-foreground">→ {d.fqdn}</span>}
                     </div>
-                    <Globe className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+                    <Globe className="h-3.5 w-3.5 text-purple-600 shrink-0" />
                     <button onClick={() => removeDedicatedIp(d.ip)} disabled={esDedicatedIpLoading} title="Remove dedicated IP" className="text-muted-foreground hover:text-destructive transition-colors">
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -621,20 +621,20 @@ export default function ServersTab({ ctx }: { ctx: any }) {
                   <input placeholder="e.g. server.example.com" value={esDedicatedIpFqdn} onChange={(e) => setEsDedicatedIpFqdn(e.target.value)}
                     className="w-48 border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50" />
                 </div>
-                <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10 h-9" onClick={assignDedicatedIp} disabled={esDedicatedIpLoading || !esDedicatedIpInput.trim()}>
+                <Button size="sm" variant="outline" className="border-purple-500/30 text-purple-600 hover:bg-purple-500/10 h-9" onClick={assignDedicatedIp} disabled={esDedicatedIpLoading || !esDedicatedIpInput.trim()}>
                   {esDedicatedIpLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" /> : <Plus className="h-3.5 w-3.5 mr-1" />}
                   Assign
                 </Button>
               </div>
               {esDedicatedIpError && <p className="text-xs text-destructive">{esDedicatedIpError}</p>}
-              {esDedicatedIpSuccess && <p className="text-xs text-green-400">{esDedicatedIpSuccess}</p>}
+              {esDedicatedIpSuccess && <p className="text-xs text-green-600">{esDedicatedIpSuccess}</p>}
             </div>
             )}
           </div>
           {esError && <p className="text-xs text-destructive">{esError}</p>}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={reinstallServerFromDialog} disabled={esReinstalling || esLoading} className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 mr-auto">
+          <Button variant="outline" onClick={reinstallServerFromDialog} disabled={esReinstalling || esLoading} className="border-yellow-500/30 text-yellow-600 hover:bg-yellow-500/10 mr-auto">
             {esReinstalling ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" /> : <RefreshCw className="h-3.5 w-3.5 mr-1" />}
             {t("actions.reinstall")}
           </Button>

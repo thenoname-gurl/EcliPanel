@@ -148,7 +148,7 @@ function InfoRow({
         {copyable && (
           <span className="text-muted-foreground flex-shrink-0" aria-label={copied ? "Copied" : "Copy"}>
             {copied ? (
-              <Check className="h-3 w-3 text-green-400" />
+                          <Check className="h-3 w-3 text-green-600" />
             ) : (
               <Copy className="h-3 w-3" />
             )}
@@ -245,7 +245,7 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
             compact ? "p-1.5" : "p-2"
           )}
         >
-          <Monitor className={cn("text-indigo-400", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
+          <Monitor className={cn("text-indigo-600", compact ? "h-3.5 w-3.5" : "h-4 w-4")} />
         </div>
         <div className="min-w-0 flex-1">
           <p className={cn("font-medium text-indigo-300", compact ? "text-xs" : "text-sm")}>
@@ -253,7 +253,7 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
           </p>
           <p
             className={cn(
-              "text-indigo-400/70 mt-0.5 break-words leading-relaxed",
+              "text-indigo-600/70 mt-0.5 break-words leading-relaxed",
               compact ? "text-[11px]" : "text-xs"
             )}
           >
@@ -268,7 +268,7 @@ function KvmBanner({ compact = false }: { compact?: boolean }) {
 function KvmInfoNotice({ message }: { message: string }) {
   return (
     <div className="border border-indigo-500/15 bg-indigo-500/5 px-3 py-2.5 flex items-start gap-2 overflow-hidden">
-      <Shield className="h-3.5 w-3.5 text-indigo-400 flex-shrink-0 mt-0.5" />
+      <Shield className="h-3.5 w-3.5 text-indigo-600 flex-shrink-0 mt-0.5" />
       <p className="text-xs text-indigo-300/80 leading-relaxed break-words min-w-0">
         {message}
       </p>
@@ -436,7 +436,7 @@ function PowerActions({
               setMenuOpen(false)
             }}
             disabled={powerLoading || !isPowerable || isHibernated}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-yellow-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-yellow-600 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             role="menuitem"
           >
             <RotateCcw className="h-4 w-4 flex-shrink-0" />
@@ -448,7 +448,7 @@ function PowerActions({
               setMenuOpen(false)
             }}
             disabled={powerLoading || !isPowerable || isHibernated}
-            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-red-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             role="menuitem"
           >
             <Power className="h-4 w-4 flex-shrink-0" />
@@ -462,7 +462,7 @@ function PowerActions({
                   onTransfer()
                   setMenuOpen(false)
                 }}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-blue-600 hover:bg-secondary/80 transition-colors"
                 role="menuitem"
               >
                 <Repeat className="h-4 w-4 flex-shrink-0" />
@@ -479,7 +479,7 @@ function PowerActions({
                   setMenuOpen(false)
                 }}
                 disabled={powerLoading || kvmLoading}
-                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-indigo-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-indigo-600 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 role="menuitem"
               >
                 <Monitor className="h-4 w-4 flex-shrink-0" />
@@ -497,7 +497,7 @@ function PowerActions({
                 setMenuOpen(false)
               }}
               disabled={powerLoading || kvmLoading || markStartedLoading}
-              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-blue-400 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-sm text-blue-600 hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               role="menuitem"
             >
               <Check className="h-4 w-4 flex-shrink-0" />
@@ -516,7 +516,7 @@ function PowerActions({
       <Button
         size="sm"
         variant="outline"
-        className="border-green-500/30 text-green-400 hover:bg-green-500/10 active:bg-green-500/20 h-9 px-3"
+        className="border-green-500/30 text-green-600 hover:bg-green-500/10 active:bg-green-500/20 h-9 px-3"
         disabled={powerLoading || isPowerable || isHibernated}
         onClick={() => onAction("start")}
       >
@@ -531,7 +531,7 @@ function PowerActions({
       <Button
         size="sm"
         variant="outline"
-        className="border-red-500/30 text-red-400 hover:bg-red-500/10 active:bg-red-500/20 h-9 px-3"
+        className="border-red-500/30 text-red-600 hover:bg-red-500/10 active:bg-red-500/20 h-9 px-3"
         disabled={powerLoading || !isPowerable || isHibernated}
         onClick={() => onAction("stop")}
       >
@@ -1214,16 +1214,16 @@ const dmcaAlert = isDmcaProtected ? (
 
   const statusColor =
     server.status === 'running' || server.status === 'online'
-      ? 'text-green-400 bg-green-400'
+      ? 'text-green-600 bg-green-500'
       : server.status === 'hibernated'
-        ? 'text-purple-400 bg-purple-400'
+        ? 'text-purple-600 bg-purple-500'
         : server.status === 'installing'
-          ? 'text-yellow-400 bg-yellow-400 animate-pulse'
+          ? 'text-yellow-600 bg-yellow-500 animate-pulse'
           : server.status === 'dmca'
             ? 'text-destructive bg-destructive'
             : server.status === 'stopped' || server.status === 'offline'
-              ? 'text-red-400 bg-red-400'
-              : 'text-yellow-400 bg-yellow-400'
+              ? 'text-red-600 bg-red-500'
+              : 'text-yellow-600 bg-yellow-500'
 
   if (!hasServerAccess) {
     return (
@@ -1331,8 +1331,8 @@ const dmcaAlert = isDmcaProtected ? (
                 className={cn(
                   "inline-block h-2 w-2 flex-shrink-0",
                   server?.status === "running" ? "bg-green-500"
-                  : server?.status === "stopped" ? "bg-red-400"
-                  : "bg-yellow-400"
+                  : server?.status === "stopped" ? "bg-red-500"
+                  : "bg-yellow-500"
                 )}
               />
               <span className="text-muted-foreground text-sm capitalize">{server?.status || t("states.unknown")}</span>
@@ -1343,7 +1343,7 @@ const dmcaAlert = isDmcaProtected ? (
               {isKvm && (
                 <>
                   <span className="w-px h-3 bg-border mx-1" />
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-400">
+                    <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600">
                     <Monitor className="h-3 w-3" />
                     KVM
                   </span>
@@ -1397,7 +1397,7 @@ const dmcaAlert = isDmcaProtected ? (
 
         {isDmcaProtected && (
           <motion.div
-            className="mt-4 flex items-center gap-2 text-red-400 text-sm border border-red-400/20 bg-red-400/5 px-4 py-2"
+            className="mt-4 flex items-center gap-2 text-red-600 text-sm border border-red-600/20 bg-red-600/5 px-4 py-2"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
           >
@@ -1962,7 +1962,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                         aria-label={t("databases.copy", { field: row.label })}
                       >
                         {copied === row.key ? (
-                          <Check className="h-3 w-3 text-green-400" />
+              <Check className="h-3 w-3 text-green-600" />
                         ) : (
                           <Copy className="h-3 w-3" />
                         )}
@@ -2146,7 +2146,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
                     variant="outline"
                     className={cn(
                       "text-[10px]",
-                      sched.is_active ? "text-green-400" : "text-muted-foreground"
+                      sched.is_active ? "text-green-600" : "text-muted-foreground"
                     )}
                   >
                     {sched.is_active ? t("schedules.active") : t("schedules.inactive")}
@@ -2502,7 +2502,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       {featureToggles?.dedicatedIps !== false && dedicatedIps.length > 0 && (
         <div className="border border-violet-500/20 bg-violet-500/5 p-3 space-y-2">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-[10px] border-violet-500/30 text-violet-500 whitespace-nowrap">
+            <Badge variant="outline" className="text-[10px] border-violet-600/30 text-violet-600 whitespace-nowrap">
               Dedicated IP
             </Badge>
             <span className="text-xs text-muted-foreground">This server has dedicated IPs assigned</span>
@@ -2634,7 +2634,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                       <span className="font-mono text-sm text-foreground truncate min-w-0 break-all">
                         {alloc.ip}
                       </span>
-                      <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap border-violet-500/30 text-violet-500">
+                      <Badge variant="outline" className="text-[10px] flex-shrink-0 whitespace-nowrap border-violet-600/30 text-violet-600">
                         Dedicated IP
                       </Badge>
                     </div>
@@ -2815,7 +2815,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                           t("backups.backupFallback")}
                       </p>
                       {isLocked && (
-                        <Lock className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />
+                        <Lock className="h-3.5 w-3.5 text-yellow-600 flex-shrink-0" />
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -3196,7 +3196,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                   {!isEditable && (
                     <Badge
                       variant="outline"
-                      className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap"
+                      className="text-[10px] border-yellow-600/30 text-yellow-600 flex-shrink-0 whitespace-nowrap"
                     >
                       {t("startup.readOnly")}
                     </Badge>
@@ -3325,7 +3325,7 @@ function MountsTab({ serverId, isKvm }: { serverId: string; isKvm?: boolean }) {
                 {mount.read_only && (
                   <Badge
                     variant="outline"
-                    className="text-[10px] border-yellow-500/30 text-yellow-500 flex-shrink-0 whitespace-nowrap"
+                    className="text-[10px] border-yellow-600/30 text-yellow-600 flex-shrink-0 whitespace-nowrap"
                   >
                     {t("mounts.readOnly")}
                   </Badge>
@@ -4083,7 +4083,7 @@ function SettingsTab({
                 size="sm"
                 variant="outline"
                 onClick={launchSsh}
-                className="flex-1 sm:flex-none border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 active:bg-emerald-500/20 h-10 sm:h-9 px-3"
+                className="flex-1 sm:flex-none border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 active:bg-emerald-500/20 h-10 sm:h-9 px-3"
               >
                 <Terminal className="h-4 w-4 mr-2" />
                 {t("settings.launchSsh")}
@@ -4093,7 +4093,7 @@ function SettingsTab({
                 size="sm"
                 variant="outline"
                 onClick={launchSftp}
-                className="flex-1 sm:flex-none border-blue-500/30 text-blue-400 hover:bg-blue-500/10 active:bg-blue-500/20 h-10 sm:h-9 px-3"
+                className="flex-1 sm:flex-none border-blue-500/30 text-blue-600 hover:bg-blue-500/10 active:bg-blue-500/20 h-10 sm:h-9 px-3"
               >
                 <Folder className="h-4 w-4 mr-2" />
                 {t("settings.launchSftp")}
@@ -4104,7 +4104,7 @@ function SettingsTab({
             {/* Launch notice */}
             {launchNotice && (
               <div className="border border-amber-500/20 bg-amber-500/5 px-3 py-2.5 flex items-start gap-2 animate-in fade-in-0 slide-in-from-top-2 overflow-hidden">
-                <Info className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <Info className="h-3.5 w-3.5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-300/80 leading-relaxed break-words min-w-0">
                   {launchNotice}
                 </p>
@@ -4167,10 +4167,10 @@ function SettingsTab({
             {isKvm ? (
               <div className="border border-indigo-500/15 bg-indigo-500/5 p-3 space-y-2 min-w-0 overflow-hidden">
                 <div className="flex items-start gap-2 min-w-0">
-                  <Monitor className="h-4 w-4 text-indigo-400 flex-shrink-0 mt-0.5" />
+                  <Monitor className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
                   <div className="space-y-1.5 min-w-0 flex-1 overflow-hidden">
                     <p className="text-xs font-medium text-indigo-300">{t("settings.kvmNotes.title")}</p>
-                    <ul className="text-xs text-indigo-400/70 space-y-1 list-disc pl-4">
+                    <ul className="text-xs text-indigo-600/70 space-y-1 list-disc pl-4">
                       <li>{t("settings.kvmNotes.usePrimary")}</li>
                       <li className="break-all">
                         {t("settings.kvmNotes.default")}:{" "}
@@ -4199,7 +4199,7 @@ function SettingsTab({
             <div className="pt-3 space-y-3">
               <div className="border border-purple-500/20 bg-purple-500/5 px-4 py-3">
                 <div className="flex items-center gap-2 mb-1">
-                  <Star className="h-4 w-4 text-purple-400" />
+                  <Star className="h-4 w-4 text-purple-600" />
                   <span className="text-sm font-semibold text-purple-300">ELO-Managed Resources</span>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
@@ -4250,7 +4250,7 @@ function SettingsTab({
                     <FileText className="h-3 w-3" />
                     Write Devlog
                   </Link>
-                  <a href="/dashboard/elo" className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 transition-colors ml-auto">
+                  <a href="/dashboard/elo" className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-300 transition-colors ml-auto">
                     View ELO Dashboard →
                   </a>
                 </div>
@@ -4342,7 +4342,7 @@ function SettingsTab({
                 onChange={(value) => setMemoryLimit(Math.max(0, value))}
                 format={(value) => `${value} MB`}
                 formatMax={(value) => `${value} MB`}
-                color="text-blue-500"
+                color="text-blue-600"
               />
               <ResourceSlider
                 label={t("stats.disk")}
@@ -4358,7 +4358,7 @@ function SettingsTab({
                 formatMax={(value) =>
                   value >= 1024 ? `${(value / 1024).toFixed(0)} GB` : `${value} MB`
                 }
-                color="text-emerald-500"
+                color="text-emerald-600"
               />
               <ResourceSlider
                 label={t("stats.cpu")}
@@ -4369,7 +4369,7 @@ function SettingsTab({
                 step={5}
                 onChange={(value) => setCpuLimit(Math.max(0, value))}
                 format={(value) => `${value}%`}
-                color="text-amber-500"
+                color="text-amber-600"
               />
             </div>
             <div className="space-y-4">
@@ -4469,7 +4469,7 @@ function SettingsTab({
           <Button
             variant="outline"
             size="sm"
-            className="border-yellow-500/30 text-yellow-400 hover:bg-yellow-500/10 w-full sm:w-auto h-10 sm:h-9"
+            className="border-yellow-500/30 text-yellow-600 hover:bg-yellow-500/10 w-full sm:w-auto h-10 sm:h-9"
             onClick={() => setReinstallDialogOpen(true)}
             disabled={reinstalling}
           >

@@ -75,16 +75,16 @@ function getRiskLevel(score?: number | null): "critical" | "high" | "medium" | "
 }
 
 const RISK_CONFIG = {
-  critical: { bar: "bg-red-500",     text: "text-red-400",     badge: "border-red-500/30 bg-red-500/10 text-red-400" },
-  high:     { bar: "bg-orange-500",  text: "text-orange-400",  badge: "border-orange-500/30 bg-orange-500/10 text-orange-400" },
-  medium:   { bar: "bg-yellow-500",  text: "text-yellow-400",  badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-400" },
-  low:      { bar: "bg-emerald-500", text: "text-emerald-400", badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" },
+  critical: { bar: "bg-red-500",     text: "text-red-600",     badge: "border-red-500/30 bg-red-500/10 text-red-600" },
+  high:     { bar: "bg-orange-500",  text: "text-orange-600",  badge: "border-orange-500/30 bg-orange-500/10 text-orange-600" },
+  medium:   { bar: "bg-yellow-500",  text: "text-yellow-600",  badge: "border-yellow-500/30 bg-yellow-500/10 text-yellow-600" },
+  low:      { bar: "bg-emerald-500", text: "text-emerald-600", badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600" },
   none:     { bar: "bg-muted",       text: "text-muted-foreground", badge: "border-border bg-secondary/50 text-muted-foreground" },
 } as const
 
 const STATUS_CONFIG: Record<string, { badge: string }> = {
-  pending:  { badge: "border-blue-500/30 bg-blue-500/10 text-blue-400"       },
-  resolved: { badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400" },
+  pending:  { badge: "border-blue-500/30 bg-blue-500/10 text-blue-600"       },
+  resolved: { badge: "border-emerald-500/30 bg-emerald-500/10 text-emerald-600" },
   dismissed:{ badge: "border-border bg-secondary/50 text-muted-foreground"   },
   archived: { badge: "border-border bg-secondary/50 text-muted-foreground"   },
 }
@@ -369,9 +369,9 @@ export default function AntiAbuseTab() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           { label: t("summary.total"),        value: total,                icon: Shield,      valueClass: "" },
-          { label: t("summary.highRisk"),      value: summary.high,         icon: ShieldAlert, valueClass: "text-red-400" },
-          { label: t("summary.suspended"),     value: summary.suspended,    icon: Ban,         valueClass: "text-orange-400" },
-          { label: t("summary.activeAgents"),  value: activeAgents.length,  icon: Zap,         valueClass: "text-emerald-400" },
+          { label: t("summary.highRisk"),      value: summary.high,         icon: ShieldAlert, valueClass: "text-red-600" },
+          { label: t("summary.suspended"),     value: summary.suspended,    icon: Ban,         valueClass: "text-orange-600" },
+          { label: t("summary.activeAgents"),  value: activeAgents.length,  icon: Zap,         valueClass: "text-emerald-600" },
         ].map(({ label, value, icon: Icon, valueClass }) => (
           <div key={label} className="border border-border bg-card p-3 flex items-center gap-3">
             <div className="h-8 w-8 bg-secondary/60 flex items-center justify-center shrink-0">
@@ -405,7 +405,7 @@ export default function AntiAbuseTab() {
             <button
               onClick={bulkDelete}
               disabled={updatingId !== null}
-              className="h-7 px-3 border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+              className="h-7 px-3 border border-red-500/30 bg-red-500/10 text-xs font-medium text-red-600 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
             >
               {t("actions.bulkDelete", { count: selectedIds.length })}
             </button>
@@ -526,7 +526,7 @@ export default function AntiAbuseTab() {
                               {getStatusLabel(item.status)}
                             </Badge>
                             {item.suspendSuccess && (
-                              <Badge variant="outline" className="text-[10px] w-fit border-orange-500/30 bg-orange-500/10 text-orange-400">
+                              <Badge variant="outline" className="text-[10px] w-fit border-orange-500/30 bg-orange-500/10 text-orange-600">
                                 {t("labels.suspended")}
                               </Badge>
                             )}
@@ -716,7 +716,7 @@ export default function AntiAbuseTab() {
                 {/* Verification-style chips */}
                 <div className="flex items-center gap-2 flex-wrap px-4 py-2.5 border-t border-border bg-secondary/20">
                   {item.suspendSuccess && (
-                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-orange-500/10 text-orange-400">
+                    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium bg-orange-500/10 text-orange-600">
                       <AlertTriangle className="h-2.5 w-2.5" /> {t("labels.suspended")}
                     </span>
                   )}

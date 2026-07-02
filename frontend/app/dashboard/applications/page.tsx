@@ -59,14 +59,14 @@ function getSubmissionDisplay(status: ApplicationSubmission["status"]) {
       return {
         label: "Approved",
         icon: BadgeCheck,
-        className: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+        className: "text-emerald-600 bg-emerald-500/10 border-emerald-500/20",
         dot: "bg-emerald-400",
       }
     case "rejected":
       return {
         label: "Rejected",
         icon: Ban,
-        className: "text-red-400 bg-red-500/10 border-red-500/20",
+        className: "text-red-600 bg-red-500/10 border-red-500/20",
         dot: "bg-red-400",
       }
     case "archived":
@@ -80,7 +80,7 @@ function getSubmissionDisplay(status: ApplicationSubmission["status"]) {
       return {
         label: "Processing",
         icon: Clock,
-        className: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+        className: "text-yellow-600 bg-yellow-500/10 border-yellow-500/20",
         dot: "bg-yellow-400 animate-pulse",
       }
   }
@@ -90,7 +90,7 @@ function getKindConfig(kind: FormKind) {
   return kind === "abuse_report"
     ? {
         label: "Abuse Report",
-        className: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+        className: "text-orange-600 bg-orange-500/10 border-orange-500/20",
       }
     : {
         label: "Staff Application",
@@ -103,12 +103,12 @@ function getVisibilityConfig(
   requiresAccount: boolean
 ) {
   if (visibility === "public_anonymous" || !requiresAccount) {
-    return { label: "Public", icon: Globe, className: "text-blue-400" }
+    return { label: "Public", icon: Globe, className: "text-blue-600" }
   }
   if (visibility === "private_invite") {
-    return { label: "Invite Only", icon: Lock, className: "text-orange-400" }
+    return { label: "Invite Only", icon: Lock, className: "text-orange-600" }
   }
-  return { label: "Account Required", icon: Users, className: "text-purple-400" }
+  return { label: "Account Required", icon: Users, className: "text-purple-600" }
 }
 
 function StatusPill({
@@ -267,7 +267,7 @@ function FormCard({
 
           {action.type === "submitted" && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
               <span>
                 Application submitted •{" "}
                 <span className="font-medium text-foreground">
@@ -487,19 +487,19 @@ export default function ApplicationsPage() {
                       label="Open Now"
                       value={stats.active}
                       icon={CheckCircle2}
-                      className="bg-emerald-500/10 text-emerald-400"
+                      className="bg-emerald-500/10 text-emerald-600"
                     />
                     <StatCard
                       label="My Submissions"
                       value={stats.submitted}
                       icon={Clock}
-                      className="bg-blue-500/10 text-blue-400"
+                      className="bg-blue-500/10 text-blue-600"
                     />
                     <StatCard
                       label="Approved"
                       value={stats.approved}
                       icon={BadgeCheck}
-                      className="bg-purple-500/10 text-purple-400"
+                      className="bg-purple-500/10 text-purple-600"
                     />
                   </div>
                 )}
@@ -525,7 +525,7 @@ export default function ApplicationsPage() {
                 {/* Forms List */}
                 {forms.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 gap-4">
-                    <div className="w-16 h-16 rounded-full bg-muted/30 flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center">
                       <Inbox className="h-8 w-8 text-muted-foreground/50" />
                     </div>
                     <div className="text-center">
