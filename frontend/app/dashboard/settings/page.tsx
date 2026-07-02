@@ -3,7 +3,7 @@
 import { PanelHeader } from "@/components/panel/header"
 import { FeedbackSettingsCard } from "@/components/panel/feedback-settings-card"
 import { SlackBotSettings } from "@/components/panel/slack-bot-settings"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef, useCallback } from "react"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
@@ -1270,7 +1270,10 @@ export default function SettingsPage() {
     }
   }, [user])
 
-  const saveUserSettings = async (settings: Record<string, any>) => {
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pendingSaveRef = useRef<Record<string, any> | null>(null)
+
+  const saveUserSettings = useCallback(async (settings: Record<string, any>) => {
     if (!user?.id) return
     try {
       const merged = { ...(user.settings || {}), ...settings }
@@ -1285,7 +1288,17 @@ export default function SettingsPage() {
         t("messages.failedToSaveSettings") + ": " + (err?.message || t("messages.unknown"))
       )
     }
-  }
+  }, [user, t])
+
+  const debouncedSave = useCallback((settings: Record<string, any>) => {
+    pendingSaveRef.current = settings
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(async () => {
+      const toSave = pendingSaveRef.current
+      pendingSaveRef.current = null
+      if (toSave) await saveUserSettings(toSave)
+    }, 3000)
+  }, [saveUserSettings])
 
   const updateLocalePreference = async (nextLocale: string) => {
     if (!isSupportedLocale(nextLocale)) return
@@ -1401,24 +1414,24 @@ export default function SettingsPage() {
     await saveUserSettings({ theme: { name: themeName } })
   }
 
-  const updateEditorSettings = async (partial: Partial<EditorSettings>) => {
+  const updateEditorSettings = (partial: Partial<EditorSettings>) => {
     const merged = {
       ...DEFAULT_EDITOR_SETTINGS,
       ...(user?.settings?.editor || {}),
       ...partial,
     }
     setEditorSettings(merged)
-    await saveUserSettings({ editor: merged })
+    debouncedSave({ editor: merged })
   }
 
-  const updateByoaiConfig = async (partial: Partial<ByoaiConfig>) => {
+  const updateByoaiConfig = (partial: Partial<ByoaiConfig>) => {
     const merged = {
       ...DEFAULT_BYOAI_CONFIG,
       ...(user?.settings?.byoai || {}),
       ...partial,
     }
     setByoaiConfig(merged)
-    await saveUserSettings({ byoai: merged })
+    debouncedSave({ byoai: merged })
   }
 
   useEffect(() => {
