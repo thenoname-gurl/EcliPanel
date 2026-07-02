@@ -579,7 +579,9 @@ function TabNavigation({ tabs, activeTab, onTabChange }: TabNavigationProps) {
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
-    const activeButton = container.querySelector(`[data-tab="${activeTab}"]`) as HTMLElement
+    const activeButton = Array.from(container.querySelectorAll('[data-tab]')).find(
+      (btn) => btn.getAttribute('data-tab') === activeTab
+    ) as HTMLElement | undefined
     if (activeButton) {
       const containerRect = container.getBoundingClientRect()
       const buttonRect = activeButton.getBoundingClientRect()

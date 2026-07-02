@@ -214,7 +214,27 @@ export default function TicketDetailPage({
   const [showMobileDetails, setShowMobileDetails] = useState(false)
   const [showAdminPanel, setShowAdminPanel] = useState(false)
   const [screenshots, setScreenshots] = useState<File[]>([])
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([])
   const [uploadedUrls, setUploadedUrls] = useState<string[]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadPreviews = async () => {
+      const urls = await Promise.all(
+        screenshots.map(
+          (file) =>
+            new Promise<string>((resolve) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result as string)
+              reader.readAsDataURL(file)
+            })
+        )
+      )
+      if (!cancelled) setScreenshotPreviews(urls)
+    }
+    loadPreviews()
+    return () => { cancelled = true }
+  }, [screenshots])
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -1174,12 +1194,12 @@ export default function TicketDetailPage({
                   />
 
                   {/* Screenshot previews */}
-                  {(screenshots.length > 0 || uploadedUrls.length > 0) && (
+                  {(screenshotPreviews.length > 0 || uploadedUrls.length > 0) && (
                     <div className="flex flex-wrap gap-2 px-2.5 pt-2 sm:px-3">
-                      {screenshots.map((file, idx) => (
+                      {screenshotPreviews.map((url, idx) => (
                         <div key={`pending-${idx}`} className="relative group">
                           <img
-                            src={URL.createObjectURL(file)}
+                            src={url}
                             alt={`Screenshot ${idx + 1}`}
                             className="h-14 w-20 sm:h-16 sm:w-24 rounded border border-border object-cover"
                           />

@@ -46,7 +46,9 @@
   },
   "pnpm": {
     "overrides": {
-      "tmp": "^0.2.7"
+      "tmp": "^0.2.7",
+      "undici": ">=7.28.0",
+      "undici-types": ">=7.28.0"
     }
   }
 }

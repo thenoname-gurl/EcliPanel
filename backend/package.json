@@ -39,7 +39,7 @@
     "@tensorflow/tfjs-node": "latest",
     "@types/bun": "^1.3.14",
     "@vladmandic/face-api": "latest",
-    "adm-zip": "^0.5.17",
+    "adm-zip": "^0.5.18",
     "base64url": "latest",
     "brace-expansion": "latest",
     "dompurify": "latest",

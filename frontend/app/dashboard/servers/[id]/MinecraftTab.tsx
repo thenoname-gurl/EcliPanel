@@ -1100,7 +1100,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                 const isOpped = opNames.has(p.name);
                 return (
                   <div key={p.uuid} className="flex items-center gap-3 border border-border bg-card p-3 min-w-0">
-                    <div className="h-8 w-8 rounded-full bg-muted/30 flex-shrink-0 overflow-hidden">
+                    <div className="h-8 w-8 bg-muted/30 flex-shrink-0 overflow-hidden">
                       <img src={mcAvatar(p, 32)} alt={p.name} className="h-full w-full object-cover" loading="lazy" />
                     </div>
                     <div className="min-w-0 flex-1">

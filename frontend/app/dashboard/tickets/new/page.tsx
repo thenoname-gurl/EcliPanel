@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { useRouter } from "next/navigation"
@@ -21,7 +21,27 @@ export default function NewTicketPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [screenshots, setScreenshots] = useState<File[]>([])
+  const [previewUrls, setPreviewUrls] = useState<string[]>([])
   const [uploadingScreenshots, setUploadingScreenshots] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadPreviews = async () => {
+      const urls = await Promise.all(
+        screenshots.map(
+          (file) =>
+            new Promise<string>((resolve) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(reader.result as string)
+              reader.readAsDataURL(file)
+            })
+        )
+      )
+      if (!cancelled) setPreviewUrls(urls)
+    }
+    loadPreviews()
+    return () => { cancelled = true }
+  }, [screenshots])
   const { user } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -188,12 +208,12 @@ export default function NewTicketPage() {
                     }}
                   />
                 </label>
-                {screenshots.length > 0 && (
+                {previewUrls.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {screenshots.map((file, idx) => (
+                    {previewUrls.map((url, idx) => (
                       <div key={idx} className="relative group">
                         <img
-                          src={URL.createObjectURL(file)}
+                          src={url}
                           alt={`Screenshot ${idx + 1}`}
                           className="h-14 w-20 sm:h-16 sm:w-24 rounded border border-border object-cover"
                         />
