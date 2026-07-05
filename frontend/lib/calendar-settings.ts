@@ -3,6 +3,7 @@ export interface CalendarSettings {
   workEnd: number
   workDays: number[]
   breaks: { start: number; end: number }[]
+  timezone: string
 }
 
 export const DEFAULT_CALENDAR_SETTINGS: CalendarSettings = {
@@ -10,6 +11,7 @@ export const DEFAULT_CALENDAR_SETTINGS: CalendarSettings = {
   workEnd: 17,
   workDays: [1, 2, 3, 4, 5],
   breaks: [],
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 }
 
 export const TODO_CATEGORIES = [

@@ -2931,6 +2931,19 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="pt-2">
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">Timezone</label>
+                    <select
+                      value={calendarSettings.timezone}
+                      onChange={(e) => updateCalendarSettings({ timezone: e.target.value })}
+                      className="w-full max-w-xs border border-border/60 bg-background px-2.5 py-1.5 text-xs rounded-lg outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all"
+                    >
+                      {Intl.supportedValuesOf('timeZone').map((tz) => (
+                        <option key={tz} value={tz}>{tz}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="pt-2">
                     <label className="text-[11px] text-muted-foreground mb-1.5 block">{t("calendar.breaks")}</label>
                     <div className="space-y-1.5">
                       {calendarSettings.breaks.map((br, i) => (
