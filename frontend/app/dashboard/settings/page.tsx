@@ -15,6 +15,7 @@ import { resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
 import { DEFAULT_EDITOR_SETTINGS, EditorSettings } from "@/lib/editor-settings"
 import { LEGAL_DOCUMENTS } from "@/lib/legal-docs"
 import { DEFAULT_BYOAI_CONFIG, type ByoaiConfig, isByoaiConfigured, OPENCODE_GO_ENDPOINT, OPENCODE_GO_MODELS } from "@/lib/byoai-config"
+import { DEFAULT_CALENDAR_SETTINGS, type CalendarSettings } from "@/lib/calendar-settings"
 import { cn } from "@/lib/utils"
 import { getBadgeColorClass } from "@/lib/badge-colors"
 import { isPasswordValid, PASSWORD_MAX, FIELD_MAX_LENGTHS } from "@/lib/password-validation"
@@ -1077,6 +1078,13 @@ export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false)
   const { user, refreshUser } = useAuth()
 
+  const [calendarSettings, setCalendarSettings] = useState<CalendarSettings>(DEFAULT_CALENDAR_SETTINGS)
+  const updateCalendarSettings = (partial: Partial<CalendarSettings>) => {
+    const merged = { ...DEFAULT_CALENDAR_SETTINGS, ...(user?.settings?.calendar || {}), ...partial }
+    setCalendarSettings(merged)
+    debouncedSave({ calendar: merged })
+  }
+
   const [apiKeys, setApiKeys] = useState<any[]>([])
   const [apiLoading, setApiLoading] = useState(true)
   const [newKeyName, setNewKeyName] = useState("")
@@ -1267,6 +1275,9 @@ export default function SettingsPage() {
     }
     if (user?.settings?.byoai) {
       setByoaiConfig({ ...DEFAULT_BYOAI_CONFIG, ...user.settings.byoai })
+    }
+    if (user?.settings?.calendar) {
+      setCalendarSettings({ ...DEFAULT_CALENDAR_SETTINGS, ...user.settings.calendar })
     }
   }, [user])
 
@@ -1610,6 +1621,7 @@ export default function SettingsPage() {
     },
     { value: "editor", icon: Settings, label: t("tabs.editor"), guideId: "settings-editor" },
     { value: "ai", icon: Sparkles, label: t("tabs.ai") || "AI", guideId: "settings-ai" },
+    { value: "calendar", icon: Calendar, label: t("tabs.calendar"), guideId: "settings-calendar" },
     { value: "slack", icon: MessageSquare, label: "Slack Bot", guideId: "settings-slack" },
   ]
 
@@ -2863,6 +2875,95 @@ export default function SettingsPage() {
           {activeTab === "slack" && (
             <div className="space-y-6">
               <SlackBotSettings />
+            </div>
+          )}
+
+          {activeTab === "calendar" && (
+            <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <SettingsCard>
+                <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">{t("calendar.title")}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t("calendar.description")}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-4 min-w-0">
+                  <SettingRow
+                    icon={Calendar}
+                    title={t("calendar.workHours")}
+                    description={t("calendar.workHoursHint")}
+                    action={
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">{t("calendar.workStart")}</span>
+                        <input type="number" min={0} max={23} value={calendarSettings.workStart}
+                          onChange={(e) => updateCalendarSettings({ workStart: Number(e.target.value) || 9 })}
+                          className="w-14 border border-border bg-background px-2 py-1.5 text-xs rounded outline-none focus:border-primary text-center" />
+                        <span className="text-[11px] text-muted-foreground">{t("calendar.workEnd")}</span>
+                        <input type="number" min={1} max={24} value={calendarSettings.workEnd}
+                          onChange={(e) => updateCalendarSettings({ workEnd: Number(e.target.value) || 17 })}
+                          className="w-14 border border-border bg-background px-2 py-1.5 text-xs rounded outline-none focus:border-primary text-center" />
+                      </div>
+                    }
+                  />
+
+                  <div className="pt-2">
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">{t("calendar.workDays")}</label>
+                    <div className="flex gap-1.5">
+                      {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
+                        <button key={d} onClick={() => {
+                          const next = calendarSettings.workDays.includes(i)
+                            ? calendarSettings.workDays.filter((x) => x !== i)
+                            : [...calendarSettings.workDays, i].sort()
+                          updateCalendarSettings({ workDays: next })
+                        }}
+                          className={cn(
+                            "w-8 h-8 text-[10px] font-medium rounded border transition-colors",
+                            calendarSettings.workDays.includes(i)
+                              ? "bg-primary/10 border-primary/30 text-primary"
+                              : "border-border/50 text-muted-foreground hover:border-border"
+                          )}
+                        >
+                          {d.charAt(0)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <label className="text-[11px] text-muted-foreground mb-1.5 block">{t("calendar.breaks")}</label>
+                    <div className="space-y-1.5">
+                      {calendarSettings.breaks.map((br, i) => (
+                        <div key={i} className="flex items-center gap-1.5">
+                          <input type="number" min={0} max={23} value={br.start}
+                            onChange={(e) => {
+                              const b = [...calendarSettings.breaks]
+                              b[i] = { ...b[i], start: Number(e.target.value) || 0 }
+                              updateCalendarSettings({ breaks: b })
+                            }}
+                            className="w-14 border border-border bg-background px-2 py-1 text-xs rounded outline-none focus:border-primary text-center" />
+                          <span className="text-[10px] text-muted-foreground">–</span>
+                          <input type="number" min={1} max={24} value={br.end}
+                            onChange={(e) => {
+                              const b = [...calendarSettings.breaks]
+                              b[i] = { ...b[i], end: Number(e.target.value) || 1 }
+                              updateCalendarSettings({ breaks: b })
+                            }}
+                            className="w-14 border border-border bg-background px-2 py-1 text-xs rounded outline-none focus:border-primary text-center" />
+                          <button onClick={() => updateCalendarSettings({ breaks: calendarSettings.breaks.filter((_, j) => j !== i) })}
+                            className="p-0.5 rounded text-muted-foreground hover:text-red-500 transition-colors">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <button onClick={() => updateCalendarSettings({ breaks: [...calendarSettings.breaks, { start: 12, end: 13 }] })}
+                        className="text-[10px] text-primary hover:underline flex items-center gap-1">
+                        <Plus className="h-3 w-3" /> Add break
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </SettingsCard>
             </div>
           )}
         </div>

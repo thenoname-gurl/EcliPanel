@@ -169,5 +169,10 @@ export const AppDataSource = new DataSource({
     require('../models/eloReport.entity').EloReport,
     require('../models/slackUserLink.entity').SlackUserLink,
     require('../models/regionalPrice.entity').RegionalPrice,
+    require('../models/calendarEvent.entity').CalendarEvent,
+    require('../models/todoItem.entity').TodoItem,
+    require('../models/availabilitySchedule.entity').AvailabilitySchedule,
+    require('../models/calendarBooking.entity').CalendarBooking,
+    require('../models/eventReminder.entity').EventReminder,
   ],
 });

@@ -15,6 +15,7 @@
       "ai": "AI",
       "support": "Support",
       "account": "Account",
+      "productivity": "Productivity",
       "administration": "Administration"
     },
     "items": {
@@ -28,6 +29,7 @@
       "tickets": "Tickets",
       "applications": "Applications",
       "identity": "Identity",
+      "calendar": "Calendar",
       "organisationInvites": "Organisation Invites",
       "billing": "Billing",
       "settings": "Settings",
@@ -3079,7 +3081,18 @@
       "api": "API",
       "theme": "Theme",
       "editor": "Editor",
-      "ai": "AI"
+      "ai": "AI",
+      "calendar": "Calendar"
+    },
+    "calendar": {
+      "title": "Calendar settings",
+      "description": "Configure your working hours and days for auto-scheduling.",
+      "workHours": "Working hours",
+      "workDays": "Working days",
+      "workHoursHint": "Auto-schedule finds free slots within these hours and places tasks before their deadline. Tasks marked \"Free Time\" use break slots.",
+      "workStart": "Start",
+      "workEnd": "End",
+      "breaks": "Breaks (nothing scheduled here)"
     },
     "documents": {
       "title": "Documents",
@@ -5826,6 +5839,62 @@
       "startupSaved": "Startup command saved. Restart the server for changes to take effect.",
       "startupSaveFailed": "Failed to save startup command: {message}",
       "startupLoading": "Loading startup configuration..."
+    }
+  },
+  "calendarPage": {
+    "title": "Calendar & Todo",
+    "description": "Plan your week, manage events, and stay organized",
+    "view": {
+      "calendar": "Calendar",
+      "todo": "Todo"
+    },
+    "calendar": {
+      "today": "Today",
+      "upcomingEvents": "Upcoming Events",
+      "noUpcomingEvents": "No upcoming events. Click a day to add one.",
+      "newEvent": "New Event",
+      "editEvent": "Edit Event",
+      "eventTitle": "Event title",
+      "description": "Description (optional)",
+      "start": "Start",
+      "end": "End",
+      "color": "Color",
+      "repeat": "Repeat",
+      "doesNotRepeat": "Does not repeat",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "more": "+{count} more"
+    },
+    "todo": {
+      "openTasks": "{count} open {count, plural, one {task} other {tasks}}",
+      "thisWeek": "{count} this week",
+      "quickAdd": "Quick add todo...",
+      "newTask": "New Task",
+      "editTask": "Edit Task",
+      "aiPlan": "AI Plan",
+      "taskTitle": "Task title",
+      "description": "Description (optional)",
+      "priority": "Priority",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "dueDate": "Due Date",
+      "time": "Time",
+      "estimatedMinutes": "Estimated minutes",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "weekOf": "Week of {date}",
+      "noDueDate": "No Due Date",
+      "allTasksHaveDueDate": "All tasks have a due date."
+    },
+    "ai": {
+      "planning": "Planning...",
+      "planningError": "AI planner unavailable right now. Try again later."
     }
   }
 }

@@ -33,6 +33,7 @@ import {
   Braces,
   Star,
   Trophy,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react"
 
@@ -505,6 +506,23 @@ export const API_ENDPOINTS = {
   organisationDnsZone: "/api/organisations/:id/dns/zones/:zoneId",
   organisationDnsZoneRecords: "/api/organisations/:id/dns/zones/:zoneId/records",
   organisationDnsZoneRecord: "/api/organisations/:id/dns/zones/:zoneId/records/:recordId",
+
+  // Calendar Stuff
+  calendarEvents: "/api/calendar/events",
+  calendarEvent: "/api/calendar/events/:id",
+  calendarTodos: "/api/calendar/todos",
+  calendarTodo: "/api/calendar/todos/:id",
+  calendarTodoToggle: "/api/calendar/todos/:id/toggle",
+  calendarEventBook: "/api/calendar/events/:id/book",
+  calendarEventBookings: "/api/calendar/events/:id/bookings",
+  calendarEventAvailableSlots: "/api/calendar/events/:id/available-slots",
+  calendarBookingDelete: "/api/calendar/events/:id/bookings/:bookingId",
+  availabilitySchedules: "/api/calendar/availability-schedules",
+  availabilitySchedule: "/api/calendar/availability-schedules/:id",
+  availabilitySchedulePublic: "/api/calendar/availability/s/:slug",
+  availabilityScheduleSlots: "/api/calendar/availability/s/:slug/available-slots",
+  availabilityScheduleBook: "/api/calendar/availability/s/:slug/book",
+  calendarEventNotification: "/api/calendar/events/:id/notification",
 } as const
 
 // ============================================
@@ -572,7 +590,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar'
 
 export interface NavItem {
   label: string
@@ -593,6 +611,7 @@ export const NAV_SECTION_I18N_KEYS: Record<string, string> = {
   Overview: "overview",
   Infrastructure: "infrastructure",
   AI: "ai",
+  Productivity: "productivity",
   Support: "support",
   Account: "account",
   Administration: "administration",
@@ -616,6 +635,7 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
 
   Tunnels: "tunnels",
   "Admin Panel": "adminPanel",
+  Calendar: "calendar",
 }
 
 export const NAV_BADGE_I18N_KEYS: Record<string, string> = {
@@ -672,12 +692,6 @@ export const NAVIGATION: NavSection[] = [
         icon: Network,
         requiredTier: "enterprise",
       },
-      {
-        label: "Visual Editor",
-        href: "/dashboard/infrastructure/visual-editor",
-        icon: Braces,
-        feature: "visualeditor",
-      },
     ],
   },
   {
@@ -695,6 +709,23 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/ai-chat",
         icon: MessageSquare,
         feature: "ai",
+      },
+    ],
+  },
+  {
+    title: "Productivity",
+    items: [
+      {
+        label: "Calendar",
+        href: "/dashboard/calendar",
+        icon: CalendarDays,
+        feature: "calendar",
+      },
+      {
+        label: "Visual Editor",
+        href: "/dashboard/infrastructure/visual-editor",
+        icon: Braces,
+        feature: "visualeditor",
       },
     ],
   },

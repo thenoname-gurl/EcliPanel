@@ -1,4 +1,3 @@
-#! /bin/sh
 [Unit]
 Description=EcliPanel Backend
 After=network.target
@@ -7,17 +6,11 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/srv/samba/shared/EcliPanel/v3/backend
-Environment=NODE_ENV=production
-Environment=PATH=/root/.bun/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/bin/bash -lc './start.sh'
-Restart=on-failure
+ExecStart=/root/.bun/bin/bun --watch src/index.ts
+Restart=always
 RestartSec=5
-TimeoutStartSec=30
-KillMode=control-group
-LimitNOFILE=65536
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=eclipanel-backend
 
 [Install]
 WantedBy=multi-user.target

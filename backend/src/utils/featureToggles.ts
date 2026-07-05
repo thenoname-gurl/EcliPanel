@@ -16,6 +16,7 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   tunnels: true,
   visualeditor: true,
   elo: true,
+  calendar: true,
 };
 
 export async function getPanelFeatureToggles(): Promise<Record<string, boolean>> {

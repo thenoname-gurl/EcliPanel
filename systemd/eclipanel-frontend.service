@@ -1,4 +1,3 @@
-#! /bin/sh
 [Unit]
 Description=EcliPanel Frontend
 After=network.target
@@ -7,18 +6,13 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/srv/samba/shared/EcliPanel/v3/frontend
-Environment=NODE_ENV=production
-Environment=PORT=3001
-Environment=PATH=/root/.bun/bin:/usr/local/bin:/usr/bin:/bin
-ExecStart=/bin/bash -lc './start.sh --port ${PORT}'
-Restart=on-failure
+ExecStart=/usr/bin/npm run dev
+Restart=always
 RestartSec=5
-TimeoutStartSec=30
-KillMode=control-group
-LimitNOFILE=65536
+Environment=NODE_ENV=development
+Environment=BACKEND_URL=http://localhost:3001
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=eclipanel-frontend
 
 [Install]
 WantedBy=multi-user.target

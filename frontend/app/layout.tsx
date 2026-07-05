@@ -20,6 +20,7 @@ const _geist = Geist({ subsets: ["latin"], display: "swap" });
 const _geistMono = Geist_Mono({ subsets: ["latin"], display: "swap" });
 const _didactGothic = Didact_Gothic({
   variable: "--font-didact-gothic",
+  subsets: ["latin"],
   weight: ["400"],
   display: "swap",
 });
@@ -72,7 +73,7 @@ export default async function RootLayout({
   const cookieHeader = hdrs.get("cookie") || "";
 
   const themesMap = Object.fromEntries(
-    THEMES.map((t) => [
+    (THEMES || []).map((t) => [
       t.name,
       {
         "--primary": t.primary,

@@ -27,6 +27,7 @@ import { scheduleLifetimeInactivityJob } from './jobs/lifetimeInactivityJob';
 import { scheduleEloDecayJob } from './jobs/eloDecayJob';
 import { scheduleTempEmailBlacklistSyncJob } from './jobs/tempEmailBlacklistSyncJob';
 import { scheduleWingsSyncJob } from './jobs/wingsSyncJob';
+import { scheduleCalendarNotificationJob } from './jobs/calendarNotificationJob';
 import { initSlackBot } from './slack/index';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
@@ -838,6 +839,11 @@ export async function initApp() {
     initSlackBot();
   } catch (e) {
     console.error('Failed to initialize Slack bot:', e);
+  }
+  try {
+    scheduleCalendarNotificationJob();
+  } catch (e) {
+    console.error('Failed to schedule calendar notification job:', e);
   }
 }
 

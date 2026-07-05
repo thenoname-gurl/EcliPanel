@@ -2103,6 +2103,7 @@ export async function userRoutes(app: any, prefix = '') {
             'serverFavorites',
             'guideShown',
             'byoai',
+            'calendar',
           ]);
           const sanitized: Record<string, any> = {};
           for (const k of Object.keys(incoming)) {

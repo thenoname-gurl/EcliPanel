@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
+if [ -f .env ]; then
+  sed -i 's/\r$//' .env || true
+  set -a
+  source .env
+  set +a
+fi
 export NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-https://backend.ecli.app}
 export NEXT_PUBLIC_WINGS_BASE=${NEXT_PUBLIC_WINGS_BASE:-}
 export BACKEND_URL=${BACKEND_URL:-https://backend.ecli.app}
 export NEXT_PUBLIC_COMMIT_SHA=$(git rev-parse --short HEAD)
-export BROWSER_CHECK_SECRET=$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+export BROWSER_CHECK_SECRET=${BROWSER_CHECK_SECRET:-$(node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")}
 PORT_OVERRIDE=""
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -30,11 +36,19 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-if [[ -n "$PORT_OVERRIDE" ]]; then
-	echo "Starting frontend on port $PORT_OVERRIDE"
-	PORT="$PORT_OVERRIDE" bun run build
-	PORT="$PORT_OVERRIDE" HOST=0.0.0.0 bun run start
-else
-	bun run build
+build_and_start() {
+	[[ -n "$PORT_OVERRIDE" ]] && export PORT="$PORT_OVERRIDE"
+	for i in 1 2 3; do
+		echo "Build attempt $i..."
+		rm -rf .next
+		if bun run build --webpack; then
+			echo "Build succeeded!"
+			break
+		fi
+		[[ $i -lt 3 ]] && sleep 3
+	done
+
 	HOST=0.0.0.0 bun run start
-fi
+}
+
+build_and_start
