@@ -810,7 +810,7 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw]">
         <div className="flex flex-col">
           {/* ── Section tabs ──────────────────────────── */}
-          <div className="flex items-center gap-1 px-6 py-2 border-b border-border/30 bg-muted/10">
+          <div className="flex items-center gap-1 px-3 md:px-6 py-2 border-b border-border/30 bg-muted/10">
             {(["calendar", "tasks", "bookings"] as const).map((sec) => (
               <button
                 key={sec}
@@ -853,9 +853,9 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
 
           {/* ── Calendar toolbar ──────────────────────── */}
           {section === "calendar" && (
-            <div className="flex items-center justify-between px-6 py-3 border-b border-border/50 bg-card/30">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-2 px-3 md:px-6 py-2 md:py-3 border-b border-border/50 bg-card/30">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-0.5 shrink-0">
                   <button
                     onClick={() => navigate(-1)}
                     className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
@@ -864,7 +864,7 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                   </button>
                   <button
                     onClick={goToday}
-                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border/60 text-foreground hover:bg-secondary/60 transition-colors"
+                    className="px-2 md:px-3 py-1 md:py-1.5 text-[11px] md:text-xs font-medium rounded-lg border border-border/60 text-foreground hover:bg-secondary/60 transition-colors"
                   >
                     Today
                   </button>
@@ -875,10 +875,10 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                     <ChevronRight className="h-4 w-4" />
                   </button>
                 </div>
-                <h1 className="text-base font-semibold text-foreground">{headerLabel}</h1>
+                <h1 className="text-sm md:text-base font-semibold text-foreground truncate">{headerLabel}</h1>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 ml-auto">
                 {/* View switcher */}
                 <div className="flex bg-secondary/40 border border-border/60 rounded-lg p-0.5">
                   {(Object.keys(VIEW_ICONS) as ViewMode[]).map((v) => (
@@ -886,20 +886,20 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                       key={v}
                       onClick={() => setView(v)}
                       className={cn(
-                        "flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
+                        "flex items-center gap-1 px-1.5 md:px-2.5 py-1 text-[11px] font-medium rounded-md transition-all",
                         view === v
                           ? "bg-background text-foreground shadow-sm"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
                       {VIEW_ICONS[v]}
-                      <span className="hidden sm:inline capitalize">{v}</span>
+                      <span className="hidden md:inline capitalize">{v}</span>
                     </button>
                   ))}
                 </div>
 
                 {/* ICS import / export */}
-                <div className="flex items-center gap-1">
+                <div className="hidden sm:flex items-center gap-1">
                   <label
                     className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors cursor-pointer"
                     title="Import ICS"
@@ -925,9 +925,10 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                 <Button
                   size="sm"
                   onClick={() => openNewEvent(toDateStr(currentDate))}
-                  className="text-xs gap-1 h-8"
+                  className="text-xs gap-1 h-7 md:h-8"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Event
+                  <Plus className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Event</span>
                 </Button>
               </div>
             </div>
@@ -950,7 +951,7 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                   calSettings={calSettings}
                   onSaveSettings={saveCalSettings}
                 />
-                <div className="flex-1 min-w-0 p-4">
+                <div className="flex-1 min-w-0 p-2 md:p-4">
                   {view === "month" && (
                     <MonthView
                       currentDate={currentDate}
@@ -1287,9 +1288,10 @@ function MonthView({
         {DAYS.map((d) => (
           <div
             key={d}
-            className="px-2 py-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider text-center"
+            className="px-1 md:px-2 py-1.5 md:py-2 text-[9px] md:text-[10px] font-medium text-muted-foreground uppercase tracking-wider text-center"
           >
-            {d}
+            <span className="hidden sm:inline">{d}</span>
+            <span className="sm:hidden">{d.slice(0, 1)}</span>
           </div>
         ))}
       </div>
@@ -1321,15 +1323,15 @@ function MonthView({
               key={i}
               onClick={() => !isPadding && onDateSelect(date)}
               className={cn(
-                "min-h-[110px] p-1.5 border-b border-r border-border/30 transition-colors relative group",
+                "min-h-[80px] md:min-h-[110px] p-1 md:p-1.5 border-b border-r border-border/30 transition-colors relative group",
                 isPadding ? "bg-muted/[0.03]" : "cursor-pointer hover:bg-secondary/10",
               )}
             >
               {/* Date number */}
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-0.5 md:mb-1">
                 <span
                   className={cn(
-                    "inline-flex items-center justify-center w-6 h-6 text-[11px] rounded-full font-medium",
+                    "inline-flex items-center justify-center w-5 h-5 md:w-6 md:h-6 text-[10px] md:text-[11px] rounded-full font-medium",
                     isToday
                       ? "bg-primary text-primary-foreground"
                       : isPadding
@@ -1439,7 +1441,7 @@ function WeekView({
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card/10 flex flex-col">
       {/* Day headers */}
       <div className="flex border-b border-border/40 bg-muted/20 shrink-0">
-        <div className="w-14 shrink-0 border-r border-border/30" />
+        <div className="w-10 md:w-14 shrink-0 border-r border-border/30" />
         {weekDays.map((d) => {
           const ds = toDateStr(d)
           const isToday = ds === today
@@ -1449,21 +1451,14 @@ function WeekView({
               key={ds}
               onClick={() => onDateSelect(d)}
               className={cn(
-                "flex-1 px-2 py-2 text-center border-r border-border/30 last:border-r-0 cursor-pointer hover:bg-secondary/20 transition-colors",
+                "flex-1 px-1 md:px-2 py-1.5 md:py-2 text-center border-r border-border/30 last:border-r-0 cursor-pointer hover:bg-secondary/20 transition-colors",
                 isToday && "bg-primary/[0.04]",
               )}
             >
+              <div className="text-[9px] md:text-[10px] font-medium text-muted-foreground">{DAYS[d.getDay()]}</div>
               <div
                 className={cn(
-                  "text-[10px] font-medium",
-                  isToday ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                {DAYS[d.getDay()]}
-              </div>
-              <div
-                className={cn(
-                  "inline-flex items-center justify-center w-7 h-7 text-xs rounded-full mt-0.5 font-medium",
+                  "inline-flex items-center justify-center w-6 h-6 md:w-7 md:h-7 text-[10px] md:text-xs rounded-full mt-0.5 font-medium",
                   isToday
                     ? "bg-primary text-primary-foreground"
                     : "text-foreground",
@@ -1472,7 +1467,7 @@ function WeekView({
                 {d.getDate()}
               </div>
               {evCount > 0 && (
-                <div className="text-[9px] text-muted-foreground mt-0.5">
+                <div className="hidden md:block text-[9px] text-muted-foreground mt-0.5">
                   {evCount} event{evCount !== 1 ? "s" : ""}
                 </div>
               )}
@@ -1482,10 +1477,10 @@ function WeekView({
       </div>
 
       {/* Scrollable timeline */}
-      <div ref={scrollRef} className="overflow-auto flex-1 max-h-[65vh]">
+      <div ref={scrollRef} className="overflow-auto flex-1 max-h-[50vh] md:max-h-[65vh]">
         <div className="flex" style={{ height: totalH }}>
           {/* Hour labels */}
-          <div className="w-14 shrink-0 border-r border-border/30 relative bg-card/10">
+          <div className="w-10 md:w-14 shrink-0 border-r border-border/30 relative bg-card/10">
             {HOURS.map((h) => (
               <div
                 key={h}
@@ -1714,11 +1709,11 @@ function DayView({
   return (
     <div className="border border-border/60 rounded-xl overflow-hidden bg-card/10 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-3 md:px-4 py-2 md:py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
+        <div className="flex items-center gap-1.5 md:gap-2 min-w-0">
           <span
             className={cn(
-              "text-sm font-semibold",
+              "text-xs md:text-sm font-semibold truncate",
               isToday ? "text-primary" : "text-foreground",
             )}
           >
@@ -1726,33 +1721,35 @@ function DayView({
             {currentDate.getDate()}
           </span>
           {isToday && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium shrink-0">
               Today
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
           <Button
             size="sm"
             variant="outline"
             onClick={() => onNewEvent(ds)}
-            className="text-xs gap-1 h-7"
+            className="text-[10px] md:text-xs gap-0.5 md:gap-1 h-6 md:h-7 px-1.5 md:px-2"
           >
-            <Plus className="h-3 w-3" /> Event
+            <Plus className="h-3 md:h-3.5 w-3 md:w-3.5" />
+            <span className="hidden sm:inline">Event</span>
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() => onNewTodo(ds)}
-            className="text-xs gap-1 h-7"
+            className="text-[10px] md:text-xs gap-0.5 md:gap-1 h-6 md:h-7 px-1.5 md:px-2"
           >
-            <Check className="h-3 w-3" /> Task
+            <Check className="h-3 md:h-3.5 w-3 md:w-3.5" />
+            <span className="hidden sm:inline">Task</span>
           </Button>
         </div>
       </div>
 
       {/* Timeline */}
-      <div ref={scrollRef} className="overflow-auto max-h-[65vh]">
+      <div ref={scrollRef} className="overflow-auto max-h-[50vh] md:max-h-[65vh]">
         <div className="relative" style={{ height: totalH }}>
           {/* Work-hours highlight */}
           <div
