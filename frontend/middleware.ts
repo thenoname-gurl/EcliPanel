@@ -443,6 +443,9 @@ function isHtmlRequest(req: NextRequest): boolean {
 }
 
 function isProtectedRoute(pathname: string): boolean {
+  if (pathname === '/dashboard/chat' || pathname.startsWith('/dashboard/chat/') || pathname.startsWith('/dashboard/chat?')) {
+    return false;
+  }
   return PROTECTED_ROUTE_PREFIXES.some((prefix) =>
     pathname === prefix || pathname.startsWith(`${prefix}/`)
   );

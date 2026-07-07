@@ -266,6 +266,11 @@ const EloTab = dynamic(() => import("./tabs/EloTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading ELO tab...</div>,
 })
 
+const ChatTab = dynamic(() => import("./tabs/ChatTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading chat tab...</div>,
+})
+
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
   const style = `\
     .email-preview-root { background: #0a0a12; font-family: -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; color: #e0e0e0; margin: 0; padding: 0; width: 100%; line-height: 1.6; }
@@ -991,6 +996,7 @@ export default function AdminPanel() {
     { value: 'rollouts', label: t('tabs.rollouts'), permissions: ['admin:access'] },
     { value: 'feedback', label: t('tabs.feedback'), permissions: ['admin:access'] },
     { value: 'elo', label: 'ELO', feature: 'elo', permissions: ['admin:access'] },
+    { value: 'chat', label: t('tabs.chat') || 'Chat', feature: 'chat', permissions: ['chat:manage'] },
   ]
 
   const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => hasAnyPermission(tab.permissions)))
@@ -6395,6 +6401,10 @@ remote: ${panelUrl}`
             {/* ═════════════════ ELO ════════════════════════════════════════ */}
             <TabsContent value="elo" className="mt-4">
               {activeTab === "elo" ? <EloTab ctx={{}} /> : null}
+            </TabsContent>
+            {/* ═════════════════ CHAT ═══════════════════════════════════════ */}
+            <TabsContent value="chat" className="mt-4">
+              {activeTab === "chat" ? <ChatTab ctx={{ panelSettings }} /> : null}
             </TabsContent>
             {/* ═════════════════ DATABASE HOSTS ══════════════════════════════ */}
             <TabsContent value="databases" className="mt-4">

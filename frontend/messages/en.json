@@ -31,6 +31,8 @@
       "identity": "Identity",
       "calendar": "Calendar",
       "paint": "Paint",
+      "visualEditor": "Visual Editor",
+      "chat": "Chat",
       "organisationInvites": "Organisation Invites",
       "billing": "Billing",
       "settings": "Settings",

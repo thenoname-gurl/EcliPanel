@@ -176,5 +176,9 @@ export const AppDataSource = new DataSource({
     require('../models/eventReminder.entity').EventReminder,
     require('../models/paint.entity').Paint,
     require('../models/paintBrush.entity').PaintBrush,
+    require('../models/chatChannel.entity').ChatChannel,
+    require('../models/chatMessage.entity').ChatMessage,
+    require('../models/chatChannelMember.entity').ChatChannelMember,
+    require('../models/chatIpLog.entity').ChatIpLog,
   ],
 });

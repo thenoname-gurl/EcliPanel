@@ -10,6 +10,10 @@ import { SunsetNoticeBanner } from "@/components/panel/sunset-notice-banner";
 import { KycBanner } from "@/components/panel/kyc-banner";
 import { FeedbackDialog } from "@/components/panel/feedback-dialog";
 import { Footer } from "@/components/Footer";
+import { createContext, useContext } from "react";
+
+export const SidebarContext = createContext<{ show: boolean; toggle: () => void }>({ show: true, toggle: () => {} })
+export const useSidebar = () => useContext(SidebarContext)
 
 export default function DashboardLayout({
   children,
@@ -19,19 +23,16 @@ export default function DashboardLayout({
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const isAnonChat = pathname?.startsWith("/dashboard/chat") && user === null;
+
   useEffect(() => {
-    if (user === null) {
+    if (user === null && !isAnonChat) {
       router.replace("/login");
     }
-  }, [user, router]);
+  }, [user, router, isAnonChat]);
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-
-  useEffect(() => {
-    if (user === null) {
-      router.replace("/login");
-    }
-  }, [user, router]);
+  const [showSidebar, setShowSidebar] = useState(true)
 
   if (user === undefined) {
     return null;
@@ -41,10 +42,12 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background min-w-0">
-      <PanelSidebar mobileOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
+      {!isAnonChat && (
+        <PanelSidebar mobileOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
+      )}
       <main className="relative flex flex-1 flex-col overflow-y-auto min-w-0">
         {/* Mobile hamburger */}
-        {!mobileSidebarOpen && (
+        {!isAnonChat && !mobileSidebarOpen && (
           <div className="absolute left-3 top-3 z-50 md:hidden">
             <button
               onClick={() => setMobileSidebarOpen(true)}
@@ -64,7 +67,9 @@ export default function DashboardLayout({
         <KycBanner />
         <FeedbackDialog />
         <div className={"flex-1 min-h-0"}>
-          {children}
+          <SidebarContext.Provider value={{ show: showSidebar, toggle: () => setShowSidebar(s => !s) }}>
+            {children}
+          </SidebarContext.Provider>
         </div>
         <Footer dashboard hideOnPathname={hideFooter} />
       </main>

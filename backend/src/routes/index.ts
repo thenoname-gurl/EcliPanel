@@ -31,6 +31,7 @@ import { rolloutRoutes } from '../handlers/rolloutHandler';
 import { feedbackRoutes } from '../handlers/feedbackHandler';
 import { calendarRoutes } from '../handlers/calendarHandler';
 import { paintRoutes } from '../handlers/paintHandler';
+import { chatRoutes } from '../handlers/chatHandler';
 import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
 import { visualEditorRoutes } from '../handlers/visualEditorHandler';
@@ -71,6 +72,8 @@ export function registerRoutes(app: any) {
       { prefix: '/api/admin/elo', feature: 'elo' },
       { prefix: '/api/calendar', feature: 'calendar' },
       { prefix: '/api/paints', feature: 'paint' },
+      { prefix: '/api/chat', feature: 'chat' },
+      { prefix: '/api/ws/chat', feature: 'chat' },
     ];
 
     for (const check of checks) {
@@ -141,4 +144,5 @@ export function registerRoutes(app: any) {
   slackRoutes(app, '/api');
   calendarRoutes(app, '/api');
   paintRoutes(app, '/api');
+  chatRoutes(app, '/api');
 }

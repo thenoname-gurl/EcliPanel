@@ -329,6 +329,7 @@ export function PanelHeader({
     elo: true,
     calendar: true,
     paint: true,
+    chat: true,
   })
 
   const [searchOpen, setSearchOpen] = useState(false)

@@ -35,6 +35,7 @@ import {
   Trophy,
   CalendarDays,
   Paintbrush,
+  MessageCircle,
   type LucideIcon,
 } from "lucide-react"
 
@@ -534,6 +535,19 @@ export const API_ENDPOINTS = {
   paintBrushCommunity: "/api/paints/brushes/community",
   paintBrushPublish: "/api/paints/brushes/:id/publish",
   paintBrushDownload: "/api/paints/brushes/:id/download",
+
+  // Chat
+  chatChannels: "/api/chat/channels",
+  chatChannelsAll: "/api/chat/channels/all",
+  chatChannel: "/api/chat/channels/:id",
+  chatMessages: "/api/chat/channels/:id/messages",
+  chatMessage: "/api/chat/channels/:id/messages",
+  chatAnonymousMessage: "/api/chat/channels/:id/messages/anonymous",
+  chatJoin: "/api/chat/channels/:id/join",
+  chatLeave: "/api/chat/channels/:id/leave",
+  chatPublicChannels: "/api/chat/public/channels",
+  chatWs: "/api/ws/chat",
+  chatUpload: "/api/chat/upload",
 } as const
 
 // ============================================
@@ -601,7 +615,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'paint'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'paint' | 'chat'
 
 export interface NavItem {
   label: string
@@ -648,6 +662,8 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   "Admin Panel": "adminPanel",
   Calendar: "calendar",
   Paint: "paint",
+  Chat: "chat",
+  "Visual Editor": "visualEditor",
 }
 
 export const NAV_BADGE_I18N_KEYS: Record<string, string> = {
@@ -744,6 +760,12 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/infrastructure/visual-editor",
         icon: Braces,
         feature: "visualeditor",
+      },
+      {
+        label: "Chat",
+        href: "/dashboard/chat",
+        icon: MessageCircle,
+        feature: "chat",
       },
     ],
   },
