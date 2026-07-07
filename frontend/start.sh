@@ -41,7 +41,7 @@ build_and_start() {
 	for i in 1 2 3; do
 		echo "Build attempt $i..."
 		rm -rf .next
-		if bun run build --webpack; then
+		if bun run build; then
 			echo "Build succeeded!"
 			break
 		fi

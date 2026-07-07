@@ -30,6 +30,7 @@ import { sshKeyRoutes } from '../handlers/sshKeyHandler';
 import { rolloutRoutes } from '../handlers/rolloutHandler';
 import { feedbackRoutes } from '../handlers/feedbackHandler';
 import { calendarRoutes } from '../handlers/calendarHandler';
+import { paintRoutes } from '../handlers/paintHandler';
 import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
 import { visualEditorRoutes } from '../handlers/visualEditorHandler';
@@ -69,6 +70,7 @@ export function registerRoutes(app: any) {
       { prefix: '/api/elo', feature: 'elo' },
       { prefix: '/api/admin/elo', feature: 'elo' },
       { prefix: '/api/calendar', feature: 'calendar' },
+      { prefix: '/api/paints', feature: 'paint' },
     ];
 
     for (const check of checks) {
@@ -138,4 +140,5 @@ export function registerRoutes(app: any) {
   eloRoutes(app, '/api');
   slackRoutes(app, '/api');
   calendarRoutes(app, '/api');
+  paintRoutes(app, '/api');
 }

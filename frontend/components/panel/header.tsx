@@ -327,6 +327,8 @@ export function PanelHeader({
     tunnels: true,
     visualeditor: true,
     elo: true,
+    calendar: true,
+    paint: true,
   })
 
   const [searchOpen, setSearchOpen] = useState(false)
