@@ -178,3 +178,11 @@ export async function authenticate(ctx: any) {
   const kycBlockOAuth = await checkKycStatus(ctx);
   if (kycBlockOAuth) return kycBlockOAuth;
 }
+
+export async function optionalAuth(ctx: any) {
+  const savedStatus = ctx.set?.status;
+  await authenticate(ctx).catch(() => {});
+  if (ctx.set?.status && ctx.set.status >= 400) {
+    ctx.set.status = savedStatus ?? 200;
+  }
+}

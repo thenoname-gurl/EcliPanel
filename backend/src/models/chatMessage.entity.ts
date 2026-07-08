@@ -49,6 +49,12 @@ export class ChatMessage {
   @Column({ default: false })
   isLocked: boolean;
 
+  @Column({ default: false })
+  isHidden: boolean;
+
+  @Column({ nullable: true })
+  hiddenById: number | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

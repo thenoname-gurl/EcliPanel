@@ -34,6 +34,9 @@ export class ChatChannel {
   @Column({ default: false })
   isArchived: boolean;
 
+  @Column({ default: false })
+  isMature: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 

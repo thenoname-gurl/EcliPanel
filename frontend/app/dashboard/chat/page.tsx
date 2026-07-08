@@ -4,16 +4,16 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
-import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus } from "lucide-react"
+import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface Channel {
   id: number; slug: string; name: string; description: string | null
   type: "community" | "public_anonymous"; createdById: number | null
-  isListed: boolean; isArchived: boolean; createdAt: string
+  isListed: boolean; isArchived: boolean; isMature: boolean; createdAt: string
   isMember?: boolean; myRole?: string | null; threadCount?: number; postCount?: number
 }
 
@@ -24,6 +24,7 @@ interface Post {
   avatarUrl: string | null; imageUrl: string | null; content: string
   posterId?: string | null; bumpedAt: string | null; isLocked: boolean; createdAt: string
   formattedId?: string; replyCount?: number; recentReplies?: Post[]
+  authorIsStaff?: boolean; isHidden?: boolean
 }
 
 interface ThreadView {
@@ -126,7 +127,7 @@ function renderPostLine(line: string, key: number) {
 
 function PostContent({ content, imageUrl }: { content: string; imageUrl?: string | null }) {
   return (
-    <div className="text-xs leading-relaxed space-y-0">
+    <div className="text-xs leading-relaxed space-y-0 break-words [overflow-wrap:break-word]">
       {content.split("\n").map((line, i) => renderPostLine(line, i))}
       {imageUrl && (
         <div className="mt-2">
@@ -153,8 +154,13 @@ function PostHeader({ post, isOp }: { post: Post; isOp?: boolean }) {
     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[11px] mb-1 font-mono leading-tight">
       <span className={`font-bold text-[12px] ${isAnon ? "text-green-500/70" : "text-foreground/70"}`}>
         {name}
+        {post.authorIsStaff && (
+          <span className="ml-1.5 inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider bg-primary/15 text-primary/80 border border-primary/20 leading-none">
+            Mod
+          </span>
+        )}
       </span>
-      {isAnon && post.posterId && (
+      {post.posterId && (
         <span className="text-muted-foreground/40">
           ID:&nbsp;<span className="text-primary/60">{post.posterId}</span>
         </span>
@@ -351,13 +357,16 @@ export default function ChatPage() {
     return false
   }
 
-  async function createServerThread(content: string, isAnonymous: boolean, imageUrl?: string) {
+  async function createServerThread(content: string, isAnonymous: boolean, imageUrl?: string, revealIdentity?: boolean) {
     if (!activeChannel || !content.trim()) return
     setSending(true)
     try {
       const body: any = { content: content.trim() }
       if (imageUrl) body.imageUrl = imageUrl
-      if (isAnonymous) body.anonymousName = anonymousName || undefined
+      if (isAnonymous) {
+        if (revealIdentity) body.revealIdentity = true
+        else body.anonymousName = anonymousName || undefined
+      }
       const base = API_ENDPOINTS.chatChannel.replace(":id", String(activeChannel.id))
       const res = await apiFetch(isAnonymous ? `${base}/threads/anonymous` : `${base}/threads`, {
         method: "POST", body: JSON.stringify(body),
@@ -367,13 +376,16 @@ export default function ChatPage() {
     setSending(false)
   }
 
-  async function replyToThread(threadId: number, content: string, isAnonymous: boolean, imageUrl?: string) {
+  async function replyToThread(threadId: number, content: string, isAnonymous: boolean, imageUrl?: string, revealIdentity?: boolean) {
     if (!activeChannel || !content.trim()) return
     setSending(true)
     try {
       const body: any = { content: content.trim() }
       if (imageUrl) body.imageUrl = imageUrl
-      if (isAnonymous) body.anonymousName = anonymousName || undefined
+      if (isAnonymous) {
+        if (revealIdentity) body.revealIdentity = true
+        else body.anonymousName = anonymousName || undefined
+      }
       const base = API_ENDPOINTS.chatChannel.replace(":id", String(activeChannel.id))
       const res = await apiFetch(
         isAnonymous ? `${base}/threads/${threadId}/reply/anonymous` : `${base}/threads/${threadId}/reply`,
@@ -400,7 +412,7 @@ export default function ChatPage() {
     } catch { }
   }
 
-  async function updateChannel(channelId: number, data: { name?: string; slug?: string; description?: string | null }) {
+  async function updateChannel(channelId: number, data: { name?: string; slug?: string; description?: string | null; isMature?: boolean }) {
     try {
       const updated = await apiFetch(API_ENDPOINTS.chatChannel.replace(":id", String(channelId)), {
         method: "PUT", body: JSON.stringify(data),
@@ -422,13 +434,90 @@ export default function ChatPage() {
     } catch { }
   }
 
+  async function toggleHideMessage(channelId: number, messageId: number, currentlyHidden: boolean) {
+    try {
+      await apiFetch(`/api/chat/channels/${channelId}/messages/${messageId}/${currentlyHidden ? "unhide" : "hide"}`, { method: "POST" })
+      const patch = (p: Post) => p.id === messageId ? { ...p, isHidden: !currentlyHidden } : p
+      setThreads(prev => prev.map(patch))
+      if (activeThread) {
+        setActiveThread(prev => prev ? {
+          ...prev,
+          op: prev.op.id === messageId ? { ...prev.op, isHidden: !currentlyHidden } : prev.op,
+          replies: prev.replies.map(patch),
+        } : prev)
+      }
+    } catch { }
+  }
+
+  async function deleteMessage(channelId: number, messageId: number) {
+    try {
+      await apiFetch(`/api/chat/channels/${channelId}/messages/${messageId}`, { method: "DELETE" })
+      setThreads(prev => prev.filter(t => t.id !== messageId))
+      if (activeThread) {
+        if (activeThread.op.id === messageId) { setActiveThread(null); setViewMode("board") }
+        else setActiveThread(prev => prev ? { ...prev, replies: prev.replies.filter(r => r.id !== messageId) } : prev)
+      }
+    } catch { }
+  }
+
+  async function lookupPost(posterId: string) {
+    let res: any
+    try {
+      res = await apiFetch(`/api/chat/messages/lookup?posterId=${encodeURIComponent(posterId)}`)
+    } catch { alert("Lookup failed"); return }
+    if (!Array.isArray(res) || res.length === 0) { alert("No messages found for this poster ID"); return }
+    const info = res[0]
+    const msg = `Hash: ${info.ipHash || "N/A"}\nMsgs: ${res.length}\nPoster: ${posterId}\nUser ID: ${info.userId || "anon"}`
+    if (info.ipHash) {
+      if (!confirm(`${msg}\n\nBan IP for 24h?`)) return
+      try {
+        await apiFetch("/api/chat/ip-bans", {
+          method: "POST",
+          body: JSON.stringify({ ipHash: info.ipHash, reason: `Banned from #${info.formattedId}`, hours: 24 }),
+        })
+        alert("Banned for 24h")
+      } catch { alert("Ban failed") }
+    } else if (info.userId) {
+      if (!confirm(`${msg}\n\nNo IP log. Ban account (user #${info.userId}) for 24h?`)) return
+      try {
+        await apiFetch("/api/chat/ip-bans", {
+          method: "POST",
+          body: JSON.stringify({ userId: info.userId, reason: `Banned from #${info.formattedId}`, hours: 24 }),
+        })
+        alert("Account banned for 24h")
+      } catch { alert("Ban failed") }
+    } else {
+      alert(`${msg}\n\nNo IP hash or user ID to ban.`)
+    }
+  }
+
+  async function massDeletePost(posterId: string) {
+    if (!confirm(`Mass delete all posts from ${posterId} in the last 24h?`)) return
+    try {
+      const res = await apiFetch("/api/chat/messages/mass-delete", {
+        method: "POST",
+        body: JSON.stringify({ posterId, hours: 24 }),
+      })
+      if (res?.deleted) {
+        setThreads(prev => prev.filter(t => t.posterId !== posterId))
+        setActiveThread(prev => prev && prev.op.posterId === posterId ? null : prev ? {
+          ...prev,
+          replies: prev.replies.filter(r => r.posterId !== posterId),
+        } : prev)
+        alert(`Deleted ${res.deleted} posts`)
+      }
+    } catch { alert("Mass delete failed") }
+  }
+
   function canManage(ch: Channel) {
     if (!isLoggedIn || !user) return false
-    return ch.createdById === user.id || ch.myRole === "admin"
+    return ch.createdById === user.id || ch.myRole === "admin" || hasPermission(user, 'chat:manage')
   }
 
   const canPost = (c: Channel) =>
     c.type === "public_anonymous" || (!!isLoggedIn && c.type === "community" && !!c.isMember)
+
+  const canModerate = isLoggedIn && user && hasPermission(user, 'chat:manage')
 
   const communityChannels = isLoggedIn ? channels.filter(c => c.type === "community") : []
   const publicChannels = channels.filter(c => c.type === "public_anonymous")
@@ -577,11 +666,16 @@ export default function ChatPage() {
             setAnonymousName={setAnonymousName}
             isAnonymous={activeChannel.type === "public_anonymous"}
             canPost={canPost(activeChannel)}
+            canModerate={canModerate}
             sending={sending}
             onBack={goBack}
-            onReply={(content, imageUrl) =>
-              replyToThread(activeThread.op.id, content, activeChannel.type === "public_anonymous", imageUrl)
+            onReply={(content, imageUrl, revealIdentity) =>
+              replyToThread(activeThread.op.id, content, activeChannel.type === "public_anonymous", imageUrl, revealIdentity)
             }
+            onToggleHideMessage={(messageId, hidden) => toggleHideMessage(activeChannel.id, messageId, hidden)}
+            onDeleteMessage={(messageId) => deleteMessage(activeChannel.id, messageId)}
+            onLookupPost={lookupPost}
+            onMassDelete={massDeletePost}
           />
         ) : (
           <BoardPanel
@@ -591,6 +685,7 @@ export default function ChatPage() {
             anonymousName={anonymousName}
             setAnonymousName={setAnonymousName}
             canPost={canPost(activeChannel)}
+            canModerate={canModerate}
             isAnonymous={activeChannel.type === "public_anonymous"}
             sending={sending}
             onSelectThread={t => {
@@ -598,9 +693,13 @@ export default function ChatPage() {
                 if (found) { goToThread(activeChannel, t.id); setViewMode("thread") }
               })
             }}
-            onNewThread={(content, imageUrl) =>
-              createServerThread(content, activeChannel.type === "public_anonymous", imageUrl)
+            onNewThread={(content, imageUrl, revealIdentity) =>
+              createServerThread(content, activeChannel.type === "public_anonymous", imageUrl, revealIdentity)
             }
+            onToggleHideMessage={(messageId, hidden) => toggleHideMessage(activeChannel.id, messageId, hidden)}
+            onDeleteMessage={(messageId) => deleteMessage(activeChannel.id, messageId)}
+            onLookupPost={lookupPost}
+            onMassDelete={massDeletePost}
           />
         )}
       </div>
@@ -634,6 +733,7 @@ function BoardSidebarItem({ channel, active, manageable, onClick, onEdit, onDele
         <span className={`text-[11px] font-mono truncate ${active ? "text-primary font-semibold" : "text-muted-foreground/60 hover:text-foreground/60"}`}>
           /{channel.slug}/
         </span>
+        {channel.isMature && <span className="text-[8px] font-mono text-amber-500/70 shrink-0">18+</span>}
       </button>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
         {onJoin && (
@@ -730,6 +830,7 @@ function BoardIndexRow({ channel, onSelect, onJoin }: {
         <span className="font-mono font-semibold text-primary/60 text-[12px] shrink-0 w-28 truncate">
           /{channel.slug}/
         </span>
+        {channel.isMature && <span className="text-[10px] font-mono text-amber-500/60 shrink-0">[18+]</span>}
         <span className="text-foreground/60 text-[12px] font-medium group-hover:text-foreground/80 transition-colors">
           {channel.name}
         </span>
@@ -754,15 +855,17 @@ function BoardIndexRow({ channel, onSelect, onJoin }: {
 }
 
 function PostForm({
-  isAnonymous, anonymousName, setAnonymousName,
+  isAnonymous, isLoggedIn, anonymousName, setAnonymousName,
   placeholder, onSubmit, sending,
 }: {
-  isAnonymous: boolean; anonymousName: string; setAnonymousName: (n: string) => void
-  placeholder: string; onSubmit: (content: string, imageUrl?: string) => void; sending: boolean
+  isAnonymous: boolean; isLoggedIn?: boolean; anonymousName: string; setAnonymousName: (n: string) => void
+  placeholder: string; onSubmit: (content: string, imageUrl?: string, revealIdentity?: boolean) => void; sending: boolean
 }) {
   const [content, setContent] = useState("")
   const [image, setImage] = useState<string | null>(null)
   const [imageUploading, setImageUploading] = useState(false)
+  const [revealIdentity, setRevealIdentity] = useState(false)
+  const [honeypot, setHoneypot] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -778,9 +881,9 @@ function PostForm({
   }
 
   function handleSubmit() {
-    if (!content.trim()) return
-    onSubmit(content.trim(), image || undefined)
-    setContent(""); setImage(null)
+    if (!content.trim() || honeypot) return
+    onSubmit(content.trim(), image || undefined, revealIdentity)
+    setContent(""); setImage(null); setRevealIdentity(false); setHoneypot("")
   }
 
   const fieldLabelCls = "text-right pr-3 py-1 text-[11px] font-mono text-primary/50 w-24 align-top pt-2 shrink-0"
@@ -788,20 +891,41 @@ function PostForm({
 
   return (
     <div className="border border-border/40 bg-card rounded p-3 mb-4">
+      <div aria-hidden="true" className="absolute opacity-0 pointer-events-none" style={{ height: 0, overflow: 'hidden' }}>
+        <input type="text" name="website" tabIndex={-1} autoComplete="off"
+          value={honeypot} onChange={e => setHoneypot(e.target.value)} />
+      </div>
       <table className="text-[12px] border-collapse w-full">
         <tbody>
           {isAnonymous && (
-            <tr>
-              <td className={fieldLabelCls}>Name</td>
-              <td className="py-1">
-                <input
-                  type="text" value={anonymousName}
-                  onChange={e => { setAnonymousName(e.target.value); localStorage.setItem("chat_anonymous_name", e.target.value) }}
-                  placeholder="Anonymous" maxLength={64}
-                  className={`${inputCls} max-w-[200px]`}
-                />
-              </td>
-            </tr>
+            <>
+              <tr>
+                <td className={fieldLabelCls}>Name</td>
+                <td className="py-1">
+                  <input
+                    type="text" value={revealIdentity ? "" : anonymousName}
+                    onChange={e => { setAnonymousName(e.target.value); localStorage.setItem("chat_anonymous_name", e.target.value) }}
+                    placeholder="Anonymous" maxLength={64}
+                    disabled={revealIdentity}
+                    className={`${inputCls} max-w-[200px] ${revealIdentity ? "opacity-40 cursor-not-allowed" : ""}`}
+                  />
+                </td>
+              </tr>
+              {isLoggedIn && (
+                <tr>
+                  <td />
+                  <td className="py-0.5">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input type="checkbox" checked={revealIdentity} onChange={e => setRevealIdentity(e.target.checked)}
+                        className="accent-primary h-3 w-3" />
+                      <span className="text-[10px] font-mono text-muted-foreground/50 hover:text-foreground/60 transition-colors">
+                        Post as <strong className="text-primary/60 font-semibold">your display name</strong>
+                      </span>
+                    </label>
+                  </td>
+                </tr>
+              )}
+            </>
           )}
           <tr>
             <td className={fieldLabelCls}>File</td>
@@ -868,14 +992,40 @@ function PostForm({
 
 function BoardPanel({
   channel, threads, isLoggedIn, anonymousName, setAnonymousName,
-  canPost, isAnonymous, sending, onSelectThread, onNewThread,
+  canPost, canModerate, isAnonymous, sending, onSelectThread, onNewThread, onToggleHideMessage, onDeleteMessage,
+  onLookupPost, onMassDelete,
 }: {
   channel: Channel; threads: Post[]; isLoggedIn: boolean
   anonymousName: string; setAnonymousName: (n: string) => void
-  canPost: boolean; isAnonymous: boolean; sending: boolean
+  canPost: boolean; canModerate?: boolean; isAnonymous: boolean; sending: boolean
   onSelectThread: (t: Post) => void
-  onNewThread: (content: string, imageUrl?: string) => void
+  onNewThread: (content: string, imageUrl?: string, revealIdentity?: boolean) => void
+  onToggleHideMessage?: (messageId: number, currentlyHidden: boolean) => void; onDeleteMessage?: (messageId: number) => void
+  onLookupPost?: (posterId: string) => void; onMassDelete?: (posterId: string) => void
 }) {
+  const [showMature, setShowMature] = useState(false)
+  useEffect(() => { setShowMature(false) }, [channel.id])
+
+  if (channel.isMature && !showMature) {
+    return (
+      <div className="flex-1 overflow-y-auto bg-background scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
+        <div className="max-w-lg mx-auto px-3 py-20 text-center">
+          <div className="border border-amber-500/30 bg-amber-500/5 p-6 space-y-4">
+            <TriangleAlert className="h-6 w-6 text-amber-400/80 mx-auto" />
+            <h2 className="text-base font-semibold text-amber-400/80">Mature Content</h2>
+            <p className="text-[12px] text-muted-foreground/60 font-mono leading-relaxed">
+              This board may contain mature or NSFW content. Are you sure you want to proceed?
+            </p>
+            <button onClick={() => setShowMature(true)}
+              className="border border-amber-500/40 text-amber-400/80 hover:bg-amber-500/10 px-4 py-2 text-[11px] font-mono font-semibold rounded transition-colors">
+              I understand, show me
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 overflow-y-auto bg-background scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
       <div className="max-w-5xl mx-auto px-3 py-4">
@@ -884,6 +1034,7 @@ function BoardPanel({
           <h2 className="text-lg font-semibold text-foreground/60 tracking-tight">
             /{channel.slug}/ — {channel.name}
           </h2>
+          {channel.isMature && <span className="inline-block text-[9px] font-mono text-amber-500/60 mt-1">[ Mature Content ]</span>}
           {channel.description && (
             <p className="text-[11px] text-muted-foreground/30 font-mono mt-0.5">{channel.description}</p>
           )}
@@ -897,6 +1048,7 @@ function BoardPanel({
             </p>
             <PostForm
               isAnonymous={isAnonymous}
+              isLoggedIn={isLoggedIn}
               anonymousName={anonymousName}
               setAnonymousName={setAnonymousName}
               placeholder="Write something…"
@@ -916,7 +1068,11 @@ function BoardPanel({
           <div>
             {threads.map((thread, i) => (
               <div key={thread.id}>
-                <ThreadCard thread={thread} onOpen={() => onSelectThread(thread)} />
+                <ThreadCard thread={thread} onOpen={() => onSelectThread(thread)} canModerate={canModerate}
+                  onToggleHide={canModerate && onToggleHideMessage ? () => onToggleHideMessage(thread.id, !!thread.isHidden) : undefined}
+                  onDelete={canModerate && onDeleteMessage ? () => onDeleteMessage(thread.id) : undefined}
+                  onLookupPost={canModerate && onLookupPost && thread.posterId ? () => onLookupPost(thread.posterId!) : undefined}
+                  onMassDelete={canModerate && onMassDelete && thread.posterId ? () => onMassDelete(thread.posterId!) : undefined} />
                 {i < threads.length - 1 && <hr className="border-t border-border/20" />}
               </div>
             ))}
@@ -927,13 +1083,17 @@ function BoardPanel({
   )
 }
 
-function ThreadCard({ thread, onOpen }: { thread: Post; onOpen: () => void }) {
+function ThreadCard({ thread, onOpen, canModerate, onToggleHide, onDelete, onLookupPost, onMassDelete }: {
+  thread: Post; onOpen: () => void
+  canModerate?: boolean; onToggleHide?: () => void; onDelete?: () => void
+  onLookupPost?: () => void; onMassDelete?: () => void
+}) {
   const lines = thread.content.split("\n")
   const preview = lines.slice(0, 6)
   const truncated = lines.length > 6
 
   return (
-    <div className="py-4 px-2 hover:bg-muted/20 transition-colors">
+    <div className="py-4 px-2 hover:bg-muted/20 transition-colors group">
       <PostHeader post={thread} isOp />
       <div className="flex gap-3 mt-1">
         {thread.imageUrl && (
@@ -948,7 +1108,7 @@ function ThreadCard({ thread, onOpen }: { thread: Post; onOpen: () => void }) {
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="text-xs leading-relaxed">
+          <div className="text-xs leading-relaxed break-words [overflow-wrap:break-word]">
             {preview.map((line, i) => renderPostLine(line, i))}
             {truncated && (
               <button onClick={onOpen} className="text-primary/50 text-[11px] font-mono hover:underline block mt-1">
@@ -956,11 +1116,39 @@ function ThreadCard({ thread, onOpen }: { thread: Post; onOpen: () => void }) {
               </button>
             )}
           </div>
-          <div className="mt-2">
+          <div className="mt-2 flex items-center gap-3">
             <button onClick={onOpen}
               className="text-primary/50 text-[11px] font-mono hover:underline hover:text-primary/70 transition-colors">
               [{thread.replyCount ?? 0} replies] [View Thread]
             </button>
+            {canModerate && (
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                {onToggleHide && (
+                  <button onClick={e => { e.stopPropagation(); onToggleHide() }}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-amber-400/70 transition-colors">
+                    {thread.isHidden ? "[unhide]" : "[hide]"}
+                  </button>
+                )}
+                {onDelete && (
+                  <button onClick={e => { e.stopPropagation(); onDelete() }}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-destructive/70 transition-colors">
+                    [delete]
+                  </button>
+                )}
+                {onLookupPost && (
+                  <button onClick={e => { e.stopPropagation(); onLookupPost() }}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-cyan-400/70 transition-colors">
+                    [ip]
+                  </button>
+                )}
+                {onMassDelete && (
+                  <button onClick={e => { e.stopPropagation(); onMassDelete() }}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-orange-400/70 transition-colors">
+                    [mass]
+                  </button>
+                )}
+              </div>
+            )}
           </div>
           {thread.recentReplies && thread.recentReplies.length > 0 && (
             <div className="mt-2 pl-3 border-l border-border/30 space-y-1.5">
@@ -983,17 +1171,43 @@ function ThreadCard({ thread, onOpen }: { thread: Post; onOpen: () => void }) {
 
 function ThreadViewPanel({
   thread, channel, isLoggedIn, anonymousName, setAnonymousName,
-  isAnonymous, canPost, sending, onBack, onReply,
+  isAnonymous, canPost, canModerate, sending, onBack, onReply, onToggleHideMessage, onDeleteMessage,
+  onLookupPost, onMassDelete,
 }: {
   thread: ThreadView; channel: Channel; isLoggedIn: boolean
   anonymousName: string; setAnonymousName: (n: string) => void
-  isAnonymous: boolean; canPost: boolean; sending: boolean
-  onBack: () => void; onReply: (content: string, imageUrl?: string) => void
+  isAnonymous: boolean; canPost: boolean; canModerate?: boolean; sending: boolean
+  onBack: () => void; onReply: (content: string, imageUrl?: string, revealIdentity?: boolean) => void
+  onToggleHideMessage?: (messageId: number, currentlyHidden: boolean) => void; onDeleteMessage?: (messageId: number) => void
+  onLookupPost?: (posterId: string) => void; onMassDelete?: (posterId: string) => void
 }) {
   const bottomRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [thread.replies.length])
+
+  const [showMature, setShowMature] = useState(false)
+  useEffect(() => { setShowMature(false) }, [channel.id])
+
+  if (channel.isMature && !showMature) {
+    return (
+      <div className="flex-1 overflow-y-auto bg-background scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
+        <div className="max-w-lg mx-auto px-3 py-20 text-center">
+          <div className="border border-amber-500/30 bg-amber-500/5 p-6 space-y-4">
+            <TriangleAlert className="h-6 w-6 text-amber-400/80 mx-auto" />
+            <h2 className="text-base font-semibold text-amber-400/80">Mature Content</h2>
+            <p className="text-[12px] text-muted-foreground/60 font-mono leading-relaxed">
+              This board may contain mature or NSFW content. Are you sure you want to proceed?
+            </p>
+            <button onClick={() => setShowMature(true)}
+              className="border border-amber-500/40 text-amber-400/80 hover:bg-amber-500/10 px-4 py-2 text-[11px] font-mono font-semibold rounded transition-colors">
+              I understand, show me
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex-1 overflow-y-auto bg-background scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
@@ -1003,6 +1217,7 @@ function ThreadViewPanel({
           <h2 className="text-lg font-semibold text-foreground/60 tracking-tight">
             /{channel.slug}/ — {channel.name}
           </h2>
+          {channel.isMature && <span className="inline-block text-[9px] font-mono text-amber-500/60 mt-1">[ Mature Content ]</span>}
           <hr className="mt-2 border-t border-border/40" />
         </div>
 
@@ -1021,6 +1236,7 @@ function ThreadViewPanel({
             </p>
             <PostForm
               isAnonymous={isAnonymous}
+              isLoggedIn={isLoggedIn}
               anonymousName={anonymousName}
               setAnonymousName={setAnonymousName}
               placeholder="Write a reply…"
@@ -1032,7 +1248,7 @@ function ThreadViewPanel({
 
         <hr className="border-t border-border/40 mb-4" />
 
-        <div id={`p${thread.op.id}`} className="mb-3">
+        <div id={`p${thread.op.id}`} className="mb-3 group">
           <div className="inline-block bg-card border border-border/40 rounded p-3 max-w-full">
             <PostHeader post={thread.op} isOp />
             {thread.op.imageUrl && (
@@ -1047,15 +1263,71 @@ function ThreadViewPanel({
               </div>
             )}
             <PostContent content={thread.op.content} />
+            {canModerate && (
+              <div className="mt-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {onToggleHideMessage && (
+                  <button onClick={() => onToggleHideMessage(thread.op.id, !!thread.op.isHidden)}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-amber-400/70 transition-colors">
+                    {thread.op.isHidden ? "[unhide]" : "[hide]"}
+                  </button>
+                )}
+                {onDeleteMessage && (
+                  <button onClick={() => onDeleteMessage(thread.op.id)}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-destructive/70 transition-colors">
+                    [delete]
+                  </button>
+                )}
+                {onLookupPost && thread.op.posterId && (
+                  <button onClick={() => onLookupPost(thread.op.posterId!)}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-cyan-400/70 transition-colors">
+                    [ip]
+                  </button>
+                )}
+                {onMassDelete && thread.op.posterId && (
+                  <button onClick={() => onMassDelete(thread.op.posterId!)}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-orange-400/70 transition-colors">
+                    [mass]
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="space-y-2 mt-3">
           {thread.replies.map(reply => (
-            <div key={reply.id} id={`p${reply.id}`} className="ml-6">
+            <div key={reply.id} id={`p${reply.id}`} className="ml-6 group">
               <div className="bg-card border border-border/30 rounded p-3 inline-block max-w-full w-full">
                 <PostHeader post={reply} />
                 <PostContent content={reply.content} imageUrl={reply.imageUrl} />
+                {canModerate && (
+                  <div className="mt-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onToggleHideMessage && (
+                      <button onClick={() => onToggleHideMessage(reply.id, !!reply.isHidden)}
+                        className="text-[10px] font-mono text-muted-foreground/40 hover:text-amber-400/70 transition-colors">
+                        {reply.isHidden ? "[unhide]" : "[hide]"}
+                      </button>
+                    )}
+                    {onDeleteMessage && (
+                      <button onClick={() => onDeleteMessage(reply.id)}
+                        className="text-[10px] font-mono text-muted-foreground/40 hover:text-destructive/70 transition-colors">
+                        [delete]
+                      </button>
+                    )}
+                    {onLookupPost && reply.posterId && (
+                      <button onClick={() => onLookupPost(reply.posterId!)}
+                        className="text-[10px] font-mono text-muted-foreground/40 hover:text-cyan-400/70 transition-colors">
+                        [ip]
+                      </button>
+                    )}
+                    {onMassDelete && reply.posterId && (
+                      <button onClick={() => onMassDelete(reply.posterId!)}
+                        className="text-[10px] font-mono text-muted-foreground/40 hover:text-orange-400/70 transition-colors">
+                        [mass]
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -1184,23 +1456,25 @@ function CreateChannelModal({ onClose, onCreate }: {
 
 function EditChannelModal({ channel, onClose, onSave }: {
   channel: Channel; onClose: () => void
-  onSave: (data: { name?: string; slug?: string; description?: string | null }) => void
+  onSave: (data: { name?: string; slug?: string; description?: string | null; isMature?: boolean }) => void
 }) {
   const [name, setName] = useState(channel.name)
   const [slug, setSlug] = useState(channel.slug)
   const [description, setDescription] = useState(channel.description || "")
+  const [isMature, setIsMature] = useState(channel.isMature)
   const [saving, setSaving] = useState(false)
 
   async function handle() {
     if (!name.trim() || saving) return
     setSaving(true)
-    const data: { name?: string; slug?: string; description?: string | null } = {}
+    const data: { name?: string; slug?: string; description?: string | null; isMature?: boolean } = {}
     if (name.trim() !== channel.name) data.name = name.trim()
     if (slug.trim() !== channel.slug) {
       const s = slug.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "").slice(0, 64)
       if (s.length >= 1) data.slug = s
     }
     if (description.trim() !== (channel.description || "")) data.description = description.trim() || null
+    if (isMature !== channel.isMature) data.isMature = isMature
     if (Object.keys(data).length === 0) { setSaving(false); onClose(); return }
     await onSave(data); setSaving(false)
   }
@@ -1221,6 +1495,16 @@ function EditChannelModal({ channel, onClose, onSave }: {
         <ModalField label="Description">
           <textarea value={description} onChange={e => setDescription(e.target.value)}
             rows={2} className={`${inputCls} resize-none`} />
+        </ModalField>
+        <ModalField label="Mature Content">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={isMature}
+              onChange={e => setIsMature(e.target.checked)}
+              className="accent-primary" />
+            <span className="text-[11px] text-muted-foreground/60 font-mono">
+              Mark this board as containing mature/NSFW content
+            </span>
+          </label>
         </ModalField>
       </div>
       <div className="px-4 pb-4 flex gap-2 justify-end">
