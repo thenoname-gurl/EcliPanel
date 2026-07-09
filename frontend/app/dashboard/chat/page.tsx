@@ -13,7 +13,8 @@ import { motion, AnimatePresence } from "framer-motion"
 
 function safeUrl(url: string | null | undefined, allowedProtocols: string[]): string | undefined {
   if (!url) return undefined
-  if (url.startsWith('/')) return url
+  // Allow only same-origin relative paths. Reject protocol-relative URLs like //evil.com.
+  if (url.startsWith('/')) return url.startsWith('//') ? undefined : url
   try {
     const parsed = new URL(url)
     if (allowedProtocols.includes(parsed.protocol)) return parsed.toString()
