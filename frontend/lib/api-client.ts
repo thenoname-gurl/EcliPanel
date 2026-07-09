@@ -78,14 +78,17 @@ export async function apiFetch(
 
   let url: string;
   if (path.startsWith("http")) {
+    if (typeof window === 'undefined') {
+      throw new Error(`Absolute URLs are not allowed in server-side requests: ${path}`);
+    }
+    
     try {
       const parsed = new URL(path);
       const allowedHosts = new Set<string>();
-      if (typeof window !== 'undefined') allowedHosts.add(window.location.hostname);
+      allowedHosts.add(window.location.hostname);
       if (base) {
         try { allowedHosts.add(new URL(base).hostname); } catch {}
       }
-      allowedHosts.add('localhost');
       if (!['http:', 'https:'].includes(parsed.protocol) || !allowedHosts.has(parsed.hostname)) {
         throw new Error(`Invalid API URL: ${path}`);
       }
