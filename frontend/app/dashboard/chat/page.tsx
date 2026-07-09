@@ -13,7 +13,8 @@ import { motion, AnimatePresence } from "framer-motion"
 
 function safeUrl(url: string | null | undefined, allowedProtocols: string[]): string | undefined {
   if (!url) return undefined
-  if (url.startsWith('/')) return url
+  if (/[\r\n\t]/.test(url)) return undefined
+  if (url.startsWith('/')) return url.startsWith('//') ? undefined : url
   try {
     const parsed = new URL(url)
     if (allowedProtocols.includes(parsed.protocol)) return url
@@ -23,8 +24,20 @@ function safeUrl(url: string | null | undefined, allowedProtocols: string[]): st
   return undefined
 }
 
+const ALLOWED_DATA_IMAGE_PREFIXES = [
+  'data:image/png',
+  'data:image/jpeg',
+  'data:image/webp',
+  'data:image/gif',
+  'data:image/bmp',
+]
+
 function safeImageUrl(url: string | null | undefined): string | undefined {
-  return safeUrl(url, ['http:', 'https:', 'data:'])
+  if (!url) return undefined
+  if (url.startsWith('data:')) {
+    return ALLOWED_DATA_IMAGE_PREFIXES.some(p => url.startsWith(p)) ? url : undefined
+  }
+  return safeUrl(url, ['http:', 'https:'])
 }
 
 function safeHrefUrl(url: string | null | undefined): string | undefined {
@@ -169,7 +182,7 @@ function PostContent({ content, imageUrl }: { content: string; imageUrl?: string
       {imgSrc && (
         <div className="mt-2">
           {hrefUrl ? (
-            <a href={hrefUrl} target="_blank" rel="noopener noreferrer">
+            <a href={hrefUrl} target="_blank" rel="noopener noreferrer nofollow ugc">
               <img
                 src={imgSrc}
                 alt="Attached"
@@ -1310,7 +1323,7 @@ function ThreadViewPanel({
               return (
                 <div className="mb-2">
                   {opHref ? (
-                    <a href={opHref} target="_blank" rel="noopener noreferrer">
+                    <a href={opHref} target="_blank" rel="noopener noreferrer nofollow ugc">
                       <img
                         src={opImg} alt="OP image"
                         className="max-h-72 max-w-xs border border-border/30 object-contain hover:opacity-90 transition-opacity rounded-sm"
