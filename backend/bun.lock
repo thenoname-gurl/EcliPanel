@@ -62,7 +62,7 @@
         "@typescript-eslint/parser": "^8.63.0",
         "eslint": "^10.6.0",
         "prettier": "^3.9.4",
-        "typescript": "^7.0.2",
+        "typescript": "7.0.2",
       },
     },
   },
