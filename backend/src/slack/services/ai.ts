@@ -54,14 +54,14 @@ async function makeRequest(body: Record<string, any>, stream: boolean, aiConfig?
   });
 }
 
-async function readChunkWithTimeout(reader: ReadableStreamDefaultReader<Uint8Array>, timeoutMs: number): Promise<ReadableStreamReadResult<Uint8Array>> {
+async function readChunkWithTimeout(reader: ReadableStreamDefaultReader<Uint8Array>, timeoutMs: number) {
   const result = await Promise.race([
     reader.read(),
-    new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) =>
+    new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error(`Stream stalled — no data received for ${timeoutMs / 1000}s`)), timeoutMs)
     ),
   ]);
-  return result;
+  return result as ReadableStreamReadResult<Uint8Array>;
 }
 
 export interface StreamResult {

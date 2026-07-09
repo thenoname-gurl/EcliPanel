@@ -14,7 +14,6 @@ import { createActivityLog } from './logHandler';
 import { getGeoBlockRulesWithDefaults } from '../utils/eu';
 import { tForUser } from '../i18n';
 import { sanitizeError } from '../utils/sanitizeError';
-import { sanitizeForDb } from '../utils/sanitize';
 import { httpRequest } from '../utils/http';
 import path from 'path';
 import fs from 'fs';
@@ -1412,8 +1411,9 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const backendBase =
       (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
       (() => {
-        const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
-        const host = (ctx.request.headers.get('host') || 'localhost') as string;
+        const h = ctx.request.headers as Record<string, string>;
+        const proto = h['x-forwarded-proto'] || 'https';
+        const host = h['host'] || 'localhost';
         return `${proto}://${host}`;
       })();
 
@@ -1465,8 +1465,9 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const backendBase =
       (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
       (() => {
-        const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
-        const host = (ctx.request.headers.get('host') || 'localhost') as string;
+        const h = ctx.request.headers as Record<string, string>;
+        const proto = h['x-forwarded-proto'] || 'https';
+        const host = h['host'] || 'localhost';
         return `${proto}://${host}`;
       })();
 
