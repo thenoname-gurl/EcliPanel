@@ -61,6 +61,8 @@ import { RenderLogger } from "@/components/RenderLogger";
 import { THEMES } from "@/lib/themes";
 import GlobalQueryBanner from "@/components/GlobalQueryBanner";
 import Guide from "@/components/Guide";
+import { GlobalLinkGuard } from "@/components/panel/global-link-guard";
+import { GlobalImageProxy } from "@/components/panel/global-image-proxy";
 
 export default async function RootLayout({
   children,
@@ -164,6 +166,12 @@ export default async function RootLayout({
               <GlobalQueryBanner />
             </Suspense>
             <RenderLogger />
+            <Suspense fallback={null}>
+              <GlobalLinkGuard />
+            </Suspense>
+            <Suspense fallback={null}>
+              <GlobalImageProxy />
+            </Suspense>
             <div className="flex-1 flex flex-col min-w-0">{children}</div>
             <Footer hideOnDashboard />
           </AuthProvider>

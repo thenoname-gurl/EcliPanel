@@ -1,6 +1,71 @@
 import { optionalAuth } from '../middleware/auth';
+import { AppDataSource } from '../config/typeorm';
+import { Node } from '../models/node.entity';
+import { TunnelDevice } from '../models/tunnelDevice.entity';
+import { TunnelAllocation } from '../models/tunnelAllocation.entity';
+import { Not, IsNull } from 'typeorm';
 
 export function proxyRoutes(app: any, prefix: string) {
+  app.get(prefix + '/internal-domains', async (ctx: any) => {
+    const domains = new Set<string>();
+
+    try {
+      const backendUrl = process.env.BACKEND_URL || '';
+      if (backendUrl) {
+        try { domains.add(new URL(backendUrl).hostname); } catch {}
+      }
+    } catch {}
+
+    try {
+      if (ctx.request?.headers?.get) {
+        const host = (ctx.request.headers.get('host') || '').split(':')[0];
+        if (host) domains.add(host);
+      }
+    } catch {}
+
+    try {
+      const nodes = await AppDataSource.getRepository(Node).find({
+        select: { url: true, fqdn: true, proxmoxHost: true },
+      });
+      for (const node of nodes) {
+        if (node.url) {
+          try { domains.add(new URL(node.url).hostname); } catch { domains.add(node.url); }
+        }
+        if (node.fqdn) domains.add(node.fqdn);
+        if (node.proxmoxHost) domains.add(node.proxmoxHost.split(':')[0]);
+      }
+    } catch {}
+
+    try {
+      const devices = await AppDataSource.getRepository(TunnelDevice).find({
+        select: { fqdn: true },
+        where: { kind: 'server', fqdn: Not(IsNull()) },
+      });
+      for (const d of devices) {
+        if (d.fqdn) domains.add(d.fqdn);
+      }
+    } catch {}
+
+    try {
+      const allocs = await AppDataSource.getRepository(TunnelAllocation)
+        .createQueryBuilder('alloc')
+        .select('DISTINCT alloc.host', 'host')
+        .where('alloc.status = :status', { status: 'active' })
+        .getRawMany();
+      for (const a of allocs) {
+        if (a.host) domains.add(a.host);
+      }
+    } catch {}
+
+    const sorted = Array.from(domains).sort();
+    return { domains: sorted };
+  }, {
+    detail: {
+      tags: ['Proxy'],
+      summary: 'List all trusted internal domains used by the panel, nodes, and tunnels',
+    },
+  });
+
   app.get(prefix + '/proxy/image', async (ctx: any) => {
     const rawUrl = ctx.query.url;
     if (!rawUrl || typeof rawUrl !== 'string') {

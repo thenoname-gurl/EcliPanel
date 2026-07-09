@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback, useContext, createContext } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
-import { useExternalLinkGuard } from "@/components/panel/external-link-warning"
+import { isExternalUrlSync } from "@/lib/internal-domains"
 import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -31,30 +31,13 @@ function safeHrefUrl(url: string | null | undefined): string | undefined {
   return safeUrl(url, ['http:', 'https:'])
 }
 
-function isExternalUrl(url: string): boolean {
-  if (url.startsWith('/')) return false
-  if (typeof window === 'undefined') return false
-  try {
-    const parsed = new URL(url)
-    return parsed.hostname !== window.location.hostname
-  } catch {
-    return false
-  }
-}
-
 function proxyImageUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined
   const safe = safeImageUrl(url)
   if (!safe) return undefined
   if (safe.startsWith('data:') || safe.startsWith('/')) return safe
-  if (!isExternalUrl(safe)) return safe
+  if (!isExternalUrlSync(safe)) return safe
   return `/api/proxy/image?url=${encodeURIComponent(safe)}`
-}
-
-const LinkGuardContext = createContext<((url: string) => Promise<boolean>) | null>(null)
-
-function useLinkGuard() {
-  return useContext(LinkGuardContext)
 }
 
 interface Channel {
@@ -173,17 +156,8 @@ function renderPostLine(line: string, key: number) {
 }
 
 function PostContent({ content, imageUrl }: { content: string; imageUrl?: string | null }) {
-  const linkGuard = useLinkGuard()
   const imgSrc = proxyImageUrl(imageUrl)
   const hrefUrl = safeHrefUrl(imageUrl)
-
-  async function handleLinkClick(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
-    if (linkGuard) {
-      e.preventDefault()
-      const allowed = await linkGuard(url)
-      if (allowed) window.open(url, '_blank', 'noopener,noreferrer')
-    }
-  }
 
   return (
     <div className="text-xs leading-relaxed space-y-0 break-words [overflow-wrap:break-word]">
@@ -191,7 +165,7 @@ function PostContent({ content, imageUrl }: { content: string; imageUrl?: string
       {imgSrc && (
         <div className="mt-2">
           {hrefUrl ? (
-            <a href={hrefUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => handleLinkClick(e, hrefUrl)}>
+            <a href={hrefUrl} target="_blank" rel="noopener noreferrer">
               <img
                 src={imgSrc}
                 alt="Attached"
@@ -252,7 +226,6 @@ export default function ChatPage() {
   const { user, isLoggedIn } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { guard, dialog } = useExternalLinkGuard()
 
   const [channels, setChannels] = useState<Channel[]>([])
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
@@ -606,7 +579,6 @@ export default function ChatPage() {
   }
 
   return (
-    <LinkGuardContext.Provider value={guard}>
     <div className="flex h-full bg-background font-sans">
 
       <div className="w-48 shrink-0 border-r border-border/50 bg-sidebar flex flex-col overflow-hidden">
@@ -788,8 +760,6 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
     </div>
-    {dialog}
-    </LinkGuardContext.Provider>
   )
 }
 
@@ -1256,7 +1226,6 @@ function ThreadViewPanel({
   onLookupPost?: (posterId: string) => void; onMassDelete?: (posterId: string) => void
 }) {
   const bottomRef = useRef<HTMLDivElement>(null)
-  const linkGuard = useLinkGuard()
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [thread.replies.length])
@@ -1330,19 +1299,10 @@ function ThreadViewPanel({
               const opImg = proxyImageUrl(thread.op.imageUrl)
               const opHref = safeHrefUrl(thread.op.imageUrl)
               if (!opImg) return null
-
-              async function handleOpImgClick(e: React.MouseEvent<HTMLAnchorElement>) {
-                if (linkGuard && opHref) {
-                  e.preventDefault()
-                  const allowed = await linkGuard(opHref)
-                  if (allowed) window.open(opHref, '_blank', 'noopener,noreferrer')
-                }
-              }
-
               return (
                 <div className="mb-2">
                   {opHref ? (
-                    <a href={opHref} target="_blank" rel="noopener noreferrer" onClick={handleOpImgClick}>
+                    <a href={opHref} target="_blank" rel="noopener noreferrer">
                       <img
                         src={opImg} alt="OP image"
                         className="max-h-72 max-w-xs border border-border/30 object-contain hover:opacity-90 transition-opacity rounded-sm"
