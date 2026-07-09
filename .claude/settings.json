@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"${CLAUDE_TOOL_INPUT}\" | grep -qE '(AGENTS\\.md|CLAUDE\\.md|settings\\.json|package\\.json|next\\.config|Cargo\\.toml|tsconfig|routes/index\\.ts|app\\.ts|middleware\\.ts|layout\\.tsx|panel-config\\.ts)'; then echo '⏳ Structural change detected — consider running: ask Claude to regenerate AGENTS.md'; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /srv/samba/shared/EcliPanel/v3 && if git diff --name-only HEAD | grep -qE '(backend/src/(handlers|routes|services|middleware|types)/|frontend/app/layout|frontend/lib/panel-config|frontend/middleware|frontend/next.config|package\\.json|Cargo\\.toml|app\\.ts)'; then echo ''; echo '⚠️  Structural code changes detected. AGENTS.md may be outdated.'; echo '   Ask Claude: \"regenerate AGENTS.md based on recent changes\"'; echo ''; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
