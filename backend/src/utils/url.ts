@@ -58,18 +58,18 @@ export function getPanelUrl(ctx?: RequestContextLike): string {
     return 'https://ecli.app';
   }
 
+  // Only trust the Origin header for panel URL resolution.
+  // Origin is set by browsers automatically and cannot be spoofed in
+  // normal cross-origin requests. We deliberately avoid Host /
+  // X-Forwarded-Host headers because they are trivially attacker-controlled.
   const origin = getHeader(ctx, 'origin') || '';
   if (origin && !isCorsWildcard(origin)) {
     return origin.replace(/\/+$/, '');
   }
 
-  try {
-    const proto = getHeader(ctx, 'x-forwarded-proto') || ctx.protocol || 'https';
-    const host = getHeader(ctx, 'host') || ctx.hostname || ctx.host || 'localhost';
-    return `${proto}://${host}`;
-  } catch {
-    return 'https://ecli.app';
-  }
+  // No safe way to determine the panel URL — fall back to the default.
+  // Set PANEL_URL or FRONTEND_URL in production to avoid this path.
+  return 'https://ecli.app';
 }
 
 export function resolvePanelBaseUrl(ctx?: RequestContextLike): string {

@@ -97,16 +97,20 @@ function renderInlineMarkdown(text: string): React.ReactNode {
       remarkPlugins={[remarkGfm]}
       components={{
         p: ({ children }) => <>{children}</>,
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target={href?.startsWith("#") ? undefined : "_blank"}
-            rel={href?.startsWith("#") ? undefined : "noopener noreferrer"}
-            className="text-primary hover:text-primary/80 underline decoration-primary/30"
-          >
-            {children}
-          </a>
-        ),
+        a: ({ href, children }) => {
+          const safeHref = safeHrefUrl(href) ?? ((href?.startsWith("/") || href?.startsWith("#")) ? href : undefined)
+          if (!safeHref) return <>{children}</>
+          return (
+            <a
+              href={safeHref}
+              target={safeHref.startsWith("#") ? undefined : "_blank"}
+              rel={safeHref.startsWith("#") ? undefined : "noopener noreferrer"}
+              className="text-primary hover:text-primary/80 underline decoration-primary/30"
+            >
+              {children}
+            </a>
+          )
+        },
         strong: ({ children }) => <strong className="font-bold text-foreground/90">{children}</strong>,
         em: ({ children }) => <em className="italic text-foreground/80">{children}</em>,
         del: ({ children }) => <del className="line-through text-foreground/50">{children}</del>,

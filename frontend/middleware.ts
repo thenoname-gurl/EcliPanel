@@ -627,7 +627,7 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
       if (protectedRoute && !loggedIn) {
         const loginUrl = new URL('/login', req.url);
         if (pathname !== '/dashboard') {
-          loginUrl.searchParams.set('next', pathname);
+          loginUrl.searchParams.set('redirect', pathname);
         }
         return NextResponse.redirect(loginUrl);
       }

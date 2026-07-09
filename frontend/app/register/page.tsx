@@ -79,7 +79,9 @@ export default function RegisterPage() {
   const searchParams = useSearchParams();
   const rawRedirect = searchParams.get("redirect");
   const redirectTo =
-    rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "";
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "";
   const loginHref = redirectTo
     ? `/login?redirect=${encodeURIComponent(redirectTo)}`
     : "/login";

@@ -38,7 +38,9 @@ export default function LoginPage() {
 
   const rawRedirect = searchParams.get("redirect");
   const redirectTo =
-    rawRedirect && rawRedirect.startsWith("/") ? rawRedirect : "/dashboard";
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
