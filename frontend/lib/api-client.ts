@@ -76,7 +76,26 @@ export async function apiFetch(
     }
   }
 
-  const url = path.startsWith("http") ? path : `${base}${path}`;
+  let url: string;
+  if (path.startsWith("http")) {
+    try {
+      const parsed = new URL(path);
+      const allowedHosts = new Set<string>();
+      if (typeof window !== 'undefined') allowedHosts.add(window.location.hostname);
+      if (base) {
+        try { allowedHosts.add(new URL(base).hostname); } catch {}
+      }
+      allowedHosts.add('localhost');
+      if (!['http:', 'https:'].includes(parsed.protocol) || !allowedHosts.has(parsed.hostname)) {
+        throw new Error(`Invalid API URL: ${path}`);
+      }
+    } catch (e) {
+      throw new Error(`Invalid API URL: ${path}`);
+    }
+    url = path;
+  } else {
+    url = `${base}${path}`;
+  }
 
 
   const headers: Record<string, string> = {
@@ -203,7 +222,7 @@ export async function apiFetch(
 
       try {
         if (url.includes('/auth/login') || url.includes('/auth/session') || url.includes('/auth/2fa/verify-login')) {
-          console.debug('[apiFetch] auth response:', url, data);
+          console.debug('[apiFetch] auth response: %s', url, data);
         }
       } catch {}
 
@@ -214,7 +233,7 @@ export async function apiFetch(
 
       if (attempt < retries && (isAbort || isNetwork)) {
         if (typeof window !== 'undefined') {
-          console.warn(`[apiFetch] retrying ${url} due to network/timeout (attempt ${attempt + 1}/${retries})`, err);
+          console.warn('[apiFetch] retrying %s due to network/timeout (attempt %d/%d)', url, attempt + 1, retries, err);
         }
         await sleep(500 * attempt)
         return execute(attempt + 1)

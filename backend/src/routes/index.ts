@@ -39,6 +39,7 @@ import { sharedFileRoutes, publicSharedFileRoutes } from '../handlers/sharedFile
 import { paymentRoutes } from '../handlers/paymentHandler';
 import { eloRoutes } from '../handlers/eloHandler';
 import { slackRoutes } from '../handlers/slackHandler';
+import { proxyRoutes } from '../handlers/proxyHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 
@@ -145,4 +146,5 @@ export function registerRoutes(app: any) {
   calendarRoutes(app, '/api');
   paintRoutes(app, '/api');
   chatRoutes(app, '/api');
+  proxyRoutes(app, '/api');
 }

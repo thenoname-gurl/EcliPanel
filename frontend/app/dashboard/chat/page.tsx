@@ -1,14 +1,61 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useContext, createContext } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import { useExternalLinkGuard } from "@/components/panel/external-link-warning"
 import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+
+function safeUrl(url: string | null | undefined, allowedProtocols: string[]): string | undefined {
+  if (!url) return undefined
+  if (url.startsWith('/')) return url
+  try {
+    const parsed = new URL(url)
+    if (allowedProtocols.includes(parsed.protocol)) return url
+  } catch {
+    return undefined
+  }
+  return undefined
+}
+
+function safeImageUrl(url: string | null | undefined): string | undefined {
+  return safeUrl(url, ['http:', 'https:', 'data:'])
+}
+
+function safeHrefUrl(url: string | null | undefined): string | undefined {
+  return safeUrl(url, ['http:', 'https:'])
+}
+
+function isExternalUrl(url: string): boolean {
+  if (url.startsWith('/')) return false
+  if (typeof window === 'undefined') return false
+  try {
+    const parsed = new URL(url)
+    return parsed.hostname !== window.location.hostname
+  } catch {
+    return false
+  }
+}
+
+function proxyImageUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined
+  const safe = safeImageUrl(url)
+  if (!safe) return undefined
+  if (safe.startsWith('data:') || safe.startsWith('/')) return safe
+  if (!isExternalUrl(safe)) return safe
+  return `/api/proxy/image?url=${encodeURIComponent(safe)}`
+}
+
+const LinkGuardContext = createContext<((url: string) => Promise<boolean>) | null>(null)
+
+function useLinkGuard() {
+  return useContext(LinkGuardContext)
+}
 
 interface Channel {
   id: number; slug: string; name: string; description: string | null
@@ -126,19 +173,40 @@ function renderPostLine(line: string, key: number) {
 }
 
 function PostContent({ content, imageUrl }: { content: string; imageUrl?: string | null }) {
+  const linkGuard = useLinkGuard()
+  const imgSrc = proxyImageUrl(imageUrl)
+  const hrefUrl = safeHrefUrl(imageUrl)
+
+  async function handleLinkClick(e: React.MouseEvent<HTMLAnchorElement>, url: string) {
+    if (linkGuard) {
+      e.preventDefault()
+      const allowed = await linkGuard(url)
+      if (allowed) window.open(url, '_blank', 'noopener,noreferrer')
+    }
+  }
+
   return (
     <div className="text-xs leading-relaxed space-y-0 break-words [overflow-wrap:break-word]">
       {content.split("\n").map((line, i) => renderPostLine(line, i))}
-      {imageUrl && (
+      {imgSrc && (
         <div className="mt-2">
-          <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+          {hrefUrl ? (
+            <a href={hrefUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => handleLinkClick(e, hrefUrl)}>
+              <img
+                src={imgSrc}
+                alt="Attached"
+                className="max-h-64 max-w-xs border border-border/40 object-contain hover:opacity-90 transition-opacity cursor-pointer"
+                loading="lazy"
+              />
+            </a>
+          ) : (
             <img
-              src={imageUrl}
+              src={imgSrc}
               alt="Attached"
-              className="max-h-64 max-w-xs border border-border/40 object-contain hover:opacity-90 transition-opacity cursor-pointer"
+              className="max-h-64 max-w-xs border border-border/40 object-contain"
               loading="lazy"
             />
-          </a>
+          )}
         </div>
       )}
     </div>
@@ -184,6 +252,7 @@ export default function ChatPage() {
   const { user, isLoggedIn } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { guard, dialog } = useExternalLinkGuard()
 
   const [channels, setChannels] = useState<Channel[]>([])
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null)
@@ -537,6 +606,7 @@ export default function ChatPage() {
   }
 
   return (
+    <LinkGuardContext.Provider value={guard}>
     <div className="flex h-full bg-background font-sans">
 
       <div className="w-48 shrink-0 border-r border-border/50 bg-sidebar flex flex-col overflow-hidden">
@@ -718,6 +788,8 @@ export default function ChatPage() {
         )}
       </AnimatePresence>
     </div>
+    {dialog}
+    </LinkGuardContext.Provider>
   )
 }
 
@@ -1091,6 +1163,7 @@ function ThreadCard({ thread, onOpen, canModerate, onToggleHide, onDelete, onLoo
   const lines = thread.content.split("\n")
   const preview = lines.slice(0, 6)
   const truncated = lines.length > 6
+  const thumbSrc = proxyImageUrl(thread.imageUrl)
 
   return (
     <div className="py-4 px-2 hover:bg-muted/20 transition-colors group">
@@ -1099,8 +1172,9 @@ function ThreadCard({ thread, onOpen, canModerate, onToggleHide, onDelete, onLoo
         {thread.imageUrl && (
           <div className="shrink-0">
             <button onClick={onOpen}>
-              <img
-                src={thread.imageUrl} alt="Thread image"
+          <img
+            src={thumbSrc}
+            alt="Thread image"
                 className="w-[120px] h-[120px] object-cover border border-border/40 hover:opacity-90 transition-opacity rounded-sm"
                 loading="lazy"
               />
@@ -1182,6 +1256,7 @@ function ThreadViewPanel({
   onLookupPost?: (posterId: string) => void; onMassDelete?: (posterId: string) => void
 }) {
   const bottomRef = useRef<HTMLDivElement>(null)
+  const linkGuard = useLinkGuard()
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [thread.replies.length])
@@ -1251,17 +1326,39 @@ function ThreadViewPanel({
         <div id={`p${thread.op.id}`} className="mb-3 group">
           <div className="inline-block bg-card border border-border/40 rounded p-3 max-w-full">
             <PostHeader post={thread.op} isOp />
-            {thread.op.imageUrl && (
-              <div className="mb-2">
-                <a href={thread.op.imageUrl} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={thread.op.imageUrl} alt="OP image"
-                    className="max-h-72 max-w-xs border border-border/30 object-contain hover:opacity-90 transition-opacity rounded-sm"
-                    loading="lazy"
-                  />
-                </a>
-              </div>
-            )}
+            {thread.op.imageUrl && (() => {
+              const opImg = proxyImageUrl(thread.op.imageUrl)
+              const opHref = safeHrefUrl(thread.op.imageUrl)
+              if (!opImg) return null
+
+              async function handleOpImgClick(e: React.MouseEvent<HTMLAnchorElement>) {
+                if (linkGuard && opHref) {
+                  e.preventDefault()
+                  const allowed = await linkGuard(opHref)
+                  if (allowed) window.open(opHref, '_blank', 'noopener,noreferrer')
+                }
+              }
+
+              return (
+                <div className="mb-2">
+                  {opHref ? (
+                    <a href={opHref} target="_blank" rel="noopener noreferrer" onClick={handleOpImgClick}>
+                      <img
+                        src={opImg} alt="OP image"
+                        className="max-h-72 max-w-xs border border-border/30 object-contain hover:opacity-90 transition-opacity rounded-sm"
+                        loading="lazy"
+                      />
+                    </a>
+                  ) : (
+                    <img
+                      src={opImg} alt="OP image"
+                      className="max-h-72 max-w-xs border border-border/30 object-contain rounded-sm"
+                      loading="lazy"
+                    />
+                  )}
+                </div>
+              )
+            })()}
             <PostContent content={thread.op.content} />
             {canModerate && (
               <div className="mt-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
