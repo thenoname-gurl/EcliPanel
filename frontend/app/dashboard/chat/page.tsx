@@ -17,7 +17,7 @@ function safeUrl(url: string | null | undefined, allowedProtocols: string[]): st
   if (url.startsWith('/')) return url.startsWith('//') ? undefined : url
   try {
     const parsed = new URL(url)
-    if (allowedProtocols.includes(parsed.protocol)) return url
+    if (allowedProtocols.includes(parsed.protocol)) return parsed.toString()
   } catch {
     return undefined
   }
@@ -48,7 +48,7 @@ function proxyImageUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined
   const safe = safeImageUrl(url)
   if (!safe) return undefined
-  if (safe.startsWith('data:') || safe.startsWith('/')) return safe
+  if (safe.startsWith('/')) return safe
   if (!isExternalUrlSync(safe)) return safe
   return `/api/proxy/image?url=${encodeURIComponent(safe)}`
 }
