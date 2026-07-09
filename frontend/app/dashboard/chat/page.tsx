@@ -392,8 +392,12 @@ export default function ChatPage() {
   }
 
   async function loadThread(channelId: number, threadId: number) {
+    if (!Number.isSafeInteger(channelId) || channelId <= 0) return false
+    if (!Number.isSafeInteger(threadId) || threadId <= 0) return false
     try {
-      const res = await apiFetch(`${API_ENDPOINTS.chatChannel.replace(":id", String(channelId))}/threads/${threadId}`)
+      const safeChannelId = encodeURIComponent(String(channelId))
+      const safeThreadId = encodeURIComponent(String(threadId))
+      const res = await apiFetch(`${API_ENDPOINTS.chatChannel.replace(":id", safeChannelId)}/threads/${safeThreadId}`)
       if (res?.op) { setActiveThread(res as ThreadView); return true }
     } catch { }
     return false
