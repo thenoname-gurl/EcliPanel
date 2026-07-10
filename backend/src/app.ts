@@ -100,7 +100,6 @@ app.decorate('log', console)
   .use(
     openapi({
       path: '/openapi',
-      path: '/openapi',
       documentation: {
         info: {
           title: 'EcliPanel',
@@ -381,24 +380,13 @@ app.decorate('log', console)
       },
     },
   }))
-  .use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        'script-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
-        'style-src': ["'self'", "'unsafe-inline'", "https:"],
-        'connect-src': ["'self'", "https://cdn.jsdelivr.net"],
-      },
-    },
-  }))
   .use(jwt({ secret: process.env.JWT_SECRET }))
-  .request(async (rawCtx: unknown) => {
   .request(async (rawCtx: unknown) => {
     const ctx = rawCtx as unknown as AppRequestContext;
     try {
       if (typeof ctx.t !== 'function') {
         ctx.t = (key: string) => String(key);
       }
-    } catch { }
     } catch { }
   })
   .use(i18n);
@@ -420,7 +408,6 @@ app.pqJwt = {
 };
 app.log = console;
 
-app.error((rawCtx: unknown) => {
 app.error((rawCtx: unknown) => {
   const ctx = rawCtx as unknown as AppErrorContext;
   let status = 500;
@@ -522,7 +509,6 @@ declare module 'elysia' {
 }
 
 const _rateBuckets = new Map<string, { count: number; resetAt: number }>();
-app.request(async (rawCtx: unknown) => {
 app.request(async (rawCtx: unknown) => {
   const ctx = rawCtx as unknown as AppRequestContext;
   const req: Request = ctx.request;
@@ -658,7 +644,6 @@ app.request(async (rawCtx: unknown) => {
 });
 
 app.beforeHandle(async (ctx: Record<string, unknown>) => {
-app.beforeHandle(async (ctx: Record<string, unknown>) => {
   const csrfResult = await csrfProtection(ctx);
   if (csrfResult) return csrfResult;
 });
@@ -667,8 +652,6 @@ const _cacheSafeMethods = new Set(['GET', 'HEAD', 'OPTIONS']);
 const _compressibleTypes = /^(text\/|application\/(json|javascript|xml|yaml|toml|protobuf|grpc|x-protobuf))/;
 const _minCompressBytes = 1024;
 
-app.afterHandle(async (rawCtx: { request: Request; response?: unknown }) => {
-  const req = rawCtx.request;
 app.afterHandle(async (rawCtx: { request: Request; response?: unknown }) => {
   const req = rawCtx.request;
   const res = rawCtx.response as Response | undefined;
@@ -733,16 +716,7 @@ export async function initApp() {
     }
     try {
       const body = ctx.body;
-  (app as any).post("/api/mcp/messages", async (ctx: { body: unknown; set: { status: number }; user?: { id: number }; jwtPayload?: { sessionId?: string }; t: (k: string, fb?: string) => string }) => {
-    if (!hasPermissionSync(ctx, 'admin:access')) {
-      ctx.set.status = 403;
-      return { jsonrpc: "2.0", id: null, error: { code: -32001, message: ctx.t('common.forbidden') } };
-    }
-    try {
-      const body = ctx.body;
       if (!body || typeof body !== "object") {
-        ctx.set.status = 400;
-        return { error: ctx.t('mcp.invalidJsonRpcBody') };
         ctx.set.status = 400;
         return { error: ctx.t('mcp.invalidJsonRpcBody') };
       }
@@ -775,14 +749,7 @@ export async function initApp() {
       return { jsonrpc: "2.0", id: b.id || null, result };
     } catch (err: any) {
       ctx.set.status = 500;
-      ctx.set.status = 500;
       return { jsonrpc: "2.0", id: null, error: { code: -32603, message: err.message } };
-    }
-  }, { beforeHandle: [authenticate], detail: { hide: true } });
-  (app as any).get("/api/mcp/sse", (ctx: { set: { status: number }; user?: { id: number }; t: (k: string, fb?: string) => string }) => {
-    if (!hasPermissionSync(ctx, 'admin:access')) {
-      ctx.set.status = 403;
-      return { error: ctx.t('common.forbidden') };
     }
   }, { beforeHandle: [authenticate], detail: { hide: true } });
   (app as any).get("/api/mcp/sse", (ctx: { set: { status: number }; user?: { id: number }; t: (k: string, fb?: string) => string }) => {
@@ -799,7 +766,6 @@ export async function initApp() {
       }),
       { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } }
     );
-  }, { beforeHandle: [authenticate], detail: { hide: true } });
   }, { beforeHandle: [authenticate], detail: { hide: true } });
   try {
   } catch (e) {
@@ -985,225 +951,7 @@ export async function initApp() {
           });
         }
       }
-  (app as any).get(
-    '/health',
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      if (!AppDataSource.isInitialized) {
-        return new Response(JSON.stringify({ status: 'starting' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      try {
-        await AppDataSource.query('SELECT 1');
-        return new Response(JSON.stringify({ status: 'ok' }), {
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch {
-        return new Response(JSON.stringify({ status: 'degraded', db: false }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-    {
-      response: {
-        200: t.Object({ status: t.String() }),
-        503: t.Object({ status: t.String(), db: t.Optional(t.Boolean()) }),
-      },
-      detail: {
-        tags: ['Health'],
-        summary: 'Database/boot health check',
-        description: 'Returns status of the application and database connection',
-      },
-    }
-    ,
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      if (!AppDataSource.isInitialized) {
-        return new Response(JSON.stringify({ status: 'starting' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      try {
-        await AppDataSource.query('SELECT 1');
-        return new Response(JSON.stringify({ status: 'ok' }), {
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch {
-        return new Response(JSON.stringify({ status: 'degraded', db: false }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-  );
 
-  (app as any).get(
-    '/uploads/id-docs/*',
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const user = ctx.user;
-      const apiKey = ctx.apiKey;
-      if (!user && !apiKey) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      if (apiKey) {
-        if (apiKey.type !== 'admin') {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      } else {
-        if (!hasPermissionSync(ctx, 'id-docs:read')) {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      }
-
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'id-docs'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.pdf': 'application/pdf',
-      };
-      try {
-        let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        try {
-          buf = decryptBuffer(buf);
-        } catch {
-          // skip
-        }
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-    {
-      beforeHandle: authenticate,
-      detail: { hide: true },
-    }
-    ,
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const user = ctx.user;
-      const apiKey = ctx.apiKey;
-      if (!user && !apiKey) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      if (apiKey) {
-        if (apiKey.type !== 'admin') {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      } else {
-        if (!hasPermissionSync(ctx, 'id-docs:read')) {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      }
-
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'id-docs'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.pdf': 'application/pdf',
-      };
-      try {
-        let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        try {
-          buf = decryptBuffer(buf);
-        } catch {
-          // skip
-        }
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-  );
-
-  (app as any).get(
-    '/uploads/mailbox/*',
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const normalised = path.relative(path.join(process.cwd(), 'uploads'), filepath);
-      const parts = normalised.split(path.sep);
-      if (parts.length < 3 || parts[0] !== 'mailbox') {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
       const relPath = String(ctx.params?.['*'] || '');
       let filepath: string;
       try {
@@ -1343,16 +1091,7 @@ export async function initApp() {
       const requester = ctx.user;
       const apiKey = ctx.apiKey;
       const ownerId = String(parts[1]);
-      const requester = ctx.user;
-      const apiKey = ctx.apiKey;
-      const ownerId = String(parts[1]);
 
-      if (!requester && !apiKey) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
       if (!requester && !apiKey) {
         return new Response(JSON.stringify({ error: 'Missing Authorization token' }), {
           status: 401,
@@ -1375,33 +1114,7 @@ export async function initApp() {
           });
         }
       }
-      if (apiKey) {
-        if (apiKey.type !== 'admin') {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      } else {
-        if (String(requester.id) !== ownerId && !hasPermissionSync(ctx, 'mailbox:read')) {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      }
 
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.svg': 'image/svg+xml',
-        '.pdf': 'application/pdf',
-        '.txt': 'text/plain',
-      };
       const ext = path.extname(filepath).toLowerCase();
       const mimeTypes: Record<string, string> = {
         '.jpg': 'image/jpeg',
@@ -1539,255 +1252,6 @@ export async function initApp() {
           headers: { 'Content-Type': 'application/json' },
         });
       }
-      try {
-        let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        try {
-          buf = decryptBuffer(buf);
-        } catch {
-          // meow
-        }
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-            'Cache-Control': 'private, max-age=300',
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-    {
-      beforeHandle: authenticate,
-      detail: { hide: true },
-    }
-    ,
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const normalised = path.relative(path.join(process.cwd(), 'uploads'), filepath);
-      const parts = normalised.split(path.sep);
-      if (parts.length < 3 || parts[0] !== 'mailbox') {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      const requester = ctx.user;
-      const apiKey = ctx.apiKey;
-      const ownerId = String(parts[1]);
-
-      if (!requester && !apiKey) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (apiKey) {
-        if (apiKey.type !== 'admin') {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      } else {
-        if (String(requester.id) !== ownerId && !hasPermissionSync(ctx, 'mailbox:read')) {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      }
-
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.svg': 'image/svg+xml',
-        '.pdf': 'application/pdf',
-        '.txt': 'text/plain',
-      };
-
-      try {
-        let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        try {
-          buf = decryptBuffer(buf);
-        } catch {
-          // meow
-        }
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-            'Cache-Control': 'private, max-age=300',
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-  );
-
-  (app as any).get(
-    '/uploads/user-documents/*',
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'user-documents'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      const normalised = path.relative(
-        path.join(process.cwd(), 'uploads', 'user-documents'),
-        filepath
-      );
-      const parts = normalised.split(path.sep);
-      if (parts.length < 2) {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const normalised = path.relative(
-        path.join(process.cwd(), 'uploads', 'user-documents'),
-        filepath
-      );
-      const parts = normalised.split(path.sep);
-      if (parts.length < 2) {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      const ownerId = parts[0];
-      const requester = ctx.user;
-      const apiKey = ctx.apiKey;
-      if (!requester && !apiKey) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const ownerId = parts[0];
-      const requester = ctx.user;
-      const apiKey = ctx.apiKey;
-      if (!requester && !apiKey) {
-        return new Response(JSON.stringify({ error: 'Missing Authorization token' }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      if (apiKey) {
-        if (apiKey.type !== 'admin') {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      } else if (
-        String(requester.id) !== ownerId &&
-        !hasPermissionSync(ctx, 'admin:users:documents')
-      ) {
-        return new Response(JSON.stringify({ error: 'Forbidden' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      if (apiKey) {
-        if (apiKey.type !== 'admin') {
-          return new Response(JSON.stringify({ error: 'Forbidden' }), {
-            status: 403,
-            headers: { 'Content-Type': 'application/json' },
-          });
-        }
-      } else if (
-        String(requester.id) !== ownerId &&
-        !hasPermissionSync(ctx, 'admin:users:documents')
-      ) {
-        return new Response(JSON.stringify({ error: 'Forbidden' }), {
-          status: 403,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.pdf': 'application/pdf',
-      };
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.pdf': 'application/pdf',
-      };
-
-      try {
-        let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        try {
-          buf = decryptBuffer(buf);
-        } catch {
-          // meow
-        }
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-            'Cache-Control': 'private, max-age=300',
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-    {
-      beforeHandle: authenticate,
-      detail: { hide: true },
-    }
-    ,
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads', 'user-documents'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
 
       const normalised = path.relative(
         path.join(process.cwd(), 'uploads', 'user-documents'),
@@ -1833,114 +1297,6 @@ export async function initApp() {
         '.pdf': 'application/pdf',
       };
 
-      try {
-        let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        try {
-          buf = decryptBuffer(buf);
-        } catch {
-          // meow
-        }
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-            'Cache-Control': 'private, max-age=300',
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-  );
-
-  (app as any).get(
-    '/uploads/*',
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.svg': 'image/svg+xml',
-      };
-      try {
-        const buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-            'Cache-Control': 'public, max-age=86400',
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-    {
-      detail: { hide: true },
-    }
-    ,
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      const relPath = String(ctx.params?.['*'] || '');
-      let filepath: string;
-      try {
-        filepath = getSafeUploadPath(path.join(process.cwd(), 'uploads'), relPath);
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      const ext = path.extname(filepath).toLowerCase();
-      const mimeTypes: Record<string, string> = {
-        '.jpg': 'image/jpeg',
-        '.jpeg': 'image/jpeg',
-        '.png': 'image/png',
-        '.gif': 'image/gif',
-        '.webp': 'image/webp',
-        '.svg': 'image/svg+xml',
-      };
-      try {
-        const buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
-        return new Response(new Uint8Array(buf), {
-          status: 200,
-          headers: {
-            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
-            'Content-Length': String(buf.length),
-            'Cache-Control': 'public, max-age=86400',
-          },
-        });
-      } catch {
-        return new Response(JSON.stringify({ error: 'not found' }), {
-          status: 404,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
-  );
-}
       try {
         let buf: Buffer<ArrayBufferLike> = Buffer.from(await Bun.file(filepath).arrayBuffer()) as Buffer<ArrayBufferLike>;
         try {
