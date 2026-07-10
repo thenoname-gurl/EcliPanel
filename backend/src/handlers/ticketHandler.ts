@@ -1388,14 +1388,14 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const uploadFile = Array.isArray(file) ? file[0] : file;
     if (!uploadFile) {
       ctx.set.status = 400;
-      return { error: 'No file provided' };
+      return { error: ctx.t('ticket.no_file_provided') };
     }
 
     const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
     const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
     if (!allowed.includes(mime)) {
       ctx.set.status = 400;
-      return { error: 'Invalid image type. Allowed: PNG, JPEG, WebP, GIF' };
+      return { error: ctx.t('ticket.invalid_image_type_allowed_png_jpeg_webp_gif') };
     }
 
     const ab = await uploadFile.arrayBuffer();
@@ -1419,6 +1419,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
     return { url: `${backendBase}/uploads/${filename}` };
   }, {
+    body: t.Object({ file: t.File() }),
     beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
     detail: { summary: 'Upload a screenshot before ticket creation', tags: ['Tickets'] }
@@ -1442,14 +1443,14 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const uploadFile = Array.isArray(file) ? file[0] : file;
     if (!uploadFile) {
       ctx.set.status = 400;
-      return { error: 'No file provided' };
+      return { error: ctx.t('ticket.no_file_provided') };
     }
 
     const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
     const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
     if (!allowed.includes(mime)) {
       ctx.set.status = 400;
-      return { error: 'Invalid image type. Allowed: PNG, JPEG, WebP, GIF' };
+      return { error: ctx.t('ticket.invalid_image_type_allowed_png_jpeg_webp_gif') };
     }
 
     const ab = await uploadFile.arrayBuffer();
@@ -1473,6 +1474,7 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
     return { url: `${backendBase}/uploads/${filename}` };
   }, {
+    body: t.Object({ file: t.File() }),
     beforeHandle: authenticate,
     response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
     detail: { summary: 'Upload a screenshot for a ticket', tags: ['Tickets'] }

@@ -1,0 +1,624 @@
+"use client"
+
+import { useCallback, useEffect, useState } from "react"
+import { API_ENDPOINTS } from "@/lib/panel-config"
+import { apiFetch } from "@/lib/api-client"
+import { useTranslations } from "next-intl"
+import { Button } from "@/components/ui/button"
+import {
+  Shield, ShieldAlert, AlertTriangle, AlertCircle,
+  Bug, RefreshCw, ScanLine, Search, ChevronLeft, ChevronRight,
+  Check, CheckCircle, Flag, Send, Clock, Server, User, Globe,
+  Activity, BarChart3, Zap, Brain,
+} from "lucide-react"
+import AntiAbuseTab from "./AntiAbuseTab"
+
+type Finding = {
+  id: number; title: string; description: string; severity: string
+  category: string; source: string; sourceName?: string
+  serverId?: string; nodeId?: number; userId?: number
+  status: string; metadata?: any; detectedAt: string
+  resolvedAt?: string; resolvedByUserId?: number
+}
+
+type ScanResult = {
+  created: number; resolved: number; totalOpen: number
+  timestamp?: string
+}
+
+type EventLogEntry = {
+  id: number; action: string; targetId?: string; targetType?: string
+  userId?: number; timestamp: string; metadata?: any
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatTimeAgo(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime()
+  const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000)
+  if (m < 1) return "just now"
+  if (m < 60) return `${m}m ago`
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
+const severityColors: Record<string, string> = {
+  critical: "border-red-500/50 bg-red-500/10 text-red-600",
+  high: "border-orange-500/50 bg-orange-500/10 text-orange-600",
+  medium: "border-yellow-500/50 bg-yellow-500/10 text-yellow-600",
+  low: "border-blue-500/50 bg-blue-500/10 text-blue-600",
+  info: "border-gray-500/50 bg-gray-500/10 text-gray-600",
+}
+
+const severityIcons: Record<string, typeof Shield> = {
+  critical: ShieldAlert, high: AlertTriangle, medium: AlertCircle,
+  low: Bug, info: Shield,
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
+export default function SocTab() {
+  const t = useTranslations("adminPage")
+  const [tab, setTab] = useState<"findings" | "events" | "rules" | "incidents" | "settings">("findings")
+  const [findings, setFindings] = useState<Finding[]>([])
+  const [findingsTotal, setFindingsTotal] = useState(0)
+  const [findingsPage, setFindingsPage] = useState(1)
+  const [findingsLoading, setFindingsLoading] = useState(true)
+  const [events, setEvents] = useState<EventLogEntry[]>([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+  const [scanRunning, setScanRunning] = useState(false)
+  const [lastScan, setLastScan] = useState<ScanResult | null>(null)
+  const [summary, setSummary] = useState<Record<string, number>>({})
+  const [statusFilter, setStatusFilter] = useState("open")
+  const [severityFilter, setSeverityFilter] = useState("")
+
+  // ─── Fetch findings ───────────────────────────────────────────────────────
+
+  const fetchFindings = useCallback(async (page = 1) => {
+    setFindingsLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(page), perPage: "50" })
+      if (statusFilter) params.set("status", statusFilter)
+      if (severityFilter) params.set("severity", severityFilter)
+      const data = await apiFetch(`${API_ENDPOINTS.socSecurityFindings}?${params}`)
+      const items = data?.findings || []
+      setFindings(items)
+      setFindingsTotal(data?.total || 0)
+      setFindingsPage(data?.page || page)
+      setSummary(data?.summary || {})
+      // Derive last scan from newest finding
+      if (!lastScan && items.length > 0) {
+        const newest = items.reduce((a: any, b: any) => new Date(a.detectedAt) > new Date(b.detectedAt) ? a : b)
+        setLastScan({ created: 0, resolved: 0, totalOpen: data?.total || 0, timestamp: newest.detectedAt })
+      }
+    } catch { setFindings([]) }
+    finally { setFindingsLoading(false) }
+  }, [statusFilter, severityFilter])
+
+  useEffect(() => { fetchFindings(1) }, [fetchFindings])
+
+  // ─── Fetch SOC event log ──────────────────────────────────────────────────
+
+  const fetchEvents = useCallback(async () => {
+    setEventsLoading(true)
+    try {
+      const data = await apiFetch(`${API_ENDPOINTS.socSecurityFindings}?status=all&perPage=200`)
+      // Build event log from all findings
+      const log: EventLogEntry[] = (data?.findings || []).map((f: Finding) => ({
+        id: f.id,
+        action: f.status === 'open' ? 'finding:detected' : `finding:${f.status}`,
+        targetId: f.serverId || `finding-${f.id}`,
+        targetType: f.serverId ? 'server' : 'finding',
+        userId: f.userId,
+        timestamp: f.detectedAt,
+        metadata: { title: f.title, severity: f.severity, category: f.category, status: f.status },
+      }))
+      setEvents(log)
+    } catch { setEvents([]) }
+    finally { setEventsLoading(false) }
+  }, [])
+
+  useEffect(() => {
+    if (tab === "events") fetchEvents()
+  }, [tab, fetchEvents])
+
+  // ─── Trigger scan ──────────────────────────────────────────────────────────
+
+  const handleScan = async () => {
+    setScanRunning(true)
+    try {
+      const data = await apiFetch(API_ENDPOINTS.socSecurityScan, { method: "POST" })
+      setLastScan({ ...data, timestamp: new Date().toISOString() })
+      fetchFindings(findingsPage)
+    } catch (e) { console.error("scan failed", e) }
+    finally { setScanRunning(false) }
+  }
+
+  // ─── Update finding ────────────────────────────────────────────────────────
+
+  const handleUpdate = async (id: number, status: string) => {
+    await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id)), {
+      method: "PATCH", body: JSON.stringify({ status }),
+    })
+    fetchFindings(findingsPage)
+  }
+
+  const handleEscalate = async (id: number) => {
+    await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id))}/escalate`, {
+      method: "POST", body: JSON.stringify({ action: "reviewed", note: "Staff reviewed" }),
+    })
+    fetchFindings(findingsPage)
+  }
+
+  // ─── Render ────────────────────────────────────────────────────────────────
+
+  const totalOpen = Object.values(summary).reduce((a, b) => a + b, 0)
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <Shield className="h-5 w-5 text-primary" />
+            Security Operations Center
+          </h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {totalOpen} open findings • {lastScan?.timestamp
+              ? `Last scan: ${formatTimeAgo(lastScan.timestamp)}`
+              : lastScan ? `${lastScan.created} new, ${lastScan.resolved} resolved` : "Run a scan to start"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={handleScan} disabled={scanRunning}>
+            <ScanLine className="h-4 w-4 mr-1" />
+            {scanRunning ? "Scanning..." : "Run Scan"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => fetchFindings(findingsPage)} disabled={findingsLoading}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-border pb-0">
+        {(["findings", "events", "rules", "incidents", "settings"] as const).map(tb => (
+          <button key={tb} onClick={() => setTab(tb)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === tb ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}>
+            {tb === "findings" ? "Findings" : tb === "events" ? "Event Log" : tb === "rules" ? "Rules" : tb === "incidents" ? "Incidents" : "Settings"}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Findings Tab ─────────────────────────────────────────────────── */}
+      {tab === "findings" && (
+        <div className="flex flex-col gap-4">
+          {/* Severity summary */}
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(summary).map(([sev, count]) => {
+              const Icon = severityIcons[sev] || Shield
+              return (
+                <div key={sev} className={`flex items-center gap-1 border px-2 py-0.5 text-xs font-medium ${severityColors[sev]}`}>
+                  <Icon className="h-3 w-3" />
+                  <span>{count}</span>
+                  <span className="opacity-70">{sev}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Filters */}
+          <div className="flex gap-2 flex-wrap">
+            <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setFindingsPage(1) }}
+              className="border border-border bg-card text-xs px-2 py-1">
+              <option value="open">Open</option>
+              <option value="acknowledged">Acknowledged</option>
+              <option value="resolved">Resolved</option>
+              <option value="false_positive">False Positive</option>
+              <option value="all">All</option>
+            </select>
+            <select value={severityFilter} onChange={e => { setSeverityFilter(e.target.value); setFindingsPage(1) }}
+              className="border border-border bg-card text-xs px-2 py-1">
+              <option value="">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+            </select>
+          </div>
+
+          {/* Table */}
+          <div className="border border-border overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary/30">
+                <tr>
+                  <th className="p-2 text-left w-8"></th>
+                  <th className="p-2 text-left">Title</th>
+                  <th className="p-2 text-left">Server</th>
+                  <th className="p-2 text-left">Category</th>
+                  <th className="p-2 text-left">Detected</th>
+                  <th className="p-2 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {findingsLoading ? (
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">Loading...</td></tr>
+                ) : findings.length === 0 ? (
+                  <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">No findings</td></tr>
+                ) : findings.map(f => {
+                  const Icon = severityIcons[f.severity] || Shield
+                  const color = severityColors[f.severity] || ""
+                  return (
+                    <tr key={f.id} className="hover:bg-secondary/10">
+                      <td className="p-2"><Icon className={`h-4 w-4 ${color.split(" ")[2] || ""}`} /></td>
+                      <td className="p-2 max-w-xs truncate font-medium">{f.title}</td>
+                      <td className="p-2 text-muted-foreground">{f.serverId?.slice(0, 8) || f.userId ? `User #${f.userId}` : "-"}</td>
+                      <td className="p-2"><span className="border border-border px-1 py-0.5">{f.category}</span></td>
+                      <td className="p-2 text-muted-foreground">{f.detectedAt ? formatTimeAgo(f.detectedAt) : "-"}</td>
+                      <td className="p-2">
+                        <div className="flex items-center gap-0.5">
+                          <button onClick={() => handleUpdate(f.id, "acknowledged")} title="Acknowledge"
+                            className="p-0.5 hover:bg-secondary/50 rounded"><Check className="h-3 w-3" /></button>
+                          <button onClick={() => handleUpdate(f.id, "resolved")} title="Resolve"
+                            className="p-0.5 hover:bg-secondary/50 rounded"><CheckCircle className="h-3 w-3 text-green-600" /></button>
+                          <button onClick={() => handleUpdate(f.id, "false_positive")} title="False Positive"
+                            className="p-0.5 hover:bg-secondary/50 rounded"><Flag className="h-3 w-3 text-orange-600" /></button>
+                          <button onClick={() => handleEscalate(f.id)} title="Escalate"
+                            className="p-0.5 hover:bg-secondary/50 rounded"><Send className="h-3 w-3 text-blue-600" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Page {findingsPage} • {findingsTotal} total</span>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" disabled={findingsPage <= 1}
+                onClick={() => fetchFindings(findingsPage - 1)}><ChevronLeft className="h-3 w-3" /></Button>
+              <Button size="sm" variant="outline" disabled={findings.length < 50}
+                onClick={() => fetchFindings(findingsPage + 1)}><ChevronRight className="h-3 w-3" /></Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Event Log Tab ───────────────────────────────────────────────── */}
+      {tab === "events" && (
+        <div className="flex flex-col gap-4">
+          {eventsLoading ? (
+            <p className="text-sm text-muted-foreground">Loading event log...</p>
+          ) : events.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No SOC events recorded yet.</p>
+          ) : (
+            <div className="border border-border divide-y divide-border">
+              {events.slice(0, 100).map(ev => (
+                <div key={`${ev.id}-${ev.action}`} className="flex items-start gap-3 p-3 text-sm hover:bg-secondary/10">
+                  <Clock className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-foreground font-medium">{ev.metadata?.title || ev.action}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {ev.metadata?.severity && <span className={`mr-2 ${severityColors[ev.metadata.severity]?.split(" ")[2] || ""}`}>{ev.metadata.severity}</span>}
+                      {ev.targetType}: {ev.targetId?.slice(0, 12)} • {formatTimeAgo(ev.timestamp)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+
+      {/* ── Rules Tab ─────────────────────────────────────────────────── */}
+      {tab === "rules" && <RulesTab />}
+      {tab === "incidents" && <IncidentsEmbed />}
+
+
+      {/* ── Settings Tab ─────────────────────────────────────────────────── */}
+      {tab === "settings" && <SocSettingsTab totalOpen={totalOpen} lastScan={lastScan} onSettingsSaved={() => fetchFindings(findingsPage)} />}
+    </div>
+  )
+}
+
+// ─── Editable Settings Sub-Component ────────────────────────────────────────
+
+function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
+  totalOpen: number; lastScan: ScanResult | null; onSettingsSaved: () => void
+}) {
+  const [settings, setSettings] = useState({
+    abuseipdbKey: '', threatIpList: '', threatIpCidrList: '', threatImageList: '',
+    alertEmail: '', alertWebhookUrl: '', alertSeverities: 'critical,high', scanScheduleMinutes: '30',
+  })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    apiFetch('/api/soc/admin-settings').then(d => {
+      setSettings({
+        abuseipdbKey: d.abuseipdbKey || '',
+        threatIpList: d.threatIpList || '',
+        threatIpCidrList: d.threatIpCidrList || '',
+        threatImageList: d.threatImageList || '',
+        alertEmail: d.alertEmail || '',
+        alertWebhookUrl: d.alertWebhookUrl || '',
+        alertSeverities: (d.alertSeverities || ['critical','high']).join(','),
+        scanScheduleMinutes: String(d.scanScheduleMinutes || '30'),
+      })
+    }).finally(() => setLoading(false))
+  }, [])
+
+  const save = async () => {
+    setSaving(true); setSaved(false)
+    await apiFetch('/api/soc/admin-settings', {
+      method: 'PUT',
+      body: JSON.stringify({
+        ...settings,
+        alertSeverities: settings.alertSeverities.split(',').map(s => s.trim()).filter(Boolean),
+        scanScheduleMinutes: Number(settings.scanScheduleMinutes) || 30,
+      }),
+    })
+    setSaved(true); setSaving(false); onSettingsSaved()
+  }
+
+  if (loading) return <p className="text-sm text-muted-foreground p-4">Loading settings...</p>
+
+  return (
+    <div className="flex flex-col gap-6 max-w-2xl">
+      <div className="border border-border bg-card p-5">
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Brain className="h-4 w-4" /> Threat Intelligence</h3>
+        <div className="flex flex-col gap-3 text-sm">
+          <div>
+            <label className="text-xs text-muted-foreground">AbuseIPDB API Key (register at abuseipdb.com)</label>
+            <input type="password" value={settings.abuseipdbKey} onChange={e => setSettings(s => ({...s, abuseipdbKey: e.target.value}))}
+              placeholder="your-api-key" className="w-full border border-border bg-card px-3 py-2 text-xs mt-1" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">IP Blocklist (comma-separated)</label>
+            <input type="text" value={settings.threatIpList} onChange={e => setSettings(s => ({...s, threatIpList: e.target.value}))}
+              placeholder="1.2.3.4, 5.6.7.8" className="w-full border border-border bg-card px-3 py-2 text-xs mt-1" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">CIDR Blocklist (comma-separated)</label>
+            <input type="text" value={settings.threatIpCidrList} onChange={e => setSettings(s => ({...s, threatIpCidrList: e.target.value}))}
+              placeholder="10.0.0.0/8" className="w-full border border-border bg-card px-3 py-2 text-xs mt-1" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Docker Image Blocklist</label>
+            <input type="text" value={settings.threatImageList} onChange={e => setSettings(s => ({...s, threatImageList: e.target.value}))}
+              placeholder="bad/image:tag" className="w-full border border-border bg-card px-3 py-2 text-xs mt-1" />
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-border bg-card p-5">
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Zap className="h-4 w-4" /> Alerting</h3>
+        <p className="text-xs text-muted-foreground mb-3">Fallback for unowned findings. Per-user alerts configure in Settings → Notifications.</p>
+        <div className="flex flex-col gap-3 text-sm">
+          <div>
+            <label className="text-xs text-muted-foreground">Admin Fallback Emails</label>
+            <input type="text" value={settings.alertEmail} onChange={e => setSettings(s => ({...s, alertEmail: e.target.value}))}
+              placeholder="admin@example.com" className="w-full border border-border bg-card px-3 py-2 text-xs mt-1" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Webhook URL (Discord/Slack — embed on admin alerts)</label>
+            <input type="text" value={settings.alertWebhookUrl} onChange={e => setSettings(s => ({...s, alertWebhookUrl: e.target.value}))}
+              placeholder="https://discord.com/api/webhooks/..." className="w-full border border-border bg-card px-3 py-2 text-xs mt-1" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Severities (comma-separated)</label>
+            <input type="text" value={settings.alertSeverities} onChange={e => setSettings(s => ({...s, alertSeverities: e.target.value}))}
+              placeholder="critical,high" className="w-full border border-border bg-card px-3 py-2 text-xs mt-1" />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <Button size="sm" onClick={save} disabled={saving}>{saving ? "Saving..." : "Save Settings"}</Button>
+        {saved && <span className="text-xs text-green-600">✓ Saved</span>}
+      </div>
+
+      <div className="border border-border bg-card p-5">
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Activity className="h-4 w-4" /> Scan Status</h3>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Schedule</p><p className="font-mono text-foreground">Every {settings.scanScheduleMinutes} min</p></div>
+          <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Total Open</p><p className="font-mono text-foreground">{totalOpen}</p></div>
+          <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Checks</p><p className="font-mono text-foreground">16 active</p></div>
+          <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Last Scan</p><p className="font-mono text-foreground">{lastScan ? `${lastScan.created} new` : "N/A"}</p></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Rules Tab Component ─────────────────────────────────────────────────────
+
+function RulesTab() {
+  const [rules, setRules] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
+
+  const fetchRules = async () => {
+    setLoading(true)
+    try { const d = await apiFetch('/api/soc/detection-rules'); setRules(d?.rules || []) }
+    catch { setRules([]) }
+    finally { setLoading(false) }
+  }
+
+  useEffect(() => { fetchRules() }, [])
+
+  const toggleRule = async (id: number, enabled: boolean) => {
+    await apiFetch(`/api/soc/detection-rules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) })
+    fetchRules()
+  }
+
+  const deleteRule = async (id: number) => {
+    if (!confirm('Delete this rule?')) return
+    await apiFetch(`/api/soc/detection-rules/${id}`, { method: 'DELETE' })
+    fetchRules()
+  }
+
+  if (loading) return <p className="text-sm text-muted-foreground p-4">Loading rules...</p>
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">{rules.length} rule(s) defined. Wings nodes fetch rules every 5 minutes.</p>
+        <Button size="sm" onClick={() => { setEditing(null); setShowForm(true) }}>+ Add Rule</Button>
+      </div>
+
+      {rules.length === 0 ? (
+        <div className="border border-border bg-secondary/10 p-8 text-center">
+          <p className="text-sm text-muted-foreground">No custom detection rules defined.</p>
+          <p className="text-xs text-muted-foreground mt-1">Create rules to detect patterns in logs, server metrics, and more.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {rules.map((r: any) => (
+            <div key={r.id} className="border border-border bg-card p-4 flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium text-foreground">{r.name}</p>
+                  <span className={`text-[10px] px-1.5 py-0.5 border ${r.severity === 'critical' ? 'border-red-500/30 text-red-600' : r.severity === 'high' ? 'border-orange-500/30 text-orange-600' : 'border-yellow-500/30 text-yellow-600'}`}>{r.severity}</span>
+                  <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5">{r.category}</span>
+                  <span className="text-[10px] text-muted-foreground">{r.triggerCount || 0} hits</span>
+                </div>
+                {r.description && <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>}
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Sources: {(r.sources || []).join(', ')} | Scope: {r.scope} | Conditions: {JSON.stringify(r.conditions).slice(0, 80)}...
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => toggleRule(r.id, !r.enabled)}
+                  className={`text-[10px] px-2 py-0.5 border ${r.enabled ? 'border-green-500/30 text-green-600' : 'border-gray-500/30 text-gray-500'}`}>
+                  {r.enabled ? 'ON' : 'OFF'}
+                </button>
+                <button onClick={() => { setEditing(r); setShowForm(true) }}
+                  className="text-[10px] px-2 py-0.5 border border-border text-muted-foreground hover:text-foreground">Edit</button>
+                <button onClick={() => deleteRule(r.id)}
+                  className="text-[10px] px-2 py-0.5 border border-red-500/20 text-red-600 hover:bg-red-500/10">Del</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showForm && <RuleForm initial={editing} onSaved={() => { setShowForm(false); fetchRules() }} onCancel={() => setShowForm(false)} />}
+    </div>
+  )
+}
+
+function RuleForm({ initial, onSaved, onCancel }: { initial?: any; onSaved: () => void; onCancel: () => void }) {
+  const [name, setName] = useState(initial?.name || '')
+  const [desc, setDesc] = useState(initial?.description || '')
+  const [severity, setSeverity] = useState(initial?.severity || 'medium')
+  const [category, setCategory] = useState(initial?.category || 'other')
+  const [sources, setSources] = useState((initial?.sources || ['user_log']).join(', '))
+  const [scope, setScope] = useState(initial?.scope || 'global')
+  const [scopeId, setScopeId] = useState(initial?.scopeId || '')
+  const [conditionsJson, setConditionsJson] = useState(JSON.stringify(initial?.conditions || {operator:'and',rules:[{field:'action',operator:'contains',value:'fail'}]}, null, 2))
+  const [frequencyJson, setFrequencyJson] = useState(initial?.frequency ? JSON.stringify(initial.frequency, null, 2) : '')
+  const [saving, setSaving] = useState(false)
+
+  const save = async () => {
+    setSaving(true)
+    try {
+      let conditions; try { conditions = JSON.parse(conditionsJson) } catch { alert('Invalid conditions JSON'); setSaving(false); return }
+      const body: any = { name, description: desc, severity, category, sources: sources.split(',').map((s: string) => s.trim()).filter(Boolean), scope, conditions }
+      if (scope !== 'global') body.scopeId = scopeId
+      if (frequencyJson) { try { body.frequency = JSON.parse(frequencyJson) } catch {} }
+
+      const url = initial?.id ? `/api/soc/detection-rules/${initial.id}` : '/api/soc/detection-rules'
+      await apiFetch(url, { method: initial?.id ? 'PUT' : 'POST', body: JSON.stringify(body) })
+      onSaved()
+    } catch (e) { console.error('save rule failed', e) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="border-2 border-primary/30 bg-card p-5 flex flex-col gap-4">
+      <h3 className="text-sm font-semibold">{initial?.id ? 'Edit Rule' : 'New Rule'}</h3>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-[10px] text-muted-foreground">Name</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="SSH brute force detection"
+            className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] text-muted-foreground">Severity</label>
+            <select value={severity} onChange={e => setSeverity(e.target.value)} className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+              {['critical','high','medium','low','info'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground">Category</label>
+            <select value={category} onChange={e => setCategory(e.target.value)} className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+              {['intrusion_detection','resource_anomaly','server_posture','login_anomaly','access_control','malware','configuration','other'].map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        </div>
+      </div>
+      <div>
+        <label className="text-[10px] text-muted-foreground">Description</label>
+        <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Detects pattern..."
+          className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label className="text-[10px] text-muted-foreground">Sources (comma-sep)</label>
+          <input value={sources} onChange={e => setSources(e.target.value)} placeholder="user_log"
+            className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+        </div>
+        <div>
+          <label className="text-[10px] text-muted-foreground">Scope</label>
+          <select value={scope} onChange={e => setScope(e.target.value)} className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+            <option value="global">Global</option><option value="server">Server</option><option value="user">User</option>
+          </select>
+        </div>
+        {scope !== 'global' && (
+          <div>
+            <label className="text-[10px] text-muted-foreground">Scope ID</label>
+            <input value={scopeId} onChange={e => setScopeId(e.target.value)}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+        )}
+      </div>
+      <div>
+        <label className="text-[10px] text-muted-foreground">Conditions (JSON — Wazuh-style)</label>
+        <textarea value={conditionsJson} onChange={e => setConditionsJson(e.target.value)} rows={6}
+          className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5 font-mono" />
+        <p className="text-[10px] text-muted-foreground mt-0.5">
+          {'{"operator":"and","rules":[{"field":"action","operator":"contains","value":"fail"}]}'}
+        </p>
+      </div>
+      <div>
+        <label className="text-[10px] text-muted-foreground">Frequency (JSON, optional)</label>
+        <input value={frequencyJson} onChange={e => setFrequencyJson(e.target.value)}
+          placeholder='{"count":5,"windowSeconds":300}'
+          className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5 font-mono" />
+      </div>
+      <div className="flex items-center gap-2">
+        <Button size="sm" onClick={save} disabled={saving || !name}>{saving ? 'Saving...' : 'Save Rule'}</Button>
+        <Button size="sm" variant="outline" onClick={onCancel}>Cancel</Button>
+      </div>
+    </div>
+  )
+}
+
+function IncidentsEmbed() {
+  return (
+    <div className="flex flex-col gap-4">
+      <p className="text-xs text-muted-foreground">Abuse incidents detected by Wings nodes. </p>
+      <AntiAbuseTab />
+    </div>
+  )
+}

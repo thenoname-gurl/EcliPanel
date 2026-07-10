@@ -350,6 +350,13 @@ export const API_ENDPOINTS = {
   socUsageUser: "/api/soc/usage/user/:id",
   socUsageOrg: "/api/soc/usage/org/:id",
 
+  // SOC - Security Findings
+  socSecurityFindings: "/api/soc/security-findings",
+  socSecurityScan: "/api/soc/security-scan",
+  socSecurityFindingDetail: "/api/soc/security-findings/:id",
+  socAdminSettings: "/api/soc/admin-settings",
+  socAlertPrefs: "/api/soc/alert-prefs",
+
   // ELO
   eloProjects: "/api/elo/projects",
   eloProjectDetail: "/api/elo/projects/:id",

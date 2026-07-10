@@ -1112,6 +1112,44 @@
       "nodeIssueDescription": "Servers on this node may be unavailable or unresponsive.",
       "nodesIssueDescription": "Servers on these nodes may be unavailable or unresponsive: {nodes}.",
       "learnMore": "Learn more at /status"
+    },
+    "securityFindings": {
+      "title": "Security Findings",
+      "description": "Automated vulnerability and security posture scan results",
+      "scan": "Run Scan",
+      "scanning": "Scanning...",
+      "empty": "No security findings detected",
+      "emptyDescription": "All systems pass security checks",
+      "totalOpen": "{count} open",
+      "severity": {
+        "critical": "Critical",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low",
+        "info": "Info"
+      },
+      "categories": {
+        "login_anomaly": "Login Anomaly",
+        "server_posture": "Server Posture",
+        "access_control": "Access Control",
+        "resource_anomaly": "Resource Anomaly",
+        "node_security": "Node Security",
+        "image_security": "Image Security",
+        "intrusion_detection": "Intrusion Detection",
+        "malware": "Malware",
+        "policy_violation": "Policy Violation",
+        "configuration": "Configuration",
+        "other": "Other"
+      },
+      "actions": {
+        "acknowledge": "Acknowledge",
+        "resolve": "Resolve",
+        "falsePositive": "False Positive"
+      },
+      "source": {
+        "internal": "Internal scan",
+        "external": "External agent"
+      }
     }
   },
   "adminPage": {

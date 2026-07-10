@@ -229,7 +229,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (resolvedProvider === 'proxmox') {
         if (!proxmoxHost || !proxmoxTokenId || !proxmoxSecret) {
           ctx.set.status = 400;
-          return { error: 'Proxmox host, token ID, and secret are required for Proxmox nodes' };
+          return { error: ctx.t('node.proxmox_host_token_id_and_secret_are_required_for_proxmox_no') };
         }
       }
 
@@ -1060,7 +1060,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== true) return adminErr;
       const node = await resolveNode(ctx.params.id);
       if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
-      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: ctx.t('node.not_a_proxmox_node') }; }
       try {
         const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
         const storages = await svc.getStorages();
@@ -1084,7 +1084,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== true) return adminErr;
       const node = await resolveNode(ctx.params.id);
       if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
-      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: ctx.t('node.not_a_proxmox_node') }; }
       try {
         const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
         const storage = ctx.params.storage as string || node.proxmoxStorage || 'local';
@@ -1109,7 +1109,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== true) return adminErr;
       const node = await resolveNode(ctx.params.id);
       if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
-      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: ctx.t('node.not_a_proxmox_node') }; }
       try {
         const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
         const templates = await svc.getTemplates();
@@ -1133,7 +1133,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== true) return adminErr;
       const node = await resolveNode(ctx.params.id);
       if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
-      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: ctx.t('node.not_a_proxmox_node') }; }
       try {
         const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
         const isos = await svc.getIsos();
@@ -1157,7 +1157,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== true) return adminErr;
       const node = await resolveNode(ctx.params.id);
       if (!node) { ctx.set.status = 404; return { error: ctx.t('node.notFound') }; }
-      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: 'Not a Proxmox node' }; }
+      if (node.provider !== 'proxmox') { ctx.set.status = 400; return { error: ctx.t('node.not_a_proxmox_node') }; }
       try {
         const svc = await nodeService.getProxmoxService(node.id) as ProxmoxApiService;
         const templates = await svc.getLxcTemplates();

@@ -203,7 +203,7 @@ export async function sharedFileRoutes(app: any, prefix = '') {
       const { filePath, expiresIn } = (ctx.body as Record<string, unknown>) || {};
       if (!filePath || typeof filePath !== 'string') {
         ctx.set!.status = 400;
-        return { error: 'filePath is required' };
+        return { error: ctx.t('sharedFile.filepath_is_required') };
       }
 
       const expiryValue = typeof expiresIn === 'string' && isValidExpiry(expiresIn) ? expiresIn : '1d';
@@ -302,7 +302,7 @@ export async function sharedFileRoutes(app: any, prefix = '') {
       const entry = await shareRepo().findOneBy({ id: shareId, serverUuid: id });
       if (!entry) {
         ctx.set!.status = 404;
-        return { error: 'Share link not found' };
+        return { error: ctx.t('sharedFile.share_link_not_found') };
       }
 
       await shareRepo().delete({ id: shareId });
@@ -414,7 +414,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
       try {
         const { token } = (ctx.params || {}) as Record<string, string>;
         const entry = await shareRepo().findOneBy({ token, active: true });
-        if (!validateEntry(entry, ctx)) return { error: 'Share link not found or has been deactivated' };
+        if (!validateEntry(entry, ctx)) return { error: ctx.t('sharedFile.share_link_not_found_or_has_been_deactivated') };
 
         const ext = getExtension(entry.filePath);
         const isPreviewableCode = PREVIEWABLE_EXTENSIONS.has(ext);
@@ -433,7 +433,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
         };
       } catch {
         ctx.set.status = 500;
-        return { error: 'Failed to load share info' };
+        return { error: ctx.t('sharedFile.failed_to_load_share_info') };
       }
     },
     {
@@ -447,7 +447,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
       try {
         const { token } = (ctx.params || {}) as Record<string, string>;
         const entry = await shareRepo().findOneBy({ token, active: true });
-        if (!validateEntry(entry, ctx)) return { error: 'Share link not found' };
+        if (!validateEntry(entry, ctx)) return { error: ctx.t('sharedFile.share_link_not_found') };
 
         const result = await resolveFileContent(entry.serverUuid, entry.filePath);
         if (!result) {
@@ -455,10 +455,10 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
           if (!exists) {
             await markStale(entry);
             ctx.set.status = 410;
-            return { error: 'This file no longer exists on the server' };
+            return { error: ctx.t('sharedFile.this_file_no_longer_exists_on_the_server') };
           }
           ctx.set.status = 502;
-          return { error: 'Failed to read file content. Server may be offline.' };
+          return { error: ctx.t('sharedFile.failed_to_read_file_content_server_may_be_offline') };
         }
 
         entry.downloads += 1;
@@ -473,7 +473,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
         });
       } catch {
         ctx.set.status = 500;
-        return { error: 'Failed to read file content' };
+        return { error: ctx.t('sharedFile.failed_to_read_file_content') };
       }
     },
     {
@@ -487,19 +487,19 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
       try {
         const { token } = (ctx.params || {}) as Record<string, string>;
         const entry = await shareRepo().findOneBy({ token, active: true });
-        if (!validateEntry(entry, ctx)) return { error: 'Share link not found' };
+        if (!validateEntry(entry, ctx)) return { error: ctx.t('sharedFile.share_link_not_found') };
 
         const exists = await checkFileOnWings(entry.serverUuid, entry.filePath);
         if (!exists) {
           await markStale(entry);
           ctx.set.status = 410;
-          return { error: 'This file no longer exists on the server' };
+          return { error: ctx.t('sharedFile.this_file_no_longer_exists_on_the_server') };
         }
 
         const nodeInfo = await resolveWingsNode(entry.serverUuid);
         if (!nodeInfo) {
           ctx.set.status = 502;
-          return { error: 'Server node unavailable' };
+          return { error: ctx.t('sharedFile.server_node_unavailable') };
         }
 
         const jwt = generateWingsDownloadToken(entry.serverUuid, entry.filePath, nodeInfo.token);
@@ -513,7 +513,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
         return;
       } catch {
         ctx.set.status = 500;
-        return { error: 'Download failed' };
+        return { error: ctx.t('sharedFile.download_failed') };
       }
     },
     {
@@ -527,7 +527,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
       try {
         const { token } = (ctx.params || {}) as Record<string, string>;
         const entry = await shareRepo().findOneBy({ token, active: true });
-        if (!validateEntry(entry, ctx)) return { error: 'Share link not found' };
+        if (!validateEntry(entry, ctx)) return { error: ctx.t('sharedFile.share_link_not_found') };
 
         const contentType = getMimeType(entry.filePath);
         const filename = entry.filePath.split('/').pop() || 'file';
@@ -576,7 +576,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
         const mapping = await mappingRepo.findOne({ where: { uuid: entry.serverUuid }, relations: { node: true } });
         if (!mapping?.node) {
           ctx.set.status = 502;
-          return { error: 'Server node not found' };
+          return { error: ctx.t('sharedFile.server_node_not_found') };
         }
 
         const node = mapping.node;
@@ -602,12 +602,12 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
 
         if (!wingsRes.ok) {
           ctx.set.status = wingsRes.status === 404 ? 410 : 502;
-          return { error: 'File unavailable on node' };
+          return { error: ctx.t('sharedFile.file_unavailable_on_node') };
         }
 
         if (!wingsRes.body) {
           ctx.set.status = 502;
-          return { error: 'Empty response from node' };
+          return { error: ctx.t('sharedFile.empty_response_from_node') };
         }
 
         entry.downloads += 1;
@@ -665,7 +665,7 @@ export async function publicSharedFileRoutes(app: any, prefix = '') {
       } catch (err: any) {
         console.error('[share:media] Error:', err?.message || err);
         ctx.set.status = 500;
-        return { error: 'Media load failed' };
+        return { error: ctx.t('sharedFile.media_load_failed') };
       }
     },
     {

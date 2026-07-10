@@ -527,15 +527,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const isProxmox = svc instanceof ProxmoxApiService;
         if (expected === 'wings' && isProxmox) {
           ctx.set.status = 400;
-          return { error: 'This endpoint is only available for Wings nodes' };
+          return { error: ctx.t('server.this_endpoint_is_only_available_for_wings_nodes') };
         }
         if (expected === 'proxmox' && !isProxmox) {
           ctx.set.status = 400;
-          return { error: 'This endpoint is only available for Proxmox nodes' };
+          return { error: ctx.t('server.this_endpoint_is_only_available_for_proxmox_nodes') };
         }
       } catch {
         ctx.set.status = 404;
-        return { error: 'Server not found' };
+        return { error: ctx.t('server.server_not_found') };
       }
     };
   }
@@ -1644,7 +1644,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       if (!isAdmin && await requiresKyc(user.billingCountry) && !(await isKycVerified(user.id))) {
         ctx.set.status = 403;
-        return { error: 'KYC verification required for your country. Please verify your identity first.' };
+        return { error: ctx.t('server.kyc_verification_required_for_your_country_please_verify_you') };
       }
 
       const effectivePortalType = user.portalType;
@@ -2920,7 +2920,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
               } catch {}
             }
             ctx.set.status = 404;
-            return { error: 'Server not found on node after sync attempt' };
+            return { error: ctx.t('server.server_not_found_on_node_after_sync_attempt') };
           }
           throw firstErr;
         }
@@ -3217,6 +3217,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       }
     },
     {
+      body: t.Object({ file: t.File(), path: t.String() }),
       beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
       response: {
         200: t.Any(),
@@ -6381,7 +6382,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           );
           if (!res.ok) {
             ctx.set.status = 502;
-            return { error: 'Failed to fetch Paper builds' };
+            return { error: ctx.t('server.failed_to_fetch_paper_builds') };
           }
           const data = await res.json();
           const raw = Array.isArray(data) ? data : (Array.isArray(data.builds) ? data.builds : []);
@@ -6393,7 +6394,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           };
         } catch {
           ctx.set.status = 502;
-          return { error: 'Failed to fetch Paper builds' };
+          return { error: ctx.t('server.failed_to_fetch_paper_builds') };
         } finally {
           clearTimeout(timeout);
         }
@@ -6407,7 +6408,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         });
         if (!res.ok) {
           ctx.set.status = 502;
-          return { error: 'Failed to fetch Paper versions' };
+          return { error: ctx.t('server.failed_to_fetch_paper_versions') };
         }
         const data = (await res.json()) as Record<string, unknown>;
         return {
@@ -6417,7 +6418,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         };
       } catch {
         ctx.set.status = 502;
-        return { error: 'Failed to fetch Paper versions' };
+        return { error: ctx.t('server.failed_to_fetch_paper_versions') };
       } finally {
         clearTimeout(timeout);
       }
@@ -6443,7 +6444,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       if (!version) {
         ctx.set.status = 400;
-        return { error: 'version is required' };
+        return { error: ctx.t('server.version_is_required') };
       }
 
       const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -6499,7 +6500,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       } else {
         if (build === undefined || build === null) {
           ctx.set.status = 400;
-          return { error: 'build is required for specific versions' };
+          return { error: ctx.t('server.build_is_required_for_specific_versions') };
         }
 
         const controller = new AbortController();
@@ -6512,7 +6513,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           );
           if (!res.ok) {
             ctx.set.status = 400;
-            return { error: 'Invalid version or build number' };
+            return { error: ctx.t('server.invalid_version_or_build_number') };
           }
           const buildData = (await res.json()) as Record<string, unknown>;
           const downloads = (buildData.downloads as Record<string, unknown>) ?? {};
@@ -6520,7 +6521,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           jarName = (appDownload.name as string) ?? `paper-${version}-${build}.jar`;
         } catch {
           ctx.set.status = 502;
-          return { error: 'Failed to validate Paper build' };
+          return { error: ctx.t('server.failed_to_validate_paper_build') };
         } finally {
           clearTimeout(timeout);
         }
@@ -6580,7 +6581,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         });
         if (!res.ok) {
           ctx.set.status = 502;
-          return { error: 'Failed to fetch Vanilla versions' };
+          return { error: ctx.t('server.failed_to_fetch_vanilla_versions') };
         }
         const data = (await res.json()) as Record<string, unknown>;
         return {
@@ -6589,7 +6590,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         };
       } catch {
         ctx.set.status = 502;
-        return { error: 'Failed to fetch Vanilla versions' };
+        return { error: ctx.t('server.failed_to_fetch_vanilla_versions') };
       } finally {
         clearTimeout(timeout);
       }
@@ -6615,7 +6616,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
 
       if (!version) {
         ctx.set.status = 400;
-        return { error: 'version is required' };
+        return { error: ctx.t('server.version_is_required') };
       }
 
       const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -6645,7 +6646,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const versionEntry = versions.find(v => v.id === targetVersion);
         if (!versionEntry || !versionEntry.url) {
           ctx.set.status = 400;
-          return { error: 'Invalid Minecraft version' };
+          return { error: ctx.t('server.invalid_minecraft_version') };
         }
 
         const versionRes = await fetch(versionEntry.url as string, { signal: controller.signal });
@@ -6656,7 +6657,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const dlUrl = serverDl.url as string;
         if (!dlUrl) {
           ctx.set.status = 502;
-          return { error: 'No server download available for this version' };
+          return { error: ctx.t('server.no_server_download_available_for_this_version') };
         }
 
         const env = { ...(cfg.environment ?? {}) };
@@ -6900,7 +6901,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         return res.data;
       } catch {
         ctx.set.status = 404;
-        return { error: 'Install log not found or install not running' };
+        return { error: ctx.t('server.install_log_not_found_or_install_not_running') };
       }
     },
     {
@@ -6998,7 +6999,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         return res.data;
       } catch (e: unknown) {
         ctx.set.status = 500;
-        return { error: 'Failed to get server info' };
+        return { error: ctx.t('server.failed_to_get_server_info') };
       }
     },
     {
@@ -7024,7 +7025,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         return res.data && typeof res.data === 'object' ? res.data : { success: true };
       } catch (e: unknown) {
         ctx.set.status = 502;
-        return { error: 'Power action failed' };
+        return { error: ctx.t('server.power_action_failed') };
       }
     },
     {
@@ -7077,7 +7078,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         return res.data;
       } catch {
         ctx.set.status = 500;
-        return { error: 'Failed to get configuration' };
+        return { error: ctx.t('server.failed_to_get_configuration') };
       }
     },
     {
@@ -7126,11 +7127,11 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     const svc = await serviceFor(id);
     if (svc instanceof ProxmoxApiService) {
       ctx.set.status = 400;
-      return { error: 'Player management not supported for Proxmox nodes' };
+      return { error: ctx.t('server.player_management_not_supported_for_proxmox_nodes') };
     }
     if (!(await mcExecCmd(svc as WingsApiService, id, cmd))) {
       ctx.set.status = 400;
-      return { error: 'Server must be online for console commands' };
+      return { error: ctx.t('server.server_must_be_online_for_console_commands') };
     }
     return { success: true, method: 'console' };
   }
@@ -7222,7 +7223,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const wings = svc as WingsApiService;
 
       const cfg = await cfgRepo().findOneBy({ uuid: id });
@@ -7268,7 +7269,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const data = await mcReadJson(svc as WingsApiService, id, 'whitelist.json');
       return { players: mcNames(data) };
     },
@@ -7284,7 +7285,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       try {
         const res = await (svc as WingsApiService).readFile(id, 'server.properties');
         const text = typeof res.data === 'string' ? res.data : String(res.data ?? '');
@@ -7309,7 +7310,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { enabled } = ctx.body as Record<string, boolean>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       return mcExec(id, enabled ? 'whitelist on' : 'whitelist off', ctx);
     },
     {
@@ -7324,7 +7325,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const data = await mcReadJson(svc as WingsApiService, id, 'banned-players.json');
       return { players: mcNames(data) };
     },
@@ -7340,9 +7341,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { player } = ctx.body as Record<string, string>;
-      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_minecraft_username') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
 
       if (await mcExecCmd(ws, id, `whitelist add ${player}`)) {
@@ -7366,9 +7367,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     prefix + '/servers/:id/players/whitelist/:player',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id, player } = (ctx.params ?? {}) as Record<string, string>;
-      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_minecraft_username') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
 
       if (await mcExecCmd(ws, id, `whitelist remove ${player}`)) {
@@ -7393,9 +7394,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { player, reason } = ctx.body as Record<string, string>;
-      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_minecraft_username') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
 
       if (await mcExecCmd(ws, id, reason ? `ban ${player} ${reason}` : `ban ${player}`)) {
@@ -7422,9 +7423,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { player } = ctx.body as Record<string, string>;
-      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_minecraft_username') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
 
       if (await mcExecCmd(ws, id, `pardon ${player}`)) {
@@ -7449,9 +7450,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { player, reason } = ctx.body as Record<string, string>;
-      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_minecraft_username') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       return mcExec(id, reason ? `kick ${player} ${reason}` : `kick ${player}`, ctx);
     },
     {
@@ -7466,7 +7467,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const data = await mcReadJson(svc as WingsApiService, id, 'ops.json');
       return { players: mcNames(data) };
     },
@@ -7482,9 +7483,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { player } = ctx.body as Record<string, string>;
-      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_minecraft_username') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
 
       if (await mcExecCmd(ws, id, `op ${player}`)) {
@@ -7511,9 +7512,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { player } = ctx.body as Record<string, string>;
-      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: 'Invalid Minecraft username' }; }
+      if (!player || !isMcUser(player)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_minecraft_username') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
 
       if (await mcExecCmd(ws, id, `deop ${player}`)) {
@@ -7538,7 +7539,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
       try {
         const res = await ws.readFile(id, 'server.properties');
@@ -7569,9 +7570,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { entries } = ctx.body as { entries: { key: string; value: string }[] };
-      if (!Array.isArray(entries)) { ctx.set.status = 400; return { error: 'Invalid entries' }; }
+      if (!Array.isArray(entries)) { ctx.set.status = 400; return { error: ctx.t('server.invalid_entries') }; }
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const ws = svc as WingsApiService;
 
       try {
@@ -7657,7 +7658,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     prefix + '/servers/:id/plugins/search',
     async (ctx: AuthenticatedHandlerContext) => {
       const { q } = (ctx.query ?? {}) as Record<string, string>;
-      if (!q || q.length < 2) { ctx.set.status = 400; return { error: 'Query too short' }; }
+      if (!q || q.length < 2) { ctx.set.status = 400; return { error: ctx.t('server.query_too_short') }; }
 
       try {
         const url = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(q)}&facets=${encodeURIComponent('[["project_type:plugin"]]')}&limit=20`;
@@ -7692,7 +7693,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     prefix + '/servers/:id/plugins/preview/:slug',
     async (ctx: AuthenticatedHandlerContext) => {
       const { slug } = (ctx.params ?? {}) as Record<string, string>;
-      if (!slug) { ctx.set.status = 400; return { error: 'Missing slug' }; }
+      if (!slug) { ctx.set.status = 400; return { error: ctx.t('server.missing_slug') }; }
       try {
         const [projRes, verRes] = await Promise.all([
           httpRequest<any>(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}`, { timeoutMs: 10000 }),
@@ -7739,7 +7740,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const { slug, filename, versionId } = (ctx.body ?? {}) as { slug: string; filename: string; versionId?: string };
-      if (!slug || !filename) { ctx.set.status = 400; return { error: 'Missing slug or filename' }; }
+      if (!slug || !filename) { ctx.set.status = 400; return { error: ctx.t('server.missing_slug_or_filename') }; }
 
       const ws = await serviceFor(id) as WingsApiService;
 
@@ -7749,20 +7750,20 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           const verRes = await httpRequest<any>(`https://api.modrinth.com/v2/version/${encodeURIComponent(versionId)}`, { timeoutMs: 10000 });
           const v = verRes?.data;
           const file = v?.files?.find((f: any) => f.primary) || v?.files?.[0];
-          if (!file?.url) { ctx.set.status = 502; return { error: 'Could not resolve download URL for this version' }; }
+          if (!file?.url) { ctx.set.status = 502; return { error: ctx.t('server.could_not_resolve_download_url_for_this_version') }; }
           jarUrl = file.url;
         } else {
           const verRes = await httpRequest<any>(`https://api.modrinth.com/v2/project/${encodeURIComponent(slug)}/version`, { timeoutMs: 10000 });
           const versions = Array.isArray(verRes?.data) ? verRes.data : [];
           const primary = versions.find((v: any) => v.files?.some((f: any) => f.primary)) || versions[0];
           const file = primary?.files?.find((f: any) => f.primary) || primary?.files?.[0];
-          if (!file?.url) { ctx.set.status = 502; return { error: 'Could not resolve download URL' }; }
+          if (!file?.url) { ctx.set.status = 502; return { error: ctx.t('server.could_not_resolve_download_url') }; }
           jarUrl = file.url;
         }
 
         const jarRes = await httpRequest<ArrayBuffer>(jarUrl, { responseType: 'arraybuffer', timeoutMs: 30000 });
         const jarData = jarRes.data;
-        if (!jarData) { ctx.set.status = 502; return { error: 'Failed to download plugin' }; }
+        if (!jarData) { ctx.set.status = 502; return { error: ctx.t('server.failed_to_download_plugin') }; }
 
         try { await ws.createDirectory(id, '/', 'plugins'); } catch {}
 
@@ -7845,7 +7846,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const svc = await serviceFor(id);
-      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: 'Not supported for Proxmox nodes' }; }
+      if (svc instanceof ProxmoxApiService) { ctx.set.status = 400; return { error: ctx.t('server.not_supported_for_proxmox_nodes') }; }
       const wings = svc as WingsApiService;
 
       let userCache: { name: string; uuid: string }[] = [];

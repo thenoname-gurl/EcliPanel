@@ -181,5 +181,7 @@ export const AppDataSource = new DataSource({
     require('../models/chatChannelMember.entity').ChatChannelMember,
     require('../models/chatIpLog.entity').ChatIpLog,
     require('../models/chatIpBan.entity').ChatIpBan,
+    require('../models/securityFinding.entity').SecurityFinding,
+    require('../models/detectionRule.entity').DetectionRule,
   ],
 });

@@ -1,0 +1,42 @@
+[workspace]
+resolver = "3"
+members = ["application", "pbs-client", "unrar-rs"]
+default-members = ["application"]
+package.rust-version = "1.97.0"
+
+[workspace.dependencies]
+serde = { version = "1.0.138", features = ["derive"] }
+serde_json = { version = "1.0.139", features = ["preserve_order"] }
+reqwest = { version = "0.13.0", features = ["hickory-dns", "json", "multipart", "query", "stream"] }
+tokio = { version = "1.43.0", features = ["fs", "net", "signal", "process"] }
+uuid = { version = "1.16.0", features = ["serde", "v4"] }
+rustls = { version = "0.23.27", features = ["aws-lc-rs"] }
+bytes = "1"
+sha2 = "0.11.0"
+crc32fast = "1.4.2"
+zstd = { version = "0.13.3", features = ["zstdmt"] }
+hex = "0.4.3"
+tar = "0.4.44"
+compact_str = { git = "https://github.com/ParkMyCar/compact_str.git", version = "0.9.0", features = ["serde"] }
+positioned-io = "0.3.5"
+futures = "0.3.31"
+
+[profile.dev.package."*"]
+opt-level = 2
+
+[profile.dev]
+# only enable when needed, slows down compile times significantly
+debug = false
+
+[profile.release.package."*"]
+opt-level = "s"
+codegen-units = 1
+strip = true
+
+[profile.release]
+opt-level = "s"
+lto = "fat"
+codegen-units = 1
+strip = true
+# too much of a coward to enable
+# panic = "abort"

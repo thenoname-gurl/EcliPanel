@@ -453,6 +453,18 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/stats');
   }
 
+  async getServerProcesses(serverId: string) {
+    return this.serverRequest(serverId, '/security/processes');
+  }
+
+  async getServerConnections(serverId: string) {
+    return this.serverRequest(serverId, '/security/connections');
+  }
+
+  async scanServerFiles(serverId: string) {
+    return this.serverRequest(serverId, '/security/scan-files');
+  }
+
   async serverRequest(
     serverId: string,
     subpath: string,

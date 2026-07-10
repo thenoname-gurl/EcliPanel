@@ -196,6 +196,11 @@ const AuditLogsTab = dynamic(() => import("./tabs/AuditLogsTab"), {
   loading: () => null,
 })
 
+const SocTab = dynamic(() => import("./tabs/SocTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading SOC tab...</div>,
+})
+
 const OauthTab = dynamic(() => import("./tabs/OauthTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading OAuth tab...</div>,
@@ -980,11 +985,11 @@ export default function AdminPanel() {
     { value: 'ai', label: t('tabs.aiModels'), feature: 'ai', permissions: ['ai:read'] },
     { value: 'announcements', label: t('tabs.announcements'), permissions: ['admin:announcements'] },
     { value: 'outbound-emails', label: t('tabs.outboundEmails'), permissions: ['admin:outbound-emails'] },
-    { value: 'antiabuse', label: t('tabs.antiabuse'), permissions: ['admin:antiabuse'] },
     { value: 'fraud', label: t('tabs.fraud'), permissions: ['admin:fraud'] },
     { value: 'roles', label: t('tabs.roles'), permissions: ['roles:read'] },
     { value: 'logs', label: t('tabs.logs'), permissions: ['logs:read'] },
     { value: 'audit', label: t('tabs.audit') || 'Audit', permissions: ['logs:read'] },
+    { value: 'soc', label: 'SOC', permissions: ['soc:read'] },
     { value: 'oauth', label: t('tabs.oauth'), feature: 'oauth', permissions: ['oauth:manage', 'admin:oauth'] },
     { value: 'databases', label: t('tabs.databases'), permissions: ['databases:read'] },
     { value: 'plans', label: t('tabs.plans'), permissions: ['admin:plans:view', 'admin:plans:manage', 'admin:plans:delete', 'admin:plans:reapply', 'admin:plans:forcereapply'] },
@@ -5155,9 +5160,6 @@ remote: ${panelUrl}`
             <TabsContent value="applications" className="mt-4">
               {activeTab === "applications" ? <ApplicationsTab /> : null}
             </TabsContent>
-            <TabsContent value="antiabuse" className="mt-4">
-              {activeTab === "antiabuse" ? <AntiAbuseTab /> : null}
-            </TabsContent>
             {/* ═══════════════ KYC / VERIFICATIONS ════════════════════════════ */}
             <TabsContent value="verifications" className="mt-4">
               <div className="flex flex-col gap-4">
@@ -6160,6 +6162,9 @@ remote: ${panelUrl}`
             {/* ═══════════════ AUDIT LOGS ═══════════════════════════════════ */}
             <TabsContent value="audit" className="mt-4">
               {activeTab === "audit" ? <AuditLogsTab /> : null}
+            </TabsContent>
+            <TabsContent value="soc" className="mt-4">
+              {activeTab === "soc" ? <SocTab /> : null}
             </TabsContent>
             {/* ═════════════════ OAUTH ═══════════════════════════════════ */}
             <TabsContent value="oauth" className="mt-4">

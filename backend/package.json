@@ -27,9 +27,9 @@
   },
   "dependencies": {
     "@canvas/image": "^2.0.0",
-    "@elysia/cors": "^1.4.2",
-    "@elysia/jwt": "^1.4.2",
-    "@elysia/openapi": "^1.4.15",
+    "@elysia/cors": "2.0.0-exp.1",
+    "@elysia/jwt": "2.0.0-exp.0",
+    "@elysia/openapi": "2.0.0-exp.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@noble/post-quantum": "^0.6.1",
     "@react-email/components": "^1.0.12",
@@ -44,8 +44,8 @@
     "base64url": "^3.0.1",
     "brace-expansion": "^5.0.7",
     "dompurify": "^3.4.11",
-    "elysia": "^1.4.29",
-    "elysia-helmet": "^3.1.0",
+    "elysia": "2.0.0-exp.40",
+    "elysia-helmet": "3.1.0",
     "file-type": "^22.0.1",
     "html-to-text": "^10.0.0",
     "imap": "^0.8.19",
@@ -93,5 +93,9 @@
   "overrides": {
     "tar": "^7.5.13",
     "follow-redirects": "1.16.0"
+  },
+  "patchedDependencies": {
+    "elysia-helmet@3.1.0": "patches/elysia-helmet@3.1.0.patch",
+    "@elysia/openapi@2.0.0-exp.1": "patches/@elysia%2Fopenapi@2.0.0-exp.1.patch"
   }
 }

@@ -2104,6 +2104,7 @@ export async function userRoutes(app: any, prefix = '') {
             'guideShown',
             'byoai',
             'calendar',
+            'socAlerts',
           ]);
           const sanitized: Record<string, any> = {};
           for (const k of Object.keys(incoming)) {
@@ -2304,7 +2305,7 @@ export async function userRoutes(app: any, prefix = '') {
     },
     {
       beforeHandle: authenticate,
-      body: t.Object({ file: t.File({ type: 'image' }) }),
+      body: t.Object({ file: t.File() }),
       response: {
         200: t.Object({ success: t.Boolean(), url: t.String() }),
         400: t.Object({ error: t.String() }),

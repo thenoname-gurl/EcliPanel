@@ -1,26 +1,21 @@
 # AGENTS.md — EcliPanel v3
 
-> **Auto-generated reference for AI agents.** This file maps the entire codebase so any LLM can understand structure, patterns, and conventions at a glance. Regenerate after major architecture changes.
+> **Full AI agent reference.** Maps the entire codebase so any LLM can understand structure, patterns, and conventions at a glance. Regenerate after major architecture changes.
 
 ---
 
 ## 1. What Is This?
 
-EcliPanel v3 is an **enterprise-grade server management platform** — a complete rewrite of v1 (which was built on Jexactyl). It lets users provision, manage, monitor, and secure game servers and applications across a distributed node network from a single panel.
-
-**Three core user groups:**
-- Game server owners/managers
-- Developers deploying apps
-- Hosting providers/teams
+EcliPanel v3 is a **game server hosting panel** — provision, manage, monitor, and secure game servers across a distributed node network.
 
 **Key subsystems:**
 | System | Language | Role |
 |--------|----------|------|
-| `backend/` | TypeScript (Bun) | REST API, auth, business logic, node orchestration |
-| `frontend/` | TypeScript (Next.js 16) | Web UI, dashboard, user-facing pages |
-| `antiabuse/` | Rust | Node-level abuse detection (DDoS, port scanning) |
-| `tunnel/` | Rust | EcliTunnel — expose local services via public endpoints |
-| `app/` | Electron/Capacitor | Desktop & mobile app wrappers |
+| `backend/` | TypeScript (Bun + ElysiaJS) | REST API, auth, business logic |
+| `frontend/` | TypeScript (Next.js 16) | Web UI, dashboard |
+| `wings/` | Rust (calagopus/wings fork) | Node daemon with embedded security & anti-abuse |
+| `tunnel/` | Rust | EcliTunnel — expose local services publicly |
+| `app/` | Electron/Capacitor | Desktop & mobile wrappers |
 | `systemd/` | systemd units | Production service definitions |
 
 ---
@@ -32,33 +27,34 @@ v3/
 ├── backend/                    # Bun + ElysiaJS API server
 │   ├── src/
 │   │   ├── index.ts            # Entry point — starts server on PORT (default 3000)
-│   │   ├── app.ts              # Elysia app setup: CORS, JWT, helmet, OpenAPI, routes, jobs, error handling
+│   │   ├── app.ts              # Elysia app: CORS, JWT, helmet, OpenAPI, routes, jobs, error handling
 │   │   ├── config/             # DB (TypeORM), Redis, app bootstrap (setupConfig)
 │   │   ├── routes/index.ts     # Central route registration + feature toggle gates
-│   │   ├── handlers/           # Route handlers (one file per domain, ~39 files)
-│   │   ├── services/           # Business logic services (~35 files)
-│   │   ├── models/             # TypeORM entities (~80 entities)
-│   │   ├── middleware/         # auth, authorize (RBAC), CSRF, featureToggle, KYC, validation
+│   │   ├── handlers/           # Route handlers (~42 files)
+│   │   ├── services/           # Business logic (~40 files)
+│   │   ├── models/             # TypeORM entities (~82 entities)
+│   │   ├── middleware/         # auth, authorize (RBAC), CSRF, featureToggle, KYC
 │   │   ├── types/              # TypeScript type definitions
-│   │   ├── jobs/               # Scheduled cron-like jobs (~17 jobs)
-│   │   ├── workers/            # Bun worker threads (crypto, image, PDF, SFTP)
-│   │   ├── utils/              # Utility functions (~30 files)
+│   │   ├── jobs/               # Cron jobs (~18 jobs)
+│   │   ├── workers/            # Bun workers (crypto, image, PDF, SFTP)
+│   │   ├── utils/              # Utilities (~30 files)
 │   │   ├── mcp/                # Model Context Protocol server
-│   │   ├── slack/              # Slack bot integration (Bolt SDK)
-│   │   ├── i18n/               # Internationalization (en/ru)
-│   │   ├── emails/             # React Email templates (15 templates)
+│   │   ├── slack/              # Slack bot (Bolt SDK)
+│   │   ├── i18n/               # en/ru translations
+│   │   ├── emails/             # React Email templates (15)
 │   │   ├── repositories/       # Custom TypeORM repositories
-│   │   ├── data/               # Static data / seed data
+│   │   ├── data/               # Static/seed data
 │   │   └── migrations/         # DB migrations
 │   ├── scripts/                # CLI scripts (promote, seed, jwt secrets, etc.)
 │   └── tests/                  # Bun test files
 │
 ├── frontend/                   # Next.js 16 App Router
-│   ├── app/                    # Pages (App Router)
-│   │   ├── layout.tsx          # Root layout: fonts, theme injection, AuthProvider, global guards
-│   │   ├── dashboard/          # Protected dashboard routes
+│   ├── app/
+│   │   ├── layout.tsx          # Root layout: fonts, theme injection, AuthProvider, guards
+│   │   ├── dashboard/
+│   │   │   ├── page.tsx        # SOC Dashboard (security findings + resource summary)
 │   │   │   ├── servers/        # Server list + [id] detail (V1/V2 provider-aware)
-│   │   │   ├── admin/          # Admin panel (tabs/)
+│   │   │   ├── admin/          # Admin panel (tabs/ — includes SocTab, AntiAbuseTab)
 │   │   │   ├── billing/        # Billing & checkout
 │   │   │   ├── tickets/        # Support tickets
 │   │   │   ├── organisations/  # Org management
@@ -87,11 +83,11 @@ v3/
 │   │   ├── tunnel/verify/      # Tunnel device verification
 │   │   └── ...                 # Other public pages
 │   ├── components/
-│   │   ├── ui/                 # shadcn/ui components (~55 components)
-│   │   ├── panel/              # Panel-specific components (sidebar, header, guards, banners)
+│   │   ├── ui/                 # shadcn/ui components (~55)
+│   │   ├── panel/              # Panel-specific (sidebar, header, guards, banners)
 │   │   └── activity/           # Activity feed components
 │   ├── hooks/                  # React hooks (useAuth, useDebounce, useMobile, etc.)
-│   ├── lib/                    # Core libraries
+│   ├── lib/
 │   │   ├── panel-config.ts     # CENTRAL CONFIG: API endpoints, nav, branding, portals, feature flags
 │   │   ├── api-client.ts       # apiFetch() with CSRF, retry, caching
 │   │   ├── themes.ts           # 14 theme definitions (CSS variable maps)
@@ -101,15 +97,18 @@ v3/
 │   ├── messages/               # Translation files (en.json, ru.json)
 │   ├── types/                  # Frontend TypeScript types
 │   ├── public/                 # Static assets (images, fonts, spark analyzer configs)
-│   ├── middleware.ts            # Next.js middleware: auth guard, SEO bot verify, short URLs
+│   ├── middleware.ts           # Next.js middleware: auth guard, SEO bot verify, short URLs
 │   ├── next.config.mjs         # Rewrites (/api→backend, /wings→wings, /uploads→backend)
 │   └── components.json         # shadcn/ui config (new-york, neutral, CSS vars)
 │
-├── antiabuse/                  # Rust anti-abuse daemon
-│   ├── Cargo.toml
-│   ├── src/                    # Rust source
-│   ├── signatures/             # Abuse detection signatures
-│   └── .env.example
+├── wings/                      # Patched Wings daemon
+│   ├── source/                 # Clean upstream Wings (no .git — just source)
+│   ├── patched/                # Working copy with security patches (edit code here)
+│   ├── output/                 # Build target (source + patches applied, cargo here)
+│   ├── patches/                # .patch files (diff between patched/ and source/)
+│   ├── target/                 # Built binary → target/release/wings-rs
+│   ├── manage.sh               # Patch & build manager (pull/regen/patch/build/status)
+│   └── README.md               # Wings documentation
 │
 ├── tunnel/                     # EcliTunnel (Rust)
 │   ├── client/                 # Tunnel client agent
@@ -121,12 +120,8 @@ v3/
 │   ├── package.json            # electron-builder config
 │   └── scripts/
 │
+├── antiabuse/                  # DEPRECATED — detection now embedded in Wings
 ├── systemd/                    # Production systemd units
-│   ├── eclipanel-backend.service
-│   ├── eclipanel-frontend.service
-│   └── eclipanel-antiabuse.service
-│
-├── wings/                      # wings-rs backups (ZIP)
 ├── eggs/                       # Pterodactyl egg configs
 ├── showcase/                   # Screenshots for SHOWCASE.md
 ├── .agents/                    # Agent skill definitions (UI/animation/design)
@@ -161,7 +156,7 @@ v3/
 9. `onError`: Structured error responses (404, 500, etc.) + activity logging
 10. Route registration (`registerRoutes`)
 11. MCP endpoints (`/api/mcp/messages`, `/api/mcp/sse`)
-12. Scheduled jobs (17 cron jobs)
+12. Scheduled jobs (18 cron jobs including `securityScanJob`)
 13. Slack bot init
 14. Static file routes (`/uploads/*`, `/uploads/id-docs/*`, `/uploads/mailbox/*`)
 15. Health check endpoint (`/health`)
@@ -190,32 +185,32 @@ onRequest (IP resolve, rate limit, JWT decode)
 
 **Middleware chain:**
 - `authenticate()` — resolves user/apiKey/oauthToken, attaches to context
-- `authorize(...permissions)` — RBAC check using permission strings like `"servers:read"`, `"admin:access"`
+- `authorize(...permissions)` — RBAC check using permission strings like `"servers:read"`, `"admin:access"`, `"soc:read"`
 - `requireProvider("wings"|"proxmox")` — validates node provider type
 - `csrfProtection()` — checks `x-csrf-token` header on mutating requests
 
 **Permission format:** `resource:action` (e.g., `servers:create`, `admin:users`). Wildcards: `*` (superadmin), `servers:*`.
+**Superadmin bypass:** `user.role === '*' || user.role === 'rootAdmin'` skips all permission checks.
 
 ### 3.5 Route Registration Pattern
-
-Every handler exports a function following this pattern:
 
 ```typescript
 // backend/src/handlers/xxxHandler.ts
 export function xxxRoutes(app: ServerApp, prefix = '') {
-  // Group routes under prefix
-  app.get(`${prefix}/xxx`, handlerFn, { beforeHandle: [authenticate, authorize('xxx:read')] })
-  app.post(`${prefix}/xxx`, handlerFn, { beforeHandle: [authenticate, authorize('xxx:create')] })
-  // ...
+  app.get(`${prefix}/xxx`, handlerFn, {
+    beforeHandle: [authenticate, authorize('xxx:read')]
+  })
+  app.post(`${prefix}/xxx`, handlerFn, {
+    beforeHandle: [authenticate, authorize('xxx:create')]
+  })
 }
 ```
-
-All routes are registered in `backend/src/routes/index.ts` via `registerRoutes(app)`. Feature toggles are checked here before delegating to handlers.
+All routes registered in `routes/index.ts` via `registerRoutes(app)`. Feature toggles check here before delegating.
 
 ### 3.6 Handler Context
 
-The `AuthenticatedHandlerContext` extends Elysia's context with:
-- `ctx.user` — the authenticated User entity
+The handler context extends Elysia's context with:
+- `ctx.user` — authenticated User entity
 - `ctx.apiKey` — API key if used
 - `ctx.jwtPayload` / `ctx.pqJwtPayload` — decoded token payloads
 - `ctx.t` — i18n translation function
@@ -227,97 +222,69 @@ The `AuthenticatedHandlerContext` extends Elysia's context with:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `adminHandler.ts` | 9,815 | Admin panel: users, servers, nodes, stats, fraud, anti-abuse, export jobs, settings |
-| `serverHandler.ts` | 7,893 | Server CRUD, power, files (SFTP + Wings), backups, databases, plugins, players, WebSocket proxy, v1/v2 Proxmox routes |
+| `adminHandler.ts` | 9,815 | Admin: users, servers, nodes, stats, fraud, anti-abuse, export, settings |
+| `serverHandler.ts` | 7,893 | Server CRUD, power, files (SFTP + Wings), backups, databases, plugins |
 | `userHandler.ts` | 2,413 | User profile, registration, settings, avatars, favorites |
-| `authHandler.ts` | 2,392 | Login, logout, 2FA, passkeys, password reset, email verify, OAuth, student verification |
+| `authHandler.ts` | 2,392 | Login, logout, 2FA, passkeys, password reset, email verify, OAuth |
 | `nodeHandler.ts` | 1,214 | Node CRUD, heartbeats, allocations, Proxmox storage/templates |
-| `tunnelHandler.ts` | — | Tunnel device enrollment, allocation, WebSocket |
-| `organisationHandler.ts` | — | Org CRUD, members, invites, DNS zones |
-| `chatHandler.ts` | — | Chat channels, messages, WebSocket |
-| `eloHandler.ts` | — | ELO projects, voting, leaderboard, devlogs |
+| `socHandler.ts` | ~600 | SOC: security findings CRUD, scan trigger, escalation→ticket, detection rules, admin settings, Wings download |
 
 ### 3.8 Service Layer
 
-Services encapsulate business logic and external API calls:
-
 | Service | Purpose |
 |---------|---------|
+| `securityScanner.ts` | 16 checks: login anomalies, server posture, access control, resource abuse (CPU % of allocation), nodes, threat intel, custom rules, Wings-based |
+| `threatIntel.ts` | IP reputation (AbuseIPDB + blocklists + CIDR, Redis-cached 1-24h), Docker image checking, private IP filter |
+| `alertDispatcher.ts` | Per-user alerts (checks `settings.socAlerts`), email + in-app notification, admin webhook (Discord/Slack embed), admin email fallback |
+| `ruleEngine.ts` | Wazuh-style rule evaluation: nested AND/OR conditions, regex/contains/gt/lt operators, frequency windows, correlation across sources |
+| `wingsApiService.ts` | HTTP client for Wings API (all endpoints + security: `getServerProcesses`, `getServerConnections`, `scanServerFiles`) |
+| `wingsSocketService.ts` | WebSocket listener for Wings stats events, auto-imports unknown servers |
 | `nodeService.ts` | Node → ProviderService routing (WingsApiService or ProxmoxApiService), caching |
-| `wingsApiService.ts` | HTTP client for wings-rs daemon API |
-| `proxmoxApiService.ts` | HTTP client for Proxmox VE API (token auth) |
-| `wingsSocketService.ts` | WebSocket listener for wings node events |
+| `fraudService.ts` | AI-powered billing fraud detection |
 | `nodeHeartbeatService.ts` | Periodic node health checks |
-| `mailService.ts` / `mailcowService.ts` | Email sending via nodemailer + Mailcow API |
-| `sftpClientService.ts` / `sftpProxyService.ts` | SFTP file operations |
-| `serverDesiredStateService.ts` | Restore power states after node reconnect |
-| `cloudflareService.ts` | DNS zone/record management via CF API |
-| `retentionService.ts` | Data retention policy enforcement |
-| `fraudService.ts` | Fraud detection (TensorFlow face-api) |
-| `metricsCollector.ts` / `metricsService.ts` | Resource usage metrics |
-| `tunnel.service.ts` | Tunnel allocation and device management |
-| `visualEditorService.ts` | Visual infrastructure editor |
-| `passkeyService.ts` | WebAuthn/passkey operations |
-| `aiSocketService.ts` / `chatSocketService.ts` / `socSocketService.ts` | WebSocket management |
-| `outboundEmailService.ts` | Outbound email queue processing |
-| `rolloutService.ts` | Feature rollout management |
-| `exportJobService.ts` | Data export job processing |
-| `githubContributorsService.ts` | GitHub contributor data sync |
+| `mailService.ts` / `mailcowService.ts` | Email via nodemailer + Mailcow API |
+| `socSocketService.ts` | EventEmitter for real-time SOC updates |
 
-### 3.9 Node Provider Architecture
+### 3.9 Key Entities (SOC)
 
-Wings and Proxmox nodes are abstracted behind the `NodeProvider` interface (`types/nodeProvider.ts`):
+| Entity | Purpose |
+|--------|---------|
+| `SecurityFinding` | Scan results: source/internal/external, category, severity, serverId/nodeId/userId, metadata (JSON), checkFingerprint (dedup), status (open/acknowledged/resolved/false_positive) |
+| `DetectionRule` | Custom rules: name, conditions (Wazuh-style JSON), frequency, correlation, sources, scope (global/server/user), triggerCount |
+| `PanelSetting` | Key-value admin settings. SOC config uses `soc.*` prefix (soc.abuseipdb_key, soc.alert_email, soc.alert_webhook_url, etc.) |
 
+### 3.10 Database
+
+- **ORM:** TypeORM with `reflect-metadata`, `synchronize: true` (auto-creates tables)
+- **Databases:** MariaDB (primary), MySQL, PostgreSQL
+- **Entities:** ~82 entity files in `models/`
+- **Config:** `config/typeorm.ts` — `AppDataSource` with entity list
+- **Redis:** Caching (`withRedisCache`), session storage, rate limiting
+
+### 3.11 Scheduled Jobs
+
+| Job | Interval | Purpose |
+|-----|----------|---------|
+| `securityScanJob` | 30min | Run security scanner + custom rules + threat intel |
+| `metricsCollectionJob` | 5s | Collect server resource metrics from Wings |
+| `wingsSyncJob` | 5min | Sync server configs with Wings nodes |
+| (15 other jobs) | varies | Exports, deletions, mail sync, renewals, sunset policies, etc. |
+
+### 3.12 Node Provider Architecture
+
+Wings and Proxmox nodes are abstracted behind the `NodeProvider` interface:
 ```typescript
 interface NodeProvider {
   getSystemInfo(): Promise<SystemInfo>;
   getServers(): Promise<{ data: ServerInfo[] }>;
   getServer(id: string): Promise<{ data: ServerInfo }>;
-  createServer(payload: CreateServerPayload): Promise<any>;
+  createServer(payload): Promise<any>;
   deleteServer(id: string): Promise<void>;
   powerServer(id, action): Promise<any>;
   getStats(id: string): Promise<ServerStats>;
 }
 ```
-
-**Provider selection:** `nodeService.getServiceForNode(nodeId)` checks `node.provider` field — returns `WingsApiService` or `ProxmoxApiService`. Cached per node.
-
-**Route versioning:**
-- `/api/servers/v1/:id/*` — Wings-only endpoints (files, backups, SFTP, console, schedules, etc.)
-- `/api/servers/v2/:id/*` — Proxmox-only endpoints (configuration, power, stats)
-- `/api/servers/:id` — Common endpoints (power, stats, delete, detail) for both providers
-
-### 3.10 Database
-
-- **ORM:** TypeORM with `reflect-metadata`
-- **Databases:** MariaDB (primary), MySQL, PostgreSQL
-- **Entities:** ~80 entity files in `models/`
-- **Config:** `config/typeorm.ts` — `AppDataSource`
-- **Key entities:** User, ServerConfig, ServerMapping, Node, Organisation, Order, Plan, Ticket, etc.
-- **Redis:** Used for caching (`withRedisCache`), session storage, rate limiting
-
-### 3.11 Scheduled Jobs
-
-All scheduled in `initApp()`:
-
-| Job | Purpose |
-|-----|---------|
-| `studentReverifyJob` | Periodically reverify student status |
-| `metricsCollectionJob` | Collect server resource metrics |
-| `exportJobRunner` | Process data export jobs |
-| `deletionExecutionJob` | Execute scheduled account deletions |
-| `mailboxSyncJob` | Sync IMAP mailboxes |
-| `outboundEmailRunner` | Process outbound email queue |
-| `adminBroadcastJobRunner` | Send admin broadcasts |
-| `sunsetPolicyJob` / `serverSunsetPolicyJob` | Enforce sunset policies |
-| `githubContributorsJob` | Sync GitHub contributor stats |
-| `tunnelCleanupJob` | Clean stale tunnel allocations |
-| `renewalJob` | Process subscription renewals |
-| `lifetimeInactivityJob` | Handle inactive accounts |
-| `eloDecayJob` | ELO score decay |
-| `tempEmailBlacklistSyncJob` | Sync temp email blacklist |
-| `wingsSyncJob` | Sync with wings nodes |
-| `calendarNotificationJob` | Send calendar event reminders |
+Provider selection: `nodeService.getServiceForNode(nodeId)` checks `node.provider` field — returns `WingsApiService` or `ProxmoxApiService`. Cached per node.
 
 ---
 
@@ -339,7 +306,7 @@ All scheduled in `initApp()`:
 - **Terminal:** @xterm/xterm + addons
 - **Editor:** @monaco-editor/react (lazy-loaded)
 - **Canvas:** react-konva (for Paint feature)
-- **Markdown:** react-markdown + remark-gfm + rehype-slug + shiki (syntax highlighting)
+- **Markdown:** react-markdown + remark-gfm + rehype-slug + shiki
 
 ### 4.2 Request Flow
 
@@ -348,7 +315,6 @@ Browser → Next.js server (middleware.ts auth guard)
   → next.config.mjs rewrites (/api/* → backend)
     → Backend API (Bun/Elysia)
 ```
-
 API calls from client components use `apiFetch()` from `lib/api-client.ts`:
 - Auto-attaches Bearer token + CSRF token
 - Retry on network/timeout errors (2 retries, 500ms backoff)
@@ -359,11 +325,9 @@ API calls from client components use `apiFetch()` from `lib/api-client.ts`:
 ### 4.3 Theming System
 
 14 themes defined in `frontend/lib/themes.ts`. Each theme is a map of CSS custom properties:
-
 ```
 primary, bg, card, secondary, sidebar, accent, accentFg, glow, border, foreground, cardForeground
 ```
-
 **How themes work:**
 1. `layout.tsx` reads user's theme from session API (SSR)
 2. Injects inline `<script>` that sets CSS variables on `:root` before paint
@@ -372,7 +336,7 @@ primary, bg, card, secondary, sidebar, accent, accentFg, glow, border, foregroun
 
 ### 4.4 Central Configuration (`lib/panel-config.ts`)
 
-**This is the single source of truth for:**
+**Single source of truth for:**
 - `BRAND` — name, tagline, logo, version
 - `API_ENDPOINTS` — every API endpoint path (~350+ endpoints)
 - `PORTALS` — portal tiers (free/paid/enterprise/educational) with features
@@ -387,81 +351,127 @@ Next.js edge middleware handles:
 - **Auth guard:** Redirects unauthenticated users from `/dashboard/*` to `/login`
 - **Admin guard:** Redirects non-admin users from `/dashboard/admin/*`
 - **Auth page guard:** Redirects logged-in users away from `/login`, `/register`
-- **SEO bot verification:** Verifies crawler IPs against official ranges (Google, Bing, Yandex, etc.)
+- **SEO bot verification:** Verifies crawler IPs against official ranges
 - **Short URL resolution:** `/a/:code` and `/:code` → backend lookup → 302 redirect
-- **Chat bypass:** `/dashboard/chat` is explicitly public (no auth required)
 
-### 4.6 Key Frontend Components
+### 4.6 SOC Dashboard (`/dashboard` — page.tsx)
 
-**Global (in root layout):**
-- `AuthProvider` — provides `user`, `login`, `logout`, `refreshUser` via React Context
-- `GlobalLinkGuard` — intercepts external link clicks, shows warning modal
-- `GlobalImageProxy` — proxies external images through backend for security
-- `Guide` — onboarding/walkthrough overlay
-- `GlobalQueryBanner` — shows banners based on URL query params
+Layout:
+```
+Stats Row (4 cards)
+  ↓
+Security Findings (full width — primary SOC content)
+  - Severity summary bar (colored badges with counts)
+  - Findings list: colored left border, severity badge, category badge, IP reputation badge, server link, timestamp, action buttons
+  - Actions: Acknowledge, Resolve, False Positive, Escalate to staff
+  - Run Scan button with loading state
+  - Expand/collapse for findings >5
+  ↓
+Resource Summary + Recent Activity (2-column sidebar)
+```
 
-**Dashboard shell:**
-- `sidebar.tsx` — collapsible sidebar with nav sections, org switcher, user menu
-- `header.tsx` — top bar with breadcrumbs, search, notifications
-- `feature-guard.tsx` — conditionally renders children based on feature flags
-- `rollout-guard.tsx` — conditionally renders based on rollout status
-- `enforcement-banner.tsx` — shows KYC/suspension/sunset notices
-- `feedback-dialog.tsx` — feedback collection modal
+### 4.7 Admin SOC Tab (`/dashboard/admin` → SOC tab)
 
-**Server detail:**
-- `ServerViewV1.tsx` — Wings server detail (files, console, backups, etc.)
-- `ServerViewV2.tsx` — Proxmox server detail (dark theme, resource grid, config panel)
+Four sub-tabs:
+- **Findings** — Full table with pagination, status/severity filters, quick actions
+- **Event Log** — Chronological SOC event timeline
+- **Rules** — CRUD for custom detection rules (JSON-based conditions, frequency, correlation)
+- **Settings** — Editable: AbuseIPDB key, IP/CIDR/image blocklists, admin email, webhook URL, alert severities, scan schedule
 
 ---
 
-## 5. Anti-Abuse System (Rust)
+## 5. SOC System — Full Architecture
 
+### Detection Layer
 ```
-antiabuse/
-├── Cargo.toml          # Rust project config
-├── src/                 # Main source (lib.rs or main.rs)
-├── signatures/          # Abuse detection rule signatures
-├── .env.example         # BACKEND_URL, API keys
-└── antiabuse.png        # Architecture diagram
+┌──────────────────────────────────────────────────────┐
+│ Internal Scanner (16 checks, 30min)                   │
+│  - Login anomalies (brute force, new IP)              │
+│  - Server posture (abandoned, OOM, KVM, DMCA)        │
+│  - Access control (wildcard subusers, orphaned)       │
+│  - Resource anomalies (CPU % of ALLOCATION)           │
+│  - Node security (no SSL, unhealthy)                  │
+│  - Threat intel (AbuseIPDB + blocklists)             │
+│  - Custom rules (Wazuh-style JSON engine)             │
+│  - Wings-based (process scan, port audit, file scan) │
+├──────────────────────────────────────────────────────┤
+│ Wings Embedded Anti-Abuse                             │
+│  - CPU mining detection (% of allocated CPU)          │
+│  - DDoS detection (network rate >100 MB/s)           │
+│  - Rule polling from panel every 5min                 │
+│  - Auto-reports to /api/admin/antiabuse/events        │
+├──────────────────────────────────────────────────────┤
+│ External Agent API (Wazuh/Fail2ban/CrowdSec)          │
+│  - POST /api/soc/security-findings                   │
+└──────────────────────────────────────────────────────┘
 ```
 
-**How it works:**
-1. Runs as a systemd daemon on every node alongside wings
-2. Watches outbound TCP SYN traffic
-3. Detects suspicious patterns (port scanning, DDoS-like bursts)
-4. On detection: suspends the offending server via backend API, reports incident
-5. Backend sends email notifications, exposes incidents in admin panel
-6. Signatures are obfuscated to prevent reverse-engineering
+### Alerting
+- **Per-user**: checks `settings.socAlerts` preferences → email + in-app notification
+- **Admin webhook**: Discord/Slack-compatible embeds (configurable in Admin → SOC → Settings)
+- **Admin fallback email**: for orphaned findings (no user)
 
-**Build:** `cargo build --release`
-**Deploy:** systemd unit → `/etc/systemd/system/eclipanel-antiabuse.service`
+### User/Org Scoping
+- Admins (`soc:read` or `role === '*'`): see all findings
+- Regular users: only findings where `userId = their ID` OR `serverId` is a server they own/have subuser access to
+
+### Escalation
+`POST /api/soc/security-findings/:id/escalate` → creates a real support ticket in the Technical department, notifies server owner with ticket link
 
 ---
 
-## 6. EcliTunnel (Rust)
+## 6. Wings (Patched Game Server Daemon)
 
+### Structure
 ```
-tunnel/
-├── client/             # Client agent (runs on user's machine)
-├── server/             # Server agent (runs on publicly-accessible host)
-├── deploy.sh           # One-command install + run script
-└── README.md           # Full usage docs
+wings/
+├── source/       Clean upstream (no .git — just source code)
+├── patched/      Working copy — edit code here
+├── output/       Build target (source + patches applied, cargo here)
+├── patches/      .patch files (diff between patched/ and source/)
+├── manage.sh     Patch & build manager
+└── target/       Built binary → target/release/wings-rs
 ```
 
-**Data path:** `internet → server agent (port 20000-29999) → client agent → local service`
-
-**Control plane:** WebSocket at `/api/tunnel/ws` (backend)
-
-**Flow:**
-1. Client enrolls → gets code → admin approves in panel
-2. Client opens tunnel → backend allocates port → server agent binds port
-3. Client connects to server with one-time direct token
-4. Traffic flows directly between agents (no backend passthrough)
-
-**Quick start:**
+### Workflow
 ```bash
-curl -fsSL https://ecli.app/api/tunnel/deploy.sh | bash -s -- open --port 8080
+# 1. Edit code in patched/
+vim patched/application/src/server/antiabuse.rs
+
+# 2. Regenerate patches
+./manage.sh regen        # Diff patched/ vs source/ → patches/
+
+# 3. Apply patches to output + build
+./manage.sh patch        # Apply patches to clean output/
+./manage.sh build        # cargo build --release
 ```
+
+### Commands
+| Command | Does |
+|---------|------|
+| `./manage.sh regen` | Generate .patch files from patched/ |
+| `./manage.sh patch` | Apply patches to fresh output/ |
+| `./manage.sh build` | Compile |
+| `./manage.sh status` | Show state of all directories |
+
+### Security Endpoints (added by patches)
+- `GET /api/servers/:id/security/processes` — Docker `top_processes()` listing
+- `GET /api/servers/:id/security/connections` — port bindings + Docker network info
+- `GET /api/servers/:id/security/scan-files` — suspicious file scanner (miners, webshells, backdoors)
+
+### Embedded Anti-Abuse (`server/antiabuse.rs`)
+- CPU + network monitoring every 5s per container
+- Reports to panel `/api/admin/antiabuse/events`
+- Heartbeat every 30s (registers as `wings@hostname`)
+- Fetches detection rules from panel every 5min via `GET /api/soc/detection-rules?mode=wings`
+
+### One-Line Install
+```bash
+curl -fsSL https://ecli.app/api/wings/download -o /usr/local/bin/wings
+chmod +x /usr/local/bin/wings
+systemctl restart wings
+```
+Binary served from panel at `GET /api/wings/download`. Also: `curl -fsSL https://ecli.app/api/wings/install.sh | bash`
 
 ---
 
@@ -505,13 +515,8 @@ import { cn } from '@/lib/utils';
 
 **Theme colors:** Never hardcode — use CSS variables:
 ```css
-/* ✅ Good */
-color: var(--primary);
-background: var(--background);
-
-/* ❌ Bad */
-color: #8b5cf6;
-background: #0a0a12;
+/* ✅ Good */  color: var(--primary);
+/* ❌ Bad */   color: #8b5cf6;
 ```
 
 **i18n:** Use `useTranslations` hook or `getTranslations` for server components.
@@ -527,6 +532,7 @@ background: #0a0a12;
 - **TypeScript:** Strict-ish but `ignoreBuildErrors: true` in frontend next.config
 - **Formatting:** Prettier (backend), ESLint (both)
 - **Git:** Main branch, Co-Authored-By: Claude in commits
+- **Wings no-git:** `source/`, `patched/`, `output/` have no `.git` — manage patches with `manage.sh`
 
 ---
 
@@ -570,9 +576,9 @@ cd frontend && npx tsc --noEmit
 
 ### 8.6 Adding a New Database Entity
 1. Create entity file in `backend/src/models/`
-2. Import in `config/typeorm.ts` if needed (most use auto-discovery)
+2. Add to `config/typeorm.ts` entities array
 3. Use `AppDataSource.getRepository(Entity)` in handlers/services
-4. Create migration if schema change needed
+4. Table auto-created via `synchronize: true`
 
 ---
 
@@ -593,7 +599,8 @@ cd frontend && npx tsc --noEmit
 | `REDIS_URL` | Redis connection string |
 | `MAIL_*` | SMTP settings for nodemailer |
 | `CF_API_TOKEN` | Cloudflare API token for DNS |
-| `EXIT_ON_UNCAUGHT` | Set to `1` to exit on uncaught exceptions |
+| `ANTIABUSE_AI_ENABLED` | Enable AI pipeline for abuse incidents |
+| `ABUSE_REPORT_EMAIL` | Fallback abuse report recipient |
 
 ### Frontend (`frontend/.env`)
 | Variable | Purpose |
@@ -601,7 +608,6 @@ cd frontend && npx tsc --noEmit
 | `BACKEND_URL` | Backend API base URL (for SSR + rewrites) |
 | `NEXT_PUBLIC_API_BASE` | Client-side API base URL |
 | `NEXT_PUBLIC_WINGS_BASE` | Wings node base URL for direct /wings rewrites |
-| `NEXT_PUBLIC_COMMIT_SHA` | Display version in UI |
 
 ---
 
@@ -614,51 +620,66 @@ cd frontend && npx tsc --noEmit
 | All routes registered | `backend/src/routes/index.ts` |
 | Auth middleware | `backend/src/middleware/auth.ts` |
 | RBAC middleware | `backend/src/middleware/authorize.ts` |
-| Node provider interface | `backend/src/types/nodeProvider.ts` |
 | Server handler (largest) | `backend/src/handlers/serverHandler.ts` |
 | Admin handler | `backend/src/handlers/adminHandler.ts` |
+| SOC handler | `backend/src/handlers/socHandler.ts` |
+| Security scanner | `backend/src/services/securityScanner.ts` |
+| Threat intel | `backend/src/services/threatIntel.ts` |
+| Alert dispatcher | `backend/src/services/alertDispatcher.ts` |
+| Rule engine | `backend/src/services/ruleEngine.ts` |
+| Wings API client | `backend/src/services/wingsApiService.ts` |
+| SecurityFinding entity | `backend/src/models/securityFinding.entity.ts` |
+| DetectionRule entity | `backend/src/models/detectionRule.entity.ts` |
 | Frontend config | `frontend/lib/panel-config.ts` |
 | API client | `frontend/lib/api-client.ts` |
 | Theme definitions | `frontend/lib/themes.ts` |
 | Root layout | `frontend/app/layout.tsx` |
 | Auth provider | `frontend/hooks/useAuth.tsx` |
 | Middleware (auth guard) | `frontend/middleware.ts` |
+| SOC dashboard | `frontend/app/dashboard/page.tsx` |
+| Admin SOC tab | `frontend/app/dashboard/admin/tabs/SocTab.tsx` |
+| Wings anti-abuse | `wings/patched/application/src/server/antiabuse.rs` |
+| Wings security routes | `wings/patched/application/src/routes/api/servers/_server_/security/` |
+| Wings manage script | `wings/manage.sh` |
 | Next.js config | `frontend/next.config.mjs` |
-| shadcn config | `frontend/components.json` |
 | Design context | `.better-web-ui.md` |
-| Anti-abuse (Rust) | `antiabuse/src/` |
 | Tunnel (Rust) | `tunnel/client/`, `tunnel/server/` |
 | Systemd units | `systemd/` |
-| Electron app | `app/electron/` |
 
 ---
 
 ## 11. Gotchas & Important Notes
 
-1. **Migrated from Fastify:** The backend was originally Fastify, migrated to Elysia. Some code patterns (esp. in `app.ts`) reflect this — the code comments acknowledge the mess.
+1. **Migrated from Fastify:** The backend was originally Fastify, migrated to Elysia. Some code patterns (esp. in `app.ts`) reflect this.
 
-2. **TypeScript `ignoreBuildErrors: true`:** The frontend next.config skips type errors during build. Use `tsc --noEmit` separately for type checking.
+2. **Frontend `ignoreBuildErrors: true`:** The next.config skips type errors during build. Use `npx tsc --noEmit` separately for type checking.
 
-3. **wings-rs, not wings-go:** This project uses [wings-rs](https://github.com/calagopus/wings) — Pterodactyl's stock wings-go will NOT work with most features.
+3. **wings-rs, not wings-go:** This project uses [wings-rs](https://github.com/calagopus/wings) (Rust). Stock Pterodactyl wings-go will NOT work.
 
-4. **Proxmox stub methods:** `ProxmoxApiService` has ~30 method stubs that throw "Not supported" (400) — safety net for Wings-only endpoints called on Proxmox servers.
+4. **Proxmox stub methods:** `ProxmoxApiService` has ~30 method stubs that throw "Not supported" — safety net for Wings-only endpoints.
 
-5. **Feature toggles are synchronous at route registration:** Features are checked via `isFeatureEnabled()` in `routes/index.ts` — they gate entire route groups, not individual endpoints.
+5. **Feature toggles are synchronous at route registration:** Features checked via `isFeatureEnabled()` in `routes/index.ts` gate entire route groups.
 
-6. **CSRF token lifecycle:** Frontend auto-refreshes CSRF token on 403. The token comes from `/api/auth/csrf-token` and is stored in localStorage.
+6. **CSRF token lifecycle:** Frontend auto-refreshes on 403. Token from `/api/auth/csrf-token`, stored in localStorage.
 
-7. **Theme injection is SSR-critical:** The inline script in `layout.tsx` must run before first paint to avoid flash of wrong theme.
+7. **Theme injection is SSR-critical:** Inline script in `layout.tsx` must run before first paint to avoid flash.
 
-8. **Anti-abuse signatures are obfuscated:** The `antiabuse/signatures/` folder is deliberately modified to prevent abusers from understanding detection patterns.
+8. **Post-Quantum JWT:** Uses ML-DSA-65 (FIPS 204). Without `PQ_JWT_SEED`, random keypair each startup (invalidates all tokens).
 
-9. **Tunnel ports:** Server agent uses ports `20000-29999` — ensure firewall allows inbound TCP on this range.
+9. **No root package.json:** Each sub-project has its own `package.json` with independent dependencies.
 
-10. **Post-Quantum JWT:** Uses ML-DSA-65 (FIPS 204). Without `PQ_JWT_SEED` env var, a random keypair is generated each startup (invalidating all existing tokens).
+10. **CPU detection uses % of allocation:** Both scanner and Wings normalize CPU against `ServerConfig.cpu` limit. 95% raw on 6-vCPU server = ~16% of allocation, won't trigger false positive.
 
-11. **No root package.json:** Each sub-project (`backend/`, `frontend/`, `app/`) has its own `package.json` with independent dependencies.
+11. **Wings route conflict fix:** Security routes must use distinct paths (`/processes`, `/connections`, `/scan-files`). Identical `path = "/"` causes utoipa-axum panic on startup.
 
-12. **The `.agents/` directory** contains agent skill definitions for UI/animation/design tasks — these are separate from this AGENTS.md and define how agents should handle frontend design work.
+12. **SOC config stored in PanelSetting:** All SOC admin settings use `soc.*` prefix in `PanelSetting` table. Editable in Admin → SOC → Settings. Env vars are fallbacks only.
+
+13. **Wings no-git:** `source/`, `patched/`, `output/` have no `.git` directories (removed to prevent nesting issues with `/v3` repo). Use `manage.sh` to manage patches, not `git commit` in subdirs.
+
+14. **antiabuse/ folder is deprecated:** Detection now embedded in Wings (`antiabuse.rs`). The admin AntiAbuseTab processes incidents reported by Wings. The old `antiabuse/` Rust binary is no longer needed.
+
+15. **The `.agents/` directory** contains agent skill definitions for UI/animation/design tasks — separate from this AGENTS.md.
 
 ---
 
-*Last regenerated: 2026-07-09. To update after architecture changes, ask an AI agent to re-scan the repo and regenerate this file.*
+*Last regenerated: 2026-07-10. Full SOC system + Wings security integration complete.*

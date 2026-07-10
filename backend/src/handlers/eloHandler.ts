@@ -42,7 +42,7 @@ async function requireEloRollout(ctx: any): Promise<true | { error: string }> {
     const rollout = await getRolloutTreatment(ctx.user.id, 'elo_rating');
     if (!rollout || !rollout.inRollout) {
       ctx.set.status = 503;
-      return { error: 'This feature is not yet available for your account.' };
+      return { error: ctx.t('elo.this_feature_is_not_yet_available_for_your_account') };
     }
   }
   return true;
@@ -159,7 +159,7 @@ export async function eloRoutes(app: any, prefix = '') {
       const project = await eloProjectRepo().findOneBy({ id });
       if (!project) {
         ctx.set.status = 404;
-        return { error: 'ELO project not found' };
+        return { error: ctx.t('elo.elo_project_not_found') };
       }
 
       const devlogs = await eloDevlogRepo().find({
@@ -215,10 +215,10 @@ export async function eloRoutes(app: any, prefix = '') {
 
       const id = Number((ctx.params as any).id);
       const project = await eloProjectRepo().findOneBy({ id });
-      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+      if (!project) { ctx.set.status = 404; return { error: ctx.t('elo.project_not_found') }; }
       if (project.userId !== ctx.user.id) {
         const admin = hasPermissionSync(ctx, 'admin:access');
-        if (!admin) { ctx.set.status = 403; return { error: 'Not your project' }; }
+        if (!admin) { ctx.set.status = 403; return { error: ctx.t('elo.not_your_project') }; }
       }
 
       const body = ctx.body as Record<string, any>;
@@ -256,11 +256,11 @@ export async function eloRoutes(app: any, prefix = '') {
 
       if (!name?.trim()) {
         ctx.set.status = 400;
-        return { error: 'Server name is required' };
+        return { error: ctx.t('elo.server_name_is_required') };
       }
       if (!eggId) {
         ctx.set.status = 400;
-        return { error: 'Server template is required' };
+        return { error: ctx.t('elo.server_template_is_required') };
       }
 
       const eloLimit = user.limits?.[ELO_SERVER_LIMIT_KEY] ?? 1;
@@ -275,7 +275,7 @@ export async function eloRoutes(app: any, prefix = '') {
       const egg = await eggRepo().findOneBy({ id: Number(eggId) });
       if (!egg) {
         ctx.set.status = 404;
-        return { error: 'Server template not found' };
+        return { error: ctx.t('elo.server_template_not_found') };
       }
 
       let node: Node | null = null;
@@ -286,7 +286,7 @@ export async function eloRoutes(app: any, prefix = '') {
         const freeNode = await nodeRepo().findOne({ where: { nodeType: In(['free', 'free_and_paid']) } });
         if (!freeNode) {
           ctx.set.status = 503;
-          return { error: 'No available nodes' };
+          return { error: ctx.t('elo.no_available_nodes') };
         }
         node = freeNode;
       }
@@ -303,7 +303,7 @@ export async function eloRoutes(app: any, prefix = '') {
 
       if (!egg.visible && !isAdmin) {
         ctx.set.status = 403;
-        return { error: 'Server template not available' };
+        return { error: ctx.t('elo.server_template_not_available') };
       }
 
       const serverUuid = crypto.randomUUID();
@@ -395,7 +395,7 @@ export async function eloRoutes(app: any, prefix = '') {
       });
       if (votesToday >= 20) {
         ctx.set.status = 429;
-        return { error: 'Daily vote limit reached (20 votes/day). Come back tomorrow!' };
+        return { error: ctx.t('elo.daily_vote_limit_reached_20_votes_day_come_back_tomorrow') };
       }
 
       const account = await userRepo().findOneBy({ id: userId });
@@ -403,7 +403,7 @@ export async function eloRoutes(app: any, prefix = '') {
         const daysSinceCreation = (Date.now() - new Date(account.createdAt).getTime()) / 86400000;
         if (daysSinceCreation < 7) {
           ctx.set.status = 403;
-          return { error: 'Account must be at least 7 days old to vote.' };
+          return { error: ctx.t('elo.account_must_be_at_least_7_days_old_to_vote') };
         }
       }
 
@@ -419,7 +419,7 @@ export async function eloRoutes(app: any, prefix = '') {
 
       if (candidates.length < 2) {
         ctx.set.status = 404;
-        return { error: 'Not enough projects to vote on. Check back soon!' };
+        return { error: ctx.t('elo.not_enough_projects_to_vote_on_check_back_soon') };
       }
 
       const recentVotes = await eloVoteRepo().find({
@@ -445,7 +445,7 @@ export async function eloRoutes(app: any, prefix = '') {
 
       if (pair.length < 2) {
         ctx.set.status = 404;
-        return { error: 'No more projects to vote on right now. Check back later!' };
+        return { error: ctx.t('elo.no_more_projects_to_vote_on_right_now_check_back_later') };
       }
 
       const [a, b] = pair;
@@ -569,17 +569,17 @@ export async function eloRoutes(app: any, prefix = '') {
 
       if (!projectAId || !projectBId || !winnerId) {
         ctx.set.status = 400;
-        return { error: 'projectAId, projectBId, and winnerId are required' };
+        return { error: ctx.t('elo.projectaid_projectbid_and_winnerid_are_required') };
       }
 
       if (winnerId !== projectAId && winnerId !== projectBId) {
         ctx.set.status = 400;
-        return { error: 'winnerId must match projectAId or projectBId' };
+        return { error: ctx.t('elo.winnerid_must_match_projectaid_or_projectbid') };
       }
 
       if (!feedback?.trim()) {
         ctx.set.status = 400;
-        return { error: 'Feedback is required.' };
+        return { error: ctx.t('elo.feedback_is_required') };
       }
 
       const MIN_WORDS = 20;
@@ -595,7 +595,7 @@ export async function eloRoutes(app: any, prefix = '') {
       });
       if (lastVote && (Date.now() - new Date(lastVote.createdAt).getTime()) < 10000) {
         ctx.set.status = 429;
-        return { error: 'Please wait at least 10 seconds between votes.' };
+        return { error: ctx.t('elo.please_wait_at_least_10_seconds_between_votes') };
       }
 
       const recentFeedbacks = await AppDataSource.getRepository(Feedback).find({
@@ -607,7 +607,7 @@ export async function eloRoutes(app: any, prefix = '') {
       for (const fb of recentFeedbacks) {
         if (fb.message && fb.message.toLowerCase().includes(normalized.slice(0, 40))) {
           ctx.set.status = 400;
-          return { error: 'Reusing previous feedback is not allowed. Please write something new.' };
+          return { error: ctx.t('elo.reusing_previous_feedback_is_not_allowed_please_write_someth') };
         }
       }
 
@@ -628,7 +628,7 @@ export async function eloRoutes(app: any, prefix = '') {
         const daysSinceCreation = (Date.now() - new Date(account.createdAt).getTime()) / 86400000;
         if (daysSinceCreation < 7) {
           ctx.set.status = 403;
-          return { error: 'Account must be at least 7 days old to vote.' };
+          return { error: ctx.t('elo.account_must_be_at_least_7_days_old_to_vote') };
         }
       }
 
@@ -637,7 +637,7 @@ export async function eloRoutes(app: any, prefix = '') {
       const votesToday = await eloVoteRepo().count({ where: { voterId: userId, createdAt: MoreThanOrEqual(today) } });
       if (votesToday >= 20) {
         ctx.set.status = 429;
-        return { error: 'Daily vote limit reached (20 votes/day).' };
+        return { error: ctx.t('elo.daily_vote_limit_reached_20_votes_day') };
       }
 
       const recentVote = await eloVoteRepo().findOne({
@@ -649,19 +649,19 @@ export async function eloRoutes(app: any, prefix = '') {
       });
       if (recentVote && (Date.now() - new Date(recentVote.createdAt).getTime()) < 86400000) {
         ctx.set.status = 429;
-        return { error: 'You already voted on this pair within the last 24 hours.' };
+        return { error: ctx.t('elo.you_already_voted_on_this_pair_within_the_last_24_hours') };
       }
 
       const projectA = await eloProjectRepo().findOneBy({ id: Number(projectAId) });
       const projectB = await eloProjectRepo().findOneBy({ id: Number(projectBId) });
       if (!projectA || !projectB) {
         ctx.set.status = 404;
-        return { error: 'One or both projects not found' };
+        return { error: ctx.t('elo.one_or_both_projects_not_found') };
       }
 
       if (projectA.userId === userId || projectB.userId === userId) {
         ctx.set.status = 403;
-        return { error: 'You cannot vote on your own project.' };
+        return { error: ctx.t('elo.you_cannot_vote_on_your_own_project') };
       }
 
       const winner = winnerId === projectAId ? projectA : projectB;
@@ -828,7 +828,7 @@ export async function eloRoutes(app: any, prefix = '') {
 
       if (!projectId || !title?.trim() || !content?.trim()) {
         ctx.set.status = 400;
-        return { error: 'projectId, title, and content are required' };
+        return { error: ctx.t('elo.projectid_title_and_content_are_required') };
       }
 
       const VOTE_DEVLOG_DAYS = 14;
@@ -845,11 +845,11 @@ export async function eloRoutes(app: any, prefix = '') {
       const project = await eloProjectRepo().findOneBy({ id: Number(projectId) });
       if (!project) {
         ctx.set.status = 404;
-        return { error: 'Project not found' };
+        return { error: ctx.t('elo.project_not_found') };
       }
       if (project.userId !== userId) {
         ctx.set.status = 403;
-        return { error: 'You can only publish devlogs for your own projects.' };
+        return { error: ctx.t('elo.you_can_only_publish_devlogs_for_your_own_projects') };
       }
 
       const devlog = eloDevlogRepo().create({
@@ -916,7 +916,7 @@ export async function eloRoutes(app: any, prefix = '') {
       const project = await eloProjectRepo().findOneBy({ id: projectId });
       if (!project) {
         ctx.set.status = 404;
-        return { error: 'Project not found' };
+        return { error: ctx.t('elo.project_not_found') };
       }
 
       return {
@@ -942,15 +942,15 @@ export async function eloRoutes(app: any, prefix = '') {
       const project = await eloProjectRepo().findOneBy({ id: projectId });
       if (!project) {
         ctx.set.status = 404;
-        return { error: 'Project not found' };
+        return { error: ctx.t('elo.project_not_found') };
       }
       if (project.userId !== userId) {
         ctx.set.status = 403;
-        return { error: 'You can only use skips on your own projects.' };
+        return { error: ctx.t('elo.you_can_only_use_skips_on_your_own_projects') };
       }
       if (project.skipTokensRemaining <= 0) {
         ctx.set.status = 403;
-        return { error: 'No skip tokens remaining. Publish a devlog to reset your skips.' };
+        return { error: ctx.t('elo.no_skip_tokens_remaining_publish_a_devlog_to_reset_your_skip') };
       }
 
       project.skipTokensRemaining -= 1;
@@ -1064,10 +1064,10 @@ export async function eloRoutes(app: any, prefix = '') {
     prefix + '/elo/projects/:id/votes',
     async (ctx: any) => {
       const projectId = Number((ctx.params as any).id);
-      if (isNaN(projectId)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+      if (isNaN(projectId)) { ctx.set.status = 400; return { error: ctx.t('elo.invalid_project_id') }; }
 
       const project = await eloProjectRepo().findOneBy({ id: projectId });
-      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+      if (!project) { ctx.set.status = 404; return { error: ctx.t('elo.project_not_found') }; }
 
       const page = Math.max(1, Number((ctx.query as any)?.page || 1));
       const per = Math.min(50, Math.max(1, Number((ctx.query as any)?.per || 20)));
@@ -1156,14 +1156,14 @@ export async function eloRoutes(app: any, prefix = '') {
       const uploadFile = Array.isArray(file) ? file[0] : file;
       if (!uploadFile) {
         ctx.set.status = 400;
-        return { error: 'No file provided' };
+        return { error: ctx.t('elo.no_file_provided') };
       }
 
       const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
       const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
       if (!allowed.includes(mime)) {
         ctx.set.status = 400;
-        return { error: 'Invalid image type. Allowed: PNG, JPEG, WebP, GIF' };
+        return { error: ctx.t('elo.invalid_image_type_allowed_png_jpeg_webp_gif') };
       }
 
       const ab = await uploadFile.arrayBuffer();
@@ -1187,6 +1187,7 @@ export async function eloRoutes(app: any, prefix = '') {
       return { url: `${backendBase}/uploads/${filename}` };
     },
     {
+      body: t.Object({ file: t.File() }),
       beforeHandle: [authenticate],
       detail: { summary: 'Upload an ELO screenshot', tags: ['ELO'] },
     }
@@ -1199,10 +1200,10 @@ export async function eloRoutes(app: any, prefix = '') {
       if (r !== true) return r;
 
       const userId = Number((ctx.params as any).userId);
-      if (isNaN(userId)) { ctx.set.status = 400; return { error: 'Invalid user ID' }; }
+      if (isNaN(userId)) { ctx.set.status = 400; return { error: ctx.t('elo.invalid_user_id') }; }
 
       const user = await AppDataSource.getRepository(User).findOneBy({ id: userId });
-      if (!user) { ctx.set.status = 404; return { error: 'User not found' }; }
+      if (!user) { ctx.set.status = 404; return { error: ctx.t('elo.user_not_found') }; }
 
       const projects = await eloProjectRepo().find({
         where: { userId, serverId: Not(IsNull()) },
@@ -1279,17 +1280,17 @@ export async function eloRoutes(app: any, prefix = '') {
       const body = ctx.body as any;
       if (!body || !body.targetType || !body.targetId || !body.reason?.trim()) {
         ctx.set.status = 400;
-        return { error: 'targetType, targetId, and reason are required' };
+        return { error: ctx.t('elo.targettype_targetid_and_reason_are_required') };
       }
 
       if (!['vote', 'project', 'user'].includes(body.targetType)) {
         ctx.set.status = 400;
-        return { error: 'targetType must be one of: vote, project, user' };
+        return { error: ctx.t('elo.targettype_must_be_one_of_vote_project_user') };
       }
 
       if (body.reason.trim().length < 10) {
         ctx.set.status = 400;
-        return { error: 'Reason must be at least 10 characters' };
+        return { error: ctx.t('elo.reason_must_be_at_least_10_characters') };
       }
 
       const report = eloReportRepo().create({

@@ -715,7 +715,7 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     const plan = await planRepo.findOneBy({ id: planId });
     if (!plan) {
       ctx.set.status = 404;
-      return { error: 'Plan not found' };
+      return { error: ctx.t('ai.plan_not_found') };
     }
     const links = await modelPlanRepo.find({ where: { plan: { id: planId } }, relations: { model: true } });
     return links.map(l => {
@@ -741,7 +741,7 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     const plan = await planRepo.findOneBy({ id: planIdNum });
     if (!plan) {
       ctx.set.status = 404;
-      return { error: 'Plan not found' };
+      return { error: ctx.t('ai.plan_not_found') };
     }
     const existing = await modelPlanRepo.findOne({ where: { model: { id: model.id }, plan: { id: planIdNum } } });
     if (existing) {
@@ -767,7 +767,7 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     const link = await modelPlanRepo.findOne({ where: { model: { id: modelId }, plan: { id: planId } } });
     if (!link) {
       ctx.set.status = 404;
-      return { error: 'Link not found' };
+      return { error: ctx.t('ai.link_not_found') };
     }
     await modelPlanRepo.remove(link);
     return { success: true };
@@ -799,7 +799,7 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     const byoai = getUserByoaiConfig(user);
     if (!byoai) {
       ctx.set.status = 400;
-      return { error: 'BYOAI is not configured. Configure your AI provider in Settings > AI.' };
+      return { error: ctx.t('ai.byoai_is_not_configured_configure_your_ai_provider_in_settin') };
     }
     const { message, systemPrompt, history } = (ctx.body || {}) as Record<string, unknown>;
     if (!message) {
@@ -865,7 +865,7 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     const byoai = getUserByoaiConfig(user);
     if (!byoai) {
       ctx.set.status = 400;
-      return { error: 'BYOAI is not configured. Configure your AI provider in Settings > AI.' };
+      return { error: ctx.t('ai.byoai_is_not_configured_configure_your_ai_provider_in_settin') };
     }
     const body = (ctx.body || {}) as Record<string, unknown>;
 
@@ -904,7 +904,7 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     const byoai = getUserByoaiConfig(user);
     if (!byoai) {
       ctx.set.status = 400;
-      return { error: 'BYOAI is not configured.' };
+      return { error: ctx.t('ai.byoai_is_not_configured') };
     }
     try {
       const url = `${byoai.endpoint}/v1/models`;

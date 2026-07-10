@@ -1166,6 +1166,44 @@
       "server": "Сервер",
       "unknown": "неизвестно"
     },
+    "securityFindings": {
+      "title": "Результаты сканирования",
+      "description": "Автоматическое сканирование уязвимостей и проверка безопасности",
+      "scan": "Сканировать",
+      "scanning": "Сканирование...",
+      "empty": "Угрозы не обнаружены",
+      "emptyDescription": "Все системы прошли проверки безопасности",
+      "totalOpen": "открыто: {count}",
+      "severity": {
+        "critical": "Критическая",
+        "high": "Высокая",
+        "medium": "Средняя",
+        "low": "Низкая",
+        "info": "Инфо"
+      },
+      "categories": {
+        "login_anomaly": "Аномалии входа",
+        "server_posture": "Состояние сервера",
+        "access_control": "Контроль доступа",
+        "resource_anomaly": "Аномалии ресурсов",
+        "node_security": "Безопасность нод",
+        "image_security": "Безопасность образов",
+        "intrusion_detection": "Обнаружение вторжений",
+        "malware": "Вредоносное ПО",
+        "policy_violation": "Нарушение политик",
+        "configuration": "Конфигурация",
+        "other": "Другое"
+      },
+      "actions": {
+        "acknowledge": "Принять",
+        "resolve": "Решено",
+        "falsePositive": "Ложное срабатывание"
+      },
+      "source": {
+        "internal": "Внутреннее сканирование",
+        "external": "Внешний агент"
+      }
+    },
     "warnings": {
       "nodeIssueTitle": "{node} сейчас испытывает проблемы",
       "nodesIssueTitle": "Некоторые ноды сейчас испытывают проблемы",

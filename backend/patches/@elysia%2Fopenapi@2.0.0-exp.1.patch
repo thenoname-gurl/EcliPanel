@@ -1,0 +1,32 @@
+diff --git a/node_modules/@elysia/openapi/.bun-tag-4787025702bdf7de b/.bun-tag-4787025702bdf7de
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@elysia/openapi/.bun-tag-8fcf5a41d3f0d7ea b/.bun-tag-8fcf5a41d3f0d7ea
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/scalar/index.js b/dist/scalar/index.js
+index a15ffd9e6c54e876f016675584e104b4e0a4dba9..b44a5c37851f1e513b3428bec0617bc3f15f97ac 100644
+--- a/dist/scalar/index.js
++++ b/dist/scalar/index.js
+@@ -151,7 +151,7 @@ const ScalarRender = (info, config, embedSpec) => `<!doctype html>
+   <body>
+     <script
+       id="api-reference"
+-      data-configuration='${JSON.stringify(Object.assign(config, { content: embedSpec }))}'
++      data-configuration='${JSON.stringify(embedSpec ? { spec: { url: config.url, content: embedSpec } } : { spec: { url: config.url } })}'
+     >
+     <\/script>
+     <script src="${config.cdn}" crossorigin><\/script>
+diff --git a/dist/scalar/index.mjs b/dist/scalar/index.mjs
+index ca24406b44bde1bf3a25fac94f101d9967e73d98..8df11b0505fadca4745a4c46d6ae0a09a8c905dc 100644
+--- a/dist/scalar/index.mjs
++++ b/dist/scalar/index.mjs
+@@ -149,7 +149,7 @@ const ScalarRender = (info, config, embedSpec) => `<!doctype html>
+   <body>
+     <script
+       id="api-reference"
+-      data-configuration='${JSON.stringify(Object.assign(config, { content: embedSpec }))}'
++      data-configuration='${JSON.stringify(embedSpec ? { spec: { url: config.url, content: embedSpec } } : { spec: { url: config.url } })}'
+     >
+     <\/script>
+     <script src="${config.cdn}" crossorigin><\/script>

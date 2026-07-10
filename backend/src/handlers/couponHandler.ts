@@ -40,7 +40,7 @@ export async function couponRoutes(app: any, prefix = '') {
       const coupon = await couponRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!coupon) {
         ctx.set.status = 404;
-        return { error: 'Coupon not found' };
+        return { error: ctx.t('coupon.coupon_not_found') };
       }
       const uses = await couponUseRepo.find({
         where: { couponId: coupon.id },
@@ -64,22 +64,22 @@ export async function couponRoutes(app: any, prefix = '') {
       const existing = await couponRepo.findOneBy({ code });
       if (existing) {
         ctx.set.status = 400;
-        return { error: 'A coupon with this code already exists' };
+        return { error: ctx.t('coupon.a_coupon_with_this_code_already_exists') };
       }
 
       if (!['percentage', 'fixed'].includes(body.discountType)) {
         ctx.set.status = 400;
-        return { error: 'discountType must be "percentage" or "fixed"' };
+        return { error: ctx.t('coupon.discounttype_must_be_percentage_or_fixed') };
       }
 
       if (body.discountType === 'percentage' && (body.discountValue < 0 || body.discountValue > 100)) {
         ctx.set.status = 400;
-        return { error: 'Percentage discount must be between 0 and 100' };
+        return { error: ctx.t('coupon.percentage_discount_must_be_between_0_and_100') };
       }
 
       if (body.discountType === 'fixed' && body.discountValue <= 0) {
         ctx.set.status = 400;
-        return { error: 'Fixed discount must be greater than 0' };
+        return { error: ctx.t('coupon.fixed_discount_must_be_greater_than_0') };
       }
 
       const coupon = couponRepo.create({
@@ -114,17 +114,17 @@ export async function couponRoutes(app: any, prefix = '') {
 
       if (!['percentage', 'fixed'].includes(body.discountType)) {
         ctx.set.status = 400;
-        return { error: 'discountType must be "percentage" or "fixed"' };
+        return { error: ctx.t('coupon.discounttype_must_be_percentage_or_fixed') };
       }
 
       if (body.discountType === 'percentage' && (body.discountValue < 0 || body.discountValue > 100)) {
         ctx.set.status = 400;
-        return { error: 'Percentage discount must be between 0 and 100' };
+        return { error: ctx.t('coupon.percentage_discount_must_be_between_0_and_100') };
       }
 
       if (body.discountType === 'fixed' && body.discountValue <= 0) {
         ctx.set.status = 400;
-        return { error: 'Fixed discount must be greater than 0' };
+        return { error: ctx.t('coupon.fixed_discount_must_be_greater_than_0') };
       }
 
       const coupons: Coupon[] = [];
@@ -171,7 +171,7 @@ export async function couponRoutes(app: any, prefix = '') {
       const coupon = await couponRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!coupon) {
         ctx.set.status = 404;
-        return { error: 'Coupon not found' };
+        return { error: ctx.t('coupon.coupon_not_found') };
       }
 
       const body = ctx.body as any;
@@ -181,7 +181,7 @@ export async function couponRoutes(app: any, prefix = '') {
           const existing = await couponRepo.findOneBy({ code: body.code });
           if (existing && existing.id !== coupon.id) {
             ctx.set.status = 400;
-            return { error: 'A coupon with this code already exists' };
+            return { error: ctx.t('coupon.a_coupon_with_this_code_already_exists') };
           }
         }
         coupon.code = body.code;
@@ -190,7 +190,7 @@ export async function couponRoutes(app: any, prefix = '') {
       if (body.discountType !== undefined) {
         if (!['percentage', 'fixed'].includes(body.discountType)) {
           ctx.set.status = 400;
-          return { error: 'discountType must be "percentage" or "fixed"' };
+          return { error: ctx.t('coupon.discounttype_must_be_percentage_or_fixed') };
         }
         coupon.discountType = body.discountType;
       }
@@ -198,11 +198,11 @@ export async function couponRoutes(app: any, prefix = '') {
       if (body.discountValue !== undefined) {
         if ((body.discountType || coupon.discountType) === 'percentage' && (body.discountValue < 0 || body.discountValue > 100)) {
           ctx.set.status = 400;
-          return { error: 'Percentage discount must be between 0 and 100' };
+          return { error: ctx.t('coupon.percentage_discount_must_be_between_0_and_100') };
         }
         if ((body.discountType || coupon.discountType) === 'fixed' && body.discountValue <= 0) {
           ctx.set.status = 400;
-          return { error: 'Fixed discount must be greater than 0' };
+          return { error: ctx.t('coupon.fixed_discount_must_be_greater_than_0') };
         }
         coupon.discountValue = Number(body.discountValue);
       }
@@ -229,7 +229,7 @@ export async function couponRoutes(app: any, prefix = '') {
       const coupon = await couponRepo.findOneBy({ id: Number(ctx.params['id']) });
       if (!coupon) {
         ctx.set.status = 404;
-        return { error: 'Coupon not found' };
+        return { error: ctx.t('coupon.coupon_not_found') };
       }
 
       await couponUseRepo.delete({ couponId: coupon.id });
@@ -254,28 +254,28 @@ export async function couponRoutes(app: any, prefix = '') {
 
       if (!code) {
         ctx.set.status = 400;
-        return { error: 'Coupon code is required' };
+        return { error: ctx.t('coupon.coupon_code_is_required') };
       }
 
       const coupon = await couponRepo.findOneBy({ code: String(code).trim().toUpperCase() });
       if (!coupon) {
         ctx.set.status = 404;
-        return { error: 'Invalid or expired coupon' };
+        return { error: ctx.t('coupon.invalid_or_expired_coupon') };
       }
 
       if (!coupon.isActive) {
         ctx.set.status = 400;
-        return { error: 'This coupon is no longer active' };
+        return { error: ctx.t('coupon.this_coupon_is_no_longer_active') };
       }
 
       if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
         ctx.set.status = 400;
-        return { error: 'This coupon has expired' };
+        return { error: ctx.t('coupon.this_coupon_has_expired') };
       }
 
       if (coupon.maxUsesTotal != null && coupon.currentUsesTotal >= coupon.maxUsesTotal) {
         ctx.set.status = 400;
-        return { error: 'This coupon has reached its global usage limit' };
+        return { error: ctx.t('coupon.this_coupon_has_reached_its_global_usage_limit') };
       }
 
       if (coupon.maxUsesPerUser != null) {
@@ -284,7 +284,7 @@ export async function couponRoutes(app: any, prefix = '') {
         });
         if (userUseCount >= coupon.maxUsesPerUser) {
           ctx.set.status = 400;
-          return { error: 'You have already used this coupon the maximum number of times' };
+          return { error: ctx.t('coupon.you_have_already_used_this_coupon_the_maximum_number_of_time') };
         }
       }
 
@@ -337,47 +337,47 @@ export async function couponRoutes(app: any, prefix = '') {
 
       if (!code || !orderId) {
         ctx.set.status = 400;
-        return { error: 'Coupon code and order ID are required' };
+        return { error: ctx.t('coupon.coupon_code_and_order_id_are_required') };
       }
 
       const order = await orderRepo.findOneBy({ id: Number(orderId) });
       if (!order) {
         ctx.set.status = 404;
-        return { error: 'Order not found' };
+        return { error: ctx.t('coupon.order_not_found') };
       }
       if (order.userId !== user.id) {
         ctx.set.status = 403;
-        return { error: 'Forbidden' };
+        return { error: ctx.t('coupon.forbidden') };
       }
       if (order.status !== 'pending') {
         ctx.set.status = 400;
-        return { error: 'Coupon can only be applied to pending orders' };
+        return { error: ctx.t('coupon.coupon_can_only_be_applied_to_pending_orders') };
       }
       if (order.couponId) {
         ctx.set.status = 400;
-        return { error: 'A coupon has already been applied to this order' };
+        return { error: ctx.t('coupon.a_coupon_has_already_been_applied_to_this_order') };
       }
 
       const normalizedCode = String(code).trim().toUpperCase();
       const coupon = await couponRepo.findOneBy({ code: normalizedCode });
       if (!coupon) {
         ctx.set.status = 404;
-        return { error: 'Invalid or expired coupon' };
+        return { error: ctx.t('coupon.invalid_or_expired_coupon') };
       }
 
       if (!coupon.isActive) {
         ctx.set.status = 400;
-        return { error: 'This coupon is no longer active' };
+        return { error: ctx.t('coupon.this_coupon_is_no_longer_active') };
       }
 
       if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
         ctx.set.status = 400;
-        return { error: 'This coupon has expired' };
+        return { error: ctx.t('coupon.this_coupon_has_expired') };
       }
 
       if (coupon.maxUsesTotal != null && coupon.currentUsesTotal >= coupon.maxUsesTotal) {
         ctx.set.status = 400;
-        return { error: 'This coupon has reached its global usage limit' };
+        return { error: ctx.t('coupon.this_coupon_has_reached_its_global_usage_limit') };
       }
 
       if (coupon.maxUsesPerUser != null) {
@@ -386,7 +386,7 @@ export async function couponRoutes(app: any, prefix = '') {
         });
         if (userUseCount >= coupon.maxUsesPerUser) {
           ctx.set.status = 400;
-          return { error: 'You have already used this coupon the maximum number of times' };
+          return { error: ctx.t('coupon.you_have_already_used_this_coupon_the_maximum_number_of_time') };
         }
       }
 

@@ -1,12 +1,13 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { StatCard, SectionHeader, UsageBar } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import {
@@ -20,6 +21,20 @@ import {
   HardDrive,
   MemoryStick,
   AlertCircle,
+  LogIn,
+  LogOut,
+  CreditCard,
+  UserPlus,
+  FileText,
+  ScanLine,
+  ShieldAlert,
+  Check,
+  CheckCircle,
+  Flag,
+  ChevronDown,
+  ChevronUp,
+  Bug,
+  Send,
 } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -29,77 +44,120 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
-function formatSocActivity(item: any, servers: any[]) {
-  const metric = item?.metrics || {}
-  const server = servers.find((s) => (s.uuid || s.id) === item?.serverId)
-  const serverName = server?.name || server?.label || item?.serverId
-  const serverHref = server ? `/dashboard/servers/${server.uuid || server.id}` : undefined
-
-  const title =
-    item?.action ||
-    metric.alert ||
-    metric.threat ||
-    metric.warn ||
-    (item?.serverId ? `Server ${serverName} metrics` : "SOC event")
-
-  const details: ReactNode[] = []
-
-  if (item?.target) details.push(item.target)
-  if (item?.serverId) {
-    const serverLabel = server ? `Server ${serverName}` : `Server ${item.serverId}`
-    if (serverHref) {
-      details.push(
-        <a
-          key="server-link"
-          href={serverHref}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-primary hover:underline"
-        >
-          {serverLabel}
-        </a>
-      )
-    } else {
-      details.push(serverLabel)
-    }
-  }
-
-  if (metric.cpu_absolute != null) details.push(`CPU ${Math.round(Number(metric.cpu_absolute))}%`)
-  if (metric.memory_bytes != null) details.push(`RAM ${formatBytes(Number(metric.memory_bytes))}`)
-  if (metric.disk_bytes != null) details.push(`Disk ${formatBytes(Number(metric.disk_bytes))}`)
-
-  const network = metric.network || {}
-  if (network.rx_bytes != null || network.tx_bytes != null) {
-    const rx = network.rx_bytes != null ? formatBytes(Number(network.rx_bytes)) : "0 B"
-    const tx = network.tx_bytes != null ? formatBytes(Number(network.tx_bytes)) : "0 B"
-    details.push(`Net ${rx} / ${tx}`)
-  }
-
-  return {
-    title,
-    details,
-    time: item?.timestamp ? new Date(item.timestamp).toLocaleTimeString() : "Unknown time",
-  }
+function guessActivityType(action: string): string {
+  const a = (action || "").toLowerCase()
+  if (/logout|signout/.test(a)) return "logout"
+  if (/login|signin/.test(a)) return "login"
+  if (/register|signup/.test(a)) return "register"
+  if (/passkey|2fa|mfa|otp|password|token/.test(a)) return "security"
+  if (/server|start|stop|restart|power|console|file|reinstall|subuser|suspend|unsuspend/.test(a)) return "server"
+  if (/billing|payment|invoice|order|subscription|credit/.test(a)) return "billing"
+  if (/ticket|support/.test(a)) return "support"
+  return "auth"
 }
+
+const actionLabels: Record<string, string> = {
+  "server:power:start": "Started server",
+  "server:power:stop": "Stopped server",
+  "server:power:restart": "Restarted server",
+  "server:power:kill": "Killed server",
+  "server:console:command": "Ran console command",
+  "wings:server:console.command": "Ran console command",
+  "server:file:write": "Modified file",
+  "server:file:delete": "Deleted files",
+  "server:reinstall": "Reinstalled server",
+  "server:subuser:add": "Added subuser",
+  "server:subuser:accept_invite": "Accepted subuser invite",
+  "server:subuser:remove": "Removed subuser",
+  "server:subuser:reject_invite": "Rejected subuser invite",
+  "update-profile": "Updated profile",
+  "server:suspend": "Suspended server",
+  "server:unsuspend": "Unsuspended server",
+}
+
+function formatActionLabel(action: string): string {
+  const key = (action || "").toLowerCase()
+  if (actionLabels[key]) return actionLabels[key]
+  return (action || "Unknown action")
+    .replace(/[:_.-]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+}
+
+function formatTimeAgo(timestamp: string): string {
+  const diffMs = Date.now() - new Date(timestamp).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  const hours = Math.floor(diffMs / 3600000)
+  const days = Math.floor(diffMs / 86400000)
+  if (mins < 1) return "Just now"
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7) return `${days}d ago`
+  return new Date(timestamp).toLocaleDateString()
+}
+
+const typeIcons: Record<string, typeof Server> = {
+  server: Server,
+  auth: LogIn,
+  login: LogIn,
+  logout: LogOut,
+  register: UserPlus,
+  billing: CreditCard,
+  security: Shield,
+  support: FileText,
+}
+
+const typeIconColors: Record<string, string> = {
+  server: "text-blue-600",
+  auth: "text-primary",
+  login: "text-green-600",
+  logout: "text-orange-600",
+  register: "text-emerald-600",
+  billing: "text-yellow-600",
+  security: "text-red-600",
+  support: "text-purple-600",
+}
+
+// -------------------------------------------------
 
 export default function SOCDashboard() {
   const t = useTranslations("dashboardPage")
   const { user } = useAuth();
-  if (!user) {
-    return <div className="p-8 text-center">{t("authInProgress")}</div>;
-  }
+  // All hooks must be above any early return (Rules of Hooks)
   const [servers, setServers] = useState<any[]>([])
   const [recentActivity, setRecentActivity] = useState<any[]>([])
-  const [socAlerts, setSocAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
+  const [findings, setFindings] = useState<any[]>([])
+  const [findingsSummary, setFindingsSummary] = useState<Record<string, number>>({})
+  const [findingsLoading, setFindingsLoading] = useState(true)
+  const [scanRunning, setScanRunning] = useState(false)
+  const [findingsExpanded, setFindingsExpanded] = useState(false)
+  const [findingsFilter, setFindingsFilter] = useState('open')
+  const [findingsSeverity, setFindingsSeverity] = useState('')
 
+  // Load all servers (paginated — same pattern as /dashboard/servers)
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.servers)
-      .then((data) => {
-        const list = Array.isArray(data) ? data : []
-        setServers(list)
-        list.forEach((s: any) => {
+    let cancelled = false
+    async function loadAllServers() {
+      try {
+        let allServers: any[] = []
+        let page = 1
+        const perPage = 200
+        while (true) {
+          const data = await apiFetch(`${API_ENDPOINTS.servers}?page=${page}&per_page=${perPage}`)
+          const list = Array.isArray(data) ? data : []
+          if (list.length === 0) break
+          allServers = allServers.concat(list)
+          const total = (data as any)?.total
+          if (total && allServers.length >= total) break
+          page++
+        }
+        if (cancelled) return
+        setServers(allServers)
+        allServers.forEach((s: any) => {
           const sid = s.uuid || s.id
           if (sid && !s.resources) {
             apiFetch(API_ENDPOINTS.serverStats.replace(":id", sid))
@@ -115,24 +173,28 @@ export default function SOCDashboard() {
               .catch(() => {})
           }
         })
-      })
-      .catch((err) => console.error("failed to load servers", err))
-      .finally(() => setLoading(false))
+      } catch (err) {
+        console.error("failed to load servers", err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    loadAllServers()
+    return () => { cancelled = true }
   }, [])
 
+  // Load user activity logs for Recent Activity
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.socOverview)
+    if (!user) return
+    apiFetch(`${API_ENDPOINTS.userDetail.replace(":id", user.id.toString())}/logs?limit=20`)
       .then((data) => {
         const list = Array.isArray(data) ? data : []
         setRecentActivity(list.slice(0, 5))
-        const alerts = list.filter((e: any) => e.metrics?.alert || e.metrics?.threat || e.metrics?.warn)
-        setSocAlerts(alerts.slice(0, 5))
       })
       .catch(() => {
         setRecentActivity([])
-        setSocAlerts([])
       })
-  }, [])
+  }, [user])
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.nodesMyHealth)
@@ -141,6 +203,69 @@ export default function SOCDashboard() {
       })
       .catch(() => {})
   }, [])
+
+  // Fetch security findings
+  const fetchFindings = useCallback(() => {
+    setFindingsLoading(true)
+    const params = new URLSearchParams({ status: findingsFilter || 'open' })
+    if (findingsSeverity) params.set('severity', findingsSeverity)
+    apiFetch(`${API_ENDPOINTS.socSecurityFindings}?${params}`)
+      .then((data: any) => {
+        setFindings(Array.isArray(data?.findings) ? data.findings : [])
+        setFindingsSummary(data?.summary || {})
+      })
+      .catch(() => { setFindings([]); setFindingsSummary({}) })
+      .finally(() => setFindingsLoading(false))
+  }, [findingsFilter, findingsSeverity])
+
+  useEffect(() => {
+    fetchFindings()
+  }, [fetchFindings])
+
+  const handleScan = async () => {
+    setScanRunning(true)
+    try {
+      await apiFetch(API_ENDPOINTS.socSecurityScan, { method: 'POST' })
+      fetchFindings()
+    } catch (e) {
+      console.error('Security scan failed', e)
+    } finally {
+      setScanRunning(false)
+    }
+  }
+
+  const handleUpdateFinding = async (id: number, status: string) => {
+    try {
+      await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(':id', String(id)), {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      })
+      fetchFindings()
+    } catch (e) {
+      console.error('Failed to update finding', e)
+    }
+  }
+
+  // Derive last scan from newest finding
+  const lastScanTime = findings.length > 0
+    ? findings.reduce((a: any, b: any) => new Date(a.detectedAt) > new Date(b.detectedAt) ? a : b).detectedAt
+    : null
+
+  const handleEscalate = async (id: number) => {
+    try {
+      await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(':id', String(id))}/escalate`, {
+        method: 'POST',
+        body: JSON.stringify({ action: 'reviewed', note: 'User escalated for staff evaluation' }),
+      })
+      fetchFindings()
+    } catch (e) {
+      console.error('Failed to escalate finding', e)
+    }
+  }
+
+  if (!user) {
+    return <div className="p-8 text-center">{t("authInProgress")}</div>;
+  }
 
   const myServers = servers.filter((s) => s.userId == null || s.userId === user.id)
   const otherServers = servers.filter((s) => s.userId != null && s.userId !== user.id)
@@ -260,8 +385,13 @@ export default function SOCDashboard() {
             />
             <StatCard
               title={t("stats.threatLevel")}
-              value={socAlerts.length > 0 ? t("stats.elevated") : t("stats.low")}
-              subtitle={socAlerts.length > 0 ? t("stats.alertsDetected", { count: socAlerts.length }) : t("stats.noThreats")}
+              value={findings.length > 0 ? t("stats.elevated") : t("stats.low")}
+              subtitle={findings.length > 0
+                ? [
+                    findingsSummary.critical ? `${findingsSummary.critical} critical` : null,
+                    findingsSummary.high ? `${findingsSummary.high} high` : null,
+                  ].filter(Boolean).join(', ') || t("securityFindings.totalOpen", { count: findings.length })
+                : t("stats.noThreats")}
               icon={Shield}
             />
             <StatCard
@@ -272,154 +402,292 @@ export default function SOCDashboard() {
             />
           </div>
 
-          {/* Main Grid */}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            {/* Server Health */}
-            <div className="col-span-1 border border-border bg-card p-5 lg:col-span-2">
-              <SectionHeader title={t("serverHealth.title")} description={t("serverHealth.description")} />
-              <div className="mt-4 flex flex-col gap-4">
-                {onlineList.length === 0 && !loading && (
-                  <p className="text-sm text-muted-foreground py-4 text-center">{t("serverHealth.noServersOnline")}</p>
-                )}
-
-                {myOnlineList.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    <h4 className="text-sm font-semibold text-foreground">{t("serverHealth.yourServers")}</h4>
-                    <div className="flex flex-col gap-4">
-                      {myOnlineList.map(renderServerCard)}
-                    </div>
-                  </div>
-                )}
-
-                {otherOnlineList.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    <h4 className="text-sm font-semibold text-foreground">{t("serverHealth.otherServers")}</h4>
-                    <div className="flex flex-col gap-4">
-                      {otherOnlineList.map(renderServerCard)}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Quick Stats & Activity */}
-            <div className="flex flex-col gap-6">
-              {/* Resource Summary */}
-              <div className="border border-border bg-card p-5">
-                <SectionHeader title={t("resourceSummary.title")} />
-                <div className="mt-4 flex flex-col gap-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Cpu className="h-4 w-4" />
-                      <span>{t("resourceSummary.avgCpu")}</span>
-                    </div>
-                    <span className="font-mono text-sm text-foreground">
-                      {avgCpu}%
-                    </span>
-                  </div>
-                  <UsageBar label="" value={avgCpu} />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MemoryStick className="h-4 w-4" />
-                      <span>{t("resourceSummary.totalRam")}</span>
-                    </div>
-                    <span className="font-mono text-sm text-foreground">
-                      {formatBytes(totalMemUsed)} / {formatBytes(totalMemLimit)}
-                    </span>
-                  </div>
-                  <UsageBar label="" value={memPct} />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <HardDrive className="h-4 w-4" />
-                      <span>{t("resourceSummary.totalDisk")}</span>
-                    </div>
-                    <span className="font-mono text-sm text-foreground">
-                      {formatBytes(totalDiskUsed)} / {formatBytes(totalDiskLimit)}
-                    </span>
-                  </div>
-                  <UsageBar label="" value={diskPct} />
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Zap className="h-4 w-4" />
-                      <span>{t("resourceSummary.serversOnline")}</span>
-                    </div>
-                    <span className="font-mono text-sm text-foreground">
-                      {onlineServers}/{totalServers}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="border border-border bg-card p-5">
-                <SectionHeader title={t("recentActivity.title")} />
-                <div className="mt-4 flex flex-col gap-3">
-                  {recentActivity.length === 0 ? (
-                    <div className="border border-border/50 bg-secondary/10 p-4 text-center">
-                      <p className="text-xs text-muted-foreground">{t("recentActivity.empty")}</p>
-                    </div>
-                  ) : (
-                    recentActivity.map((item) => {
-                      const { title, details, time } = formatSocActivity(item, servers)
-                      return (
-                        <div
-                          key={item.id || item.timestamp}
-                          className="flex items-start gap-3 border border-border/50 bg-secondary/10 p-3 text-sm"
-                        >
-                          <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                          <div className="flex-1">
-                            <p className="text-foreground leading-snug">{title}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {details.length > 0 && (
-                                <>
-                                  {details.map((detail, idx) => (
-                                    <span key={idx}>
-                                      {detail}
-                                      {idx < details.length - 1 ? " • " : ""}
-                                    </span>
-                                  ))}
-                                  {' • '}
-                                </>
-                              )}{time}
-                            </p>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Security Alerts */}
+          {/* Security Findings — primary SOC content */}
           <div className="border border-border bg-card p-5">
-            <SectionHeader title={t("securityAlerts.title")} description={t("securityAlerts.description")} />
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <SectionHeader title={t("securityFindings.title")} description={lastScanTime
+                  ? `${t("securityFindings.description")} • Last scan: ${formatTimeAgo(lastScanTime)}`
+                  : t("securityFindings.description")} />
+              </div>
+              <button
+                onClick={handleScan}
+                disabled={scanRunning}
+                className="flex items-center gap-1.5 border border-border bg-secondary/30 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
+              >
+                <ScanLine className={cn("h-3.5 w-3.5", scanRunning && "animate-pulse")} />
+                {scanRunning ? t("securityFindings.scanning") : t("securityFindings.scan")}
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <select value={findingsFilter} onChange={e => { setFindingsFilter(e.target.value) }}
+                className="border border-border bg-card text-xs px-2 py-1">
+                <option value="open">Open</option>
+                <option value="acknowledged">Acknowledged</option>
+                <option value="resolved">Resolved</option>
+                <option value="false_positive">False Positive</option>
+              </select>
+              <select value={findingsSeverity} onChange={e => { setFindingsSeverity(e.target.value) }}
+                className="border border-border bg-card text-xs px-2 py-1">
+                <option value="">All severities</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+
             <div className="mt-4 flex flex-col gap-3">
-              {socAlerts.length === 0 ? (
+              {findingsLoading ? (
+                <div className="border border-border/50 bg-secondary/10 p-4 text-center">
+                  <p className="text-xs text-muted-foreground">{t("securityFindings.scanning")}</p>
+                </div>
+              ) : findings.length === 0 ? (
                 <div className="flex items-center gap-4 border border-success/30 bg-success/5 p-4">
                   <Shield className="h-5 w-5 shrink-0 text-success" />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">{t("securityAlerts.noneTitle")}</p>
-                    <p className="text-xs text-muted-foreground">{t("securityAlerts.noneSubtitle")}</p>
+                    <p className="text-sm font-medium text-foreground">{t("securityFindings.empty")}</p>
+                    <p className="text-xs text-muted-foreground">{t("securityFindings.emptyDescription")}</p>
                   </div>
                 </div>
               ) : (
-                socAlerts.map((alert) => (
-                  <div key={alert.id} className="flex items-center gap-4 border border-warning/30 bg-warning/5 p-4">
-                    <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {alert.metrics?.alert || alert.metrics?.threat || alert.metrics?.warn || t("securityAlerts.eventDetected")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{t("securityAlerts.server")}: {alert.serverId || t("securityAlerts.unknown")}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(alert.timestamp).toLocaleTimeString()}
+                <>
+                  {/* Severity summary bar */}
+                  <div className="flex flex-wrap gap-2">
+                    {(['critical', 'high', 'medium', 'low', 'info'] as const).map((sev) => {
+                      const count = findingsSummary[sev] || 0
+                      if (count === 0) return null
+                      const colors: Record<string, string> = {
+                        critical: 'border-red-500/50 bg-red-500/10 text-red-600',
+                        high: 'border-orange-500/50 bg-orange-500/10 text-orange-600',
+                        medium: 'border-yellow-500/50 bg-yellow-500/10 text-yellow-600',
+                        low: 'border-blue-500/50 bg-blue-500/10 text-blue-600',
+                        info: 'border-gray-500/50 bg-gray-500/10 text-gray-600',
+                      }
+                      const Icon = sev === 'critical' ? ShieldAlert : sev === 'high' ? AlertTriangle : sev === 'medium' ? AlertCircle : sev === 'low' ? Bug : Shield
+                      return (
+                        <div key={sev} className={cn('flex items-center gap-1 border px-2 py-0.5 text-xs font-medium', colors[sev])}>
+                          <Icon className="h-3 w-3" />
+                          <span>{count}</span>
+                          <span className="opacity-70">{t(`securityFindings.severity.${sev}`)}</span>
+                        </div>
+                      )
+                    })}
+                    <span className="text-xs text-muted-foreground self-center ml-1">
+                      {t("securityFindings.totalOpen", { count: findings.length })}
                     </span>
                   </div>
-                ))
+
+                  {/* Findings list */}
+                  <div className="flex flex-col gap-2">
+                    {findings.slice(0, findingsExpanded ? undefined : 5).map((item: any) => {
+                      const sevColors: Record<string, string> = {
+                        critical: 'border-l-red-500 bg-red-500/5',
+                        high: 'border-l-orange-500 bg-orange-500/5',
+                        medium: 'border-l-yellow-500 bg-yellow-500/5',
+                        low: 'border-l-blue-500 bg-blue-500/5',
+                        info: 'border-l-gray-400 bg-gray-400/5',
+                      }
+                      const sevBorder = sevColors[item.severity] || sevColors.info
+                      const serverName = item.serverId
+                        ? servers.find((s: any) => (s.uuid || s.id) === item.serverId)?.name
+                        : null
+                      const targetLabel = serverName || (item.nodeId ? `Node #${item.nodeId}` : null)
+                      const targetHref = item.serverId
+                        ? `/dashboard/servers/${item.serverId}`
+                        : null
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={cn('border border-border pl-3 pr-3 py-2.5 text-sm transition-colors border-l-2', sevBorder)}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-foreground text-sm font-medium truncate">{item.title}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</p>
+                              <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <span className={cn(
+                                  'text-[10px] px-1.5 py-0.5 border font-medium',
+                                  item.severity === 'critical' ? 'border-red-500/30 text-red-600 bg-red-500/5' :
+                                  item.severity === 'high' ? 'border-orange-500/30 text-orange-600 bg-orange-500/5' :
+                                  item.severity === 'medium' ? 'border-yellow-500/30 text-yellow-600 bg-yellow-500/5' :
+                                  item.severity === 'low' ? 'border-blue-500/30 text-blue-600 bg-blue-500/5' :
+                                  'border-gray-500/30 text-gray-600 bg-gray-500/5'
+                                )}>
+                                  {t(`securityFindings.severity.${item.severity}`)}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5">
+                                  {t(`securityFindings.categories.${item.category}`) || item.category}
+                                </span>
+                                {/* Threat intel: IP reputation badge */}
+                                {item.metadata?.ip && (
+                                  <a
+                                    href={`https://www.abuseipdb.com/check/${item.metadata.ip}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className={cn(
+                                      'text-[10px] px-1.5 py-0.5 border font-medium hover:underline',
+                                      item.metadata?.reputation?.score >= 70
+                                        ? 'border-red-500/50 bg-red-500/10 text-red-600'
+                                        : item.metadata?.reputation?.score >= 30
+                                        ? 'border-orange-500/50 bg-orange-500/10 text-orange-600'
+                                        : 'border-green-500/50 bg-green-500/10 text-green-600'
+                                    )}
+                                  >
+                                    IP: {item.metadata.ip}
+                                    {item.metadata?.reputation?.score != null && (
+                                      <> ({item.metadata.reputation.score}/100)</>
+                                    )}
+                                  </a>
+                                )}
+                                {/* Threat intel: known malicious tags */}
+                                {item.metadata?.reputation?.tags?.length > 0 && item.metadata.reputation.tags[0] !== 'private_ip' && (
+                                  <span className="text-[10px] px-1.5 py-0.5 border border-red-500/30 bg-red-500/5 text-red-600 font-medium">
+                                    {item.metadata.reputation.tags[0]}
+                                  </span>
+                                )}
+                                {item.source === 'external' && item.sourceName && (
+                                  <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5">
+                                    {item.sourceName}
+                                  </span>
+                                )}
+                                {targetHref ? (
+                                  <Link href={targetHref} className="text-[10px] text-primary hover:underline">
+                                    {targetLabel}
+                                  </Link>
+                                ) : targetLabel ? (
+                                  <span className="text-[10px] text-muted-foreground">{targetLabel}</span>
+                                ) : null}
+                                <span className="text-[10px] text-muted-foreground">
+                                  {item.detectedAt ? formatTimeAgo(item.detectedAt) : ''}
+                                </span>
+                              </div>
+                            </div>
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                onClick={() => handleUpdateFinding(item.id, 'acknowledged')}
+                                title={t("securityFindings.actions.acknowledge")}
+                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                              >
+                                <Check className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                              </button>
+                              <button
+                                onClick={() => handleUpdateFinding(item.id, 'resolved')}
+                                title={t("securityFindings.actions.resolve")}
+                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                              >
+                                <CheckCircle className="h-3.5 w-3.5 text-muted-foreground hover:text-green-600" />
+                              </button>
+                              <button
+                                onClick={() => handleUpdateFinding(item.id, 'false_positive')}
+                                title={t("securityFindings.actions.falsePositive")}
+                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                              >
+                                <Flag className="h-3.5 w-3.5 text-muted-foreground hover:text-orange-600" />
+                              </button>
+                              <button
+                                onClick={() => handleEscalate(item.id)}
+                                title="Escalate to staff"
+                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                              >
+                                <Send className="h-3.5 w-3.5 text-muted-foreground hover:text-blue-600" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Show more / show less */}
+                  {findings.length > 5 && (
+                    <button
+                      onClick={() => setFindingsExpanded(!findingsExpanded)}
+                      className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground py-1 transition-colors"
+                    >
+                      {findingsExpanded ? (
+                        <><ChevronUp className="h-3.5 w-3.5" /> Show less</>
+                      ) : (
+                        <><ChevronDown className="h-3.5 w-3.5" /> Show all {findings.length} findings</>
+                      )}
+                    </button>
+                  )}
+                </>
               )}
+            </div>
+          </div>
+
+          {/* Sidebar: Resource Summary + Recent Activity */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <div className="border border-border bg-card p-5">
+              <SectionHeader title={t("resourceSummary.title")} />
+              <div className="mt-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Cpu className="h-4 w-4" /><span>{t("resourceSummary.avgCpu")}</span>
+                  </div>
+                  <span className="font-mono text-sm text-foreground">{avgCpu}%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MemoryStick className="h-4 w-4" /><span>{t("resourceSummary.totalRam")}</span>
+                  </div>
+                  <span className="font-mono text-sm text-foreground">{formatBytes(totalMemUsed)} / {formatBytes(totalMemLimit)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <HardDrive className="h-4 w-4" /><span>{t("resourceSummary.totalDisk")}</span>
+                  </div>
+                  <span className="font-mono text-sm text-foreground">{formatBytes(totalDiskUsed)} / {formatBytes(totalDiskLimit)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Zap className="h-4 w-4" /><span>{t("resourceSummary.serversOnline")}</span>
+                  </div>
+                  <span className="font-mono text-sm text-foreground">{onlineServers}/{totalServers}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="border border-border bg-card p-5">
+              <SectionHeader title={t("recentActivity.title")} />
+              <div className="mt-4 flex flex-col gap-3">
+                {recentActivity.length === 0 ? (
+                  <div className="border border-border/50 bg-secondary/10 p-4 text-center">
+                    <p className="text-xs text-muted-foreground">{t("recentActivity.empty")}</p>
+                  </div>
+                ) : recentActivity.map((item) => {
+                  const type = guessActivityType(item.action ?? "")
+                  const Icon = typeIcons[type] ?? Activity
+                  const iconColor = typeIconColors[type] ?? "text-primary"
+                  const label = formatActionLabel(item.action ?? "")
+                  const targetLabel = item.targetId
+                    ? servers.find((s) => (s.uuid || s.id) === item.targetId)?.name || item.targetId
+                    : null
+                  const targetHref = item.targetId && item.targetType === "server"
+                    ? `/dashboard/servers/${item.targetId}`
+                    : null
+                  return (
+                    <div key={item.id} className="flex items-start gap-3 border border-border/50 bg-secondary/10 p-3 text-sm">
+                      <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", iconColor)} />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground leading-snug truncate">{label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {targetHref ? <Link href={targetHref} className="font-medium text-primary hover:underline">{targetLabel}</Link>
+                           : targetLabel ? targetLabel
+                           : item.ipAddress ? `IP: ${item.ipAddress}` : null}
+                          {(targetLabel || item.ipAddress) ? " • " : ""}
+                          {item.timestamp ? formatTimeAgo(item.timestamp) : "Unknown time"}
+                        </p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </div>

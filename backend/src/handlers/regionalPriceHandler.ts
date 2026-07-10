@@ -42,11 +42,11 @@ export async function regionalPriceRoutes(app: any, prefix = '') {
       const { countryCode, price } = ctx.body as any;
       if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) {
         ctx.set.status = 400;
-        return { error: 'Invalid country code' };
+        return { error: ctx.t('regionalPrice.invalid_country_code') };
       }
       if (price == null || !Number.isFinite(Number(price)) || Number(price) < 0) {
         ctx.set.status = 400;
-        return { error: 'Invalid price' };
+        return { error: ctx.t('regionalPrice.invalid_price') };
       }
 
       const code = countryCode.toUpperCase();
@@ -83,7 +83,7 @@ export async function regionalPriceRoutes(app: any, prefix = '') {
       const rp = await repo.findOneBy({ planId, countryCode });
       if (!rp) {
         ctx.set.status = 404;
-        return { error: 'Regional price not found' };
+        return { error: ctx.t('regionalPrice.regional_price_not_found') };
       }
       await repo.remove(rp);
       return { success: true };

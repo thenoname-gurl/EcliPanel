@@ -1669,6 +1669,7 @@ export async function organisationRoutes(app: OrganisationApp, prefix = '') {
       return { success: true, url: org.avatarUrl };
     },
     {
+      body: t.Object({ file: t.File() }),
       beforeHandle: authenticate,
       response: {
         200: t.Object({ success: t.Boolean(), url: t.String() }),

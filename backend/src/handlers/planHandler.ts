@@ -346,7 +346,7 @@ export async function planRoutes(app: any, prefix = '') {
       const { percent, expiresAt, reason } = boostBody;
       if (percent == null || percent < 0 || percent > 1000) {
         ctx.set.status = 400;
-        return { error: 'Boost percent must be between 0 and 1000' };
+        return { error: ctx.t('plan.boost_percent_must_be_between_0_and_1000') };
       }
 
       plan.boostPercent = Number(percent);

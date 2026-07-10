@@ -2730,7 +2730,7 @@ export async function adminRoutes(app: any, prefix = '') {
 
       if (suspended === true && (user.role === '*' || user.role === 'rootAdmin')) {
         ctx.set.status = 403;
-        return { error: ctx.t('user.cannotSuspendAdmin', 'Cannot suspend admin accounts') };
+        return { error: ctx.t('user.cannotSuspendAdmin') };
       }
 
       const nodeRepo = AppDataSource.getRepository(Node);
@@ -3176,7 +3176,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const target = await userRepo.findOneBy({ id: userId });
       if (!target) {
         ctx.set.status = 404;
-        return { error: 'User not found' };
+        return { error: ctx.t('admin.user_not_found') };
       }
       target.settings = target.settings || {};
       (target.settings as any).kycRequestedByAdmin = true;
@@ -4600,7 +4600,7 @@ export async function adminRoutes(app: any, prefix = '') {
               } catch {}
             }
             ctx.set.status = 404;
-            return { error: 'Server not found on node after sync attempt' };
+            return { error: ctx.t('admin.server_not_found_on_node_after_sync_attempt') };
           }
           throw firstErr;
         }
@@ -5778,11 +5778,34 @@ export async function adminRoutes(app: any, prefix = '') {
     }
   );
 
+  async function isWingsNode(ctx: any): Promise<boolean> {
+    try {
+      const getHeader = (name: string) => {
+        const h = ctx.headers || {};
+        return (h[name.toLowerCase()] || h[name] || '') as string;
+      };
+      let raw = getHeader('authorization');
+      if (!raw) return false;
+
+      raw = raw.startsWith('Bearer ') ? raw.slice(7) : raw;
+      if (!raw) return false;
+
+      const tokenOnly = raw.includes('.') ? raw.split('.')[1] : raw;
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const node = await nodeRepo.findOne({ where: { token: tokenOnly } });
+      return !!node;
+    } catch { return false; }
+  }
+
   app.post(
     prefix + '/admin/antiabuse/heartbeat',
     async ctx => {
-      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-      if (access !== true) return access;
+      const isWings = await isWingsNode(ctx);
+      console.log('[antiabuse:heartbeat] isWingsNode:', isWings);
+      if (!isWings) {
+        const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+        if (access !== true) return access;
+      }
 
       const body = (ctx.body || {}) as any;
       const detectorName =
@@ -6240,8 +6263,11 @@ export async function adminRoutes(app: any, prefix = '') {
   app.post(
     prefix + '/admin/antiabuse/events',
     async ctx => {
-      const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
-      if (access !== true) return access;
+      const isWings = await isWingsNode(ctx);
+      if (!isWings) {
+        const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
+        if (access !== true) return access;
+      }
 
       const body = (ctx.body || {}) as any;
       const serverId = sanitizeAntiAbuseText(body.serverId, 120);
@@ -7587,7 +7613,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const adminErr = requireAdminPermission(ctx, 'logs:read');
       if (adminErr !== true) return adminErr;
       const uuid = String(ctx.params.uuid).trim();
-      if (!uuid) { ctx.set.status = 400; return { error: 'Server UUID is required' }; }
+      if (!uuid) { ctx.set.status = 400; return { error: ctx.t('admin.server_uuid_is_required') }; }
       const perNum = Math.min(500, Math.max(1, Number(ctx.query.per || '100')));
       const p = Math.max(1, Number(ctx.query.page || '1'));
       const logRepo = AppDataSource.getRepository(UserLog);
@@ -7819,7 +7845,7 @@ export async function adminRoutes(app: any, prefix = '') {
       } else if (action === 'suspend') {
         if (user.role === '*' || user.role === 'rootAdmin') {
           ctx.set.status = 403;
-          return { error: ctx.t('user.cannotSuspendAdmin', 'Cannot suspend admin accounts') };
+          return { error: ctx.t('user.cannotSuspendAdmin') };
         }
         const wasSuspended = user.suspended === true;
         user.suspended = true;
@@ -9374,7 +9400,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const { countryCode } = ctx.body as any;
       if (countryCode !== null && (typeof countryCode !== 'string' || countryCode.length !== 2)) {
         ctx.set.status = 400;
-        return { error: 'countryCode must be a 2-letter ISO code or null to clear' };
+        return { error: ctx.t('admin.countrycode_must_be_a_2_letter_iso_code_or_null_to_clear') };
       }
       user.countryOverride = countryCode ? countryCode.toUpperCase() : null;
       await userRepo.save(user);
@@ -9457,10 +9483,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/:id',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_project_id') }; }
 
       const project = await eloProjectRepo().findOneBy({ id });
-      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+      if (!project) { ctx.set.status = 404; return { error: ctx.t('admin.project_not_found') }; }
 
       const owner = await AppDataSource.getRepository(User).findOneBy({ id: project.userId });
       const cfg = project.serverId ? await AppDataSource.getRepository(ServerConfig).findOneBy({ uuid: project.serverId }) : null;
@@ -9501,10 +9527,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/:id',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_project_id') }; }
 
       const project = await eloProjectRepo().findOneBy({ id });
-      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+      if (!project) { ctx.set.status = 404; return { error: ctx.t('admin.project_not_found') }; }
 
       const body = ctx.body as Record<string, any>;
       if (body.eloScore !== undefined) project.eloScore = clampInt(body.eloScore, 100, 99999);
@@ -9532,10 +9558,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/:id/reset',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_project_id') }; }
 
       const project = await eloProjectRepo().findOneBy({ id });
-      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+      if (!project) { ctx.set.status = 404; return { error: ctx.t('admin.project_not_found') }; }
 
       project.eloScore = 1000;
       project.kFactor = 24;
@@ -9558,10 +9584,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/:id',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid project ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_project_id') }; }
 
       const project = await eloProjectRepo().findOneBy({ id });
-      if (!project) { ctx.set.status = 404; return { error: 'Project not found' }; }
+      if (!project) { ctx.set.status = 404; return { error: ctx.t('admin.project_not_found') }; }
 
       await eloDevlogRepo().delete({ projectId: id });
       await eloVoteRepo().delete({ projectAId: id });
@@ -9640,10 +9666,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/votes/:id',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid vote ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_vote_id') }; }
 
       const vote = await eloVoteRepo().findOneBy({ id });
-      if (!vote) { ctx.set.status = 404; return { error: 'Vote not found' }; }
+      if (!vote) { ctx.set.status = 404; return { error: ctx.t('admin.vote_not_found') }; }
 
       await eloVoteRepo().remove(vote);
       return { message: 'Vote deleted' };
@@ -9705,10 +9731,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/reports/:id',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid report ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_report_id') }; }
 
       const report = await eloReportRepo().findOneBy({ id });
-      if (!report) { ctx.set.status = 404; return { error: 'Report not found' }; }
+      if (!report) { ctx.set.status = 404; return { error: ctx.t('admin.report_not_found') }; }
 
       report.resolvedAt = new Date();
       report.resolvedById = ctx.user.id;
@@ -9771,10 +9797,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/voters/:id/reset-warnings',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid user ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_user_id') }; }
 
       const user = await AppDataSource.getRepository(User).findOneBy({ id });
-      if (!user) { ctx.set.status = 404; return { error: 'User not found' }; }
+      if (!user) { ctx.set.status = 404; return { error: ctx.t('admin.user_not_found') }; }
 
       user.voteWarnings = 0;
       await AppDataSource.getRepository(User).save(user);
@@ -9791,10 +9817,10 @@ export async function adminRoutes(app: any, prefix = '') {
     prefix + '/admin/elo/voters/:id/votes',
     async ctx => {
       const id = Number((ctx.params as any).id);
-      if (isNaN(id)) { ctx.set.status = 400; return { error: 'Invalid user ID' }; }
+      if (isNaN(id)) { ctx.set.status = 400; return { error: ctx.t('admin.invalid_user_id') }; }
 
       const user = await AppDataSource.getRepository(User).findOneBy({ id });
-      if (!user) { ctx.set.status = 404; return { error: 'User not found' }; }
+      if (!user) { ctx.set.status = 404; return { error: ctx.t('admin.user_not_found') }; }
 
       const today = new Date(); today.setHours(0, 0, 0, 0);
       const recentVotes = await eloVoteRepo().find({ where: { voterId: id, createdAt: MoreThanOrEqual(today) } });
