@@ -40,11 +40,11 @@ do_patch() {
         if patch -p2 -s --dry-run < "$p" 2>/dev/null; then
             patch -p2 -s < "$p"
             log "  Applied: $name"
-            ((applied++))
+            applied=$((applied + 1))
         else
             err "  FAILED: $name — patch doesn't apply cleanly"
             warn "  Resolve manually in output/, then run: ./manage.sh regen"
-            ((failed++))
+            failed=$((failed + 1))
             break
         fi
     done
