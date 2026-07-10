@@ -1,12 +1,13 @@
 "use client"
 
 import { PanelHeader } from "@/components/panel/header"
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { StatCard, SectionHeader, UsageBar } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import {
@@ -20,6 +21,11 @@ import {
   HardDrive,
   MemoryStick,
   AlertCircle,
+  LogIn,
+  LogOut,
+  CreditCard,
+  UserPlus,
+  FileText,
 } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -29,58 +35,83 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
-function formatSocActivity(item: any, servers: any[]) {
-  const metric = item?.metrics || {}
-  const server = servers.find((s) => (s.uuid || s.id) === item?.serverId)
-  const serverName = server?.name || server?.label || item?.serverId
-  const serverHref = server ? `/dashboard/servers/${server.uuid || server.id}` : undefined
-
-  const title =
-    item?.action ||
-    metric.alert ||
-    metric.threat ||
-    metric.warn ||
-    (item?.serverId ? `Server ${serverName} metrics` : "SOC event")
-
-  const details: ReactNode[] = []
-
-  if (item?.target) details.push(item.target)
-  if (item?.serverId) {
-    const serverLabel = server ? `Server ${serverName}` : `Server ${item.serverId}`
-    if (serverHref) {
-      details.push(
-        <a
-          key="server-link"
-          href={serverHref}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-primary hover:underline"
-        >
-          {serverLabel}
-        </a>
-      )
-    } else {
-      details.push(serverLabel)
-    }
-  }
-
-  if (metric.cpu_absolute != null) details.push(`CPU ${Math.round(Number(metric.cpu_absolute))}%`)
-  if (metric.memory_bytes != null) details.push(`RAM ${formatBytes(Number(metric.memory_bytes))}`)
-  if (metric.disk_bytes != null) details.push(`Disk ${formatBytes(Number(metric.disk_bytes))}`)
-
-  const network = metric.network || {}
-  if (network.rx_bytes != null || network.tx_bytes != null) {
-    const rx = network.rx_bytes != null ? formatBytes(Number(network.rx_bytes)) : "0 B"
-    const tx = network.tx_bytes != null ? formatBytes(Number(network.tx_bytes)) : "0 B"
-    details.push(`Net ${rx} / ${tx}`)
-  }
-
-  return {
-    title,
-    details,
-    time: item?.timestamp ? new Date(item.timestamp).toLocaleTimeString() : "Unknown time",
-  }
+function guessActivityType(action: string): string {
+  const a = (action || "").toLowerCase()
+  if (/logout|signout/.test(a)) return "logout"
+  if (/login|signin/.test(a)) return "login"
+  if (/register|signup/.test(a)) return "register"
+  if (/passkey|2fa|mfa|otp|password|token/.test(a)) return "security"
+  if (/server|start|stop|restart|power|console|file|reinstall|subuser|suspend|unsuspend/.test(a)) return "server"
+  if (/billing|payment|invoice|order|subscription|credit/.test(a)) return "billing"
+  if (/ticket|support/.test(a)) return "support"
+  return "auth"
 }
+
+const actionLabels: Record<string, string> = {
+  "server:power:start": "Started server",
+  "server:power:stop": "Stopped server",
+  "server:power:restart": "Restarted server",
+  "server:power:kill": "Killed server",
+  "server:console:command": "Ran console command",
+  "wings:server:console.command": "Ran console command",
+  "server:file:write": "Modified file",
+  "server:file:delete": "Deleted files",
+  "server:reinstall": "Reinstalled server",
+  "server:subuser:add": "Added subuser",
+  "server:subuser:accept_invite": "Accepted subuser invite",
+  "server:subuser:remove": "Removed subuser",
+  "server:subuser:reject_invite": "Rejected subuser invite",
+  "update-profile": "Updated profile",
+  "server:suspend": "Suspended server",
+  "server:unsuspend": "Unsuspended server",
+}
+
+function formatActionLabel(action: string): string {
+  const key = (action || "").toLowerCase()
+  if (actionLabels[key]) return actionLabels[key]
+  return (action || "Unknown action")
+    .replace(/[:_.-]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+}
+
+function formatTimeAgo(timestamp: string): string {
+  const diffMs = Date.now() - new Date(timestamp).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  const hours = Math.floor(diffMs / 3600000)
+  const days = Math.floor(diffMs / 86400000)
+  if (mins < 1) return "Just now"
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7) return `${days}d ago`
+  return new Date(timestamp).toLocaleDateString()
+}
+
+const typeIcons: Record<string, typeof Server> = {
+  server: Server,
+  auth: LogIn,
+  login: LogIn,
+  logout: LogOut,
+  register: UserPlus,
+  billing: CreditCard,
+  security: Shield,
+  support: FileText,
+}
+
+const typeIconColors: Record<string, string> = {
+  server: "text-blue-600",
+  auth: "text-primary",
+  login: "text-green-600",
+  logout: "text-orange-600",
+  register: "text-emerald-600",
+  billing: "text-yellow-600",
+  security: "text-red-600",
+  support: "text-purple-600",
+}
+
+// -------------------------------------------------
 
 export default function SOCDashboard() {
   const t = useTranslations("dashboardPage")
@@ -94,12 +125,26 @@ export default function SOCDashboard() {
   const [loading, setLoading] = useState(true)
   const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
 
+  // Load all servers (paginated — same pattern as /dashboard/servers)
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.servers)
-      .then((data) => {
-        const list = Array.isArray(data) ? data : []
-        setServers(list)
-        list.forEach((s: any) => {
+    let cancelled = false
+    async function loadAllServers() {
+      try {
+        let allServers: any[] = []
+        let page = 1
+        const perPage = 200
+        while (true) {
+          const data = await apiFetch(`${API_ENDPOINTS.servers}?page=${page}&per_page=${perPage}`)
+          const list = Array.isArray(data) ? data : []
+          if (list.length === 0) break
+          allServers = allServers.concat(list)
+          const total = (data as any)?.total
+          if (total && allServers.length >= total) break
+          page++
+        }
+        if (cancelled) return
+        setServers(allServers)
+        allServers.forEach((s: any) => {
           const sid = s.uuid || s.id
           if (sid && !s.resources) {
             apiFetch(API_ENDPOINTS.serverStats.replace(":id", sid))
@@ -115,24 +160,31 @@ export default function SOCDashboard() {
               .catch(() => {})
           }
         })
-      })
-      .catch((err) => console.error("failed to load servers", err))
-      .finally(() => setLoading(false))
+      } catch (err) {
+        console.error("failed to load servers", err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    loadAllServers()
+    return () => { cancelled = true }
   }, [])
 
+  // Load user activity logs for Recent Activity & Security Alerts
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.socOverview)
+    if (!user) return
+    apiFetch(`${API_ENDPOINTS.userDetail.replace(":id", user.id.toString())}/logs?limit=20`)
       .then((data) => {
         const list = Array.isArray(data) ? data : []
         setRecentActivity(list.slice(0, 5))
-        const alerts = list.filter((e: any) => e.metrics?.alert || e.metrics?.threat || e.metrics?.warn)
-        setSocAlerts(alerts.slice(0, 5))
+        const securityEvents = list.filter((e: any) => guessActivityType(e.action ?? "") === "security")
+        setSocAlerts(securityEvents.slice(0, 5))
       })
       .catch(() => {
         setRecentActivity([])
         setSocAlerts([])
       })
-  }, [])
+  }, [user])
 
   useEffect(() => {
     apiFetch(API_ENDPOINTS.nodesMyHealth)
@@ -350,7 +402,6 @@ export default function SOCDashboard() {
                 </div>
               </div>
 
-              {/* Recent Activity */}
               <div className="border border-border bg-card p-5">
                 <SectionHeader title={t("recentActivity.title")} />
                 <div className="mt-4 flex flex-col gap-3">
@@ -360,27 +411,38 @@ export default function SOCDashboard() {
                     </div>
                   ) : (
                     recentActivity.map((item) => {
-                      const { title, details, time } = formatSocActivity(item, servers)
+                      const type = guessActivityType(item.action ?? "")
+                      const Icon = typeIcons[type] ?? Activity
+                      const iconColor = typeIconColors[type] ?? "text-primary"
+                      const label = formatActionLabel(item.action ?? "")
+                      const targetLabel = item.targetId
+                        ? servers.find((s) => (s.uuid || s.id) === item.targetId)?.name || item.targetId
+                        : null
+                      const targetHref = item.targetId && item.targetType === "server"
+                        ? `/dashboard/servers/${item.targetId}`
+                        : null
+
                       return (
                         <div
-                          key={item.id || item.timestamp}
+                          key={item.id}
                           className="flex items-start gap-3 border border-border/50 bg-secondary/10 p-3 text-sm"
                         >
-                          <div className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                          <div className="flex-1">
-                            <p className="text-foreground leading-snug">{title}</p>
+                          <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", iconColor)} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-foreground leading-snug truncate">{label}</p>
                             <p className="text-xs text-muted-foreground">
-                              {details.length > 0 && (
-                                <>
-                                  {details.map((detail, idx) => (
-                                    <span key={idx}>
-                                      {detail}
-                                      {idx < details.length - 1 ? " • " : ""}
-                                    </span>
-                                  ))}
-                                  {' • '}
-                                </>
-                              )}{time}
+                              {targetHref ? (
+                                <Link href={targetHref} className="font-medium text-primary hover:underline">
+                                  {targetLabel}
+                                </Link>
+                              ) : targetLabel ? (
+                                targetLabel
+                              ) : item.ipAddress ? (
+                                `IP: ${item.ipAddress}`
+                              ) : null}
+                              {targetLabel && item.ipAddress ? ` • IP: ${item.ipAddress}` : ""}
+                              {(targetLabel || item.ipAddress) ? " • " : ""}
+                              {item.timestamp ? formatTimeAgo(item.timestamp) : "Unknown time"}
                             </p>
                           </div>
                         </div>
@@ -392,7 +454,6 @@ export default function SOCDashboard() {
             </div>
           </div>
 
-          {/* Security Alerts */}
           <div className="border border-border bg-card p-5">
             <SectionHeader title={t("securityAlerts.title")} description={t("securityAlerts.description")} />
             <div className="mt-4 flex flex-col gap-3">
@@ -405,20 +466,35 @@ export default function SOCDashboard() {
                   </div>
                 </div>
               ) : (
-                socAlerts.map((alert) => (
-                  <div key={alert.id} className="flex items-center gap-4 border border-warning/30 bg-warning/5 p-4">
-                    <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">
-                        {alert.metrics?.alert || alert.metrics?.threat || alert.metrics?.warn || t("securityAlerts.eventDetected")}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{t("securityAlerts.server")}: {alert.serverId || t("securityAlerts.unknown")}</p>
+                socAlerts.map((item) => {
+                  const label = formatActionLabel(item.action ?? "")
+                  const targetLabel = item.targetId
+                    ? servers.find((s) => (s.uuid || s.id) === item.targetId)?.name || item.targetId
+                    : null
+
+                  return (
+                    <div key={item.id} className="flex items-center gap-4 border border-warning/30 bg-warning/5 p-4">
+                      <AlertTriangle className="h-5 w-5 shrink-0 text-warning" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {targetLabel && (
+                            <span>{t("securityAlerts.server")}: {targetLabel}</span>
+                          )}
+                          {!targetLabel && item.ipAddress && (
+                            <span>IP: {item.ipAddress}</span>
+                          )}
+                          {!targetLabel && !item.ipAddress && (
+                            <span>{t("securityAlerts.eventDetected")}</span>
+                          )}
+                        </p>
+                      </div>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {item.timestamp ? formatTimeAgo(item.timestamp) : ""}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(alert.timestamp).toLocaleTimeString()}
-                    </span>
-                  </div>
-                ))
+                  )
+                })
               )}
             </div>
           </div>
