@@ -5785,16 +5785,23 @@ export async function adminRoutes(app: any, prefix = '') {
         return (h[name.toLowerCase()] || h[name] || '') as string;
       };
       let raw = getHeader('authorization');
+      console.log('[isWingsNode] raw auth header:', raw ? raw.slice(0, 60) + '...' : 'MISSING');
       if (!raw) return false;
 
       raw = raw.startsWith('Bearer ') ? raw.slice(7) : raw;
       if (!raw) return false;
 
       const tokenOnly = raw.includes('.') ? raw.split('.')[1] : raw;
+      console.log('[isWingsNode] looking up node with token:', tokenOnly.slice(0, 12) + '...');
+
       const nodeRepo = AppDataSource.getRepository(Node);
+      const allNodes = await nodeRepo.find({ select: ['id', 'name', 'token'], take: 5 });
+      console.log('[isWingsNode] nodes in DB:', allNodes.map(n => ({ id: n.id, name: n.name, tokenLen: n.token?.length })));
+
       const node = await nodeRepo.findOne({ where: { token: tokenOnly } });
+      console.log('[isWingsNode] match:', !!node, node ? node.name : 'none');
       return !!node;
-    } catch { return false; }
+    } catch (e) { console.error('[isWingsNode] error:', e); return false; }
   }
 
   app.post(

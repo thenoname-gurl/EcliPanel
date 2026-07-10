@@ -8,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 import {
@@ -44,6 +45,83 @@ function formatBytes(bytes: number) {
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
 }
 
+function guessActivityType(action: string): string {
+  const a = (action || "").toLowerCase()
+  if (/logout|signout/.test(a)) return "logout"
+  if (/login|signin/.test(a)) return "login"
+  if (/register|signup/.test(a)) return "register"
+  if (/passkey|2fa|mfa|otp|password|token/.test(a)) return "security"
+  if (/server|start|stop|restart|power|console|file|reinstall|subuser|suspend|unsuspend/.test(a)) return "server"
+  if (/billing|payment|invoice|order|subscription|credit/.test(a)) return "billing"
+  if (/ticket|support/.test(a)) return "support"
+  return "auth"
+}
+
+const actionLabels: Record<string, string> = {
+  "server:power:start": "Started server",
+  "server:power:stop": "Stopped server",
+  "server:power:restart": "Restarted server",
+  "server:power:kill": "Killed server",
+  "server:console:command": "Ran console command",
+  "wings:server:console.command": "Ran console command",
+  "server:file:write": "Modified file",
+  "server:file:delete": "Deleted files",
+  "server:reinstall": "Reinstalled server",
+  "server:subuser:add": "Added subuser",
+  "server:subuser:accept_invite": "Accepted subuser invite",
+  "server:subuser:remove": "Removed subuser",
+  "server:subuser:reject_invite": "Rejected subuser invite",
+  "update-profile": "Updated profile",
+  "server:suspend": "Suspended server",
+  "server:unsuspend": "Unsuspended server",
+}
+
+function formatActionLabel(action: string): string {
+  const key = (action || "").toLowerCase()
+  if (actionLabels[key]) return actionLabels[key]
+  return (action || "Unknown action")
+    .replace(/[:_.-]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ")
+}
+
+function formatTimeAgo(timestamp: string): string {
+  const diffMs = Date.now() - new Date(timestamp).getTime()
+  const mins = Math.floor(diffMs / 60000)
+  const hours = Math.floor(diffMs / 3600000)
+  const days = Math.floor(diffMs / 86400000)
+  if (mins < 1) return "Just now"
+  if (mins < 60) return `${mins}m ago`
+  if (hours < 24) return `${hours}h ago`
+  if (days < 7) return `${days}d ago`
+  return new Date(timestamp).toLocaleDateString()
+}
+
+const typeIcons: Record<string, typeof Server> = {
+  server: Server,
+  auth: LogIn,
+  login: LogIn,
+  logout: LogOut,
+  register: UserPlus,
+  billing: CreditCard,
+  security: Shield,
+  support: FileText,
+}
+
+const typeIconColors: Record<string, string> = {
+  server: "text-blue-600",
+  auth: "text-primary",
+  login: "text-green-600",
+  logout: "text-orange-600",
+  register: "text-emerald-600",
+  billing: "text-yellow-600",
+  security: "text-red-600",
+  support: "text-purple-600",
+}
+
+// -------------------------------------------------
 function guessActivityType(action: string): string {
   const a = (action || "").toLowerCase()
   if (/logout|signout/.test(a)) return "logout"
@@ -158,6 +236,24 @@ export default function SOCDashboard() {
         if (cancelled) return
         setServers(allServers)
         allServers.forEach((s: any) => {
+    let cancelled = false
+    async function loadAllServers() {
+      try {
+        let allServers: any[] = []
+        let page = 1
+        const perPage = 200
+        while (true) {
+          const data = await apiFetch(`${API_ENDPOINTS.servers}?page=${page}&per_page=${perPage}`)
+          const list = Array.isArray(data) ? data : []
+          if (list.length === 0) break
+          allServers = allServers.concat(list)
+          const total = (data as any)?.total
+          if (total && allServers.length >= total) break
+          page++
+        }
+        if (cancelled) return
+        setServers(allServers)
+        allServers.forEach((s: any) => {
           const sid = s.uuid || s.id
           if (sid && !s.resources) {
             apiFetch(API_ENDPOINTS.serverStats.replace(":id", sid))
@@ -181,10 +277,20 @@ export default function SOCDashboard() {
     }
     loadAllServers()
     return () => { cancelled = true }
+      } catch (err) {
+        console.error("failed to load servers", err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    loadAllServers()
+    return () => { cancelled = true }
   }, [])
 
   // Load user activity logs for Recent Activity
   useEffect(() => {
+    if (!user) return
+    apiFetch(`${API_ENDPOINTS.userDetail.replace(":id", user.id.toString())}/logs?limit=20`)
     if (!user) return
     apiFetch(`${API_ENDPOINTS.userDetail.replace(":id", user.id.toString())}/logs?limit=20`)
       .then((data) => {
@@ -194,6 +300,7 @@ export default function SOCDashboard() {
       .catch(() => {
         setRecentActivity([])
       })
+  }, [user])
   }, [user])
 
   useEffect(() => {
