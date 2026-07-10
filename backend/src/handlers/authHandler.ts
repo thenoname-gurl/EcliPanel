@@ -1185,7 +1185,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       response: {
-        200: t.Unknown(),
+        200: t.Any(),
         400: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
       },
@@ -1375,7 +1375,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       response: {
-        200: t.Unknown(),
+        200: t.Any(),
         400: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
       },
@@ -1402,7 +1402,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       beforeHandle: authenticate,
-      response: { 200: t.Unknown(), 401: t.Object({ error: t.String() }) },
+      response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
       detail: {
         summary: 'Begin passkey registration',
         description: 'Starts the passkey registration process for the user.',
@@ -1438,9 +1438,9 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       beforeHandle: authenticate,
-      body: t.Unknown(),
+      body: t.Any(),
       response: {
-        200: t.Unknown(),
+        200: t.Any(),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
       },
@@ -1474,7 +1474,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       body: t.Object({ email: t.String({ format: 'email' }) }),
-      response: { 200: t.Unknown(), 400: t.Object({ error: t.String() }) },
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }) },
       detail: {
         summary: 'Start passkey authentication',
         description: 'Starts the passkey authentication process for the user.',
@@ -1541,9 +1541,9 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       }
     },
     {
-      body: t.Object({ email: t.String({ format: 'email' }), authenticationResponse: t.Unknown() }),
+      body: t.Object({ email: t.String({ format: 'email' }), authenticationResponse: t.Any() }),
       response: {
-        200: t.Unknown(),
+        200: t.Any(),
         400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
       },
@@ -1579,8 +1579,8 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
           t.Object({
             id: t.Number(),
             name: t.Optional(t.String()),
-            credentialID: t.Unknown(),
-            transports: t.Unknown(),
+            credentialID: t.Any(),
+            transports: t.Any(),
           })
         ),
         401: t.Object({ error: t.String() }),
@@ -1992,7 +1992,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       response: {
-        200: t.Unknown(),
+        200: t.Any(),
         400: t.Object({ error: t.String() }),
         500: t.Object({ error: t.String() }),
       },
@@ -2176,7 +2176,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       response: {
-        200: t.Unknown(),
+        200: t.Any(),
         400: t.Object({ error: t.String() }),
         500: t.Object({ error: t.String() }),
       },
@@ -2349,7 +2349,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     },
     {
       beforeHandle: authenticate,
-      response: { 200: t.Unknown(), 401: t.Object({ error: t.String() }) },
+      response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
       detail: {
         summary: 'Get current session info',
         description: 'Returns information about the current authenticated session.',

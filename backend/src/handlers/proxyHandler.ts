@@ -70,7 +70,7 @@ export function proxyRoutes(app: any, prefix: string) {
     const rawUrl = ctx.query.url;
     if (!rawUrl || typeof rawUrl !== 'string') {
       ctx.set.status = 400;
-      return { error: 'Missing url parameter' };
+      return { error: ctx.t('proxy.missing_url_parameter') };
     }
 
     let parsed: URL;
@@ -78,18 +78,18 @@ export function proxyRoutes(app: any, prefix: string) {
       parsed = new URL(rawUrl);
     } catch {
       ctx.set.status = 400;
-      return { error: 'Invalid URL' };
+      return { error: ctx.t('proxy.invalid_url') };
     }
 
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       ctx.set.status = 400;
-      return { error: 'Only HTTP/HTTPS URLs allowed' };
+      return { error: ctx.t('proxy.only_http_https_urls_allowed') };
     }
 
     const blocklist = new Set(['127.0.0.1', 'localhost', '::1', '0.0.0.0']);
     if (blocklist.has(parsed.hostname) || /^10\.|^172\.(1[6-9]|2\d|3[01])\.|^192\.168\.|^169\.254\./.test(parsed.hostname) || parsed.hostname.endsWith('.local')) {
       ctx.set.status = 403;
-      return { error: 'Internal/private host not allowed' };
+      return { error: ctx.t('proxy.internal_private_host_not_allowed') };
     }
 
     const panelHostnames = new Set<string>();
@@ -105,7 +105,7 @@ export function proxyRoutes(app: any, prefix: string) {
     } catch {}
     if (panelHostnames.has(parsed.hostname)) {
       ctx.set.status = 400;
-      return { error: 'Cannot proxy panel URLs' };
+      return { error: ctx.t('proxy.cannot_proxy_panel_urls') };
     }
 
     let remoteRes: Response;
@@ -120,7 +120,7 @@ export function proxyRoutes(app: any, prefix: string) {
       });
     } catch {
       ctx.set.status = 502;
-      return { error: 'Failed to fetch image' };
+      return { error: ctx.t('proxy.failed_to_fetch_image') };
     }
 
     if (!remoteRes.ok) {
@@ -131,7 +131,7 @@ export function proxyRoutes(app: any, prefix: string) {
     const contentType = remoteRes.headers.get('content-type') || 'application/octet-stream';
     if (!contentType.startsWith('image/')) {
       ctx.set.status = 400;
-      return { error: 'URL does not point to an image' };
+      return { error: ctx.t('proxy.url_does_not_point_to_an_image') };
     }
 
     const contentLength = remoteRes.headers.get('content-length');
@@ -139,7 +139,7 @@ export function proxyRoutes(app: any, prefix: string) {
 
     if (imgBytes.byteLength > 50 * 1024 * 1024) {
       ctx.set.status = 400;
-      return { error: 'Image too large (max 50MB)' };
+      return { error: ctx.t('proxy.image_too_large_max_50mb') };
     }
 
     const cacheControl = 'public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800';

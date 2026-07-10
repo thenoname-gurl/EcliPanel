@@ -1,3 +1,4 @@
+import { t } from 'elysia';
 import { AppDataSource } from '../config/typeorm';
 import { ChatChannel } from '../models/chatChannel.entity';
 import { ChatMessage } from '../models/chatMessage.entity';
@@ -188,7 +189,7 @@ export async function chatRoutes(app: any, prefix = '') {
   app.post(prefix + '/chat/channels', async (ctx: any) => {
     const userId = ctx.user.id;
     const { name, description, type } = await ctx.body;
-    if (!name || typeof name !== 'string' || name.trim().length === 0) { ctx.set.status = 400; return { error: 'Channel name is required' }; }
+    if (!name || typeof name !== 'string' || name.trim().length === 0) { ctx.set.status = 400; return { error: ctx.t('chat.channel_name_is_required') }; }
     const validTypes = ['community', 'public_anonymous'];
     const channelType = type && validTypes.includes(type as string) ? type as string : 'community';
     const slug = generateSlug(name as string);
@@ -201,7 +202,7 @@ export async function chatRoutes(app: any, prefix = '') {
   app.get(prefix + '/chat/channels/:id', async (ctx: any) => {
     const id = Number(ctx.params?.id);
     const channel = await channelRepo().findOneBy({ id });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
     const threadCount = await messageRepo().countBy({ channelId: id, parentId: IsNull() });
     const postCount = await messageRepo().countBy({ channelId: id });
     let isMember = false;
@@ -222,16 +223,16 @@ export async function chatRoutes(app: any, prefix = '') {
   app.put(prefix + '/chat/channels/:id', async (ctx: any) => {
     const id = Number(ctx.params?.id);
     const channel = await channelRepo().findOneBy({ id });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
-    if (!await canManageChannel(ctx, channel)) { ctx.set.status = 403; return { error: 'Not authorized to manage this channel' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
+    if (!await canManageChannel(ctx, channel)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized_to_manage_this_channel') }; }
 
     const { name, slug, description, isMature } = await ctx.body;
     if (name !== undefined && typeof name === 'string' && name.trim().length > 0) channel.name = (name as string).trim();
     if (slug !== undefined && typeof slug === 'string') {
       const s = (slug as string).toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-|-$/g, '').slice(0, 64);
-      if (s.length < 1) { ctx.set.status = 400; return { error: 'Slug cannot be empty' }; }
+      if (s.length < 1) { ctx.set.status = 400; return { error: ctx.t('chat.slug_cannot_be_empty') }; }
       const existing = await channelRepo().findOneBy({ slug: s, isArchived: false });
-      if (existing && existing.id !== id) { ctx.set.status = 400; return { error: 'Slug already in use' }; }
+      if (existing && existing.id !== id) { ctx.set.status = 400; return { error: ctx.t('chat.slug_already_in_use') }; }
       channel.slug = s;
     }
     if (description !== undefined) channel.description = typeof description === 'string' ? (description as string).trim() || null : null;
@@ -243,8 +244,8 @@ export async function chatRoutes(app: any, prefix = '') {
   app.delete(prefix + '/chat/channels/:id', async (ctx: any) => {
     const id = Number(ctx.params?.id);
     const channel = await channelRepo().findOneBy({ id });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
-    if (!await canManageChannel(ctx, channel)) { ctx.set.status = 403; return { error: 'Not authorized to manage this channel' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
+    if (!await canManageChannel(ctx, channel)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized_to_manage_this_channel') }; }
 
     channel.isArchived = true;
     await channelRepo().save(channel);
@@ -254,7 +255,7 @@ export async function chatRoutes(app: any, prefix = '') {
   app.get(prefix + '/chat/channels/:id/threads', async (ctx: any) => {
     const channelId = Number(ctx.params?.id);
     const channel = await channelRepo().findOneBy({ id: channelId });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
     const mod = isChatMod(ctx);
     const page = Math.max(1, Number(ctx.query?.page) || 1);
     const limit = Math.min(Math.max(Number(ctx.query?.limit) || 20, 1), 50);
@@ -275,8 +276,8 @@ export async function chatRoutes(app: any, prefix = '') {
     const threadId = Number(ctx.params?.threadId);
     const mod = isChatMod(ctx);
     const op = await messageRepo().findOneBy({ id: threadId, channelId, parentId: IsNull() });
-    if (!op) { ctx.set.status = 404; return { error: 'Thread not found' }; }
-    if (op.isHidden && !mod) { ctx.set.status = 404; return { error: 'Thread not found' }; }
+    if (!op) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
+    if (op.isHidden && !mod) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
     const replies = await messageRepo().find({ where: { channelId, parentId: threadId, ...(mod ? {} : { isHidden: false }) }, order: { createdAt: 'ASC' } });
     const channel = await channelRepo().findOneBy({ id: channelId });
     return { op: await enrichPost(ctx, op), replies: await Promise.all(replies.map(r => enrichPost(ctx, r))), channel: channel ? { id: channel.id, name: channel.name, slug: channel.slug, type: channel.type } : null };
@@ -286,16 +287,16 @@ export async function chatRoutes(app: any, prefix = '') {
     const channelId = Number(ctx.params?.id);
     const userId = ctx.user.id;
     const channel = await channelRepo().findOneBy({ id: channelId });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
     if (channel.type === 'community') {
       const membership = await memberRepo().findOneBy({ channelId, userId });
-      if (!membership) { ctx.set.status = 403; return { error: 'You are not a member' }; }
+      if (!membership) { ctx.set.status = 403; return { error: ctx.t('chat.you_are_not_a_member') }; }
     }
-    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: 'Please wait a moment before posting again' }; }
+    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: ctx.t('chat.please_wait_a_moment_before_posting_again') }; }
     const banErr = await checkBan(ctx);
     if (banErr) { ctx.set.status = 403; return { error: banErr }; }
     const { content, imageUrl } = await ctx.body;
-    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: 'Content is required' }; }
+    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: ctx.t('chat.content_is_required') }; }
     const trimmed = (content as string).trim().slice(0, 10000);
     const user = await AppDataSource.getRepository(User).findOneBy({ id: userId });
     const now = new Date();
@@ -315,14 +316,14 @@ export async function chatRoutes(app: any, prefix = '') {
   app.post(prefix + '/chat/channels/:id/threads/anonymous', async (ctx: any) => {
     const channelId = Number(ctx.params?.id);
     const channel = await channelRepo().findOneBy({ id: channelId });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
-    if (channel.type !== 'public_anonymous') { ctx.set.status = 400; return { error: 'Only public channels' }; }
-    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: 'Please wait a moment before posting again' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
+    if (channel.type !== 'public_anonymous') { ctx.set.status = 400; return { error: ctx.t('chat.only_public_channels') }; }
+    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: ctx.t('chat.please_wait_a_moment_before_posting_again') }; }
     const banErr = await checkBan(ctx);
     if (banErr) { ctx.set.status = 403; return { error: banErr }; }
 
     const { content, revealIdentity, imageUrl, anonymousName } = await ctx.body;
-    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: 'Content is required' }; }
+    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: ctx.t('chat.content_is_required') }; }
     const trimmed = (content as string).trim().slice(0, 10000);
     const now = new Date();
 
@@ -365,20 +366,20 @@ export async function chatRoutes(app: any, prefix = '') {
     const userId = ctx.user.id;
 
     const channel = await channelRepo().findOneBy({ id: channelId });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
     const op = await messageRepo().findOneBy({ id: threadId, channelId, parentId: IsNull() });
-    if (!op) { ctx.set.status = 404; return { error: 'Thread not found' }; }
-    if (op.isLocked) { ctx.set.status = 403; return { error: 'Thread is locked' }; }
+    if (!op) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
+    if (op.isLocked) { ctx.set.status = 403; return { error: ctx.t('chat.thread_is_locked') }; }
     if (channel.type === 'community') {
       const m = await memberRepo().findOneBy({ channelId, userId });
-      if (!m) { ctx.set.status = 403; return { error: 'Not a member' }; }
+      if (!m) { ctx.set.status = 403; return { error: ctx.t('chat.not_a_member') }; }
     }
-    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: 'Please wait a moment before posting again' }; }
+    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: ctx.t('chat.please_wait_a_moment_before_posting_again') }; }
     const banErr = await checkBan(ctx);
     if (banErr) { ctx.set.status = 403; return { error: banErr }; }
 
     const { content, imageUrl } = await ctx.body;
-    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: 'Content is required' }; }
+    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: ctx.t('chat.content_is_required') }; }
     const trimmed = (content as string).trim().slice(0, 10000);
     const user = await AppDataSource.getRepository(User).findOneBy({ id: userId });
     const now = new Date();
@@ -403,18 +404,18 @@ export async function chatRoutes(app: any, prefix = '') {
     const threadId = Number(ctx.params?.threadId);
 
     const channel = await channelRepo().findOneBy({ id: channelId });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
-    if (channel.type !== 'public_anonymous') { ctx.set.status = 400; return { error: 'Only public channels' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
+    if (channel.type !== 'public_anonymous') { ctx.set.status = 400; return { error: ctx.t('chat.only_public_channels') }; }
 
     const op = await messageRepo().findOneBy({ id: threadId, channelId, parentId: IsNull() });
-    if (!op) { ctx.set.status = 404; return { error: 'Thread not found' }; }
-    if (op.isLocked) { ctx.set.status = 403; return { error: 'Thread is locked' }; }
-    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: 'Please wait a moment before posting again' }; }
+    if (!op) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
+    if (op.isLocked) { ctx.set.status = 403; return { error: ctx.t('chat.thread_is_locked') }; }
+    if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: ctx.t('chat.please_wait_a_moment_before_posting_again') }; }
     const banErr = await checkBan(ctx);
     if (banErr) { ctx.set.status = 403; return { error: banErr }; }
 
     const { content, revealIdentity, imageUrl, anonymousName } = await ctx.body;
-    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: 'Content is required' }; }
+    if (!content || typeof content !== 'string' || content.trim().length === 0) { ctx.set.status = 400; return { error: ctx.t('chat.content_is_required') }; }
     const trimmed = (content as string).trim().slice(0, 10000);
 
     const user = ctx.user ? await AppDataSource.getRepository(User).findOneBy({ id: ctx.user.id }) : null;
@@ -457,8 +458,8 @@ export async function chatRoutes(app: any, prefix = '') {
   app.post(prefix + '/chat/channels/:id/join', async (ctx: any) => {
     const channelId = Number(ctx.params?.id); const userId = ctx.user.id;
     const channel = await channelRepo().findOneBy({ id: channelId });
-    if (!channel) { ctx.set.status = 404; return { error: 'Channel not found' }; }
-    if (channel.type !== 'community') { ctx.set.status = 400; return { error: 'Can only join community channels' }; }
+    if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
+    if (channel.type !== 'community') { ctx.set.status = 400; return { error: ctx.t('chat.can_only_join_community_channels') }; }
     const existing = await memberRepo().findOneBy({ channelId, userId });
     if (existing) return { success: true };
     const member = memberRepo().create({ channelId, userId, role: 'member' });
@@ -474,22 +475,22 @@ export async function chatRoutes(app: any, prefix = '') {
   }, { beforeHandle: [authenticate], detail: { tags: ['Chat'], summary: 'Leave a community channel' } });
 
   app.delete(prefix + '/chat/channels/:id/messages/:messageId', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const channelId = Number(ctx.params?.id);
     const messageId = Number(ctx.params?.messageId);
     const msg = await messageRepo().findOneBy({ id: messageId });
-    if (!msg) { ctx.set.status = 404; return { error: 'Message not found' }; }
+    if (!msg) { ctx.set.status = 404; return { error: ctx.t('chat.message_not_found') }; }
     await messageRepo().remove(msg);
     chatEmitter.emit('thread_update', { channelId, threadId: msg.parentId || msg.id });
     return { success: true };
   }, { beforeHandle: [optionalAuth], detail: { tags: ['Chat', 'Admin'], summary: 'Delete a message (moderator)' } });
 
   app.post(prefix + '/chat/channels/:id/messages/:messageId/hide', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const channelId = Number(ctx.params?.id);
     const messageId = Number(ctx.params?.messageId);
     const msg = await messageRepo().findOneBy({ id: messageId });
-    if (!msg) { ctx.set.status = 404; return { error: 'Message not found' }; }
+    if (!msg) { ctx.set.status = 404; return { error: ctx.t('chat.message_not_found') }; }
     msg.isHidden = true;
     msg.hiddenById = ctx.user.id;
     await messageRepo().save(msg);
@@ -498,11 +499,11 @@ export async function chatRoutes(app: any, prefix = '') {
   }, { beforeHandle: [optionalAuth], detail: { tags: ['Chat', 'Admin'], summary: 'Hide a message (moderator shadow ban)' } });
 
   app.post(prefix + '/chat/channels/:id/messages/:messageId/unhide', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const channelId = Number(ctx.params?.id);
     const messageId = Number(ctx.params?.messageId);
     const msg = await messageRepo().findOneBy({ id: messageId });
-    if (!msg) { ctx.set.status = 404; return { error: 'Message not found' }; }
+    if (!msg) { ctx.set.status = 404; return { error: ctx.t('chat.message_not_found') }; }
     msg.isHidden = false;
     msg.hiddenById = null;
     await messageRepo().save(msg);
@@ -519,7 +520,7 @@ export async function chatRoutes(app: any, prefix = '') {
   }, { beforeHandle: [authenticate], detail: { tags: ['Admin', 'Chat'], summary: 'Export IP logs for legal needs' } });
 
   app.get(prefix + '/chat/messages/lookup', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const { id, posterId: pid } = ctx.query as any;
     let msgs: any[] = [];
     if (id) {
@@ -528,9 +529,9 @@ export async function chatRoutes(app: any, prefix = '') {
     } else if (pid) {
       msgs = await messageRepo().find({ where: { posterId: pid, parentId: IsNull() }, order: { createdAt: 'DESC' }, take: 50 });
     } else {
-      ctx.set.status = 400; return { error: 'Provide ?id= or ?posterId=' };
+      ctx.set.status = 400; return { error: ctx.t('chat.provide_id_or_posterid') };
     }
-    if (msgs.length === 0) { ctx.set.status = 404; return { error: 'No messages found' }; }
+    if (msgs.length === 0) { ctx.set.status = 404; return { error: ctx.t('chat.no_messages_found') }; }
     const out: any[] = [];
     for (const m of msgs) {
       const log = await ipLogRepo().findOneBy({ messageId: m.id });
@@ -544,9 +545,9 @@ export async function chatRoutes(app: any, prefix = '') {
   }, { beforeHandle: [authenticate], detail: { tags: ['Chat', 'Admin'], summary: 'Lookup a message by id or posterId' } });
 
   app.post(prefix + '/chat/ip-bans', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const { ipHash, userId, reason, hours } = await ctx.body;
-    if (!ipHash && !userId) { ctx.set.status = 400; return { error: 'Provide ipHash or userId' }; }
+    if (!ipHash && !userId) { ctx.set.status = 400; return { error: ctx.t('chat.provide_iphash_or_userid') }; }
     let ban = banRepo().create({
       ipHash: ipHash || '',
       userId: userId || null,
@@ -559,27 +560,27 @@ export async function chatRoutes(app: any, prefix = '') {
   }, { beforeHandle: [authenticate], detail: { tags: ['Chat', 'Admin'], summary: 'Ban an IP or user' } });
 
   app.get(prefix + '/chat/ip-bans', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const bans = await banRepo().find({ order: { createdAt: 'DESC' }, take: 100 });
     return bans;
   }, { beforeHandle: [authenticate], detail: { tags: ['Chat', 'Admin'], summary: 'List active IP bans' } });
 
   app.post(prefix + '/chat/ip-bans/:id/unban', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const ban = await banRepo().findOneBy({ id: Number(ctx.params?.id) });
-    if (!ban) { ctx.set.status = 404; return { error: 'Ban not found' }; }
+    if (!ban) { ctx.set.status = 404; return { error: ctx.t('chat.ban_not_found') }; }
     await banRepo().remove(ban);
     return { success: true };
   }, { beforeHandle: [authenticate], detail: { tags: ['Chat', 'Admin'], summary: 'Unban an IP' } });
 
   app.post(prefix + '/chat/messages/mass-delete', async (ctx: any) => {
-    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: 'Not authorized' }; }
+    if (!isChatMod(ctx)) { ctx.set.status = 403; return { error: ctx.t('chat.not_authorized') }; }
     const { posterId: pid, ipHash, hours, userId } = await ctx.body;
     const since = new Date(Date.now() - (Number(hours || 24) * 3600000));
     const where: any = { createdAt: MoreThan(since) };
     if (pid) where.posterId = pid;
     if (userId) where.userId = userId;
-    if (!pid && !userId) { ctx.set.status = 400; return { error: 'Provide posterId or userId' }; }
+    if (!pid && !userId) { ctx.set.status = 400; return { error: ctx.t('chat.provide_posterid_or_userid') }; }
     if (ipHash) {
       const logs = await ipLogRepo().find({ where: { ipHash, createdAt: MoreThan(since) } });
       const msgIds = logs.map(l => l.messageId);
@@ -598,21 +599,21 @@ export async function chatRoutes(app: any, prefix = '') {
     const uploadFile = Array.isArray(file) ? file[0] : file;
     if (!uploadFile) {
       ctx.set.status = 400;
-      return { error: 'No file provided' };
+      return { error: ctx.t('chat.no_file_provided') };
     }
 
     const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp'];
     const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
     if (!allowed.includes(mime)) {
       ctx.set.status = 400;
-      return { error: 'Invalid image type. Allowed: PNG, JPEG, WebP, GIF, BMP' };
+      return { error: ctx.t('chat.invalid_image_type_allowed_png_jpeg_webp_gif_bmp') };
     }
 
     const maxSize = 10 * 1024 * 1024;
     const ab = await uploadFile.arrayBuffer();
     if (ab.byteLength > maxSize) {
       ctx.set.status = 400;
-      return { error: 'Image too large. Max 10MB' };
+      return { error: ctx.t('chat.image_too_large_max_10mb') };
     }
     const buffer = Buffer.from(ab);
 
@@ -633,6 +634,7 @@ export async function chatRoutes(app: any, prefix = '') {
 
     return { url: `${backendBase}/uploads/chat/${filename}` };
   }, {
+    body: t.Object({ file: t.File() }),
     beforeHandle: [authenticate],
     detail: { tags: ['Chat'], summary: 'Upload an image for chat posts' }
   });

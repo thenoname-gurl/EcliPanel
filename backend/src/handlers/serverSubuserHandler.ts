@@ -162,7 +162,7 @@ export async function serverSubuserRoutes(app: AppLike, prefix = '') {
 
       if (await requiresKyc(target.billingCountry) && !(await isKycVerified(target.id))) {
         ctx.set.status = 403;
-        return { error: 'This user must complete KYC identity verification before they can be added as a subuser.' };
+        return { error: ctx.t('serverSubuser.this_user_must_complete_kyc_identity_verification_before_the') };
       }
 
       const existing = await subuserRepo().findOneBy({ serverUuid: id, userId: target.id });

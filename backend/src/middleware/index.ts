@@ -4,10 +4,10 @@ import { OrganisationMember, ApiRequestLog, User } from '../repositories';
 
 export function setupMiddleware(app: {
   log?: unknown;
-  onRequest: (handler: (ctx: unknown) => Promise<void>) => void;
-  onAfterHandle: (handler: (ctx: unknown) => Promise<void>) => void;
+  request: (handler: (ctx: unknown) => Promise<void>) => void;
+  afterHandle: (handler: (ctx: unknown) => Promise<void>) => void;
 }): void {
-  app.onRequest(
+  app.request(
     async (ctx: {
       log?: { info?: (msg: string) => void };
       request?: { url?: string; method?: string };
@@ -94,7 +94,7 @@ export function setupMiddleware(app: {
     }
   );
 
-  app.onAfterHandle(
+  app.afterHandle(
     async (ctx: { user?: { id?: number; lastPanelActivityAt?: Date }; apiKey?: unknown }) => {
       try {
         const user = ctx.user;

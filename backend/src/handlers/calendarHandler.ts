@@ -63,7 +63,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const ev = isPublic
         ? await eventRepo().findOneBy({ id })
         : await eventRepo().findOneBy({ id, userId: ctx.user?.id });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
       if (isPublic) {
         let bookingCount = 0;
         try {
@@ -83,8 +83,8 @@ export async function calendarRoutes(app: any, prefix = '') {
     async (ctx: any) => {
       const id = Number(ctx.params?.id);
       const ev = await eventRepo().findOneBy({ id });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
-      if (ev.bookingType !== 'availability') { ctx.set.status = 400; return { error: 'Not an availability-type event' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
+      if (ev.bookingType !== 'availability') { ctx.set.status = 400; return { error: ctx.t('calendar.not_an_availability_type_event') }; }
 
       const slotDuration = ev.slotDuration || 60;
       const bufferMinutes = ev.bufferMinutes || 0;
@@ -172,8 +172,8 @@ export async function calendarRoutes(app: any, prefix = '') {
         bookingStartDate: body.bookingStartDate ? String(body.bookingStartDate) : undefined,
         bookingEndDate: body.bookingEndDate ? String(body.bookingEndDate) : undefined,
       });
-      if (!ev.title) { ctx.set.status = 400; return { error: 'Title is required' }; }
-      if (!ev.date) { ctx.set.status = 400; return { error: 'Date is required' }; }
+      if (!ev.title) { ctx.set.status = 400; return { error: ctx.t('calendar.title_is_required') }; }
+      if (!ev.date) { ctx.set.status = 400; return { error: ctx.t('calendar.date_is_required') }; }
       const saved = await eventRepo().save(ev);
       ctx.set.status = 201;
       createActivityLog({ userId, action: 'calendar:event:create', targetId: String(saved.id), targetType: 'calendar-event', metadata: { title: saved.title, date: saved.date }, ipAddress: ctx.ip }).catch(() => {});
@@ -192,7 +192,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       const body = ctx.body as any;
       const ev = await eventRepo().findOneBy({ id, userId });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
       if (body.title !== undefined) ev.title = String(body.title).trim();
       if (body.description !== undefined) ev.description = String(body.description).trim();
       if (body.date !== undefined) ev.date = String(body.date);
@@ -231,15 +231,15 @@ export async function calendarRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       const body = ctx.body as any;
       const ev = await eventRepo().findOneBy({ id });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
-      if (!ev.isAppointment) { ctx.set.status = 400; return { error: 'This event is not bookable' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
+      if (!ev.isAppointment) { ctx.set.status = 400; return { error: ctx.t('calendar.this_event_is_not_bookable') }; }
 
       const bookingRepo = () => AppDataSource.getRepository(CalendarBooking);
 
       const emailVal = String(body.email || body['email'] || '').trim();
       if (!emailVal || !emailVal.includes('@')) {
         ctx.set.status = 400;
-        return { error: 'A valid email is required to book' };
+        return { error: ctx.t('calendar.a_valid_email_is_required_to_book') };
       }
 
       let slotDate = ev.date;
@@ -250,7 +250,7 @@ export async function calendarRoutes(app: any, prefix = '') {
         slotTime = String(body.slotTime || '').trim();
         if (!slotDate || !slotTime) {
           ctx.set.status = 400;
-          return { error: 'Please select a date and time slot' };
+          return { error: ctx.t('calendar.please_select_a_date_and_time_slot') };
         }
         const availStartTime = ev.availableStartTime || '09:00';
         const availEndTime = ev.availableEndTime || '17:00';
@@ -269,7 +269,7 @@ export async function calendarRoutes(app: any, prefix = '') {
         }
         if (!valid) {
           ctx.set.status = 400;
-          return { error: 'Invalid time slot selected' };
+          return { error: ctx.t('calendar.invalid_time_slot_selected') };
         }
         const existingSlots = await bookingRepo().find({ where: { eventId: id } });
         const bookedOnSlot = existingSlots.filter((b: any) => {
@@ -278,12 +278,12 @@ export async function calendarRoutes(app: any, prefix = '') {
         }).length;
         if (ev.maxCapacity > 0 && bookedOnSlot >= ev.maxCapacity) {
           ctx.set.status = 400;
-          return { error: 'This time slot is already fully booked' };
+          return { error: ctx.t('calendar.this_time_slot_is_already_fully_booked') };
         }
         const sameEmail = existingSlots.find((b: any) => b.email === emailVal);
         if (sameEmail) {
           ctx.set.status = 400;
-          return { error: 'You already have a booking for this event' };
+          return { error: ctx.t('calendar.you_already_have_a_booking_for_this_event') };
         }
       } else {
         const existingBooking = await bookingRepo().findOneBy({ eventId: id, email: emailVal });
@@ -296,7 +296,7 @@ export async function calendarRoutes(app: any, prefix = '') {
           const eventEnd = new Date(`${ev.date}T${ev.endTime || '23:59'}`);
           if (eventEnd > now) {
             ctx.set.status = 400;
-            return { error: 'You already have a booking for this time slot. Please wait until the current session ends before rebooking.' };
+            return { error: ctx.t('calendar.you_already_have_a_booking_for_this_time_slot_please_wait_un') };
           }
         }
 
@@ -304,7 +304,7 @@ export async function calendarRoutes(app: any, prefix = '') {
           const existingCount = await bookingRepo().countBy({ eventId: id });
           if (existingCount >= ev.maxCapacity) {
             ctx.set.status = 400;
-            return { error: 'This event is fully booked' };
+            return { error: ctx.t('calendar.this_event_is_fully_booked') };
           }
         }
       }
@@ -406,7 +406,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const eventId = Number(ctx.params?.id);
       if (isPublic) {
         const ev = await eventRepo().findOneBy({ id: eventId });
-        if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
+        if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
         const bookings = await AppDataSource.getRepository(CalendarBooking).find({
           where: { eventId },
           order: { createdAt: 'ASC' },
@@ -415,7 +415,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       }
       const userId = ctx.user?.id;
       const ev = await eventRepo().findOneBy({ id: eventId, userId });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
       const bookings = await AppDataSource.getRepository(CalendarBooking).find({
         where: { eventId },
         order: { createdAt: 'ASC' },
@@ -433,10 +433,10 @@ export async function calendarRoutes(app: any, prefix = '') {
       const eventId = Number(ctx.params?.id);
       const bookingId = Number(ctx.params?.bookingId);
       const ev = await eventRepo().findOneBy({ id: eventId, userId: ctx.user?.id });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
       const bookingRepo = AppDataSource.getRepository(CalendarBooking);
       const booking = await bookingRepo.findOneBy({ id: bookingId, eventId });
-      if (!booking) { ctx.set.status = 404; return { error: 'Booking not found' }; }
+      if (!booking) { ctx.set.status = 404; return { error: ctx.t('calendar.booking_not_found') }; }
       await bookingRepo.remove(booking);
       createActivityLog({ userId: ctx.user?.id || ev.userId, action: 'calendar:booking:cancel', targetId: String(eventId), targetType: 'calendar-event', metadata: { bookingId: booking.id, email: booking.email }, ipAddress: ctx.ip }).catch(() => {});
       return { success: true };
@@ -453,7 +453,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const userId = ctx.user.id;
       const id = Number(ctx.params?.id);
       const ev = await eventRepo().findOneBy({ id, userId });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
       await eventRepo().remove(ev);
       createActivityLog({ userId, action: 'calendar:event:delete', targetId: String(id), targetType: 'calendar-event', metadata: { title: ev.title }, ipAddress: ctx.ip }).catch(() => {});
       return { success: true };
@@ -473,7 +473,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const eventId = Number(ctx.params?.id);
       const { enabled, remindMinutesBefore = 5 } = ctx.body || {};
       const ev = await eventRepo().findOneBy({ id: eventId, userId });
-      if (!ev) { ctx.set.status = 404; return { error: 'Event not found' }; }
+      if (!ev) { ctx.set.status = 404; return { error: ctx.t('calendar.event_not_found') }; }
 
       const reminderRepo = AppDataSource.getRepository(require('../models/eventReminder.entity').EventReminder);
       if (enabled === false) {
@@ -545,7 +545,7 @@ export async function calendarRoutes(app: any, prefix = '') {
         weekStart: body.weekStart ? String(body.weekStart) : undefined,
         category: String(body.category || 'general'),
       });
-      if (!td.title) { ctx.set.status = 400; return { error: 'Title is required' }; }
+      if (!td.title) { ctx.set.status = 400; return { error: ctx.t('calendar.title_is_required') }; }
       const saved = await todoRepo().save(td);
       ctx.set.status = 201;
       createActivityLog({ userId, action: 'calendar:todo:create', targetId: String(saved.id), targetType: 'calendar-todo', metadata: { title: saved.title }, ipAddress: ctx.ip }).catch(() => {});
@@ -564,7 +564,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       const body = ctx.body as any;
       const td = await todoRepo().findOneBy({ id, userId });
-      if (!td) { ctx.set.status = 404; return { error: 'Todo not found' }; }
+      if (!td) { ctx.set.status = 404; return { error: ctx.t('calendar.todo_not_found') }; }
       if (body.title !== undefined) td.title = String(body.title).trim();
       if (body.description !== undefined) td.description = String(body.description).trim();
       if (body.priority !== undefined) td.priority = String(body.priority);
@@ -590,7 +590,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const userId = ctx.user.id;
       const id = Number(ctx.params?.id);
       const td = await todoRepo().findOneBy({ id, userId });
-      if (!td) { ctx.set.status = 404; return { error: 'Todo not found' }; }
+      if (!td) { ctx.set.status = 404; return { error: ctx.t('calendar.todo_not_found') }; }
       await todoRepo().remove(td);
       createActivityLog({ userId, action: 'calendar:todo:delete', targetId: String(id), targetType: 'calendar-todo', metadata: { title: td.title }, ipAddress: ctx.ip }).catch(() => {});
       return { success: true };
@@ -607,7 +607,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const userId = ctx.user.id;
       const id = Number(ctx.params?.id);
       const td = await todoRepo().findOneBy({ id, userId });
-      if (!td) { ctx.set.status = 404; return { error: 'Todo not found' }; }
+      if (!td) { ctx.set.status = 404; return { error: ctx.t('calendar.todo_not_found') }; }
       td.completed = !td.completed;
       const saved = await todoRepo().save(td);
       createActivityLog({ userId, action: 'calendar:todo:toggle', targetId: String(id), targetType: 'calendar-todo', metadata: { title: saved.title, completed: saved.completed }, ipAddress: ctx.ip }).catch(() => {});
@@ -655,7 +655,7 @@ export async function calendarRoutes(app: any, prefix = '') {
         color: String(body.color || '#8b5cf6'),
         active: body.active !== false,
       });
-      if (!schedule.name) { ctx.set.status = 400; return { error: 'Name is required' }; }
+      if (!schedule.name) { ctx.set.status = 400; return { error: ctx.t('calendar.name_is_required') }; }
       const saved = await scheduleRepo().save(schedule);
       ctx.set.status = 201;
       createActivityLog({ userId, action: 'calendar:schedule:create', targetId: String(saved.id), targetType: 'calendar-schedule', metadata: { name: saved.name }, ipAddress: ctx.ip }).catch(() => {});
@@ -674,7 +674,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       const body = ctx.body as any;
       const s = await scheduleRepo().findOneBy({ id, userId });
-      if (!s) { ctx.set.status = 404; return { error: 'Schedule not found' }; }
+      if (!s) { ctx.set.status = 404; return { error: ctx.t('calendar.schedule_not_found') }; }
       if (body.name !== undefined) s.name = String(body.name).trim();
       if (body.description !== undefined) s.description = String(body.description).trim();
       if (body.slotDuration !== undefined) s.slotDuration = Number(body.slotDuration);
@@ -704,7 +704,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const userId = ctx.user.id;
       const id = Number(ctx.params?.id);
       const s = await scheduleRepo().findOneBy({ id, userId });
-      if (!s) { ctx.set.status = 404; return { error: 'Schedule not found' }; }
+      if (!s) { ctx.set.status = 404; return { error: ctx.t('calendar.schedule_not_found') }; }
       await scheduleRepo().remove(s);
       createActivityLog({ userId, action: 'calendar:schedule:delete', targetId: String(id), targetType: 'calendar-schedule', metadata: { name: s.name }, ipAddress: ctx.ip }).catch(() => {});
       return { success: true };
@@ -720,7 +720,7 @@ export async function calendarRoutes(app: any, prefix = '') {
     async (ctx: any) => {
       const slug = String(ctx.params?.slug || '');
       const s = await scheduleRepo().findOneBy({ slug, active: true });
-      if (!s) { ctx.set.status = 404; return { error: 'Schedule not found or inactive' }; }
+      if (!s) { ctx.set.status = 404; return { error: ctx.t('calendar.schedule_not_found_or_inactive') }; }
       return {
         id: s.id,
         name: s.name,
@@ -749,7 +749,7 @@ export async function calendarRoutes(app: any, prefix = '') {
     async (ctx: any) => {
       const slug = String(ctx.params?.slug || '');
       const s = await scheduleRepo().findOneBy({ slug, active: true });
-      if (!s) { ctx.set.status = 404; return { error: 'Schedule not found or inactive' }; }
+      if (!s) { ctx.set.status = 404; return { error: ctx.t('calendar.schedule_not_found_or_inactive') }; }
 
       const slotDuration = s.slotDuration || 60;
       const bufferMinutes = s.bufferMinutes || 0;
@@ -814,21 +814,21 @@ export async function calendarRoutes(app: any, prefix = '') {
       const slug = String(ctx.params?.slug || '');
       const body = ctx.body as any;
       const s = await scheduleRepo().findOneBy({ slug, active: true });
-      if (!s) { ctx.set.status = 404; return { error: 'Schedule not found or inactive' }; }
+      if (!s) { ctx.set.status = 404; return { error: ctx.t('calendar.schedule_not_found_or_inactive') }; }
 
       const bookingRepo = AppDataSource.getRepository(CalendarBooking);
 
       const emailVal = String(body.email || body['email'] || '').trim();
       if (!emailVal || !emailVal.includes('@')) {
         ctx.set.status = 400;
-        return { error: 'A valid email is required to book' };
+        return { error: ctx.t('calendar.a_valid_email_is_required_to_book') };
       }
 
       const slotDate = String(body.slotDate || '').trim();
       const slotTime = String(body.slotTime || '').trim();
       if (!slotDate || !slotTime) {
         ctx.set.status = 400;
-        return { error: 'Please select a date and time slot' };
+        return { error: ctx.t('calendar.please_select_a_date_and_time_slot') };
       }
 
       // Validate slot exists and is available
@@ -841,7 +841,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const days = s.availableDays && s.availableDays.length > 0 ? s.availableDays : [1,2,3,4,5];
       const slotDateObj = new Date(slotDate);
       if (!days.includes(slotDateObj.getDay())) {
-        ctx.set.status = 400; return { error: 'Selected date is not available' };
+        ctx.set.status = 400; return { error: ctx.t('calendar.selected_date_is_not_available') };
       }
       const dayMins = toMins(availStartTime);
       const dayEndMins = toMins(availEndTime);
@@ -854,7 +854,7 @@ export async function calendarRoutes(app: any, prefix = '') {
         ss += slotDuration + bufferMinutes;
       }
       if (!valid) {
-        ctx.set.status = 400; return { error: 'Invalid time slot selected' };
+        ctx.set.status = 400; return { error: ctx.t('calendar.invalid_time_slot_selected') };
       }
 
       const existingBookings = await bookingRepo.find({ where: { scheduleId: s.id } });
@@ -863,11 +863,11 @@ export async function calendarRoutes(app: any, prefix = '') {
         return bd.slotDate === slotDate && bd.slotTime === slotTime;
       }).length;
       if (s.maxCapacity > 0 && bookedOnSlot >= s.maxCapacity) {
-        ctx.set.status = 400; return { error: 'This time slot is already fully booked' };
+        ctx.set.status = 400; return { error: ctx.t('calendar.this_time_slot_is_already_fully_booked') };
       }
       const sameEmail = existingBookings.find((b: any) => b.email === emailVal);
       if (sameEmail) {
-        ctx.set.status = 400; return { error: 'You already have a booking for this schedule' };
+        ctx.set.status = 400; return { error: ctx.t('calendar.you_already_have_a_booking_for_this_schedule') };
       }
 
       const fields = s.bookingFields && s.bookingFields.length > 0 ? s.bookingFields : [
@@ -890,7 +890,7 @@ export async function calendarRoutes(app: any, prefix = '') {
       const todayLocal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       if (slotDate < todayLocal || (slotDate === todayLocal && toMins(slotTime) <= now.getHours() * 60 + now.getMinutes())) {
         ctx.set.status = 400;
-        return { error: 'This time slot has already passed' };
+        return { error: ctx.t('calendar.this_time_slot_has_already_passed') };
       }
 
       const booking = bookingRepo.create({
@@ -976,8 +976,8 @@ export async function calendarRoutes(app: any, prefix = '') {
       const rawYear = (ctx.query?.year as string) || String(new Date().getFullYear());
       const country = rawCountry.toUpperCase();
 
-      if (!HOLIDAY_COUNTRY_RE.test(country)) return { error: 'Invalid country code' };
-      if (!HOLIDAY_YEAR_RE.test(rawYear)) return { error: 'Invalid year' };
+      if (!HOLIDAY_COUNTRY_RE.test(country)) return { error: ctx.t('calendar.invalid_country_code') };
+      if (!HOLIDAY_YEAR_RE.test(rawYear)) return { error: ctx.t('calendar.invalid_year') };
 
       const cacheKey = `${country}/${rawYear}`;
       const cached = holidayCache.get(cacheKey);

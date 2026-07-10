@@ -4,7 +4,7 @@ import { getMessages } from './loader';
 import { resolveLocale } from './resolve';
 import { createT, type TFunction } from './t';
 
-export const i18n = new Elysia({ name: 'i18n' }).derive({ as: 'global' }, async ctx => {
+export const i18n = new Elysia({ name: 'i18n' }).derive('global', async ctx => {
   let cached: { locale: Locale; t: TFunction } | null = null;
   let usedUser = false;
 

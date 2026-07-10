@@ -42,9 +42,25 @@ import { slackRoutes } from '../handlers/slackHandler';
 import { proxyRoutes } from '../handlers/proxyHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
-
+// Elysia 2 is amazing but hell they did a lot of changes :sob:
 export function registerRoutes(app: any) {
-  app.onRequest(async (ctx: any) => {
+  // Elysia 2 swapped argument order: (path, handler, opts) > (path, opts, handler)
+  // Shim the HTTP methods to accept both orders for backward compat cuz I don't want to rewrite all the routes
+  const compatMethods = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'all'];
+  for (const m of compatMethods) {
+    const orig = app[m];
+    app[m] = function (path: string, ...args: any[]) {
+      // Old: (path, handler, opts?) > first arg after path is a function
+      // New: (path, opts?, handler) > first arg after path is an object
+      if (args.length >= 1 && typeof args[0] === 'function') {
+        const [handler, ...rest] = args;
+        return orig.call(this, path, ...rest, handler);
+      }
+      return orig.call(this, path, ...args);
+    };
+  }
+
+  app.request(async (ctx: any) => {
     const requestUrl = String(ctx.request.url || '');
     let path = requestUrl;
     try {
@@ -82,7 +98,7 @@ export function registerRoutes(app: any) {
         const enabled = await isFeatureEnabled(check.feature);
         if (!enabled) {
           ctx.set.status = 503;
-          return { error: `Feature '${check.feature}' is disabled` };
+          return { error: ctx.t('common.featureDisabled', `Feature '${check.feature}' is disabled`) };
         }
       }
     }
@@ -105,6 +121,13 @@ export function registerRoutes(app: any) {
   });
 
   app.get('/favicon.ico', () => new Response(null, { status: 204 }));
+
+  // Bro, they like fr joking, elysia 2 openapi plugin moved /api/openapi.json to /openapi/json
+  app.get('/api/openapi.json', async () => {
+    const res = await app.handle(new Request('http://localhost/openapi/json'));
+    return new Response(res.body, { headers: { 'Content-Type': 'application/json' } });
+  });
+
   userRoutes(app, '/api');
   sessionRoutes(app, '/api');
   authRoutes(app, '/api');

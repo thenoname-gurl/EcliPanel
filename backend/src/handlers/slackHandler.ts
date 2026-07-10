@@ -88,7 +88,7 @@ export async function slackRoutes(app: any, prefix = '') {
     prefix + '/slack/github/callback',
     async (ctx: any) => {
       const { code, state } = ctx.query as { code?: string; state?: string };
-      if (!code || !state) { ctx.set.status = 400; return { error: 'Missing code or state' }; }
+      if (!code || !state) { ctx.set.status = 400; return { error: ctx.t('slack.missing_code_or_state') }; }
       const result = await handleSlackGithubCallback(code, state);
       if (!result.success) { ctx.set.status = 400; return { error: result.error }; }
       return result;
@@ -185,7 +185,7 @@ export async function slackRoutes(app: any, prefix = '') {
       const slackUserId = ctx.params?.slackUserId;
       if (!slackUserId) {
         ctx.set.status = 400;
-        return { error: 'Missing slackUserId' };
+        return { error: ctx.t('slack.missing_slackuserid') };
       }
 
       const repo = AppDataSource.getRepository(SlackUserLink);
@@ -196,7 +196,7 @@ export async function slackRoutes(app: any, prefix = '') {
 
       if (!link) {
         ctx.set.status = 404;
-        return { error: 'No EcliPanel account linked to this Slack user' };
+        return { error: ctx.t('slack.no_eclipanel_account_linked_to_this_slack_user') };
       }
 
       const user = link.user;

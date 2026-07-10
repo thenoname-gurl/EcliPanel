@@ -52,7 +52,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const painting = await (await repo()).findOneBy({ id, userId });
     if (!painting) {
       ctx.set.status = 404;
-      return { error: 'Painting not found' };
+      return { error: ctx.t('paint.painting_not_found') };
     }
 
     return painting;
@@ -92,7 +92,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const painting = await (await repo()).findOneBy({ id, userId });
     if (!painting) {
       ctx.set.status = 404;
-      return { error: 'Painting not found' };
+      return { error: ctx.t('paint.painting_not_found') };
     }
 
     if (title !== undefined) painting.title = title;
@@ -119,7 +119,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const painting = await (await repo()).findOneBy({ id, userId });
     if (!painting) {
       ctx.set.status = 404;
-      return { error: 'Painting not found' };
+      return { error: ctx.t('paint.painting_not_found') };
     }
 
     await (await repo()).remove(painting);
@@ -139,7 +139,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const original = await (await repo()).findOneBy({ id, userId });
     if (!original) {
       ctx.set.status = 404;
-      return { error: 'Painting not found' };
+      return { error: ctx.t('paint.painting_not_found') };
     }
 
     const copy = new Paint();
@@ -245,7 +245,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const brush = await (await brushRepo()).findOneBy({ id, userId });
     if (!brush) {
       ctx.set.status = 404;
-      return { error: 'Brush not found' };
+      return { error: ctx.t('paint.brush_not_found') };
     }
 
     if (name !== undefined) brush.name = name;
@@ -273,7 +273,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const brush = await (await brushRepo()).findOneBy({ id, userId });
     if (!brush) {
       ctx.set.status = 404;
-      return { error: 'Brush not found' };
+      return { error: ctx.t('paint.brush_not_found') };
     }
 
     await (await brushRepo()).remove(brush);
@@ -290,7 +290,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const brush = await (await brushRepo()).findOneBy({ id, userId });
     if (!brush) {
       ctx.set.status = 404;
-      return { error: 'Brush not found' };
+      return { error: ctx.t('paint.brush_not_found') };
     }
 
     brush.isPublic = !brush.isPublic;
@@ -307,7 +307,7 @@ export async function paintRoutes(app: any, prefix = '') {
     const brush = await (await brushRepo()).findOneBy({ id });
     if (!brush) {
       ctx.set.status = 404;
-      return { error: 'Brush not found' };
+      return { error: ctx.t('paint.brush_not_found') };
     }
 
     brush.downloads += 1;

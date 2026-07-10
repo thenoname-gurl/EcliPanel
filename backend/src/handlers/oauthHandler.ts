@@ -365,11 +365,11 @@ export async function oauthRoutes(app: any, prefix = '') {
 
       if (response_type !== 'code') {
         ctx.set.status = 400;
-        return { error: 'unsupported_response_type' };
+        return { error: ctx.t('oauth.unsupported_response_type') };
       }
       if (!client_id) {
         ctx.set.status = 400;
-        return { error: 'client_id required' };
+        return { error: ctx.t('oauth.client_id_required') };
       }
       if (!redirect_uri) {
         ctx.set.status = 400;
@@ -382,17 +382,17 @@ export async function oauthRoutes(app: any, prefix = '') {
       });
       if (!oauthApp) {
         ctx.set.status = 400;
-        return { error: 'invalid_client' };
+        return { error: ctx.t('oauth.invalid_client') };
       }
 
       if (!oauthApp.redirectUris.includes(redirect_uri)) {
         ctx.set.status = 400;
-        return { error: 'redirect_uri_mismatch' };
+        return { error: ctx.t('oauth.redirect_uri_mismatch') };
       }
 
       if (!oauthApp.grantTypes.includes('authorization_code')) {
         ctx.set.status = 400;
-        return { error: 'unauthorized_client' };
+        return { error: ctx.t('oauth.unauthorized_client') };
       }
 
       const requestedScopes = scope ? scope.split(' ') : ['profile'];
@@ -447,11 +447,11 @@ export async function oauthRoutes(app: any, prefix = '') {
       });
       if (!oauthApp) {
         ctx.set.status = 400;
-        return { error: 'invalid_client' };
+        return { error: ctx.t('oauth.invalid_client') };
       }
       if (!oauthApp.redirectUris.includes(redirect_uri)) {
         ctx.set.status = 400;
-        return { error: 'redirect_uri_mismatch' };
+        return { error: ctx.t('oauth.redirect_uri_mismatch') };
       }
 
       const stateValid = !state || /^[a-zA-Z0-9._~-]{0,256}$/.test(String(state));
@@ -556,7 +556,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       const oauthApp = await appRepo.findOne({ where: { clientId, active: true } });
       if (!oauthApp) {
         ctx.set.status = 401;
-        return { error: 'invalid_client' };
+        return { error: ctx.t('oauth.invalid_client') };
       }
 
       if (requireSecret) {
@@ -593,7 +593,7 @@ export async function oauthRoutes(app: any, prefix = '') {
         }
         if (authCode.app.clientId !== clientId) {
           ctx.set.status = 400;
-          return { error: 'invalid_grant' };
+          return { error: ctx.t('oauth.invalid_grant') };
         }
         if (authCode.redirectUri !== redirect_uri) {
           ctx.set.status = 400;
@@ -646,7 +646,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       if (grant_type === 'client_credentials') {
         if (!oauthApp.grantTypes.includes('client_credentials')) {
           ctx.set.status = 400;
-          return { error: 'unauthorized_client' };
+          return { error: ctx.t('oauth.unauthorized_client') };
         }
         const requestedScopes = body.scope ? body.scope.split(' ') : [];
         const grantedScopes = filterScopes(requestedScopes, oauthApp.allowedScopes);
@@ -675,7 +675,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       if (grant_type === 'refresh_token') {
         if (!oauthApp.grantTypes.includes('refresh_token')) {
           ctx.set.status = 400;
-          return { error: 'unauthorized_client' };
+          return { error: ctx.t('oauth.unauthorized_client') };
         }
         const { refresh_token } = body;
         if (!refresh_token) {
@@ -696,7 +696,7 @@ export async function oauthRoutes(app: any, prefix = '') {
         }
         if (existing.app.clientId !== clientId) {
           ctx.set.status = 400;
-          return { error: 'invalid_grant' };
+          return { error: ctx.t('oauth.invalid_grant') };
         }
         if (existing.refreshTokenExpiresAt && new Date() > existing.refreshTokenExpiresAt) {
           ctx.set.status = 400;
@@ -732,7 +732,7 @@ export async function oauthRoutes(app: any, prefix = '') {
       }
 
       ctx.set.status = 400;
-      return { error: 'unsupported_grant_type' };
+      return { error: ctx.t('oauth.unsupported_grant_type') };
     },
     {
       detail: { summary: 'Exchange OAuth grant for tokens', tags: ['OAuth'] },
@@ -752,19 +752,19 @@ export async function oauthRoutes(app: any, prefix = '') {
       const { token, client_id, client_secret } = ctx.body as any;
       if (!token || !client_id || !client_secret) {
         ctx.set.status = 400;
-        return { error: 'invalid_request' };
+        return { error: ctx.t('oauth.invalid_request') };
       }
 
       const oauthApp = await appRepo.findOne({ where: { clientId: client_id, active: true } });
       if (!oauthApp) {
         ctx.set.status = 401;
-        return { error: 'invalid_client' };
+        return { error: ctx.t('oauth.invalid_client') };
       }
 
       const secretValid = await comparePassword(client_secret, oauthApp.clientSecretHash);
       if (!secretValid) {
         ctx.set.status = 401;
-        return { error: 'invalid_client' };
+        return { error: ctx.t('oauth.invalid_client') };
       }
 
       const byAccess = await tokenRepo.findOne({
@@ -891,19 +891,19 @@ export async function oauthRoutes(app: any, prefix = '') {
       const { token, client_id, client_secret } = ctx.body as any;
       if (!token || !client_id || !client_secret) {
         ctx.set.status = 400;
-        return { error: 'invalid_request' };
+        return { error: ctx.t('oauth.invalid_request') };
       }
 
       const oauthApp = await appRepo.findOne({ where: { clientId: client_id, active: true } });
       if (!oauthApp) {
         ctx.set.status = 401;
-        return { error: 'invalid_client' };
+        return { error: ctx.t('oauth.invalid_client') };
       }
 
       const secretValid = await comparePassword(client_secret, oauthApp.clientSecretHash);
       if (!secretValid) {
         ctx.set.status = 401;
-        return { error: 'invalid_client' };
+        return { error: ctx.t('oauth.invalid_client') };
       }
 
       const tokenEntity = await tokenRepo.findOne({

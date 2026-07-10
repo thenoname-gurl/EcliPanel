@@ -30,11 +30,11 @@ async function enqueueGenerate<T>(userId: number | string, fn: () => Promise<T>)
   return next;
 }
 
-async function guard(ctx: { set: { status: number } }) {
+async function guard(ctx: { set: { status: number }; t: (k: string) => string }) {
   const enabled = await isFeatureEnabled('visualeditor');
   if (!enabled) {
     ctx.set.status = 503;
-    return { error: 'Visual Editor feature is disabled' };
+    return { error: ctx.t('visualEditor.visual_editor_feature_is_disabled') };
   }
 }
 
@@ -69,7 +69,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const def = getBlockDefinition(ctx.params?.type);
       if (!def) {
         ctx.set.status = 404;
-        return { error: 'Block definition not found' };
+        return { error: ctx.t('visualEditor.block_definition_not_found') };
       }
       return def;
     },
@@ -85,7 +85,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const body = ctx.body as { blocks: Block[] };
       if (!body?.blocks || !Array.isArray(body.blocks)) {
         ctx.set.status = 400;
-        return { error: 'Blocks array is required' };
+        return { error: ctx.t('visualEditor.blocks_array_is_required') };
       }
       return enqueueGenerate(ctx.user?.id || 0, async () => {
         const code = generateCode(body.blocks);
@@ -107,7 +107,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const body = ctx.body as { files: { name: string; blocks: Block[] }[] };
       if (!body?.files || !Array.isArray(body.files)) {
         ctx.set.status = 400;
-        return { error: 'Files array is required' };
+        return { error: ctx.t('visualEditor.files_array_is_required') };
       }
       return enqueueGenerate(ctx.user?.id || 0, async () => {
         const result: { name: string; code: string }[] = [];
@@ -130,7 +130,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const body = ctx.body as { files: ProjectFile[] };
       if (!body?.files || !Array.isArray(body.files)) {
         ctx.set.status = 400;
-        return { error: 'Files array is required' };
+        return { error: ctx.t('visualEditor.files_array_is_required') };
       }
       return validateProject(body.files);
     },
@@ -149,7 +149,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const userId = ctx.user?.id;
       if (!userId) {
         ctx.set.status = 401;
-        return { error: 'Unauthorized' };
+        return { error: ctx.t('visualEditor.unauthorized') };
       }
       const { skip, take } = parsePagination(ctx.query || {});
       return getUserBlueprints(userId, skip, take);
@@ -166,7 +166,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const userId = ctx.user?.id;
       if (!userId) {
         ctx.set.status = 401;
-        return { error: 'Unauthorized' };
+        return { error: ctx.t('visualEditor.unauthorized') };
       }
       const { skip, take } = parsePagination(ctx.query || {});
       return getUserLibraryItems(userId, skip, take);
@@ -183,12 +183,12 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const userId = ctx.user?.id;
       if (!userId) {
         ctx.set.status = 401;
-        return { error: 'Unauthorized' };
+        return { error: ctx.t('visualEditor.unauthorized') };
       }
       const body = ctx.body as { name?: string; blocks: Block[]; description?: string };
       if (!body?.blocks || !Array.isArray(body.blocks)) {
         ctx.set.status = 400;
-        return { error: 'Blocks array is required' };
+        return { error: ctx.t('visualEditor.blocks_array_is_required') };
       }
       try {
         const item = await createLibraryItem(
@@ -222,12 +222,12 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       if (!userId || !id || isNaN(id)) {
         ctx.set.status = 400;
-        return { error: 'Invalid request' };
+        return { error: ctx.t('visualEditor.invalid_request') };
       }
       const deleted = await deleteLibraryItem(id, userId);
       if (!deleted) {
         ctx.set.status = 404;
-        return { error: 'Library item not found' };
+        return { error: ctx.t('visualEditor.library_item_not_found') };
       }
       return { success: true };
     },
@@ -244,12 +244,12 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       if (!userId || !id || isNaN(id)) {
         ctx.set.status = 400;
-        return { error: 'Invalid request' };
+        return { error: ctx.t('visualEditor.invalid_request') };
       }
       const blueprint = await getBlueprint(id, userId);
       if (!blueprint) {
         ctx.set.status = 404;
-        return { error: 'Blueprint not found' };
+        return { error: ctx.t('visualEditor.blueprint_not_found') };
       }
       return blueprint;
     },
@@ -265,12 +265,12 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const userId = ctx.user?.id;
       if (!userId) {
         ctx.set.status = 401;
-        return { error: 'Unauthorized' };
+        return { error: ctx.t('visualEditor.unauthorized') };
       }
       const body = ctx.body as { name: string; description?: string; projectData: unknown; latestGeneratedCode?: string };
       if (!body?.name || !body?.projectData) {
         ctx.set.status = 400;
-        return { error: 'Name and project data required' };
+        return { error: ctx.t('visualEditor.name_and_project_data_required') };
       }
       try {
         const blueprint = await createBlueprint(
@@ -300,7 +300,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       if (!userId || !id || isNaN(id)) {
         ctx.set.status = 400;
-        return { error: 'Invalid request' };
+        return { error: ctx.t('visualEditor.invalid_request') };
       }
       const body = ctx.body as Record<string, unknown>;
       const data: Record<string, unknown> = {};
@@ -313,7 +313,7 @@ export async function visualEditorRoutes(app: any, prefix = '') {
         const blueprint = await updateBlueprint(id, userId, data);
         if (!blueprint) {
           ctx.set.status = 404;
-          return { error: 'Blueprint not found' };
+          return { error: ctx.t('visualEditor.blueprint_not_found') };
         }
         return blueprint;
       } catch (err: unknown) {
@@ -334,12 +334,12 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       if (!userId || !id || isNaN(id)) {
         ctx.set.status = 400;
-        return { error: 'Invalid request' };
+        return { error: ctx.t('visualEditor.invalid_request') };
       }
       const deleted = await deleteBlueprint(id, userId);
       if (!deleted) {
         ctx.set.status = 404;
-        return { error: 'Blueprint not found' };
+        return { error: ctx.t('visualEditor.blueprint_not_found') };
       }
       return { success: true };
     },
@@ -356,12 +356,12 @@ export async function visualEditorRoutes(app: any, prefix = '') {
       const id = Number(ctx.params?.id);
       if (!userId || !id || isNaN(id)) {
         ctx.set.status = 400;
-        return { error: 'Invalid request' };
+        return { error: ctx.t('visualEditor.invalid_request') };
       }
       const result = await exportBlueprintAsZip(id, userId);
       if (!result) {
         ctx.set.status = 404;
-        return { error: 'Blueprint not found' };
+        return { error: ctx.t('visualEditor.blueprint_not_found') };
       }
       ctx.set.headers['Content-Type'] = 'application/zip';
       ctx.set.headers['Content-Disposition'] = `attachment; filename="${result.name}"`;
