@@ -31,7 +31,7 @@ pub mod get {
         container_id: Option<String>,
     }
 
-    #[utoipa::path(get, path = "/", responses(
+    #[utoipa::path(get, path = "/connections", responses(
         (status = OK, body = inline(Response)),
     ), params(
         (

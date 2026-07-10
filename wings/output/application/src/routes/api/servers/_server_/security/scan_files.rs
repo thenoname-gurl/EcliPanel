@@ -61,7 +61,7 @@ pub mod get {
         ("password", "Possible password file", "high"),
     ];
 
-    #[utoipa::path(get, path = "/", responses(
+    #[utoipa::path(get, path = "/scan-files", responses(
         (status = OK, body = inline(Response)),
     ), params(
         (

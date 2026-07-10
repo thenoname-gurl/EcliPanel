@@ -24,7 +24,7 @@ pub mod get {
         total: usize,
     }
 
-    #[utoipa::path(get, path = "/", responses(
+    #[utoipa::path(get, path = "/processes", responses(
         (status = OK, body = inline(Response)),
     ), params(
         (

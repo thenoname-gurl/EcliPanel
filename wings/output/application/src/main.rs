@@ -46,11 +46,12 @@ const BUFFER_SIZE: usize = 32 * 1024;
 const TRANSFER_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 fn full_version() -> String {
-    if GIT_BRANCH == "unknown" {
+    let base = if GIT_BRANCH == "unknown" {
         VERSION.to_string()
     } else {
         format!("{VERSION}:{GIT_COMMIT}@{GIT_BRANCH}")
-    }
+    };
+    format!("{base} (patched by Noname from EclipseSystems under Misiu LLC)")
 }
 
 fn spawn_blocking_handled<
@@ -287,7 +288,7 @@ async fn main_rt() {
             tracing::info!("                    __/ | | '__/ __|");
             tracing::info!("                   |___/  | |  \\__ \\");
             tracing::info!("{: >25} |_|  |___/", crate::VERSION);
-            tracing::info!("github.com/calagopus/wings#{}\n", crate::GIT_COMMIT);
+            tracing::info!("github.com/calagopus/wings (patched for EcliPanel by Noname — EclipseSystems / Misiu LLC)\n");
         }
     }
 

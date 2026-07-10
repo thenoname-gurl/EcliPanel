@@ -1,12 +1,6 @@
-# Wings Security Patches
+# Wings Patches
 
-This directory contains patches that add security and anti-abuse features to Wings.
-
-## Applied patches (built into the current `wings-security` branch)
-
-1. **Docker in AppState** — Adds `docker: Arc<bollard::Docker>` to `AppState` for direct Docker API access
-2. **Security REST endpoints** — `GET /api/servers/:id/security/processes`, `/connections`, `/scan-files`
-3. **Embedded anti-abuse engine** — Background CPU/network monitoring with panel incident reporting
+This directory contains patches for  Wings.
 
 ## Applying patches
 
@@ -43,3 +37,5 @@ After making changes on the `wings-security` branch:
 # Generate patches against upstream/main
 git format-patch upstream/main -o patches/ --numbered
 ```
+
+Please note that any patches done to original code is licensed under EclipseSystems Community License v1.1 while stock code is licensed under MIT License.

@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
+use serde_json::Value;
 
 /// Per-server state for abuse detection
 #[derive(Debug, Clone, Default)]
@@ -70,7 +71,7 @@ impl AntiAbuseEngine {
                 "version": self.wings_version,
             });
 
-            if let Err(e) = self
+            match self
                 .http_client
                 .post(&url)
                 .header("Authorization", format!("Bearer {}", self.panel_token))
@@ -79,7 +80,8 @@ impl AntiAbuseEngine {
                 .send()
                 .await
             {
-                tracing::warn!("antiabuse heartbeat failed: {}", e);
+                Ok(_) => tracing::info!("antiabuse heartbeat sent to panel"),
+                Err(e) => tracing::warn!("antiabuse heartbeat failed: {}", e),
             }
 
             tokio::time::sleep(Duration::from_secs(30)).await;
@@ -144,11 +146,131 @@ impl AntiAbuseEngine {
         }
     }
 
+    /// Evaluate a detection rule fetched from the panel against local server state
+    async fn evaluate_panel_rule(&self, rule: &Value, state: &crate::routes::State) -> Result<(), ()> {
+        let rule_name = rule.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
+        let severity = rule.get("severity").and_then(|v| v.as_str()).unwrap_or("medium");
+        let category = rule.get("category").and_then(|v| v.as_str()).unwrap_or("other");
+
+        // Evaluate against running servers
+        let servers = state.server_manager.get_servers().await;
+        for server in servers.iter() {
+            let usage = server.resource_usage();
+            let config = server.configuration.read().await;
+
+            // Build an event object from local server state
+            let event = serde_json::json!({
+                "serverId": server.uuid.to_string(),
+                "cpu_absolute": usage.cpu_absolute,
+                "memory_bytes": usage.memory_bytes,
+                "memory_limit_bytes": usage.memory_limit_bytes,
+                "disk_bytes": usage.disk_bytes,
+                "network_rx_bytes": usage.network.rx_bytes,
+                "network_tx_bytes": usage.network.tx_bytes,
+                "state": format!("{:?}", usage.state),
+                "uptime": usage.uptime,
+                "dockerImage": "",
+                "oomDisabled": config.build.oom_disabled,
+                "allocations": config.allocations.mappings.len(),
+            });
+
+            // Simple condition evaluation (supports field + operator + value)
+            if let Some(conditions) = rule.get("conditions") {
+                if self.evaluate_conditions(conditions, &event) {
+                    let reason = format!(
+                        "Panel rule '{}' matched on server {}",
+                        rule_name, server.uuid
+                    );
+                    self.report_incident(
+                        &server.uuid.to_string(),
+                        &reason,
+                        &format!("rule:{}", rule_name),
+                        "alert",
+                        1,
+                        None, None, None,
+                        serde_json::json!({"ruleName": rule_name, "event": event}),
+                    )
+                    .await;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Recursively evaluate condition groups
+    fn evaluate_conditions(&self, group: &Value, event: &Value) -> bool {
+        let operator = group.get("operator").and_then(|v| v.as_str()).unwrap_or("and");
+        let rules = match group.get("rules").and_then(|v| v.as_array()) {
+            Some(r) => r,
+            None => return false,
+        };
+
+        let results: Vec<bool> = rules.iter().map(|r| {
+            // Nested group
+            if r.get("operator").is_some() && r.get("rules").is_some() {
+                return self.evaluate_conditions(r, event);
+            }
+            // Leaf condition
+            let field = r.get("field").and_then(|v| v.as_str()).unwrap_or("");
+            let op = r.get("operator").and_then(|v| v.as_str()).unwrap_or("equals");
+            let expected = r.get("value");
+
+            let value = Self::get_json_field(event, field);
+
+            match op {
+                "exists" => !value.is_null(),
+                "not_exists" => value.is_null(),
+                "equals" => expected.map_or(false, |e| value == *e),
+                "not_equals" => expected.map_or(true, |e| value != *e),
+                "contains" => {
+                    let vs = value.as_str().unwrap_or("").to_lowercase();
+                    let es = expected.and_then(|v| v.as_str()).unwrap_or("").to_lowercase();
+                    vs.contains(&es)
+                }
+                "gt" => {
+                    let vn = value.as_f64().unwrap_or(0.0);
+                    let en = expected.and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    vn > en
+                }
+                "gte" => {
+                    let vn = value.as_f64().unwrap_or(0.0);
+                    let en = expected.and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    vn >= en
+                }
+                "lt" => {
+                    let vn = value.as_f64().unwrap_or(0.0);
+                    let en = expected.and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    vn < en
+                }
+                "lte" => {
+                    let vn = value.as_f64().unwrap_or(0.0);
+                    let en = expected.and_then(|v| v.as_f64()).unwrap_or(0.0);
+                    vn <= en
+                }
+                _ => false,
+            }
+        }).collect();
+
+        if operator == "and" { results.iter().all(|&b| b) } else { results.iter().any(|&b| b) }
+    }
+
+    fn get_json_field(value: &Value, path: &str) -> Value {
+        let mut current = value;
+        for part in path.split('.') {
+            match current.get(part) {
+                Some(v) => current = v,
+                None => return Value::Null,
+            }
+        }
+        current.clone()
+    }
+
     /// Process resource usage for a single server
     async fn process_stats(
         &self,
         server_id: &str,
         cpu_percent: f64,
+        cpu_limit: f64,
         rx_bytes: u64,
         tx_bytes: u64,
         memory_bytes: u64,
@@ -159,14 +281,16 @@ impl AntiAbuseEngine {
         let state = states.entry(server_id.to_string()).or_default();
 
         // --- Crypto mining detection: sustained high CPU ---
-        let cpu_threshold = 95.0;
-        if cpu_percent > cpu_threshold {
+        // cpu_percent is raw Docker CPU (100% per core). Normalize by allocation.
+        let cpu_usage_pct = if cpu_limit > 0.0 { (cpu_percent / cpu_limit) * 100.0 } else { cpu_percent };
+        let cpu_threshold = 80.0; // >80% of ALLOCATED CPU
+        if cpu_usage_pct > cpu_threshold {
             state.high_cpu_count += 1;
         } else {
             state.high_cpu_count = state.high_cpu_count.saturating_sub(1);
         }
 
-        // If CPU >95% for 60 consecutive seconds (12 samples at 5s interval)
+        // If CPU >80% of allocation for 60 consecutive seconds (12 samples at 5s interval)
         if state.high_cpu_count >= 12 {
             // Check cooldown (5 minutes)
             let cooldown = state
@@ -180,6 +304,8 @@ impl AntiAbuseEngine {
 
                 let metrics = serde_json::json!({
                     "cpu_percent": cpu_percent,
+                    "cpu_limit": cpu_limit,
+                    "cpu_usage_pct": cpu_usage_pct,
                     "high_cpu_duration_seconds": state.high_cpu_count * 5,
                     "memory_bytes": memory_bytes,
                     "memory_limit": memory_limit,
@@ -189,8 +315,8 @@ impl AntiAbuseEngine {
                 self.report_incident(
                     server_id,
                     &format!(
-                        "Sustained high CPU ({:.1}%) for {}s — potential crypto mining",
-                        cpu_percent,
+                        "Sustained high CPU ({:.1}% of {:.0}% allocated) for {}s — potential crypto mining",
+                        cpu_usage_pct, cpu_limit,
                         state.high_cpu_count * 5
                     ),
                     "crypto_mining",
@@ -314,6 +440,7 @@ pub async fn start(
                     .process_stats(
                         &uuid.to_string(),
                         usage.cpu_absolute,
+                        100.0, // default 1 vCPU — panel scanner does proper per-server lookup
                         usage.network.rx_bytes,
                         usage.network.tx_bytes,
                         usage.memory_bytes,
@@ -323,6 +450,45 @@ pub async fn start(
             }
 
             tokio::time::sleep(Duration::from_secs(5)).await;
+        }
+    });
+
+    // Spawn rule polling loop — fetches detection rules from panel every 5 minutes
+    let engine_rules = Arc::clone(&engine);
+    let state_rules = state.clone();
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(300)).await; // Every 5 minutes
+
+            let url = format!("{}/api/soc/detection-rules?mode=wings", engine_rules.panel_url);
+            match engine_rules
+                .http_client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", engine_rules.panel_token))
+                .send()
+                .await
+            {
+                Ok(resp) => {
+                    if let Ok(body) = resp.text().await {
+                        // Parse rules and evaluate against local servers
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body) {
+                            if let Some(rules) = json.get("rules").and_then(|r| r.as_array()) {
+                                let count = rules.len();
+                                if count > 0 {
+                                    tracing::debug!("fetched {} detection rules from panel", count);
+                                    // Evaluate rules against local server data
+                                    for rule in rules {
+                                        let _ = engine_rules.evaluate_panel_rule(rule, &state_rules).await;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("failed to fetch detection rules from panel: {}", e);
+                }
+            }
         }
     });
 

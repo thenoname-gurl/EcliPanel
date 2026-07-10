@@ -17,7 +17,8 @@ do_regen() {
     log "Regenerating patches from patched/ vs source/..."
     rm -f "$PATCHES_DIR"/*.patch 2>/dev/null || true
     local n=1
-    diff -ruN "$SOURCE_DIR" "$PATCHED_DIR" > "$PATCHES_DIR/$(printf '%04d' $n)-wings-security.patch" 2>/dev/null || true
+    cd "$SCRIPT_DIR/.."
+    diff -ruN wings/source wings/patched > "$SCRIPT_DIR/patches/$(printf '%04d' $n)-wings-security.patch" 2>/dev/null || true
     local size=$(wc -c < "$PATCHES_DIR/0001-wings-security.patch" 2>/dev/null || echo 0)
     if [ "$size" -gt 10 ]; then
         log "Generated patch ($(du -h "$PATCHES_DIR/0001-wings-security.patch" | cut -f1))"
@@ -31,13 +32,13 @@ do_patch() {
     log "Applying patches to output/..."
     rm -rf "$OUTPUT_DIR"
     cp -a "$SOURCE_DIR" "$OUTPUT_DIR"
-    cd "$OUTPUT_DIR"
     local applied=0 failed=0
     for p in "$PATCHES_DIR"/*.patch; do
         [ -f "$p" ] || continue
         local name=$(basename "$p")
-        if patch -p1 -s --dry-run < "$p" 2>/dev/null; then
-            patch -p1 -s < "$p"
+        cd "$OUTPUT_DIR"
+        if patch -p2 -s --dry-run < "$p" 2>/dev/null; then
+            patch -p2 -s < "$p"
             log "  Applied: $name"
             ((applied++))
         else

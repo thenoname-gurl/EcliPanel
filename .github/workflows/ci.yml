@@ -106,8 +106,6 @@ jobs:
       - name: Apply patches and build Wings
         working-directory: wings
         run: |
-          cd source && git remote add upstream https://github.com/calagopus/wings || true
-          cd ..
           ./manage.sh patch
           cd output && cargo build --release
 
