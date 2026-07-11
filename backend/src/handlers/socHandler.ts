@@ -535,6 +535,11 @@ export async function socRoutes(app: any, prefix = '') {
         alertWebhookUrl: map['soc.alert_webhook_url'] || '',
         alertSeverities: (map['soc.alert_severities'] || 'critical,high').split(','),
         scanScheduleMinutes: Number(map['soc.scan_schedule_minutes'] || '30'),
+        abCpuThreshold: Number(map['soc.ab_cpu_threshold'] || '80'),
+        abNetworkThresholdMbps: Number(map['soc.ab_network_threshold_mbps'] || '100'),
+        abCooldownSeconds: Number(map['soc.ab_cooldown_seconds'] || '300'),
+        abStrikesForSuspend: Number(map['soc.ab_strikes_suspend'] || '3'),
+        abEnabled: map['soc.ab_enabled'] !== 'false',
       };
     },
     {
@@ -564,6 +569,11 @@ export async function socRoutes(app: any, prefix = '') {
         'soc.alert_webhook_url': String(body.alertWebhookUrl || ''),
         'soc.alert_severities': String(body.alertSeverities || 'critical,high'),
         'soc.scan_schedule_minutes': String(body.scanScheduleMinutes || '30'),
+        'soc.ab_cpu_threshold': String(body.abCpuThreshold || '80'),
+        'soc.ab_network_threshold_mbps': String(body.abNetworkThresholdMbps || '100'),
+        'soc.ab_cooldown_seconds': String(body.abCooldownSeconds || '300'),
+        'soc.ab_strikes_suspend': String(body.abStrikesSuspend || '3'),
+        'soc.ab_enabled': String(body.abEnabled !== false),
       };
 
       for (const [key, value] of Object.entries(updates)) {
@@ -738,16 +748,71 @@ export async function socRoutes(app: any, prefix = '') {
   );
 
   app.get(
+    prefix + '/wings/config',
+    async (ctx: any) => {
+      const isWings = await (async () => {
+        try {
+          const auth = ((ctx.headers || {})['authorization'] || '') as string;
+          const token = auth.startsWith('Bearer ') ? auth.slice(7) : auth;
+          if (!token) return false;
+          const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
+          return !!(await nodeRepo.findOne({ where: { token } }));
+        } catch { return false; }
+      })();
+      if (!isWings) { ctx.set.status = 403; return { error: 'Wings node token required' }; }
+
+      const psRepo = AppDataSource.getRepository(PanelSetting);
+      const rows = await psRepo.find();
+      const map: Record<string, string> = {};
+      for (const r of rows) { if (r.key.startsWith('soc.')) map[r.key] = r.value; }
+
+      const ruleRepo = AppDataSource.getRepository(DetectionRule);
+      const rules = await ruleRepo.find({ where: { enabled: true } });
+
+      let latestVersion = map['soc.wings_version'] || '';
+      if (!latestVersion) {
+        const binPath = join(process.cwd(), '..', 'wings', 'target', 'release', 'wings-rs');
+        if (existsSync(binPath)) {
+          const { createHash } = await import('crypto');
+          const bin = await readFile(binPath);
+          latestVersion = createHash('sha256').update(bin).digest('hex').slice(0, 16);
+        }
+      }
+
+      return {
+        antiabuse: {
+          enabled: map['soc.ab_enabled'] !== 'false',
+          cpuThresholdPct: Number(map['soc.ab_cpu_threshold'] || '80'),
+          networkThresholdMbps: Number(map['soc.ab_network_threshold_mbps'] || '100'),
+          cooldownSeconds: Number(map['soc.ab_cooldown_seconds'] || '300'),
+          strikesForSuspend: Number(map['soc.ab_strikes_suspend'] || '3'),
+        },
+        rules: rules.map(r => ({
+          id: r.id, name: r.name, severity: r.severity, category: r.category,
+          conditions: r.conditions, frequency: r.frequency, sources: r.sources,
+        })),
+        latestVersion,
+        downloadUrl: `/api/wings/download`,
+        heartbeatIntervalSeconds: 30,
+        configPollIntervalSeconds: 120,
+      };
+    },
+    {
+      response: { 200: t.Any(), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Wings config poll — anti-abuse settings + detection rules', tags: ['Wings'] },
+    }
+  );
+
+  app.get(
     prefix + '/wings/download',
     async (ctx: any) => {
       const arch = (ctx.query?.arch as string) || 'x86_64';
       const binName = arch === 'aarch64' ? 'wings-rs-aarch64' : 'wings-rs';
 
       const paths = [
-        join(process.cwd(), '..', 'wings', 'patched', 'target', 'release', 'wings-rs'),
-        join(process.cwd(), '..', 'wings', 'target', 'release', 'wings-rs'),
         join(process.cwd(), '..', 'wings', 'output', 'target', 'release', 'wings-rs'),
-        join(process.cwd(), 'wings', 'patched', 'target', 'release', 'wings-rs'),
+        join(process.cwd(), '..', 'wings', 'target', 'release', 'wings-rs'),
+        join(process.cwd(), 'wings', 'output', 'target', 'release', 'wings-rs'),
         join(process.cwd(), 'wings', 'target', 'release', 'wings-rs'),
       ];
 

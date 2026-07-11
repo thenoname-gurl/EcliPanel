@@ -117,4 +117,10 @@ export class Node {
 
   @Column({ nullable: true, type: 'text' })
   deploymentNotice?: string;
+
+  @Column({ nullable: true })
+  lastHeartbeatAt?: Date;
+
+  @Column({ nullable: true, type: 'text' })
+  wingsVersion?: string;
 }

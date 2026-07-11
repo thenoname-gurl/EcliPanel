@@ -358,7 +358,9 @@ export default function AntiAbuseTab() {
               <span key={a.agentId} className="inline-flex items-center gap-1.5 rounded-full border border-border bg-secondary/40 px-2.5 py-0.5 text-[11px] text-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
                 <span className="font-medium">{a.detectorName}</span>
-                <span className="text-muted-foreground hidden sm:inline">@{a.nodeName} · {formatAgentAge(a.ageMs, t)}</span>
+                <span className="text-muted-foreground hidden sm:inline">@{a.nodeName}</span>
+                {a.version && <span className="text-muted-foreground hidden md:inline font-mono text-[10px]">{a.version}</span>}
+                <span className="text-muted-foreground hidden sm:inline">· {formatAgentAge(a.ageMs, t)}</span>
               </span>
             ))}
           </div>

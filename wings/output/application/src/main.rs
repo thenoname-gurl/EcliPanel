@@ -46,12 +46,15 @@ const BUFFER_SIZE: usize = 32 * 1024;
 const TRANSFER_BUFFER_SIZE: usize = 4 * 1024 * 1024;
 
 fn full_version() -> String {
-    let base = if GIT_BRANCH == "unknown" {
+    if GIT_BRANCH == "unknown" {
         VERSION.to_string()
     } else {
         format!("{VERSION}:{GIT_COMMIT}@{GIT_BRANCH}")
-    };
-    format!("{base} (patched by Noname from EclipseSystems under Misiu LLC)")
+    }
+}
+
+fn branded_version() -> String {
+    format!("{} (patched by Noname from EclipseSystems / Misiu LLC)", full_version())
 }
 
 fn spawn_blocking_handled<
@@ -288,7 +291,7 @@ async fn main_rt() {
             tracing::info!("                    __/ | | '__/ __|");
             tracing::info!("                   |___/  | |  \\__ \\");
             tracing::info!("{: >25} |_|  |___/", crate::VERSION);
-            tracing::info!("github.com/calagopus/wings (patched for EcliPanel by Noname — EclipseSystems / Misiu LLC)\n");
+            tracing::info!("github.com/thenoname-gurl/EcliPanel (patched by Noname from EclipseSystems / Misiu LLC and contributors)\n");
         }
     }
 
@@ -425,7 +428,7 @@ async fn main_rt() {
             Ok(_) => crate::routes::AppContainerType::Unknown,
             Err(_) => crate::routes::AppContainerType::None,
         },
-        version: crate::full_version(),
+        version: crate::branded_version(),
 
         config: Arc::clone(&config),
         docker: Arc::clone(&docker),
@@ -457,14 +460,13 @@ async fn main_rt() {
             .unwrap_or_else(|| "unknown".to_string());
         drop(config_guard);
 
-        crate::server::antiabuse::start(
+        crate::server::soc::start(
             panel_url,
             panel_token,
             node_name,
             crate::full_version(),
             Arc::clone(&state),
-        )
-        .await;
+        ).await;
     }
 
     let app = OpenApiRouter::new()

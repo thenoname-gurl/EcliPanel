@@ -12,6 +12,8 @@ use tokio::sync::{Mutex, RwLock};
 
 pub mod activity;
 pub mod antiabuse;
+pub mod panel_sync;
+pub mod soc;
 pub mod backup;
 pub mod collab;
 pub mod configuration;

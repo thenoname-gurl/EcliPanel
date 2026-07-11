@@ -335,6 +335,7 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
   const [settings, setSettings] = useState({
     abuseipdbKey: '', threatIpList: '', threatIpCidrList: '', threatImageList: '',
     alertEmail: '', alertWebhookUrl: '', alertSeverities: 'critical,high', scanScheduleMinutes: '30',
+    abCpuThreshold: '80', abNetworkThresholdMbps: '100', abCooldownSeconds: '300', abStrikesSuspend: '3', abEnabled: true,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -351,6 +352,11 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         alertWebhookUrl: d.alertWebhookUrl || '',
         alertSeverities: (d.alertSeverities || ['critical','high']).join(','),
         scanScheduleMinutes: String(d.scanScheduleMinutes || '30'),
+        abCpuThreshold: String(d.abCpuThreshold || '80'),
+        abNetworkThresholdMbps: String(d.abNetworkThresholdMbps || '100'),
+        abCooldownSeconds: String(d.abCooldownSeconds || '300'),
+        abStrikesSuspend: String(d.abStrikesForSuspend || '3'),
+        abEnabled: d.abEnabled !== false,
       })
     }).finally(() => setLoading(false))
   }, [])
@@ -363,6 +369,10 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         ...settings,
         alertSeverities: settings.alertSeverities.split(',').map(s => s.trim()).filter(Boolean),
         scanScheduleMinutes: Number(settings.scanScheduleMinutes) || 30,
+        abCpuThreshold: Number(settings.abCpuThreshold) || 80,
+        abNetworkThresholdMbps: Number(settings.abNetworkThresholdMbps) || 100,
+        abCooldownSeconds: Number(settings.abCooldownSeconds) || 300,
+        abStrikesSuspend: Number(settings.abStrikesSuspend) || 3,
       }),
     })
     setSaved(true); setSaving(false); onSettingsSaved()
@@ -423,6 +433,41 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
       <div className="flex items-center gap-3">
         <Button size="sm" onClick={save} disabled={saving}>{saving ? "Saving..." : "Save Settings"}</Button>
         {saved && <span className="text-xs text-green-600">✓ Saved</span>}
+      </div>
+
+      <div className="border border-border bg-card p-5">
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Shield className="h-4 w-4" /> Anti-Abuse Engine (Wings)</h3>
+        <p className="text-xs text-muted-foreground mb-3">Wings nodes fetch these settings every 2 minutes via /api/wings/config.</p>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <label className="text-xs text-muted-foreground">Enabled</label>
+            <select value={settings.abEnabled ? 'true' : 'false'} onChange={e => setSettings(s => ({...s, abEnabled: e.target.value === 'true'}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">CPU Threshold (%)</label>
+            <input type="number" value={settings.abCpuThreshold} onChange={e => setSettings(s => ({...s, abCpuThreshold: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Network Threshold (Mbps)</label>
+            <input type="number" value={settings.abNetworkThresholdMbps} onChange={e => setSettings(s => ({...s, abNetworkThresholdMbps: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Cooldown (seconds)</label>
+            <input type="number" value={settings.abCooldownSeconds} onChange={e => setSettings(s => ({...s, abCooldownSeconds: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Strikes for Suspend</label>
+            <input type="number" value={settings.abStrikesSuspend} onChange={e => setSettings(s => ({...s, abStrikesSuspend: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+        </div>
       </div>
 
       <div className="border border-border bg-card p-5">

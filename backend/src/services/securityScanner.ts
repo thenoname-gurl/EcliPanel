@@ -709,6 +709,36 @@ async function checkWingsFiles(): Promise<ScanCheckResult[]> {
   return results;
 }
 
+async function checkOutdatedWings(): Promise<ScanCheckResult[]> {
+  const results: ScanCheckResult[] = [];
+  try {
+    const { getAntiAbuseAgentVersions } = require('../handlers/adminHandler');
+    const agents = getAntiAbuseAgentVersions() || [];
+    if (agents.length === 0) return results;
+
+    const psRepo = AppDataSource.getRepository(require('../models/panelSetting.entity').PanelSetting);
+    const versionRow = await psRepo.findOne({ where: { key: 'soc.wings_version' } });
+    const latestVersion = versionRow?.value || '';
+
+    for (const agent of agents) {
+      if (!agent.active || agent.detectorName !== 'wings' || !agent.version) continue;
+      if (!latestVersion || agent.version === latestVersion) continue;
+
+      results.push({
+        category: 'node_security',
+        severity: 'high',
+        title: `Outdated Wings on node: ${agent.nodeName}`,
+        description: `Node "${agent.nodeName}" runs Wings ${agent.version}. Latest is ${latestVersion.slice(0, 16)}. Auto-upgrade should trigger within 2 minutes.`,
+        metadata: { nodeName: agent.nodeName, agentVersion: agent.version, latestVersion: latestVersion.slice(0, 16) },
+        fingerprint: fp('node_security', 'outdated_wings', agent.nodeName),
+      });
+    }
+  } catch (e) {
+    console.error('[securityScanner] checkOutdatedWings error:', e);
+  }
+  return results;
+}
+
 const ALL_CHECKS = [
   checkFailedLogins,
   checkNewIpLogins,
@@ -719,6 +749,7 @@ const ALL_CHECKS = [
   checkOrphanedSubusers,
   checkHighCpu,
   checkUnhealthyNodes,
+  checkOutdatedWings,
   checkIpReputation,
   checkCustomRules,
   checkWingsProcesses,

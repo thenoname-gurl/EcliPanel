@@ -57,8 +57,7 @@ do_patch() {
 
 do_build() {
     log "Building Wings from output/..."
-    cd "$OUTPUT_DIR"
-    cargo build --release 2>&1 | tail -5
+    cd "$OUTPUT_DIR" && cargo build --release 2>&1 | tail -5
     if [ -f target/release/wings-rs ]; then
         cp target/release/wings-rs "$SCRIPT_DIR/target/release/wings-rs" 2>/dev/null || true
         log "Binary: $SCRIPT_DIR/target/release/wings-rs"

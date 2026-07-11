@@ -280,6 +280,13 @@ function listAntiAbuseAgents() {
     });
 }
 
+export function getAntiAbuseAgentVersions() {
+  return listAntiAbuseAgents().map(a => ({
+    agentId: a.agentId, detectorName: a.detectorName,
+    nodeName: a.nodeName, version: a.version, active: a.active,
+  }));
+}
+
 async function getAdminFraudEmails(): Promise<string[]> {
   const userRepo = AppDataSource.getRepository(User);
   const emails = new Set<string>();
@@ -5778,79 +5785,75 @@ export async function adminRoutes(app: any, prefix = '') {
     }
   );
 
-  async function isWingsNode(ctx: any): Promise<boolean> {
+  async function isWingsNode(ctx: any): Promise<{ name: string } | null> {
     try {
       const getHeader = (name: string) => {
         const h = ctx.headers || {};
         return (h[name.toLowerCase()] || h[name] || '') as string;
       };
       let raw = getHeader('authorization');
-      console.log('[isWingsNode] raw auth header:', raw ? raw.slice(0, 60) + '...' : 'MISSING');
-      if (!raw) return false;
+      if (!raw) return null;
 
       raw = raw.startsWith('Bearer ') ? raw.slice(7) : raw;
-      if (!raw) return false;
+      if (!raw) return null;
 
       const tokenOnly = raw.includes('.') ? raw.split('.')[1] : raw;
-      console.log('[isWingsNode] looking up node with token:', tokenOnly.slice(0, 12) + '...');
 
       const nodeRepo = AppDataSource.getRepository(Node);
-      const allNodes = await nodeRepo.find({ select: ['id', 'name', 'token'], take: 5 });
-      console.log('[isWingsNode] nodes in DB:', allNodes.map(n => ({ id: n.id, name: n.name, tokenLen: n.token?.length })));
-
       const node = await nodeRepo.findOne({ where: { token: tokenOnly } });
-      console.log('[isWingsNode] match:', !!node, node ? node.name : 'none');
-      return !!node;
-    } catch (e) { console.error('[isWingsNode] error:', e); return false; }
+      return node ? { name: node.name } : null;
+    } catch { return null; }
   }
 
   app.post(
     prefix + '/admin/antiabuse/heartbeat',
     async ctx => {
-      const isWings = await isWingsNode(ctx);
-      console.log('[antiabuse:heartbeat] isWingsNode:', isWings);
-      if (!isWings) {
+      const wingsNode = await isWingsNode(ctx);
+      if (!wingsNode) {
         const access = requireAdminPermissionOrAdminApiKey(ctx, 'admin:antiabuse');
         if (access !== true) return access;
       }
 
       const body = (ctx.body || {}) as any;
-      const detectorName =
-        sanitizeAntiAbuseText(body.detectorName || 'antiabuse-rs', 120) || 'antiabuse-rs';
-      const nodeName =
-        sanitizeAntiAbuseText(body.nodeName || process.env.HOSTNAME || 'unknown', 160) || 'unknown';
-      const pidRaw = Number(body.pid);
-      const pid = Number.isFinite(pidRaw) && pidRaw > 0 ? Math.floor(pidRaw) : null;
       const version = sanitizeAntiAbuseText(body.version || '', 80) || null;
-      const agentId =
-        sanitizeAntiAbuseText(body.agentId || `${detectorName}@${nodeName}`, 200) ||
-        `${detectorName}@${nodeName}`;
 
-      antiAbuseAgentState.set(agentId, {
-        agentId,
-        detectorName,
-        nodeName,
-        lastSeenTs: Date.now(),
-        pid,
-        version,
-      });
+      const nodeRepo = AppDataSource.getRepository(Node);
 
-      const agents = listAntiAbuseAgents();
+      if (wingsNode) {
+        const token = ((ctx.headers || {})['authorization'] || '').replace('Bearer ', '');
+        const tokenOnly = token.includes('.') ? token.split('.')[1] : token;
+        const node = await nodeRepo.findOne({ where: { token: tokenOnly } });
+        if (node) {
+          node.lastHeartbeatAt = new Date();
+          node.wingsVersion = version;
+          await nodeRepo.save(node);
+        }
+      }
+
+      const nodes = await nodeRepo.find({ where: { lastHeartbeatAt: Not(IsNull()) } });
+      const now = Date.now();
+      const agents = nodes.map(n => ({
+        agentId: `wings@${n.name}`,
+        detectorName: 'wings',
+        nodeName: n.name,
+        lastSeenAt: n.lastHeartbeatAt?.toISOString() || '',
+        ageMs: n.lastHeartbeatAt ? now - n.lastHeartbeatAt.getTime() : 999999,
+        active: n.lastHeartbeatAt ? (now - n.lastHeartbeatAt.getTime()) < 120000 : false,
+        version: n.wingsVersion,
+      }));
       return {
         success: true,
-        agentId,
+        agentId: `wings@${wingsNode?.name || 'unknown'}`,
         activeAgents: agents.filter(a => a.active).length,
         totalAgents: agents.length,
+        agents,
       };
     },
     {
-      beforeHandle: [authenticate, authorize('admin:access')],
-      schema: {
-        response: {
-          200: t.Any(),
-          401: t.Object({ error: t.String() }),
-          403: t.Object({ error: t.String() }),
-        },
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Receive anti-abuse agent heartbeat', tags: ['Admin'] },
     }
@@ -5882,10 +5885,19 @@ export async function adminRoutes(app: any, prefix = '') {
       const actionFilter = sanitizeAntiAbuseText(query.action || '', 80).toLowerCase();
 
       const formRepo = AppDataSource.getRepository(ApplicationForm);
+      const nodeRepo2 = AppDataSource.getRepository(Node);
       const submissionRepo = AppDataSource.getRepository(ApplicationSubmission);
 
       const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
-      const agents = listAntiAbuseAgents();
+      const heartbeatNodes = await nodeRepo2.find({ where: { lastHeartbeatAt: Not(IsNull()) } });
+      const now2 = Date.now();
+      const agents = heartbeatNodes.map(n => ({
+        agentId: `wings@${n.name}`, detectorName: 'wings', nodeName: n.name,
+        lastSeenAt: n.lastHeartbeatAt?.toISOString() || '',
+        ageMs: n.lastHeartbeatAt ? now2 - n.lastHeartbeatAt.getTime() : 999999,
+        active: n.lastHeartbeatAt ? (now2 - n.lastHeartbeatAt.getTime()) < 120000 : false,
+        version: n.wingsVersion,
+      }));
       if (!form) {
         return { items: [], total: 0, page, limit, totalPages: 0, sort: sortBy, order, agents };
       }
