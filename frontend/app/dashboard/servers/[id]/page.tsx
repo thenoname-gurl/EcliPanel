@@ -731,6 +731,16 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [transferError, setTransferError] = useState<string | null>(null)
   const [cancellingTransfer, setCancellingTransfer] = useState(false)
   const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
+  const [transferring, setTransferring] = useState(false)
+  const transferringRef = useRef(false)
+  const [transferProgress, setTransferProgress] = useState<{
+    archive_bytes_processed?: number
+    network_bytes_processed?: number
+    bytes_total?: number
+    files_processed?: number
+  } | null>(null)
+  const transferPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  useEffect(() => { transferringRef.current = transferring }, [transferring])
 
   useEffect(() => {
     if (!powerToast) return
@@ -972,9 +982,43 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const openTransferDialog = useCallback(async () => {
     setTransferError(null)
     setTransferNodeId(null)
+    setTransferProgress(null)
+    setTransferring(false)
     setTransferDialogOpen(true)
     if (transferNodes.length === 0) await loadNodes()
   }, [transferNodes.length, loadNodes])
+
+  const startProgressPoll = useCallback(() => {
+    if (transferPollRef.current) clearInterval(transferPollRef.current)
+    transferPollRef.current = setInterval(async () => {
+      try {
+        const data = await apiFetch(API_ENDPOINTS.serverTransfer.replace(":id", id))
+        if (data?.progress) {
+          setTransferProgress(data.progress)
+          setTransferring(true)
+        } else if (transferringRef.current) {
+          setTransferring(false)
+          setTransferProgress(null)
+          if (transferPollRef.current) clearInterval(transferPollRef.current)
+          transferPollRef.current = null
+          loadServer()
+        }
+      } catch {
+        // poland
+      }
+    }, 2000)
+  }, [id, loadServer])
+
+  const stopProgressPoll = useCallback(() => {
+    if (transferPollRef.current) {
+      clearInterval(transferPollRef.current)
+      transferPollRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => stopProgressPoll()
+  }, [stopProgressPoll])
 
   const doTransfer = useCallback(async () => {
     if (!transferNodeId) {
@@ -988,17 +1032,14 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         method: "POST",
         body: JSON.stringify({ targetNodeId: transferNodeId }),
       })
-      setTransferDialogOpen(false)
-      setTransferNodeId(null)
-      setTransferNodes([])
-      loadServer()
-      alert(t("alerts.transferInitiated"))
+      setTransferring(true)
+      startProgressPoll()
     } catch (e: any) {
       setTransferError(e.message || t("errors.transferFailed"))
     } finally {
       setTransferLoading(false)
     }
-  }, [transferNodeId, id, loadServer, t])
+  }, [transferNodeId, id, startProgressPoll, t])
 
   const cancelTransfer = useCallback(async () => {
     setCancellingTransfer(true)
@@ -1006,14 +1047,16 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       await apiFetch(API_ENDPOINTS.serverTransfer.replace(":id", id), {
         method: "DELETE",
       })
+      stopProgressPoll()
+      setTransferring(false)
+      setTransferProgress(null)
       setTransferDialogOpen(false)
-      alert("Transfer cancelled")
     } catch (e: any) {
       alert(e.message || "Failed to cancel transfer")
     } finally {
       setCancellingTransfer(false)
     }
-  }, [id])
+  }, [id, stopProgressPoll])
 
   const canTransfer = !!(
     user &&
@@ -1561,7 +1604,7 @@ const dmcaAlert = isDmcaProtected ? (
       <Dialog
         open={transferDialogOpen}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !transferring) {
             setTransferDialogOpen(false)
             setTransferNodeId(null)
             setTransferError(null)
@@ -1573,65 +1616,135 @@ const dmcaAlert = isDmcaProtected ? (
             <DialogTitle className="text-foreground">{t("dialogs.transfer.title")}</DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-4">
-            <p className="text-sm text-muted-foreground break-words">
-              {t("dialogs.transfer.description")}
-            </p>
-            {isKvm && (
-              <KvmInfoNotice message={t("kvm.transferNotice")} />
-            )}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">{t("dialogs.transfer.destinationNode")}</label>
-              <select
-                value={transferNodeId ?? ""}
-                onChange={(e) =>
-                  setTransferNodeId(e.target.value ? Number(e.target.value) : null)
-                }
-                className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none"
-              >
-                <option value="">{t("dialogs.transfer.selectNode")}</option>
-                {transferNodes.map((n: any) => (
-                  <option key={n.id} value={n.id}>
-                    {n.name || n.nodeId || n.id}{" "}
-                    {n.nodeType ? `(${n.nodeType})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {transferError && (
-              <div className="p-3 bg-destructive/10 border border-destructive/20">
-                <p className="text-xs text-destructive break-words">{transferError}</p>
+            {!transferring ? (
+              <>
+                <p className="text-sm text-muted-foreground break-words">
+                  {t("dialogs.transfer.description")}
+                </p>
+                {isKvm && (
+                  <KvmInfoNotice message={t("kvm.transferNotice")} />
+                )}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-foreground">{t("dialogs.transfer.destinationNode")}</label>
+                  <select
+                    value={transferNodeId ?? ""}
+                    onChange={(e) =>
+                      setTransferNodeId(e.target.value ? Number(e.target.value) : null)
+                    }
+                    className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none"
+                  >
+                    <option value="">{t("dialogs.transfer.selectNode")}</option>
+                    {transferNodes.map((n: any) => (
+                      <option key={n.id} value={n.id}>
+                        {n.name || n.nodeId || n.id}{" "}
+                        {n.nodeType ? `(${n.nodeType})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {transferError && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20">
+                    <p className="text-xs text-destructive break-words">{transferError}</p>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {t("dialogs.transfer.notice")}
+                </p>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm text-foreground">
+                  <Loader2 className="h-4 w-4 rounded-full animate-spin" />
+                  <span>Transferring server...</span>
+                </div>
+                {transferProgress ? (
+                  <div className="space-y-3">
+                    {/* Progress bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Archive</span>
+                        <span>
+                          {transferProgress.archive_bytes_processed != null && transferProgress.bytes_total != null && transferProgress.bytes_total > 0
+                            ? `${Math.round((transferProgress.archive_bytes_processed / transferProgress.bytes_total) * 100)}%`
+                            : "—"}
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-500"
+                          style={{
+                            width: `${transferProgress.bytes_total && transferProgress.bytes_total > 0
+                              ? Math.min(100, (transferProgress.archive_bytes_processed ?? 0) / transferProgress.bytes_total * 100)
+                              : 0}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-muted-foreground">Files</div>
+                        <div className="font-mono text-foreground">
+                          {(transferProgress.files_processed ?? 0).toLocaleString()}
+                        </div>
+                      </div>
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-muted-foreground">Sent</div>
+                        <div className="font-mono text-foreground">
+                          {formatBytes(transferProgress.network_bytes_processed ?? 0)}
+                        </div>
+                      </div>
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-muted-foreground">Archived</div>
+                        <div className="font-mono text-foreground">
+                          {formatBytes(transferProgress.archive_bytes_processed ?? 0)}
+                        </div>
+                      </div>
+                      <div className="p-2 bg-muted/50 rounded">
+                        <div className="text-muted-foreground">Total</div>
+                        <div className="font-mono text-foreground">
+                          {formatBytes(transferProgress.bytes_total ?? 0)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Waiting for transfer to start...</p>
+                )}
               </div>
             )}
-            <p className="text-xs text-muted-foreground">
-              {t("dialogs.transfer.notice")}
-            </p>
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="destructive"
-              onClick={cancelTransfer}
-              disabled={cancellingTransfer}
-              className="w-full sm:w-auto"
-            >
-              {cancellingTransfer && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
-              Cancel Transfer
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setTransferDialogOpen(false)}
-              disabled={transferLoading || cancellingTransfer}
-              className="w-full sm:w-auto"
-            >
-              {t("actions.cancel")}
-            </Button>
-            <Button
-              onClick={doTransfer}
-              disabled={transferLoading || cancellingTransfer || !transferNodeId}
-              className="w-full sm:w-auto"
-            >
-              {transferLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
-              {t("actions.transfer")}
-            </Button>
+            {!transferring ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setTransferDialogOpen(false)}
+                  disabled={transferLoading}
+                  className="w-full sm:w-auto"
+                >
+                  {t("actions.cancel")}
+                </Button>
+                <Button
+                  onClick={doTransfer}
+                  disabled={transferLoading || !transferNodeId}
+                  className="w-full sm:w-auto"
+                >
+                  {transferLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
+                  {t("actions.transfer")}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="destructive"
+                onClick={cancelTransfer}
+                disabled={cancellingTransfer}
+                className="w-full sm:w-auto"
+              >
+                {cancellingTransfer && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
+                Cancel Transfer
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

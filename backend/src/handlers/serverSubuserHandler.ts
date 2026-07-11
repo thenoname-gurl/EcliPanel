@@ -8,6 +8,7 @@ import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { createActivityLog } from './logHandler';
 import { createMailboxMessageForUser } from '../utils/mailboxMessage';
+import { redisDel } from '../config/redis';
 import { getMailboxAccountForUser } from '../services/mailcowService';
 import { consumeRateLimit } from '../config/redis';
 import { resolvePanelBaseUrl } from '../utils/url';
@@ -44,6 +45,13 @@ async function canManageSubusers(ctx: RequestContext, serverUuid: string): Promi
   if (cfg && cfg.userId === user.id) return true;
 
   return false;
+}
+
+async function clearServerListForUsers(userIds: number[]) {
+  const keys = new Set<string>()
+  keys.add('servers:list:admin')
+  for (const id of userIds) keys.add(`servers:list:user:${id}`)
+  await Promise.allSettled([...keys].map(k => redisDel(k).catch(() => {})))
 }
 
 export async function serverSubuserRoutes(app: AppLike, prefix = '') {
@@ -231,6 +239,7 @@ export async function serverSubuserRoutes(app: AppLike, prefix = '') {
         ipAddress: ctx.request.ip,
       });
 
+      await clearServerListForUsers([user.id, target.id]);
       return entry;
     },
     {
@@ -314,6 +323,7 @@ export async function serverSubuserRoutes(app: AppLike, prefix = '') {
         ipAddress: ctx.request.ip,
       });
 
+      await clearServerListForUsers([user.id, entry.userId]);
       return entry;
     },
     {
@@ -375,6 +385,7 @@ export async function serverSubuserRoutes(app: AppLike, prefix = '') {
         ipAddress: ctx.request.ip,
       });
 
+      await clearServerListForUsers([user.id, entry.userId]);
       return { success: true };
     },
     {
@@ -450,6 +461,7 @@ export async function serverSubuserRoutes(app: AppLike, prefix = '') {
         metadata: { subuserId: entry.userId },
         ipAddress: ctx.request.ip,
       });
+      await clearServerListForUsers([user.id]);
       return entry;
     },
     {
@@ -490,6 +502,7 @@ export async function serverSubuserRoutes(app: AppLike, prefix = '') {
         metadata: { subuserId: entry.userId },
         ipAddress: ctx.request.ip,
       });
+      await clearServerListForUsers([user.id]);
       return { success: true };
     },
     {

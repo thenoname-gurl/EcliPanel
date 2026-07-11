@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { formatBytes } from "./serverTabHelpers"
+import { useServerWebsocket } from "./useServerWebsocket"
 import {
   Send,
   Loader2,
@@ -420,40 +421,36 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
   const t = useTranslations("serverConsoleTab")
   const termRef = useRef<HTMLDivElement>(null)
   const xtermRef = useRef<any>(null)
-  const wsRef = useRef<WebSocket | null>(null)
   const fitRef = useRef<any>(null)
   const inputBuf = useRef("")
   const containerRef = useRef<HTMLDivElement>(null)
   const consoleOutputRef = useRef<string[]>([])
-
-  // Refs for reconnection state (not in dependency arrays)
-  const connectedHintShownRef = useRef(false)
-  const retryCountRef = useRef(0)
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isConnectingRef = useRef(false)
   const cancelledRef = useRef(false)
-  const serverOfflineRef = useRef(false)
 
-  const [connected, setConnected] = useState(false)
-  const [connectionState, setConnectionState] = useState<string>("disconnected")
+  const {
+    ws,
+    connected,
+    connectionState,
+    installing,
+    reconnect,
+    sendCommand: wsSendCommand,
+    resources,
+  } = useServerWebsocket(serverId)
+
   const [mobileCmd, setMobileCmd] = useState("")
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [reconnecting, setReconnecting] = useState(false)
   const [commandHistory, setCommandHistory] = useState<string[]>([])
   const [showHistory, setShowHistory] = useState(false)
   const [terminalReady, setTerminalReady] = useState(false)
-  const [resources, setResources] = useState<{ cpu_absolute?: number; memory_bytes?: number; memory_limit_bytes?: number; disk_bytes?: number; disk_limit_bytes?: number } | null>(null)
-  const [isInstalling, setIsInstalling] = useState(false)
-  const installingRef = useRef(installingProp || false)
-  useEffect(() => { installingRef.current = installingProp || isInstalling }, [installingProp, isInstalling])
-  useEffect(() => { if (installingProp) setIsInstalling(true) }, [installingProp])
 
-  // Freeze tab after inactivity
+  const isInstalling = installing || (installingProp ?? false)
+
+  // Freeze tab after inactivity (10 min)
   const [frozen, setFrozen] = useState(false)
   const lastActivityRef = useRef(Date.now())
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const FREEZE_TIMEOUT = 10 * 60 * 1000 // 10 minutes
+  const FREEZE_TIMEOUT = 10 * 60 * 1000
 
   const resetFreezeTimer = useCallback(() => {
     lastActivityRef.current = Date.now()
@@ -461,22 +458,18 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
     if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
     freezeTimerRef.current = setTimeout(() => {
       setFrozen(true)
-      if (wsRef.current) {
-        wsRef.current.onclose = null
-        wsRef.current.close()
-        wsRef.current = null
-      }
+      ws.close()
     }, FREEZE_TIMEOUT)
-  }, [frozen])
+  }, [frozen, ws])
 
   useEffect(() => {
-    if (isInstalling || installingProp) {
+    if (isInstalling) {
       if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
       return
     }
     resetFreezeTimer()
     return () => { if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current) }
-  }, [isInstalling, installingProp, resetFreezeTimer])
+  }, [isInstalling, resetFreezeTimer])
 
   const unfreeze = useCallback(() => {
     setFrozen(false)
@@ -484,14 +477,10 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
     if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current)
     freezeTimerRef.current = setTimeout(() => {
       setFrozen(true)
-      if (wsRef.current) {
-        wsRef.current.onclose = null
-        wsRef.current.close()
-        wsRef.current = null
-      }
+      ws.close()
     }, FREEZE_TIMEOUT)
-    window.location.reload()
-  }, [])
+    reconnect()
+  }, [ws, reconnect])
 
   const addToOutput = useCallback((text: string) => {
     consoleOutputRef.current.push(text)
@@ -540,25 +529,13 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
 
   const sendCommand = useCallback((cmd: string) => {
     if (!cmd.trim()) return
-    
     setCommandHistory(prev => {
       const filtered = prev.filter(c => c !== cmd)
       return [cmd, ...filtered].slice(0, 100)
     })
-
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({ event: "send command", args: [cmd] }))
-    } else {
-      apiFetch(API_ENDPOINTS.serverCommands.replace(":id", serverId), {
-        method: "POST",
-        body: JSON.stringify({ command: cmd }),
-      }).catch((err: any) => {
-        xtermRef.current?.writeln(`\x1b[31m[${t("terminal.errorTag")}] ${err.message}\x1b[0m`)
-      })
-    }
-    
+    wsSendCommand(cmd)
     addToOutput(`> ${cmd}`)
-  }, [serverId, addToOutput])
+  }, [wsSendCommand, addToOutput])
 
   const copyOutput = useCallback(async () => {
     try {
@@ -615,27 +592,11 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
 
   useEffect(() => {
     cancelledRef.current = false
-    let ws: WebSocket | null = null
+    let termDisposed = false
+
     let term: any = null
-
-    // Exponential backoff: 2s, 4s, 8s, 15s, 30s, 30s, 30s...
-    const getReconnectDelay = (attempt: number): number => {
-      if (installingRef.current) {
-        // Installing — reconnect quickly to catch output
-        return Math.min(1000 + attempt * 500, 5000)
-      }
-      if (serverOfflineRef.current) {
-        // Server is offline — use much longer intervals
-        return Math.min(30000 + attempt * 5000, 60000)
-      }
-      const base = 2000
-      const delay = Math.min(base * Math.pow(2, attempt), 30000)
-      // Add jitter: ±25%
-      const jitter = delay * 0.25 * (Math.random() * 2 - 1)
-      return Math.round(delay + jitter)
-    }
-
-    const MAX_RETRIES = 15
+    const history: string[] = []
+    let historyIdx = -1
 
     ;(async () => {
       const { Terminal } = await import("@xterm/xterm")
@@ -643,7 +604,7 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
       const { WebLinksAddon } = await import("@xterm/addon-web-links")
       await import("@xterm/xterm/css/xterm.css")
 
-      if (cancelledRef.current || !termRef.current) return
+      if (cancelledRef.current || !termRef.current || termDisposed) return
 
       term = new Terminal({
         cursorBlink: true,
@@ -683,14 +644,10 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
       term.loadAddon(fitAddon)
       term.loadAddon(new WebLinksAddon())
       term.open(termRef.current)
-      
       setTimeout(() => fitAddon.fit(), 50)
-      
+
       xtermRef.current = term
       setTerminalReady(true)
-
-      const history: string[] = []
-      let historyIdx = -1
 
       term.onKey(({ key, domEvent }: { key: string; domEvent: KeyboardEvent }) => {
         const code = domEvent.keyCode
@@ -703,17 +660,7 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
             if (history.length > 200) history.pop()
             historyIdx = -1
             setCommandHistory(prev => [cmd, ...prev.filter(c => c !== cmd)].slice(0, 100))
-
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ event: "send command", args: [cmd] }))
-            } else {
-              apiFetch(API_ENDPOINTS.serverCommands.replace(":id", serverId), {
-                method: "POST",
-                body: JSON.stringify({ command: cmd }),
-              }).catch((err: any) => {
-                term.writeln(`\x1b[31m[ERROR] ${err.message}\x1b[0m`)
-              })
-            }
+            wsSendCommand(cmd)
             addToOutput(`> ${cmd}`)
           }
           inputBuf.current = ""
@@ -735,9 +682,8 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
               term.write("\b \b")
               inputBuf.current = inputBuf.current.slice(0, -1)
             }
-            const entry = history[historyIdx]
-            inputBuf.current = entry
-            term.write(entry)
+            inputBuf.current = history[historyIdx]
+            term.write(history[historyIdx])
           }
           return
         }
@@ -749,9 +695,8 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
           }
           if (historyIdx > 0) {
             historyIdx--
-            const entry = history[historyIdx]
-            inputBuf.current = entry
-            term.write(entry)
+            inputBuf.current = history[historyIdx]
+            term.write(history[historyIdx])
           } else {
             historyIdx = -1
           }
@@ -761,9 +706,7 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
         if (domEvent.ctrlKey || domEvent.altKey || domEvent.metaKey) {
           if (domEvent.ctrlKey && code === 67 && term.hasSelection()) return
           if (domEvent.ctrlKey && code === 67) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ event: "send command", args: ["\x03"] }))
-            }
+            ws.send("send command", ["\x03"])
             inputBuf.current = ""
             term.write("^C\r\n")
             return
@@ -792,402 +735,89 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
         }
       })
 
-      term.writeln(`\x1b[90m${t("terminal.connectingToConsole")}\x1b[0m`)
-      setConnectionState("connecting")
+      const connectedHintShown = { current: false }
 
-      function scheduleReconnect() {
-        if (cancelledRef.current) return
-        if (reconnectTimerRef.current) return // Already scheduled
-
-        retryCountRef.current++
-        
-        if (retryCountRef.current > MAX_RETRIES) {
-          term.writeln(`\x1b[31m${t("terminal.maxReconnect")}\x1b[0m`)
-          setConnectionState("disconnected")
-          setReconnecting(false)
-          return
+      ws.on('auth success', () => {
+        if (!connectedHintShown.current) {
+          term.writeln(`\x1b[32m${t("terminal.connected")}.\x1b[0m ${t("terminal.typeCommands")}\r\n`)
+          connectedHintShown.current = true
         }
+      })
 
-        const delay = getReconnectDelay(retryCountRef.current - 1)
-        const delaySec = Math.round(delay / 1000)
-        
-        if (serverOfflineRef.current) {
-          term.writeln(`\x1b[90m${t("terminal.serverOfflineRetry", { delaySec, attempt: retryCountRef.current, maxRetries: MAX_RETRIES })}\x1b[0m`)
-        } else {
-          term.writeln(`\x1b[33m${t("terminal.reconnectingIn", { delaySec, attempt: retryCountRef.current, maxRetries: MAX_RETRIES })}\x1b[0m`)
-        }
-        
-        setConnectionState("reconnecting")
-
-        reconnectTimerRef.current = setTimeout(() => {
-          reconnectTimerRef.current = null
-          if (!cancelledRef.current) {
-            connect()
+      ws.on('console output', (args: unknown[]) => {
+        for (const line of (args || [])) {
+          const raw = typeof line === 'string' ? line : JSON.stringify(line)
+          const processed = processConsoleOutput(raw)
+          const plain = stripAnsiText(processed)
+          const daemonMatch = plain.match(/^\[Daemon\]:\s*/)
+          let output = processed
+          if (daemonMatch) {
+            const msgText = plain.slice(daemonMatch[0].length)
+            const translated = translateDaemonText(msgText, t)
+            output = processed.replace(msgText, translated)
           }
-        }, delay)
-      }
-
-      function setupWsHandlers(ws: WebSocket) {
-        ws.onopen = () => {
-          isConnectingRef.current = false
-          setReconnecting(false)
-          if (cancelledRef.current) return
-
-          retryCountRef.current = 0
-          serverOfflineRef.current = false
-          if (reconnectTimerRef.current) {
-            clearTimeout(reconnectTimerRef.current)
-            reconnectTimerRef.current = null
+          if (output.trim() || output.includes('\n')) {
+            term.write(output)
+            if (!output.endsWith('\n') && !output.endsWith('\r')) {
+              term.write('\r\n')
+            }
+            addToOutput(stripAnsiText(output))
           }
         }
+      })
 
-        ws.onmessage = (ev) => {
-          if (cancelledRef.current) return
-          try {
-            const msg = JSON.parse(ev.data)
-            switch (msg.event) {
-              case "auth success":
-                setConnected(true)
-                setConnectionState("connected")
-                serverOfflineRef.current = false
-                if (!connectedHintShownRef.current) {
-                  term.writeln(`\x1b[32m${t("terminal.connected")}.\x1b[0m ${t("terminal.typeCommands")}\r\n`)
-                  connectedHintShownRef.current = true
-                }
-                ws.send(JSON.stringify({ event: "send logs", args: [] }))
-                ws.send(JSON.stringify({ event: "send stats", args: [] }))
-                break
-
-               case "console output":
-                for (const line of msg.args || []) {
-                  const raw = typeof line === "string" ? line : JSON.stringify(line)
-                  const processed = processConsoleOutput(raw)
-                  const plain = stripAnsiText(processed)
-                  const daemonMatch = plain.match(/^\[Daemon\]:\s*/)
-                  let output = processed
-                  if (daemonMatch) {
-                    const msgText = plain.slice(daemonMatch[0].length)
-                    const translated = translateDaemonText(msgText, t)
-                    output = processed.replace(msgText, translated)
-                  }
-                  if (output.trim() || output.includes('\n')) {
-                    term.write(output)
-                    if (!output.endsWith('\n') && !output.endsWith('\r')) {
-                      term.write('\r\n')
-                    }
-                    addToOutput(stripAnsiText(output))
-                  }
-                }
-                break
-
-               case "install output":
-                setIsInstalling(true)
-                for (const line of msg.args || []) {
-                  const processed = processConsoleOutput(String(line))
-                  const translated = translateInstallText(processed, t)
-                  const text = `[${t("terminal.tags.install")}] ${translated}`
-                  if (text.trim()) {
-                    term.writeln(`\x1b[33m${text}\x1b[0m`)
-                    addToOutput(stripAnsiText(text))
-                  }
-                }
-                break
-
-               case "stats": {
-                const stats = msg.args?.[0] || {}
-                setResources({
-                  cpu_absolute: stats.cpu_absolute,
-                  memory_bytes: stats.memory_bytes,
-                  memory_limit_bytes: stats.memory_limit_bytes,
-                  disk_bytes: stats.disk_bytes,
-                  disk_limit_bytes: stats.disk_limit_bytes,
-                })
-                break
-              }
-
-               case "status": {
-                const raw = String(msg.args?.[0] || "")
-                const processed = processConsoleOutput(raw)
-                const translated = translateStatusText(processed, t)
-                term.writeln(`\x1b[36m[${t("terminal.tags.status")}]\x1b[0m ${translated}`)
-                setConnectionState(raw)
-                const s = raw.toLowerCase()
-                if (s === "running" || s === "connected") {
-                  setIsInstalling(false)
-                  setConnected(true)
-                  serverOfflineRef.current = false
-                  if (!connectedHintShownRef.current) {
-                    connectedHintShownRef.current = true
-                  }
-                } else if (s === "installing") {
-                  setConnected(true)
-                  serverOfflineRef.current = false
-                } else if (s === "connecting" || s === "starting") {
-                  setConnected(false)
-                } else if (s === "offline" || s === "stopped") {
-                  if (installingRef.current) {
-                    // Server is being installed — don't show as offline
-                    setConnectionState("installing")
-                    setConnected(true)
-                    serverOfflineRef.current = false
-                  } else {
-                    setConnected(false)
-                    serverOfflineRef.current = true
-                    connectedHintShownRef.current = false
-                  }
-                } else if (s.includes("disconnect") || s.includes("failed") || s.includes("expired")) {
-                  setConnected(false)
-                  connectedHintShownRef.current = false
-                }
-                break
-              }
-
-               case "daemon message": {
-                const dmMsg = processConsoleOutput(msg.args?.join(" ") || "")
-                const translated = translateDaemonText(dmMsg, t)
-                if (translated.trim()) {
-                  term.writeln(`\x1b[33m[${t("terminal.tags.daemon")}]\x1b[0m ${translated}`)
-                }
-                break
-              }
-
-              case "daemon error": {
-                const errMsg = processConsoleOutput(msg.args?.join(" ") || "")
-                if (errMsg.trim()) {
-                  term.writeln(`\x1b[31m[${t("terminal.tags.error")}]\x1b[0m ${errMsg}`)
-                }
-                break
-              }
-
-              case "jwt error":
-                term.writeln(`\x1b[31m[${t("terminal.tags.authError")}]\x1b[0m ${processConsoleOutput(msg.args?.join(" ") || "")}`)
-                setConnected(false)
-                break
-
-              case "token expiring":
-                apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
-                  .then((c) => {
-                    if (c?.data?.token && ws?.readyState === WebSocket.OPEN) {
-                      ws.send(JSON.stringify({ event: "auth", args: [c.data.token] }))
-                    }
-                  })
-                  .catch(() => {})
-                break
-
-              case "token expired":
-                term.writeln(`\x1b[31m${t("terminal.sessionExpired")}\x1b[0m`)
-                setConnected(false)
-                break
-
-              default:
-                break
-            }
-          } catch {
-            const processed = processConsoleOutput(String(ev.data))
-            if (processed.trim()) {
-              term.writeln(processed)
-            }
+      ws.on('install output', (args: unknown[]) => {
+        for (const line of (args || [])) {
+          const processed = processConsoleOutput(String(line))
+          const translated = translateInstallText(processed, t)
+          const text = `[${t("terminal.tags.install")}] ${translated}`
+          if (text.trim()) {
+            term.writeln(`\x1b[33m${text}\x1b[0m`)
+            addToOutput(stripAnsiText(text))
           }
         }
+      })
 
-        ws.onerror = () => {
-          if (!cancelledRef.current) {
-            term.writeln(`\x1b[31m${t("terminal.websocketErrorOccurred")}\x1b[0m`)
-          }
+      ws.on('install started', () => {
+        term.writeln(`\x1b[33m[${t("terminal.tags.install")}] ${t("terminal.installStarted")}\x1b[0m`)
+      })
+
+      ws.on('install completed', () => {
+        term.writeln(`\x1b[32m[${t("terminal.tags.install")}] ${t("terminal.installCompleted")}\x1b[0m`)
+        fetchInstallLogs()
+      })
+
+      ws.on('status', (args: unknown[]) => {
+        const raw = String(args?.[0] ?? '')
+        const processed = processConsoleOutput(raw)
+        const translated = translateStatusText(processed, t)
+        term.writeln(`\x1b[36m[${t("terminal.tags.status")}]\x1b[0m ${translated}`)
+      })
+
+      ws.on('daemon message', (args: unknown[]) => {
+        const dmMsg = processConsoleOutput(args?.join(' ') || '')
+        const translated = translateDaemonText(dmMsg, t)
+        if (translated.trim()) {
+          term.writeln(`\x1b[33m[${t("terminal.tags.daemon")}]\x1b[0m ${translated}`)
         }
+      })
 
-        ws.onclose = (ev) => {
-          isConnectingRef.current = false
-          setReconnecting(false)
-          if (cancelledRef.current) return
-          setConnected(false)
-
-          if (ev.code === 1008) {
-            term.writeln(`\x1b[31m${t("terminal.authFailed", { code: ev.code })}`)
-            setConnectionState("disconnected")
-            return
-          }
-
-          term.writeln(`\x1b[90m${t("terminal.disconnected", { code: ev.code, reason: ev.reason ? `: ${ev.reason}` : "" })}\x1b[0m`)
-
-          if (ev.code === 1006 && !installingRef.current) {
-            serverOfflineRef.current = true
-            scheduleReconnect()
-          } else if (ev.code === 1006) {
-            // Installing — Wings may recycle the connection, reconnect without marking offline
-            scheduleReconnect()
-          }
+      ws.on('daemon error', (args: unknown[]) => {
+        const errMsg = processConsoleOutput(args?.join(' ') || '')
+        if (errMsg.trim()) {
+          term.writeln(`\x1b[31m[${t("terminal.tags.error")}]\x1b[0m ${errMsg}`)
         }
-      }
+      })
 
-      async function connectDirect(url: string, jwt: string, timeoutMs = 10000): Promise<WebSocket | null> {
-        return new Promise((resolve) => {
-          try {
-            const sock = new WebSocket(url)
-            let settled = false
-
-            const done = (result: WebSocket | null) => {
-              if (settled) return
-              settled = true
-              clearTimeout(timer)
-              resolve(result)
-            }
-
-            const timer = setTimeout(() => {
-              sock.close()
-              done(null)
-            }, timeoutMs)
-
-            sock.onopen = () => {
-              sock.send(JSON.stringify({ event: 'auth', args: [jwt] }))
-            }
-
-            sock.onmessage = (ev) => {
-              try {
-                const msg = JSON.parse(ev.data)
-                if (msg.event === 'auth success') {
-                  done(sock)
-                } else if (msg.event === 'jwt error') {
-                  sock.close()
-                  done(null)
-                }
-              } catch {
-                // Ignore parse errors during auth
-              }
-            }
-
-            sock.onerror = () => done(null)
-            sock.onclose = () => done(null)
-          } catch {
-            resolve(null)
-          }
-        })
-      }
-
-      async function connectToUrl(url: string, timeoutMs = 10000): Promise<WebSocket | null> {
-        return new Promise((resolve) => {
-          try {
-            const sock = new WebSocket(url)
-            const timer = setTimeout(() => {
-              sock.close()
-              resolve(null)
-            }, timeoutMs)
-            sock.onopen = () => {
-              clearTimeout(timer)
-              resolve(sock)
-            }
-            sock.onerror = () => { clearTimeout(timer); resolve(null) }
-            sock.onclose = () => { clearTimeout(timer); resolve(null) }
-          } catch {
-            resolve(null)
-          }
-        })
-      }
-
-      async function connect() {
-        if (cancelledRef.current) return
-        if (isConnectingRef.current) return
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return
-
-        isConnectingRef.current = true
-        setReconnecting(true)
-        setConnectionState("connecting")
-
-        try {
-          const creds = await apiFetch(API_ENDPOINTS.serverWebsocket.replace(":id", serverId))
-          const proxyUrl = creds?.data?.socket
-          const directWsUrl = creds?.data?.direct_socket
-          const directEnabled = creds?.data?.direct
-          const wingsJwt = creds?.data?.token
-
-          if (!proxyUrl) {
-            term.writeln(`\x1b[31m${t("terminal.failedWsCredentials")}`)
-            isConnectingRef.current = false
-            setReconnecting(false)
-            serverOfflineRef.current = true
-            scheduleReconnect()
-            return
-          }
-
-          if (cancelledRef.current) {
-            isConnectingRef.current = false
-            return
-          }
-
-          // Try direct connection to Wings (no backend proxy)
-          if (directEnabled && directWsUrl && wingsJwt) {
-            term.writeln(`\x1b[90m${t("terminal.tryingDirectConnection")}\x1b[0m`)
-            const directWs = await connectDirect(directWsUrl, wingsJwt, 8000)
-            if (directWs && !cancelledRef.current) {
-              term.writeln(`\x1b[32m${t("terminal.directConnected")}\x1b[0m`)
-              ws = directWs
-              wsRef.current = directWs
-              setupWsHandlers(directWs)
-              // Post-auth setup — connectDirect already consumed auth success
-              isConnectingRef.current = false
-              retryCountRef.current = 0
-              serverOfflineRef.current = false
-              if (reconnectTimerRef.current) {
-                clearTimeout(reconnectTimerRef.current)
-                reconnectTimerRef.current = null
-              }
-              setConnected(true)
-              setConnectionState("connected")
-              setReconnecting(false)
-              if (!connectedHintShownRef.current) {
-                term.writeln(`\x1b[32m${t("terminal.connected")}.\x1b[0m ${t("terminal.typeCommands")}\r\n`)
-                connectedHintShownRef.current = true
-              }
-              directWs.send(JSON.stringify({ event: "send logs", args: [] }))
-              directWs.send(JSON.stringify({ event: "send stats", args: [] }))
-              return
-            }
-            if (!cancelledRef.current) {
-              term.writeln(`\x1b[33m${t("terminal.fallingBackToProxy")}\x1b[0m`)
-            }
-          }
-
-          // Fallback: connect through backend proxy
-          const proxyWs = await connectToUrl(proxyUrl, 10000)
-          if (!proxyWs || cancelledRef.current) {
-            isConnectingRef.current = false
-            setReconnecting(false)
-            if (!installingRef.current) serverOfflineRef.current = true
-            scheduleReconnect()
-            return
-          }
-
-          ws = proxyWs
-          wsRef.current = proxyWs
-          setupWsHandlers(proxyWs)
-          isConnectingRef.current = false
-          setReconnecting(false)
-        } catch (err: any) {
-          const msg = err?.message || String(err)
-
-          if (installingRef.current) {
-            term.writeln(`\x1b[33m${t("terminal.reconnectingIn", { delaySec: 2, attempt: retryCountRef.current + 1, maxRetries: MAX_RETRIES })}\x1b[0m`)
-          } else if (msg.includes("fetch") || msg.includes("network") || msg.includes("404") || msg.includes("502") || msg.includes("503")) {
-            serverOfflineRef.current = true
-            term.writeln(`\x1b[90m${t("terminal.serverOffline", { reason: msg })}\x1b[0m`)
-          } else {
-            term.writeln(`\x1b[31m${t("terminal.connectionFailed", { reason: msg })}\x1b[0m`)
-          }
-
-          isConnectingRef.current = false
-          setReconnecting(false)
-          scheduleReconnect()
-        }
-      }
-
-      connect()
+      ws.on('jwt error', (args: unknown[]) => {
+        term.writeln(`\x1b[31m[${t("terminal.tags.authError")}]\x1b[0m ${processConsoleOutput(args?.join(' ') || '')}`)
+      })
     })()
 
     const onResize = () => {
       setTimeout(() => fitRef.current?.fit(), 50)
     }
     window.addEventListener("resize", onResize)
-
     const onOrientationChange = () => {
       setTimeout(() => fitRef.current?.fit(), 100)
     }
@@ -1195,56 +825,20 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
 
     return () => {
       cancelledRef.current = true
+      termDisposed = true
       window.removeEventListener("resize", onResize)
       window.removeEventListener("orientationchange", onOrientationChange)
-      if (reconnectTimerRef.current) {
-        clearTimeout(reconnectTimerRef.current)
-        reconnectTimerRef.current = null
-      }
-      ws?.close()
-      wsRef.current = null
       term?.dispose()
       xtermRef.current = null
     }
-  }, [serverId, addToOutput, t]) // Only stable dependencies needed for runtime lifecycle
+  }, [serverId, ws, wsSendCommand, addToOutput, t])
 
   const handleReconnect = useCallback(() => {
-    if (reconnecting) return
-    
-    // Clear any pending reconnect timer
-    if (reconnectTimerRef.current) {
-      clearTimeout(reconnectTimerRef.current)
-      reconnectTimerRef.current = null
+    if (!connected) {
+      xtermRef.current?.writeln(`\x1b[90m${t("terminal.manuallyReconnecting")}\x1b[0m`)
+      reconnect()
     }
-    
-    // Reset retry state for manual reconnect
-    retryCountRef.current = 0
-    serverOfflineRef.current = false
-    isConnectingRef.current = false
-    connectedHintShownRef.current = false
-    
-    // Close existing connection
-    if (wsRef.current) {
-      wsRef.current.onclose = null // Prevent auto-reconnect from firing
-      wsRef.current.close()
-      wsRef.current = null
-    }
-    
-    setConnected(false)
-    setConnectionState("connecting")
-    xtermRef.current?.writeln(`\x1b[90m${t("terminal.manuallyReconnecting")}\x1b[0m`)
-
-    // Re-run the effect by unmounting and remounting
-    // We do this by toggling a key or simply calling connect again
-    // Since connect is inside the effect, we reload — but properly this time
-    // Actually, let's just reload the component cleanly
-    setReconnecting(true)
-    
-    // Small delay then reload
-    setTimeout(() => {
-      window.location.reload()
-    }, 200)
-  }, [reconnecting, t])
+  }, [connected, reconnect, t])
 
   const handleMobileSend = useCallback(() => {
     if (!mobileCmd.trim()) return
@@ -1269,7 +863,7 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
         onReconnect={handleReconnect}
         onCopy={copyOutput}
         copied={copied}
-        reconnecting={reconnecting}
+        reconnecting={!connected && connectionState === 'connecting'}
         installing={installingProp || isInstalling}
         t={t}
       />

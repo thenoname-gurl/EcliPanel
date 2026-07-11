@@ -44,6 +44,7 @@ import { ServerMount } from '../models/serverMount.entity';
 import { t } from 'elysia';
 import { createActivityLog } from './logHandler';
 import { nodeService } from '../services/nodeService';
+import { WingsApiService } from '../services/wingsApiService';
 import { restoreDesiredPowerStatesForNode } from '../services/serverDesiredStateService';
 import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
 import type { AllocationLike, RemoteNodeOverrides, WingsApp, WingsContext } from '../types/remote';
@@ -547,6 +548,11 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           const node = ctx.wingNode as Node;
           if (!node) return;
 
+          await repo().update(
+            { nodeId: node.id, installing: true },
+            { installing: false }
+          );
+
           const nodeSvc = nodeService;
           const svc = await nodeSvc.getServiceForNode(node.id);
           const configs = await repo().findBy({ nodeId: node.id });
@@ -635,21 +641,27 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
   app.post(
     prefix + '/remote/servers/:uuid/install',
     async (ctx: WingsContext) => {
-      const { uuid } = (ctx.params || {}) as Record<string, string>;
+      const { uuid } = (ctx.params ?? {}) as Record<string, string>;
       const node = ctx.wingNode as Node;
       const { successful } = (ctx.body || {}) as Record<string, unknown>;
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
-      if (cfg) {
-        cfg.installing = false;
-        await repo().save(cfg);
-        await AppDataSource.getRepository(UserLog).save(
-          AppDataSource.getRepository(UserLog).create({
-            userId: cfg.userId,
-            action: successful ? 'wings:install:complete' : 'wings:install:failed',
-            timestamp: new Date(),
-          })
-        );
+
+      try {
+        await repo().update({ uuid }, { installing: false });
+
+        const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+        if (cfg) {
+          await AppDataSource.getRepository(UserLog).save(
+            AppDataSource.getRepository(UserLog).create({
+              userId: cfg.userId,
+              action: successful ? 'wings:install:complete' : 'wings:install:failed',
+              timestamp: new Date(),
+            })
+          );
+        }
+      } catch (e: unknown) {
+        app.log?.warn?.({ err: e, uuid, nodeId: node.id }, 'remote: failed to handle install completion');
       }
+
       ctx.set.status = 204;
       return;
     },
@@ -1276,11 +1288,99 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // POST /api/remote/servers/:uuid/transfer/success
-  // POST /api/remote/servers/:uuid/transfer/failure
+  // Called ONLY by the *target* Wings after receiving and extracting the
+  // transferred archive successfully.  We reassign the server to the target
+  // node and remove the old copy from the source.
   // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/servers/:uuid/transfer/success',
     async (ctx: WingsContext) => {
+      const { uuid } = (ctx.params ?? {}) as Record<string, string>;
+      const targetNode = ctx.wingNode as Node;
+      const body = (ctx.body || {}) as Record<string, unknown>;
+
+      try {
+        // Use update() to hit ALL matching rows (handles duplicates)
+        const sourceRows = await repo().findBy({ uuid });
+        const sourceNodeId = sourceRows[0]?.nodeId;
+
+        if (!sourceNodeId) {
+          app.log?.warn?.({ uuid }, 'transfer/success: no source nodeId found');
+          ctx.set.status = 204;
+          return;
+        }
+
+        // Reassign to target node — both ServerConfig AND ServerMapping
+        // (ServerMapping is what serviceFor() uses to route API calls;
+        //  ServerConfig.nodeId is informational.  Both must agree.)
+        await repo().update({ uuid }, { nodeId: targetNode.id });
+
+        try {
+          await nodeService.mapServer(uuid, targetNode.id);
+        } catch (e: unknown) {
+          // mapServer creates a new row — if one already exists it'll fail.
+          // Fall back to deleting the old mapping and recreating.
+          try { await nodeService.unmapServer(uuid); } catch {}
+          try { await nodeService.mapServer(uuid, targetNode.id); } catch {}
+        }
+
+        // Remove the old copy from the source node (if different)
+        if (sourceNodeId !== targetNode.id) {
+          try {
+            const sourceNode = await AppDataSource.getRepository(Node).findOneBy({ id: sourceNodeId });
+            if (sourceNode) {
+              const sourceSvc = new WingsApiService(
+                sourceNode.backendWingsUrl || sourceNode.url,
+                sourceNode.token,
+              );
+              await sourceSvc.serverRequest(uuid, '', 'delete');
+              app.log?.info?.({ uuid, sourceNodeId }, 'transfer/success: deleted server from source');
+            }
+          } catch (e: unknown) {
+            app.log?.warn?.({ err: e, uuid, sourceNodeId }, 'transfer/success: source delete failed (may already be gone)');
+          }
+        }
+
+        // Sync full config to target
+        try {
+          const targetSvc = new WingsApiService(
+            targetNode.backendWingsUrl || targetNode.url,
+            targetNode.token,
+          );
+          await targetSvc.syncServer(uuid, {});
+        } catch (e: unknown) {
+          app.log?.warn?.({ err: e, uuid }, 'transfer/success: post-transfer sync failed');
+        }
+
+        // Migrate backup UUIDs
+        const backupMigrations = (body as any)?.backup_migrations as Record<string, string> | undefined;
+        if (backupMigrations && typeof backupMigrations === 'object') {
+          try {
+            const { ServerBackup } = require('../models/serverBackup.entity');
+            const backupRepo = AppDataSource.getRepository(ServerBackup);
+            for (const [oldUuid, newUuid] of Object.entries(backupMigrations)) {
+              await backupRepo.update({ uuid: oldUuid }, { uuid: newUuid }).catch(() => {});
+            }
+          } catch { /* best-effort */ }
+        }
+
+        const cfg = sourceRows[0];
+        if (cfg) {
+          await createActivityLog({
+            userId: cfg.userId,
+            action: 'server:transfer:complete',
+            targetId: uuid,
+            targetType: 'server',
+            metadata: { sourceNodeId, targetNodeId: targetNode.id },
+            ipAddress: ctx.ip,
+          });
+        }
+
+        app.log?.info?.({ uuid, sourceNodeId, targetNodeId: targetNode.id }, 'transfer/success: completed');
+      } catch (err: unknown) {
+        app.log?.error?.({ err, uuid }, 'transfer/success: unexpected error');
+      }
+
       ctx.set.status = 204;
       return;
     },
@@ -1291,9 +1391,64 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
     }
   );
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // POST /api/remote/servers/:uuid/transfer/failure
+  // Called by EITHER Wings node after a transfer fails:
+  //   - Target Wings — extraction or creation failed; we clean up the
+  //     partially-created server on the target.
+  //   - Source Wings — network error or target rejected the stream; the
+  //     original server on the source is still valid, we MUST NOT delete it.
+  //
+  // We tell them apart: if the reporting node is the same as the current
+  // nodeId, it's the source — leave it alone.  If different, it's the
+  // target — remove the partial copy.
+  // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/servers/:uuid/transfer/failure',
     async (ctx: WingsContext) => {
+      const { uuid } = (ctx.params ?? {}) as Record<string, string>;
+      const reportingNode = ctx.wingNode as Node;
+
+      try {
+        const cfg = await repo().findOneBy({ uuid });
+        const sourceNodeId = cfg?.nodeId;
+
+        // Only clean up if the reporting node is the TARGET (different from source)
+        const isTarget = sourceNodeId != null && sourceNodeId !== reportingNode.id;
+
+        if (isTarget) {
+          try {
+            const targetSvc = new WingsApiService(
+              reportingNode.backendWingsUrl || reportingNode.url,
+              reportingNode.token,
+            );
+            await targetSvc.serverRequest(uuid, '', 'delete');
+            app.log?.info?.({ uuid, targetNodeId: reportingNode.id }, 'transfer/failure: removed partial server from target');
+          } catch (e: unknown) {
+            // server might not exist on target yet
+          }
+        } else {
+          app.log?.info?.({ uuid, sourceNodeId, reportingNodeId: reportingNode.id }, 'transfer/failure: reported by source node, leaving original intact');
+        }
+
+        if (cfg) {
+          await createActivityLog({
+            userId: cfg.userId,
+            action: 'server:transfer:failed',
+            targetId: uuid,
+            targetType: 'server',
+            metadata: {
+              sourceNodeId,
+              reportingNodeId: reportingNode.id,
+              reportedBy: isTarget ? 'target' : 'source',
+            },
+            ipAddress: ctx.ip,
+          });
+        }
+      } catch (err: unknown) {
+        app.log?.error?.({ err, uuid }, 'transfer/failure: unexpected error');
+      }
+
       ctx.set.status = 204;
       return;
     },

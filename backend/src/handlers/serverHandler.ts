@@ -62,7 +62,7 @@ import {
   normalizeStartupDonePatterns,
 } from '../utils/startupDetection';
 import { sanitizeError } from '../utils/sanitizeError';
-import { withRedisCache } from '../config/redis';
+import { withRedisCache, redisDel } from '../config/redis';
 import type { AuthenticatedHandlerContext, ServerApp } from '../types';
 import type {
   MetricsData,
@@ -724,6 +724,16 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     if (!fallback) throw new Error('No nodes available');
     return fallback;
   }
+  async function clearServerListCache(userId: number) {
+    try {
+      await Promise.allSettled([
+        redisDel(`servers:list:admin`),
+        redisDel(`servers:list:user:${userId}`),
+      ]);
+    } catch {
+      // uwu
+    }
+  }
 
   app.get(
     prefix + '/servers',
@@ -1269,7 +1279,18 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     );
     const isDmca = Boolean(r.is_dmca ?? r.dmca ?? cfg.dmca ?? persistedCfg?.dmca ?? false);
     const baseStatus = (overrideStatus ?? r.state ?? r.status ?? 'unknown') as string;
-    const status = isDmca ? 'dmca' : isSuspended ? 'suspended' : (persistedCfg?.installing ? 'installing' : baseStatus);
+
+    const installingOverride = persistedCfg?.installing ?? false;
+    const wingsReportsAlive =
+      baseStatus === 'running' || baseStatus === 'starting' || baseStatus === 'online';
+
+    const status = isDmca
+      ? 'dmca'
+      : isSuspended
+        ? 'suspended'
+        : installingOverride && !wingsReportsAlive
+          ? 'installing'
+          : baseStatus;
     return {
       uuid: cfg.uuid || r.uuid,
       name: meta.name || r.name || cfg.uuid || r.uuid,
@@ -2166,6 +2187,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             ipAddress: ctx.ip,
           });
 
+          await clearServerListCache(ownerId);
           return { uuid: serverUuid, nodeId: node.id, vmid: result.vmid, provider: 'proxmox', gambling: gamblingResult };
         } catch (e: unknown) {
           await Promise.allSettled([removeServerConfig(serverUuid), nodeSvc.unmapServer(serverUuid)]);
@@ -2216,6 +2238,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           ipAddress: ctx.ip,
         });
 
+        await clearServerListCache(ownerId);
         return { uuid: serverUuid, nodeId: node.id, gambling: gamblingResult, ...res.data };
       } catch (e: unknown) {
         await Promise.allSettled([removeServerConfig(serverUuid), nodeSvc.unmapServer(serverUuid)]);
@@ -2408,6 +2431,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           ipAddress: ctx.ip,
         });
 
+        await clearServerListCache(user.id);
         return { success: true };
       } catch (e: unknown) {
         ctx.set.status = 502;
@@ -4863,65 +4887,93 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     prefix + '/servers/v1/:id/transfer',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
-      const payload = ctx.body as Record<string, unknown>;
+      const payload = (ctx.body || {}) as Record<string, unknown>;
       const user = ctx.user;
-      let svc = await serviceFor(id);
 
-      if (payload && payload.sourceNodeId) {
-        const nodeId = Number(payload.sourceNodeId);
+      let svc: WingsApiService;
+      try {
+        svc = await serviceFor(id) as WingsApiService;
+      } catch {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.serverNotFound') || 'Server not found' };
+      }
+
+      const sourceNodeId =
+        payload.sourceNodeId != null ? Number(payload.sourceNodeId) : undefined;
+      if (sourceNodeId) {
         try {
-          const node = await nodeRepo().findOneBy({ id: nodeId });
-          if (!node) {
+          const sourceNode = await nodeRepo().findOneBy({ id: sourceNodeId });
+          if (!sourceNode) {
             ctx.set.status = 404;
-            return { error: ctx.t('node.sourceNotFound') };
+            return { error: ctx.t('node.sourceNotFound') || 'Source node not found' };
           }
-          svc = new WingsApiService(node.backendWingsUrl || node.url, node.token);
-        } catch (e: unknown) {
+          svc = new WingsApiService(sourceNode.backendWingsUrl || sourceNode.url, sourceNode.token);
+        } catch {
           ctx.set.status = 500;
-          return { error: ctx.t('node.resolveFailed') };
+          return { error: ctx.t('node.resolveFailed') || 'Failed to resolve source node' };
         }
       }
 
-      if (payload && payload.targetNodeId) {
-        const targetId = Number(payload.targetNodeId);
-        try {
-          const targetNode = await nodeRepo().findOneBy({ id: targetId });
-          if (!targetNode) {
-            ctx.set.status = 404;
-            return { error: ctx.t('node.targetNotFound') };
-          }
-          const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
-          const now = Math.floor(Date.now() / 1000);
-          const token = signWingsJwt(
-            {
-              iss: 'eclipanel',
-              sub: id,
-              aud: [''],
-              iat: now,
-              nbf: now,
-              exp: now + 600,
-              jti: crypto.randomUUID(),
-              scope: 'transfer',
-            },
-            targetNode.token
-          );
-
-          payload.url = targetUrl;
-          payload.token = token;
-        } catch (e: unknown) {
-          ctx.set.status = 500;
-          return { error: ctx.t('node.resolveTargetFailed') };
-        }
+      const targetNodeId = payload.targetNodeId != null ? Number(payload.targetNodeId) : undefined;
+      if (!targetNodeId) {
+        ctx.set.status = 400;
+        return { error: 'targetNodeId is required' };
       }
 
-      if (payload) {
-        delete payload.sourceNodeId;
-        delete payload.targetNodeId;
+      let targetNode: Node;
+      try {
+        const found = await nodeRepo().findOneBy({ id: targetNodeId });
+        if (!found) {
+          ctx.set.status = 404;
+          return { error: ctx.t('node.targetNotFound') || 'Target node not found' };
+        }
+        targetNode = found;
+      } catch {
+        ctx.set.status = 500;
+        return { error: ctx.t('node.resolveTargetFailed') || 'Failed to resolve target node' };
+      }
+
+      const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
+      const now = Math.floor(Date.now() / 1000);
+      const token = signWingsJwt(
+        {
+          iss: 'eclipanel',
+          sub: id,
+          aud: '',
+          iat: now,
+          nbf: now,
+          exp: now + 600,
+          jti: crypto.randomUUID(),
+          scope: 'transfer',
+        },
+        targetNode.token,
+      );
+
+      const wingsPayload: Record<string, unknown> = {
+        url: targetUrl,
+        token,
+      };
+
+      if (payload.archive_format != null) {
+        wingsPayload.archive_format = payload.archive_format;
+      }
+      if (payload.compression_level != null) {
+        wingsPayload.compression_level = payload.compression_level;
+      }
+      if (Array.isArray(payload.backups) && (payload.backups as any[]).length > 0) {
+        wingsPayload.backups = payload.backups;
+        wingsPayload.delete_backups = Boolean(payload.delete_backups);
+      }
+      if (payload.multiplex_streams != null) {
+        const n = Number(payload.multiplex_streams);
+        if (Number.isInteger(n) && n >= 0 && n <= 16) {
+          wingsPayload.multiplex_streams = n;
+        }
       }
 
       try {
-        const res = await svc.transferServer(id, payload);
-        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+        const res = await svc.transferServer(id, wingsPayload);
+        return res.data && typeof res.data === 'object' ? res.data : { accepted: true };
       } catch (e: unknown) {
         const err = e as Record<string, unknown>;
         const errResponse = err?.response as Record<string, unknown> | undefined;
@@ -4929,7 +4981,8 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const errData = errResponse?.data;
         const message =
           (errData as Record<string, unknown> | undefined)?.error as string || errData ||
-          (err instanceof Error ? err.message : '') || 'Transfer failed';
+          (err instanceof Error ? err.message : '') ||
+          'Transfer failed';
         ctx.set.status = status;
         return { error: message as string };
       }
@@ -4938,11 +4991,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       beforeHandle: [authenticate, requireProvider('wings'), authorize('transfer:execute')],
       response: {
         200: t.Any(),
+        400: t.Object({ error: t.String() }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
       },
-      detail: { summary: 'Transfer server', tags: ['Servers'] },
-    }
+      detail: { summary: 'Transfer server to another node', tags: ['Servers'] },
+    },
   );
 
   app.delete(
@@ -4960,7 +5015,8 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const errData = errResponse?.data;
         const message =
           (errData as Record<string, unknown> | undefined)?.error as string || errData ||
-          (err instanceof Error ? err.message : '') || 'Cancel transfer failed';
+          (err instanceof Error ? err.message : '') ||
+          'Cancel transfer failed';
         ctx.set.status = status;
         return { error: message as string };
       }
@@ -4974,7 +5030,31 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Cancel active server transfer', tags: ['Servers'] },
-    }
+    },
+  );
+
+  app.get(
+    prefix + '/servers/v1/:id/transfer',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      try {
+        const svc = await serviceFor(id) as WingsApiService;
+        const all = await svc.getTransfers();
+        const data = (all as any)?.data ?? all;
+        const progress = (data as Record<string, unknown>)?.[id] ?? null;
+        return { progress };
+      } catch {
+        return { progress: null };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings')],
+      response: {
+        200: t.Object({ progress: t.Any() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get server transfer progress', tags: ['Servers'] },
+    },
   );
 
   app.get(
