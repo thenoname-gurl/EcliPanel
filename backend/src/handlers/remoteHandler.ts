@@ -1310,19 +1310,12 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           return;
         }
 
-        // Reassign to target node — both ServerConfig AND ServerMapping
-        // (ServerMapping is what serviceFor() uses to route API calls;
-        //  ServerConfig.nodeId is informational.  Both must agree.)
         await repo().update({ uuid }, { nodeId: targetNode.id });
 
-        try {
-          await nodeService.mapServer(uuid, targetNode.id);
-        } catch (e: unknown) {
-          // mapServer creates a new row — if one already exists it'll fail.
-          // Fall back to deleting the old mapping and recreating.
-          try { await nodeService.unmapServer(uuid); } catch {}
-          try { await nodeService.mapServer(uuid, targetNode.id); } catch {}
-        }
+        try { await nodeService.unmapServer(uuid); } catch {}
+        await nodeService.mapServer(uuid, targetNode.id);
+        app.log?.info?.({ uuid, oldNode: sourceNodeId, newNode: targetNode.id },
+          'transfer/success: node reassignment complete');
 
         // Remove the old copy from the source node (if different)
         if (sourceNodeId !== targetNode.id) {
@@ -1427,8 +1420,41 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           } catch (e: unknown) {
             // server might not exist on target yet
           }
-        } else {
-          app.log?.info?.({ uuid, sourceNodeId, reportingNodeId: reportingNode.id }, 'transfer/failure: reported by source node, leaving original intact');
+        }
+  
+        if (sourceNodeId && cfg?.allocations) {
+          try {
+            const sourceNode = await AppDataSource.getRepository(Node).findOneBy({ id: sourceNodeId });
+            const sourceIp = sourceNode?.defaultIp || sourceNode?.fqdn || null;
+            if (sourceIp) {
+              const alloc = { ...(cfg.allocations as Record<string, any>) };
+              const mappings: Record<string, number[]> = alloc.mappings || {};
+              const newMappings: Record<string, number[]> = {};
+
+              for (const [, ports] of Object.entries(mappings)) {
+                const portList = Array.isArray(ports)
+                  ? ports.map(Number).filter(p => Number.isInteger(p) && p > 0 && p <= 65535)
+                  : [];
+                if (portList.length > 0) {
+                  newMappings[sourceIp] = [...(newMappings[sourceIp] || []), ...portList];
+                }
+              }
+              if (newMappings[sourceIp]) {
+                newMappings[sourceIp] = [...new Set(newMappings[sourceIp])].sort((a, b) => a - b);
+              }
+
+              if (alloc.default && typeof alloc.default === 'object') {
+                alloc.default.ip = sourceIp;
+              }
+
+              alloc.mappings = newMappings;
+              cfg.allocations = alloc;
+              await repo().save(cfg).catch(() => {});
+              app.log?.info?.({ uuid, sourceIp }, 'transfer/failure: reverted allocations to source IP');
+            }
+          } catch (e) {
+            app.log?.warn?.({ err: e, uuid }, 'transfer/failure: failed to revert allocations');
+          }
         }
 
         if (cfg) {

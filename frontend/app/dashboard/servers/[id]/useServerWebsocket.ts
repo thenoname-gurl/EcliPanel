@@ -11,6 +11,13 @@ import {
   SocketState as State,
 } from '@/lib/websocket'
 
+export interface TransferProgress {
+  archive_bytes_processed: number
+  network_bytes_processed: number
+  bytes_total: number
+  files_processed: number
+}
+
 export interface ServerWebsocketState {
   ws: WingsSocket
   connected: boolean
@@ -20,6 +27,9 @@ export interface ServerWebsocketState {
   reconnect: () => void
   sendCommand: (cmd: string) => void
   resources: ServerResources | null
+  transferring: boolean
+  transferProgress: TransferProgress | null
+  transferLogs: string[]
 }
 
 export interface ServerResources {
@@ -40,6 +50,9 @@ export function useServerWebsocket(serverId: string): ServerWebsocketState {
   const [installing, setInstalling] = useState(false)
   const [socketError, setSocketError] = useState<SocketError | null>(null)
   const [resources, setResources] = useState<ServerResources | null>(null)
+  const [transferring, setTransferring] = useState(false)
+  const [transferProgress, setTransferProgress] = useState<TransferProgress | null>(null)
+  const [transferLogs, setTransferLogs] = useState<string[]>([])
 
   const getWs = useCallback((): WingsSocket => {
     if (!wsRef.current) {
@@ -216,6 +229,37 @@ export function useServerWebsocket(serverId: string): ServerWebsocketState {
     ws.on('install output', onInstallOutput)
     ws.on('stats', onStats)
     ws.on('daemon error', onDaemonError)
+    
+    ws.on('transfer status', (args: unknown[]) => {
+      const status = String(args?.[0] ?? '')
+      if (status === 'processing') {
+        setTransferring(true)
+      } else if (status === 'completed') {
+        setTransferring(false)
+        setTransferProgress(null)
+      } else if (status === 'failure') {
+        setTransferring(false)
+        setTransferProgress(null)
+      }
+    })
+
+    ws.on('transfer progress', (args: unknown[]) => {
+      const p = (args?.[0] ?? {}) as Record<string, unknown>
+      setTransferring(true)
+      setTransferProgress({
+        archive_bytes_processed: Number(p.archive_bytes_processed ?? 0),
+        network_bytes_processed: Number(p.network_bytes_processed ?? 0),
+        bytes_total: Number(p.bytes_total ?? 0),
+        files_processed: Number(p.files_processed ?? 0),
+      })
+    })
+
+    ws.on('transfer logs', (args: unknown[]) => {
+      const msg = String(args?.[0] ?? '')
+      if (msg) {
+        setTransferLogs(prev => [...prev.slice(-100), msg])
+      }
+    })
 
     // Defer connect() so child components (ConsoleTab) have time to
     // register their own ws.on(...) handlers before the WebSocket
@@ -267,5 +311,8 @@ export function useServerWebsocket(serverId: string): ServerWebsocketState {
     reconnect,
     sendCommand,
     resources,
+    transferring,
+    transferProgress,
+    transferLogs,
   }
 }

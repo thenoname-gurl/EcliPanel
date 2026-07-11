@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { apiFetch } from "@/lib/api-client"
 import { getActivityActionLabel } from "@/lib/activity-action-labels"
 import { ActivityFeed } from "@/components/activity/activity-feed"
+import { useServerWebsocket } from "./useServerWebsocket"
 import {
   serverGuessType,
   serverTypeIcons,
@@ -731,16 +732,13 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [transferError, setTransferError] = useState<string | null>(null)
   const [cancellingTransfer, setCancellingTransfer] = useState(false)
   const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
-  const [transferring, setTransferring] = useState(false)
-  const transferringRef = useRef(false)
-  const [transferProgress, setTransferProgress] = useState<{
-    archive_bytes_processed?: number
-    network_bytes_processed?: number
-    bytes_total?: number
-    files_processed?: number
-  } | null>(null)
-  const transferPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  useEffect(() => { transferringRef.current = transferring }, [transferring])
+  // Calagopus-style: transfer progress comes from the server's console WebSocket,
+  // never from polling.  Open a temporary WS listener while the dialog is open.
+  const {
+    ws: transferWs,
+    transferring,
+    transferProgress,
+  } = useServerWebsocket(id)
 
   useEffect(() => {
     if (!powerToast) return
@@ -982,43 +980,32 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const openTransferDialog = useCallback(async () => {
     setTransferError(null)
     setTransferNodeId(null)
-    setTransferProgress(null)
-    setTransferring(false)
     setTransferDialogOpen(true)
     if (transferNodes.length === 0) await loadNodes()
   }, [transferNodes.length, loadNodes])
 
-  const startProgressPoll = useCallback(() => {
-    if (transferPollRef.current) clearInterval(transferPollRef.current)
-    transferPollRef.current = setInterval(async () => {
-      try {
-        const data = await apiFetch(API_ENDPOINTS.serverTransfer.replace(":id", id))
-        if (data?.progress) {
-          setTransferProgress(data.progress)
-          setTransferring(true)
-        } else if (transferringRef.current) {
-          setTransferring(false)
-          setTransferProgress(null)
-          if (transferPollRef.current) clearInterval(transferPollRef.current)
-          transferPollRef.current = null
-          loadServer()
-        }
-      } catch {
-        // poland
-      }
-    }, 2000)
-  }, [id, loadServer])
+  // Calagopus-style: no polling.  transferWs receives ServerTransferStatus
+  // and ServerTransferProgress events from Wings.  The hook's `transferring`
+  // and `transferProgress` update in real time.
+  //
+  // When transfer completes (transferring → false + we had progress),
+  // close the dialog and reload the server list.
 
-  const stopProgressPoll = useCallback(() => {
-    if (transferPollRef.current) {
-      clearInterval(transferPollRef.current)
-      transferPollRef.current = null
-    }
-  }, [])
+  const hadProgressRef = useRef(false)
+  useEffect(() => {
+    if (transferProgress) hadProgressRef.current = true
+  }, [transferProgress])
 
   useEffect(() => {
-    return () => stopProgressPoll()
-  }, [stopProgressPoll])
+    if (!transferring && hadProgressRef.current && transferDialogOpen && !transferLoading) {
+      const t = setTimeout(() => {
+        setTransferDialogOpen(false)
+        hadProgressRef.current = false
+        loadServer()
+      }, 1500)
+      return () => clearTimeout(t)
+    }
+  }, [transferring, transferDialogOpen, transferLoading, loadServer])
 
   const doTransfer = useCallback(async () => {
     if (!transferNodeId) {
@@ -1027,19 +1014,18 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     }
     setTransferLoading(true)
     setTransferError(null)
+    hadProgressRef.current = false
     try {
       await apiFetch(API_ENDPOINTS.serverTransfer.replace(":id", id), {
         method: "POST",
         body: JSON.stringify({ targetNodeId: transferNodeId }),
       })
-      setTransferring(true)
-      startProgressPoll()
     } catch (e: any) {
       setTransferError(e.message || t("errors.transferFailed"))
     } finally {
       setTransferLoading(false)
     }
-  }, [transferNodeId, id, startProgressPoll, t])
+  }, [transferNodeId, id, t])
 
   const cancelTransfer = useCallback(async () => {
     setCancellingTransfer(true)
@@ -1047,16 +1033,14 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       await apiFetch(API_ENDPOINTS.serverTransfer.replace(":id", id), {
         method: "DELETE",
       })
-      stopProgressPoll()
-      setTransferring(false)
-      setTransferProgress(null)
       setTransferDialogOpen(false)
+      hadProgressRef.current = false
     } catch (e: any) {
       alert(e.message || "Failed to cancel transfer")
     } finally {
       setCancellingTransfer(false)
     }
-  }, [id, stopProgressPoll])
+  }, [id])
 
   const canTransfer = !!(
     user &&

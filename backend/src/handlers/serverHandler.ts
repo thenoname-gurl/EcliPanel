@@ -4933,6 +4933,47 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         return { error: ctx.t('node.resolveTargetFailed') || 'Failed to resolve target node' };
       }
 
+      const targetIp = targetNode.defaultIp || targetNode.fqdn || null;
+      if (targetIp) {
+        try {
+          const cfg = await cfgRepo().findOneBy({ uuid: id });
+          if (cfg?.allocations && typeof cfg.allocations === 'object') {
+            const alloc = { ...cfg.allocations } as Record<string, any>;
+            const oldMappings: Record<string, number[]> = alloc.mappings || {};
+            const newMappings: Record<string, number[]> = {};
+
+            for (const [, ports] of Object.entries(oldMappings)) {
+              const portList = Array.isArray(ports)
+                ? ports.map(Number).filter(p => Number.isInteger(p) && p > 0 && p <= 65535)
+                : [];
+              if (portList.length > 0) {
+                newMappings[targetIp] = [...(newMappings[targetIp] || []), ...portList];
+              }
+            }
+            if (newMappings[targetIp]) {
+              newMappings[targetIp] = [...new Set(newMappings[targetIp])].sort((a, b) => a - b);
+            }
+
+            if (alloc.default && typeof alloc.default === 'object') {
+              alloc.default.ip = targetIp;
+            }
+
+            const newFqdns: Record<string, string> = {};
+            for (const [oldKey, fqdn] of Object.entries(alloc.fqdns || {})) {
+              const m = String(oldKey).match(/:(\d+)$/);
+              if (m) newFqdns[`${targetIp}:${m[1]}`] = String(fqdn);
+            }
+
+            alloc.mappings = newMappings;
+            alloc.fqdns = newFqdns;
+            cfg.allocations = alloc;
+            await cfgRepo().save(cfg);
+          }
+        } catch (e) {
+          app.log?.warn?.({ err: e, uuid: id }, 'transfer: failed to reassign allocations');
+        }
+      }
+
       const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
       const now = Math.floor(Date.now() / 1000);
       const token = signWingsJwt(
