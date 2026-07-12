@@ -187,6 +187,9 @@ export async function socRoutes(app: any, prefix = '') {
       } else {
         qb.andWhere('f.status = :status', { status: 'open' });
       }
+      if (ctx.query?.status !== 'internal_resolved') {
+        qb.andWhere('f.status != :hiddenStatus', { hiddenStatus: 'internal_resolved' });
+      }
       if (ctx.query?.severity) {
         qb.andWhere('f.severity = :severity', { severity: ctx.query.severity });
       }
@@ -204,6 +207,9 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       const user = ctx.user as any;
+      let scopeClause = '';
+      let scopeParams: Record<string, any> = {};
+
       if (user && !hasPermissionSync(ctx, 'soc:read')) {
         const cfgRepo = AppDataSource.getRepository(ServerConfig);
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
@@ -232,13 +238,19 @@ export async function socRoutes(app: any, prefix = '') {
           ],
         });
         const allowedIds = ownServers.map((s: any) => s.uuid);
-        qb.andWhere(
-          '(f.userId = :scopeUserId OR f.serverId IN (:...scopeServerIds))',
-          {
-            scopeUserId: user.id,
-            scopeServerIds: allowedIds.length ? allowedIds : ['__none__'],
-          }
-        );
+        scopeClause = '(f.userId = :scopeUserId OR f.serverId IN (:...scopeServerIds))';
+        scopeParams = {
+          scopeUserId: user.id,
+          scopeServerIds: allowedIds.length ? allowedIds : ['__none__'],
+        };
+        qb.andWhere(scopeClause, scopeParams);
+      } else {
+        const cfgRepo = AppDataSource.getRepository(ServerConfig);
+        const adminServers = await cfgRepo.find({ where: { userId: user.id } });
+        const adminServerIds = adminServers.map((s: any) => s.uuid);
+        scopeClause = `(f.checkFingerprint NOT LIKE 'access_control_orphaned_%' AND f.checkFingerprint NOT LIKE 'access_control_admin_subuser_%' AND f.checkFingerprint NOT LIKE 'login_anomaly_newip_%') OR f.serverId IN (:...adminSrvIds)`;
+        scopeParams = { adminSrvIds: adminServerIds.length ? adminServerIds : ['__none__'] };
+        qb.andWhere(scopeClause, scopeParams);
       }
 
       qb.orderBy('f.detectedAt', 'DESC');
@@ -249,13 +261,14 @@ export async function socRoutes(app: any, prefix = '') {
 
       const [findings, total] = await qb.getManyAndCount();
 
-      const summaryRows = await repo
+      const summaryQb = repo
         .createQueryBuilder('f')
         .select('f.severity', 'severity')
         .addSelect('COUNT(*)', 'count')
         .where('f.status = :status', { status: 'open' })
-        .groupBy('f.severity')
-        .getRawMany();
+        .groupBy('f.severity');
+      if (scopeClause) summaryQb.andWhere(scopeClause, scopeParams);
+      const summaryRows = await summaryQb.getRawMany();
 
       const summary: Record<string, number> = {};
       for (const r of summaryRows) {
@@ -374,13 +387,14 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       const { status } = (ctx.body || {}) as any;
-      const validStatuses = ['acknowledged', 'resolved', 'false_positive'];
+      const validStatuses = ['acknowledged', 'resolved', 'false_positive', 'internal_resolved'];
       if (!validStatuses.includes(status)) {
         ctx.set.status = 400;
         return { error: `status must be one of: ${validStatuses.join(', ')}` };
       }
 
-      if (finding.status !== 'open' && finding.status !== 'acknowledged') {
+      const finalStatuses = ['resolved', 'false_positive'];
+      if (finalStatuses.includes(finding.status)) {
         ctx.set.status = 409;
         return { error: `Cannot change status of a ${finding.status} finding` };
       }
@@ -425,9 +439,20 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       const user = ctx.user as any;
-      if (user && !hasPermissionSync(ctx, 'soc:read')) {
-        ctx.set.status = 403;
-        return { error: 'Only admins can process escalations' };
+      const isAdmin = user && hasPermissionSync(ctx, 'soc:read');
+
+      if (!isAdmin) {
+        let canEscalate = finding.userId === user?.id;
+        if (!canEscalate && finding.serverId) {
+          try {
+            const cfg = await AppDataSource.getRepository(ServerConfig).findOne({ where: { uuid: finding.serverId } });
+            canEscalate = cfg?.userId === user?.id;
+          } catch {}
+        }
+        if (!canEscalate) {
+          ctx.set.status = 403;
+          return { error: 'You can only escalate findings on your own servers' };
+        }
       }
 
       const { action, note } = (ctx.body || {}) as any;

@@ -53,6 +53,8 @@ async function persistFindings(results: ScanCheckResult[]): Promise<{ created: n
       where: [
         { checkFingerprint: r.fingerprint, status: 'open' as any },
         { checkFingerprint: r.fingerprint, status: 'acknowledged' as any },
+        { checkFingerprint: r.fingerprint, status: 'resolved' as any },
+        { checkFingerprint: r.fingerprint, status: 'false_positive' as any },
       ],
     });
     if (existing) {

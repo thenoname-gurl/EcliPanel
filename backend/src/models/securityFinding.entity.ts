@@ -15,7 +15,7 @@ export type FindingCategory =
 
 export type FindingSeverity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
-export type FindingStatus = 'open' | 'acknowledged' | 'resolved' | 'false_positive';
+export type FindingStatus = 'open' | 'acknowledged' | 'resolved' | 'false_positive' | 'internal_resolved';
 
 export type FindingSource = 'internal' | 'external';
 

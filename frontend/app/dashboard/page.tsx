@@ -234,16 +234,26 @@ export default function SOCDashboard() {
     }
   }
 
+  const silentFetchFindings = useCallback(() => {
+    const params = new URLSearchParams({ status: findingsFilter || 'open' })
+    if (findingsSeverity) params.set('severity', findingsSeverity)
+    apiFetch(`${API_ENDPOINTS.socSecurityFindings}?${params}`)
+      .then((data: any) => {
+        setFindings(Array.isArray(data?.findings) ? data.findings : [])
+        setFindingsSummary(data?.summary || {})
+      })
+      .catch(() => {})
+  }, [findingsFilter, findingsSeverity])
+
   const handleUpdateFinding = async (id: number, status: string) => {
+    setFindings(prev => prev.map(f => f.id === id ? { ...f, status } : f))
     try {
       await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(':id', String(id)), {
         method: 'PATCH',
         body: JSON.stringify({ status }),
       })
-      fetchFindings()
-    } catch (e) {
-      console.error('Failed to update finding', e)
-    }
+    } catch {}
+    silentFetchFindings()
   }
 
   // Derive last scan from newest finding
@@ -252,15 +262,14 @@ export default function SOCDashboard() {
     : null
 
   const handleEscalate = async (id: number) => {
+    setFindings(prev => prev.map(f => f.id === id ? { ...f, status: 'acknowledged' } : f))
     try {
       await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(':id', String(id))}/escalate`, {
         method: 'POST',
         body: JSON.stringify({ action: 'reviewed', note: 'User escalated for staff evaluation' }),
       })
-      fetchFindings()
-    } catch (e) {
-      console.error('Failed to escalate finding', e)
-    }
+    } catch {}
+    silentFetchFindings()
   }
 
   if (!user) {
@@ -384,14 +393,11 @@ export default function SOCDashboard() {
               icon={Globe}
             />
             <StatCard
-              title={t("stats.threatLevel")}
-              value={findings.length > 0 ? t("stats.elevated") : t("stats.low")}
-              subtitle={findings.length > 0
-                ? [
-                    findingsSummary.critical ? `${findingsSummary.critical} critical` : null,
-                    findingsSummary.high ? `${findingsSummary.high} high` : null,
-                  ].filter(Boolean).join(', ') || t("securityFindings.totalOpen", { count: findings.length })
-                : t("stats.noThreats")}
+              title="THREAT LEVEL"
+              value={((findingsSummary.critical || 0) + (findingsSummary.high || 0)) > 0 ? "Elevated" : "Low"}
+              subtitle={((findingsSummary.critical || 0) + (findingsSummary.high || 0)) > 0
+                ? `${findingsSummary.high || 0} high, ${findingsSummary.critical || 0} critical`
+                : "No open threats"}
               icon={Shield}
             />
             <StatCard
@@ -403,8 +409,8 @@ export default function SOCDashboard() {
           </div>
 
           {/* Security Findings — primary SOC content */}
-          <div className="border border-border bg-card p-5">
-            <div className="flex items-center justify-between mb-2">
+          <div className="border border-border bg-card p-3 md:p-5">
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <div>
                 <SectionHeader title={t("securityFindings.title")} description={lastScanTime
                   ? `${t("securityFindings.description")} • Last scan: ${formatTimeAgo(lastScanTime)}`
@@ -423,14 +429,14 @@ export default function SOCDashboard() {
             {/* Filters */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               <select value={findingsFilter} onChange={e => { setFindingsFilter(e.target.value) }}
-                className="border border-border bg-card text-xs px-2 py-1">
+                className="border border-border bg-card text-xs px-2 py-1.5 w-full sm:w-auto">
                 <option value="open">Open</option>
                 <option value="acknowledged">Acknowledged</option>
                 <option value="resolved">Resolved</option>
                 <option value="false_positive">False Positive</option>
               </select>
               <select value={findingsSeverity} onChange={e => { setFindingsSeverity(e.target.value) }}
-                className="border border-border bg-card text-xs px-2 py-1">
+                className="border border-border bg-card text-xs px-2 py-1.5 w-full sm:w-auto">
                 <option value="">All severities</option>
                 <option value="critical">Critical</option>
                 <option value="high">High</option>
@@ -567,34 +573,34 @@ export default function SOCDashboard() {
                               </div>
                             </div>
                             {/* Action buttons */}
-                            <div className="flex items-center gap-1 shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
                               <button
-                                onClick={() => handleUpdateFinding(item.id, 'acknowledged')}
+                                onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'acknowledged') }}
                                 title={t("securityFindings.actions.acknowledge")}
-                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                                className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                               >
-                                <Check className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
+                                <Check className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-foreground" />
                               </button>
                               <button
-                                onClick={() => handleUpdateFinding(item.id, 'resolved')}
+                                onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'resolved') }}
                                 title={t("securityFindings.actions.resolve")}
-                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                                className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                               >
-                                <CheckCircle className="h-3.5 w-3.5 text-muted-foreground hover:text-green-600" />
+                                <CheckCircle className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-green-600" />
                               </button>
                               <button
-                                onClick={() => handleUpdateFinding(item.id, 'false_positive')}
+                                onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'false_positive') }}
                                 title={t("securityFindings.actions.falsePositive")}
-                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                                className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                               >
-                                <Flag className="h-3.5 w-3.5 text-muted-foreground hover:text-orange-600" />
+                                <Flag className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-orange-600" />
                               </button>
                               <button
-                                onClick={() => handleEscalate(item.id)}
+                                onClick={(e) => { e.preventDefault(); handleEscalate(item.id) }}
                                 title="Escalate to staff"
-                                className="p-1 hover:bg-secondary/50 rounded transition-colors"
+                                className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                               >
-                                <Send className="h-3.5 w-3.5 text-muted-foreground hover:text-blue-600" />
+                                <Send className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-blue-600" />
                               </button>
                             </div>
                           </div>

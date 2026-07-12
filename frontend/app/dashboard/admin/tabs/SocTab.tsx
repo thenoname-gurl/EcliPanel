@@ -9,7 +9,7 @@ import {
   Shield, ShieldAlert, AlertTriangle, AlertCircle,
   Bug, RefreshCw, ScanLine, Search, ChevronLeft, ChevronRight,
   Check, CheckCircle, Flag, Send, Clock, Server, User, Globe,
-  Activity, BarChart3, Zap, Brain,
+  Activity, BarChart3, Zap, Brain, EyeOff,
 } from "lucide-react"
 import AntiAbuseTab from "./AntiAbuseTab"
 
@@ -86,7 +86,6 @@ export default function SocTab() {
       setFindingsTotal(data?.total || 0)
       setFindingsPage(data?.page || page)
       setSummary(data?.summary || {})
-      // Derive last scan from newest finding
       if (!lastScan && items.length > 0) {
         const newest = items.reduce((a: any, b: any) => new Date(a.detectedAt) > new Date(b.detectedAt) ? a : b)
         setLastScan({ created: 0, resolved: 0, totalOpen: data?.total || 0, timestamp: newest.detectedAt })
@@ -94,6 +93,18 @@ export default function SocTab() {
     } catch { setFindings([]) }
     finally { setFindingsLoading(false) }
   }, [statusFilter, severityFilter])
+
+  const silentFetch = useCallback(async (page = findingsPage) => {
+    try {
+      const params = new URLSearchParams({ page: String(page), perPage: "50" })
+      if (statusFilter) params.set("status", statusFilter)
+      if (severityFilter) params.set("severity", severityFilter)
+      const data = await apiFetch(`${API_ENDPOINTS.socSecurityFindings}?${params}`)
+      setFindings(data?.findings || [])
+      setFindingsTotal(data?.total || 0)
+      setSummary(data?.summary || {})
+    } catch {}
+  }, [statusFilter, severityFilter, findingsPage])
 
   useEffect(() => { fetchFindings(1) }, [fetchFindings])
 
@@ -137,22 +148,45 @@ export default function SocTab() {
   // ─── Update finding ────────────────────────────────────────────────────────
 
   const handleUpdate = async (id: number, status: string) => {
-    await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id)), {
-      method: "PATCH", body: JSON.stringify({ status }),
-    })
-    fetchFindings(findingsPage)
+    // Optimistic: update local state immediately, no loading flash
+    setFindings(prev => prev.map(f => f.id === id ? { ...f, status } : f))
+    try {
+      await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id)), {
+        method: "PATCH", body: JSON.stringify({ status }),
+      })
+    } catch { /* revert on next explicit refresh */ }
+    silentFetch()
   }
 
   const handleEscalate = async (id: number) => {
-    await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id))}/escalate`, {
-      method: "POST", body: JSON.stringify({ action: "reviewed", note: "Staff reviewed" }),
-    })
-    fetchFindings(findingsPage)
+    setFindings(prev => prev.map(f => f.id === id ? { ...f, status: 'acknowledged' } : f))
+    try {
+      await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id))}/escalate`, {
+        method: "POST", body: JSON.stringify({ action: "reviewed", note: "Staff reviewed" }),
+      })
+    } catch {}
+    silentFetch()
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
-  const totalOpen = Object.values(summary).reduce((a, b) => a + b, 0)
+  const renderActions = (f: Finding) => (
+    <>
+      <button onClick={(e) => { e.preventDefault(); handleUpdate(f.id, "acknowledged") }} title="Acknowledge"
+        className="p-2.5 md:p-0.5 hover:bg-secondary/50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><Check className="h-5 w-5 md:h-3 md:w-3" /></button>
+      <button onClick={(e) => { e.preventDefault(); handleUpdate(f.id, "resolved") }} title="Resolve"
+        className="p-2.5 md:p-0.5 hover:bg-secondary/50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><CheckCircle className="h-5 w-5 md:h-3 md:w-3 text-green-600" /></button>
+      <button onClick={(e) => { e.preventDefault(); handleUpdate(f.id, "false_positive") }} title="False Positive"
+        className="p-2.5 md:p-0.5 hover:bg-secondary/50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><Flag className="h-5 w-5 md:h-3 md:w-3 text-orange-600" /></button>
+      <button onClick={(e) => { e.preventDefault(); handleUpdate(f.id, "internal_resolved") }} title="Internal Resolve (hide from list)"
+        className="p-2.5 md:p-0.5 hover:bg-secondary/50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><EyeOff className="h-5 w-5 md:h-3 md:w-3 text-gray-500" /></button>
+      <button onClick={(e) => { e.preventDefault(); handleEscalate(f.id) }} title="Escalate"
+        className="p-2.5 md:p-0.5 hover:bg-secondary/50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><Send className="h-5 w-5 md:h-3 md:w-3 text-blue-600" /></button>
+    </>
+  )
+
+  // Summary badges stay global for admin overview
+  const summaryTotal = Object.values(summary).reduce((a, b) => a + b, 0)
 
   return (
     <div className="flex flex-col gap-6">
@@ -164,7 +198,7 @@ export default function SocTab() {
             Security Operations Center
           </h2>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {totalOpen} open findings • {lastScan?.timestamp
+            {findingsTotal} findings • {lastScan?.timestamp
               ? `Last scan: ${formatTimeAgo(lastScan.timestamp)}`
               : lastScan ? `${lastScan.created} new, ${lastScan.resolved} resolved` : "Run a scan to start"}
           </p>
@@ -181,10 +215,10 @@ export default function SocTab() {
       </div>
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-border pb-0">
+      <div className="flex gap-1 border-b border-border pb-0 overflow-x-auto">
         {(["findings", "events", "rules", "incidents", "settings"] as const).map(tb => (
           <button key={tb} onClick={() => setTab(tb)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === tb ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>
             {tb === "findings" ? "Findings" : tb === "events" ? "Event Log" : tb === "rules" ? "Rules" : tb === "incidents" ? "Incidents" : "Settings"}
@@ -229,8 +263,8 @@ export default function SocTab() {
             </select>
           </div>
 
-          {/* Table */}
-          <div className="border border-border overflow-hidden">
+          {/* Table — desktop (md+) */}
+          <div className="hidden md:block border border-border overflow-hidden">
             <table className="w-full text-xs">
               <thead className="bg-secondary/30">
                 <tr>
@@ -259,14 +293,7 @@ export default function SocTab() {
                       <td className="p-2 text-muted-foreground">{f.detectedAt ? formatTimeAgo(f.detectedAt) : "-"}</td>
                       <td className="p-2">
                         <div className="flex items-center gap-0.5">
-                          <button onClick={() => handleUpdate(f.id, "acknowledged")} title="Acknowledge"
-                            className="p-0.5 hover:bg-secondary/50 rounded"><Check className="h-3 w-3" /></button>
-                          <button onClick={() => handleUpdate(f.id, "resolved")} title="Resolve"
-                            className="p-0.5 hover:bg-secondary/50 rounded"><CheckCircle className="h-3 w-3 text-green-600" /></button>
-                          <button onClick={() => handleUpdate(f.id, "false_positive")} title="False Positive"
-                            className="p-0.5 hover:bg-secondary/50 rounded"><Flag className="h-3 w-3 text-orange-600" /></button>
-                          <button onClick={() => handleEscalate(f.id)} title="Escalate"
-                            className="p-0.5 hover:bg-secondary/50 rounded"><Send className="h-3 w-3 text-blue-600" /></button>
+                          {renderActions(f)}
                         </div>
                       </td>
                     </tr>
@@ -274,6 +301,36 @@ export default function SocTab() {
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Cards — mobile (below md) */}
+          <div className="md:hidden flex flex-col gap-2">
+            {findingsLoading ? (
+              <div className="border border-border bg-secondary/10 p-4 text-center text-xs text-muted-foreground">Loading...</div>
+            ) : findings.length === 0 ? (
+              <div className="border border-border bg-secondary/10 p-4 text-center text-xs text-muted-foreground">No findings</div>
+            ) : findings.map(f => {
+              const Icon = severityIcons[f.severity] || Shield
+              const color = severityColors[f.severity] || ""
+              return (
+                <div key={f.id} className={`border border-border bg-card p-3 flex flex-col gap-1.5 border-l-2 ${color.split(" ")[0] || ""}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Icon className={`h-4 w-4 shrink-0 ${color.split(" ")[2] || ""}`} />
+                      <span className="text-sm font-medium truncate">{f.title}</span>
+                    </div>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {renderActions(f)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
+                    <span className="border border-border px-1 py-0.5">{f.category}</span>
+                    <span>{f.serverId?.slice(0, 8) || f.userId ? `User #${f.userId}` : "-"}</span>
+                    <span>{f.detectedAt ? formatTimeAgo(f.detectedAt) : "-"}</span>
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Pagination */}
@@ -322,7 +379,7 @@ export default function SocTab() {
 
 
       {/* ── Settings Tab ─────────────────────────────────────────────────── */}
-      {tab === "settings" && <SocSettingsTab totalOpen={totalOpen} lastScan={lastScan} onSettingsSaved={() => fetchFindings(findingsPage)} />}
+      {tab === "settings" && <SocSettingsTab totalOpen={summaryTotal} lastScan={lastScan} onSettingsSaved={() => fetchFindings(findingsPage)} />}
     </div>
   )
 }
