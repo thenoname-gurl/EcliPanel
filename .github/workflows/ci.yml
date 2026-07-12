@@ -101,7 +101,7 @@ jobs:
           override: true
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y cmake
+        run: sudo apt-get update && sudo apt-get install -y cmake libndpi-dev
 
       - name: Apply patches and build Wings
         working-directory: wings
