@@ -22,6 +22,8 @@ impl Default for AbConfig {
     }
 }
 
+pub use crate::dpi::engine::VpnDpiConfig;
+
 pub struct PanelSync {
     panel_url: String,
     panel_token: String,
@@ -77,7 +79,11 @@ impl PanelSync {
         }
     }
 
-    pub async fn config_loop(self: &Arc<Self>, config: Arc<tokio::sync::RwLock<AbConfig>>) {
+    pub async fn config_loop(
+        self: &Arc<Self>,
+        config: Arc<tokio::sync::RwLock<AbConfig>>,
+        vpn_dpi_config: Arc<tokio::sync::RwLock<VpnDpiConfig>>,
+    ) {
         let url = format!("{}/api/wings/config", self.panel_url);
         let mut last_version = String::new();
         loop {
@@ -104,6 +110,31 @@ impl PanelSync {
                     strikes_for_suspend: ab.get("strikesForSuspend").and_then(|v| v.as_u64()).unwrap_or(3) as u32,
                 };
                 *config.write().await = new_config;
+            }
+            if let Some(vd) = json.get("vpnDpi") {
+                let protocol_actions: std::collections::HashMap<String, String> = vd
+                    .get("protocolActions")
+                    .and_then(|v| v.as_object())
+                    .map(|obj| {
+                        obj.iter()
+                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                let vpn_config = VpnDpiConfig {
+                    enabled: vd.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true),
+                    protocol_actions,
+                    sample_interval_seconds: vd.get("sampleIntervalSeconds")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(300),
+                    sample_duration_ms: vd.get("sampleDurationMs")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(10000),
+                    bandwidth_threshold_kbps: vd.get("bandwidthThresholdKbps")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(500),
+                };
+                *vpn_dpi_config.write().await = vpn_config;
             }
             if let Some(ver) = json.get("latestVersion").and_then(|v| v.as_str()) {
                 if last_version.is_empty() {

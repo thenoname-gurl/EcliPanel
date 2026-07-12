@@ -763,6 +763,18 @@ export async function runSecurityScan(): Promise<ScanOutcome> {
   const startTime = Date.now();
   console.log('[securityScanner] Starting security scan...');
 
+  try {
+    const repo = AppDataSource.getRepository(SecurityFinding);
+    await repo.query(`
+      DELETE f1 FROM security_finding f1
+      INNER JOIN security_finding f2
+      ON f1.checkFingerprint = f2.checkFingerprint AND f1.id > f2.id
+      WHERE f1.checkFingerprint IS NOT NULL
+    `);
+  } catch (e) {
+    console.warn('[securityScanner] Duplicate cleanup failed:', e);
+  }
+
   const checkResults = await Promise.all(ALL_CHECKS.map((check) => check()));
   const allFindings = checkResults.flat();
 

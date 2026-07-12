@@ -1,0 +1,10 @@
+[package]
+name = "ndpi-sys"
+version = "0.1.0"
+edition = "2024"
+build = "build.rs"
+license = "LGPL-3.0"
+description = "Minimal FFI bindings to nDPI deep packet inspection library"
+
+[dependencies]
+libc = "0.2"

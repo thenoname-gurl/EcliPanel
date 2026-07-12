@@ -1221,7 +1221,8 @@
       "tunnels": "Tunnels",
       "rollouts": "Rollouts",
       "audit": "Audit",
-      "feedback": "Feedback"
+      "feedback": "Feedback",
+      "chat": "Chat"
     },
     "shortUrls": {
       "overview": {

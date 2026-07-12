@@ -182,9 +182,9 @@ export async function socRoutes(app: any, prefix = '') {
       const repo = findingRepo();
       const qb = repo.createQueryBuilder('f');
 
-      if (ctx.query?.status) {
+      if (ctx.query?.status && ctx.query.status !== 'all') {
         qb.andWhere('f.status = :status', { status: ctx.query.status });
-      } else {
+      } else if (ctx.query?.status !== 'all') {
         qb.andWhere('f.status = :status', { status: 'open' });
       }
       if (ctx.query?.status !== 'internal_resolved') {
@@ -393,16 +393,13 @@ export async function socRoutes(app: any, prefix = '') {
         return { error: `status must be one of: ${validStatuses.join(', ')}` };
       }
 
-      const finalStatuses = ['resolved', 'false_positive'];
-      if (finalStatuses.includes(finding.status)) {
-        ctx.set.status = 409;
-        return { error: `Cannot change status of a ${finding.status} finding` };
-      }
-
       finding.status = status;
       if (status === 'resolved') {
         finding.resolvedAt = new Date();
         finding.resolvedByUserId = ctx.user?.id;
+      } else if (status === 'open' || status === 'acknowledged') {
+        finding.resolvedAt = null as any;
+        finding.resolvedByUserId = null as any;
       }
       await repo.save(finding);
 
@@ -565,6 +562,11 @@ export async function socRoutes(app: any, prefix = '') {
         abCooldownSeconds: Number(map['soc.ab_cooldown_seconds'] || '300'),
         abStrikesForSuspend: Number(map['soc.ab_strikes_suspend'] || '3'),
         abEnabled: map['soc.ab_enabled'] !== 'false',
+        vpnDpiEnabled: map['soc.vpn_dpi_enabled'] !== 'false',
+        vpnDpiProtocolActions: (() => { try { return JSON.parse(map['soc.vpn_dpi_protocol_actions'] || '{}'); } catch { return {}; } })(),
+        vpnDpiSampleInterval: Number(map['soc.vpn_dpi_sample_interval'] || '300'),
+        vpnDpiSampleDuration: Number(map['soc.vpn_dpi_sample_duration'] || '10000'),
+        vpnDpiBandwidthThreshold: Number(map['soc.vpn_dpi_bandwidth_threshold'] || '1'),
       };
     },
     {
@@ -599,6 +601,11 @@ export async function socRoutes(app: any, prefix = '') {
         'soc.ab_cooldown_seconds': String(body.abCooldownSeconds || '300'),
         'soc.ab_strikes_suspend': String(body.abStrikesSuspend || '3'),
         'soc.ab_enabled': String(body.abEnabled !== false),
+        'soc.vpn_dpi_enabled': String(body.vpnDpiEnabled !== false),
+        'soc.vpn_dpi_protocol_actions': JSON.stringify(body.vpnDpiProtocolActions || {}),
+        'soc.vpn_dpi_sample_interval': String(body.vpnDpiSampleInterval || '300'),
+        'soc.vpn_dpi_sample_duration': String(body.vpnDpiSampleDuration || '10000'),
+        'soc.vpn_dpi_bandwidth_threshold': String(body.vpnDpiBandwidthThreshold || '1'),
       };
 
       for (const [key, value] of Object.entries(updates)) {
@@ -811,6 +818,13 @@ export async function socRoutes(app: any, prefix = '') {
           networkThresholdMbps: Number(map['soc.ab_network_threshold_mbps'] || '100'),
           cooldownSeconds: Number(map['soc.ab_cooldown_seconds'] || '300'),
           strikesForSuspend: Number(map['soc.ab_strikes_suspend'] || '3'),
+        },
+        vpnDpi: {
+          enabled: map['soc.vpn_dpi_enabled'] !== 'false',
+          protocolActions: (() => { try { return JSON.parse(map['soc.vpn_dpi_protocol_actions'] || '{}'); } catch { return {}; } })(),
+          sampleIntervalSeconds: Number(map['soc.vpn_dpi_sample_interval'] || '300'),
+          sampleDurationMs: Number(map['soc.vpn_dpi_sample_duration'] || '10000'),
+          bandwidthThresholdKbps: Number(map['soc.vpn_dpi_bandwidth_threshold'] || '1'),
         },
         rules: rules.map(r => ({
           id: r.id, name: r.name, severity: r.severity, category: r.category,

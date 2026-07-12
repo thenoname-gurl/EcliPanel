@@ -17,6 +17,7 @@ mod bins;
 mod commands;
 mod config;
 mod deserialize;
+mod dpi;
 mod io;
 mod models;
 mod payload;

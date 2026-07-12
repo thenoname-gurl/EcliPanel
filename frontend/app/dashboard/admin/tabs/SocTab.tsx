@@ -393,6 +393,11 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
     abuseipdbKey: '', threatIpList: '', threatIpCidrList: '', threatImageList: '',
     alertEmail: '', alertWebhookUrl: '', alertSeverities: 'critical,high', scanScheduleMinutes: '30',
     abCpuThreshold: '80', abNetworkThresholdMbps: '100', abCooldownSeconds: '300', abStrikesSuspend: '3', abEnabled: true,
+    vpnDpiEnabled: true,
+    vpnDpiProtocolActions: 'Tor=suspend\nWireGuard=alert\nOpenVPN=alert\nIPsec/IKEv2=alert\nSoftEther=alert\nTailscale=alert',
+    vpnDpiSampleInterval: '300',
+    vpnDpiSampleDuration: '10000',
+    vpnDpiBandwidthThreshold: '1',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -414,6 +419,14 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         abCooldownSeconds: String(d.abCooldownSeconds || '300'),
         abStrikesSuspend: String(d.abStrikesForSuspend || '3'),
         abEnabled: d.abEnabled !== false,
+        vpnDpiEnabled: d.vpnDpiEnabled !== false,
+        vpnDpiProtocolActions: (() => {
+          const map = d.vpnDpiProtocolActions || {};
+          return Object.entries(map).map(([k, v]) => `${k}=${v}`).join('\n');
+        })(),
+        vpnDpiSampleInterval: String(d.vpnDpiSampleInterval || '300'),
+        vpnDpiSampleDuration: String(d.vpnDpiSampleDuration || '10000'),
+        vpnDpiBandwidthThreshold: String(d.vpnDpiBandwidthThreshold || '500'),
       })
     }).finally(() => setLoading(false))
   }, [])
@@ -430,6 +443,18 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         abNetworkThresholdMbps: Number(settings.abNetworkThresholdMbps) || 100,
         abCooldownSeconds: Number(settings.abCooldownSeconds) || 300,
         abStrikesSuspend: Number(settings.abStrikesSuspend) || 3,
+        vpnDpiEnabled: settings.vpnDpiEnabled !== false,
+        vpnDpiProtocolActions: (() => {
+          const map: Record<string, string> = {};
+          settings.vpnDpiProtocolActions.split('\n').forEach(line => {
+            const [k, ...rest] = line.split('=');
+            if (k && rest.length) map[k.trim()] = rest.join('=').trim();
+          });
+          return map;
+        })(),
+        vpnDpiSampleInterval: Number(settings.vpnDpiSampleInterval) || 300,
+        vpnDpiSampleDuration: Number(settings.vpnDpiSampleDuration) || 10000,
+        vpnDpiBandwidthThreshold: Number(settings.vpnDpiBandwidthThreshold) || 1,
       }),
     })
     setSaved(true); setSaving(false); onSettingsSaved()
@@ -528,11 +553,47 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
       </div>
 
       <div className="border border-border bg-card p-5">
+        <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Zap className="h-4 w-4" /> VPN Protocol Detection (Wings DPI)</h3>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <label className="text-xs text-muted-foreground">Enabled</label>
+            <select value={settings.vpnDpiEnabled ? 'true' : 'false'} onChange={e => setSettings(s => ({...s, vpnDpiEnabled: e.target.value === 'true'}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs text-muted-foreground">Protocol actions (one per line: Protocol=action)</label>
+            <textarea value={settings.vpnDpiProtocolActions} onChange={e => setSettings(s => ({...s, vpnDpiProtocolActions: e.target.value}))}
+              rows={6}
+              placeholder={"Tor=suspend\nWireGuard=alert\nOpenVPN=alert\nTailscale=alert"}
+              className="w-full border border-border bg-card px-3 py-1.5 text-xs mt-1 font-mono" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Sample Interval (seconds)</label>
+            <input type="number" value={settings.vpnDpiSampleInterval} onChange={e => setSettings(s => ({...s, vpnDpiSampleInterval: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Sample Duration (ms)</label>
+            <input type="number" value={settings.vpnDpiSampleDuration} onChange={e => setSettings(s => ({...s, vpnDpiSampleDuration: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Min traffic delta (KB) — skip idle containers</label>
+            <input type="number" value={settings.vpnDpiBandwidthThreshold} onChange={e => setSettings(s => ({...s, vpnDpiBandwidthThreshold: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+        </div>
+      </div>
+
+      <div className="border border-border bg-card p-5">
         <h3 className="text-sm font-semibold mb-4 flex items-center gap-2"><Activity className="h-4 w-4" /> Scan Status</h3>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Schedule</p><p className="font-mono text-foreground">Every {settings.scanScheduleMinutes} min</p></div>
           <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Total Open</p><p className="font-mono text-foreground">{totalOpen}</p></div>
-          <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Checks</p><p className="font-mono text-foreground">16 active</p></div>
+          <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Checks</p><p className="font-mono text-foreground">17 active</p></div>
           <div className="border border-border bg-secondary/10 p-3"><p className="text-xs text-muted-foreground">Last Scan</p><p className="font-mono text-foreground">{lastScan ? `${lastScan.created} new` : "N/A"}</p></div>
         </div>
       </div>

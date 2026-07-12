@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
-use super::panel_sync::{AbConfig, PanelSync};
+use super::panel_sync::{AbConfig, PanelSync, VpnDpiConfig};
+use crate::dpi::engine::VpnDpiState;
+use crate::dpi::capture;
 
 struct ServerAbuseState {
     last_rx_bytes: u64,
@@ -32,14 +34,25 @@ pub struct AntiAbuseEngine {
     panel: Arc<PanelSync>,
     config: Arc<RwLock<AbConfig>>,
     states: RwLock<HashMap<String, ServerAbuseState>>,
+    vpn_dpi: Arc<VpnDpiState>,
+    docker: Arc<bollard::Docker>,
+    sandbox_cache: RwLock<HashMap<String, Option<String>>>,
 }
 
 impl AntiAbuseEngine {
-    pub fn new(panel: Arc<PanelSync>, config: Arc<RwLock<AbConfig>>) -> Self {
+    pub fn new(
+        panel: Arc<PanelSync>,
+        config: Arc<RwLock<AbConfig>>,
+        vpn_dpi: Arc<VpnDpiState>,
+        docker: Arc<bollard::Docker>,
+    ) -> Self {
         Self {
             panel,
             config,
             states: RwLock::new(HashMap::new()),
+            vpn_dpi,
+            docker,
+            sandbox_cache: RwLock::new(HashMap::new()),
         }
     }
 
@@ -62,6 +75,77 @@ impl AntiAbuseEngine {
 
         self.check_cpu_mining(state, cpu_percent, cpu_limit, &cfg, server_id, memory_bytes, memory_limit, now).await;
         self.check_ddos(state, rx_bytes, tx_bytes, &cfg, server_id, now).await;
+    }
+
+    pub async fn check_vpn(&self, server_id: &str, rx_bytes: u64, tx_bytes: u64) {
+        let sandbox_key = {
+            let cache = self.sandbox_cache.read().await;
+            if let Some(val) = cache.get(server_id) {
+                val.clone()
+            } else {
+                drop(cache);
+                let key = self.resolve_sandbox_key(server_id).await;
+                self.sandbox_cache.write().await.insert(server_id.to_string(), key.clone());
+                key
+            }
+        };
+
+        let Some(sandbox_key) = sandbox_key else { return; };
+
+        let dpi = self.vpn_dpi.clone();
+        let sid = server_id.to_string();
+        let _detected = tokio::task::spawn_blocking(move || {
+            dpi.sample_container(&sid, &sandbox_key, rx_bytes, tx_bytes)
+        }).await.unwrap_or_default();
+
+        for (proto_name, action) in &_detected {
+            let reason = format!(
+                "VPN protocol detected: {} — enforcement: {}",
+                proto_name, action
+            );
+            self.panel.report_incident(
+                server_id,
+                &reason,
+                "vpn_protocol",
+                action,
+                1,
+                serde_json::json!({
+                    "protocol": proto_name,
+                    "enforcement": action,
+                    "detector": "ndpi",
+                }),
+            ).await;
+        }
+    }
+
+    async fn resolve_sandbox_key(&self, server_id: &str) -> Option<String> {
+        let containers = self.docker.list_containers(None).await.ok()?;
+        let mut container_id: Option<String> = None;
+        let uuid_short = server_id.replace('-', "");
+        for c in &containers {
+            let names = c.names.as_ref()?;
+            for name in names {
+                if name.contains(server_id) || name.contains(&uuid_short) {
+                    container_id = c.id.clone();
+                    break;
+                }
+            }
+            if container_id.is_some() { break; }
+        }
+        let cid = container_id?;
+
+        let sandbox_key = format!("/var/run/docker/netns/{}", cid);
+        if std::path::Path::new(&sandbox_key).exists() {
+            Some(sandbox_key)
+        } else {
+            None
+        }
+    }
+
+    async fn prune_stale(&self, active_ids: &std::collections::HashSet<String>) {
+        self.sandbox_cache.write().await.retain(|id, _| active_ids.contains(id));
+        self.states.write().await.retain(|id, _| active_ids.contains(id));
+        self.vpn_dpi.prune_stale(active_ids);
     }
 
     async fn check_cpu_mining(
@@ -149,24 +233,42 @@ impl AntiAbuseEngine {
 pub async fn start(
     panel: Arc<PanelSync>,
     config: Arc<RwLock<AbConfig>>,
+    vpn_dpi: Arc<VpnDpiState>,
     state: crate::routes::State,
 ) {
     tracing::info!("starting embedded anti-abuse detection engine");
 
-    let engine = Arc::new(AntiAbuseEngine::new(panel, config));
+    let engine = Arc::new(AntiAbuseEngine::new(
+        panel,
+        config,
+        vpn_dpi,
+        state.docker.clone(),
+    ));
     let state_mon = state.clone();
 
     tokio::spawn(async move {
+        let mut tick = 0u64;
         loop {
             let servers_guard = state_mon.server_manager.get_servers().await;
             let snapshots: Vec<_> = servers_guard.iter().map(|s| {
                 let usage = s.resource_usage();
                 (s.uuid, usage.cpu_absolute, usage.network.rx_bytes, usage.network.tx_bytes, usage.memory_bytes, usage.memory_limit_bytes)
             }).collect();
+            let active_ids: std::collections::HashSet<String> = snapshots.iter().map(|(uuid, ..)| uuid.to_string()).collect();
             drop(servers_guard);
 
-            for (uuid, cpu, rx, tx, mem, mem_limit) in snapshots {
-                engine.process_stats(&uuid.to_string(), cpu, 100.0, rx, tx, mem, mem_limit).await;
+            for (uuid, cpu, rx, tx, mem, mem_limit) in &snapshots {
+                let sid = uuid.to_string();
+                engine.process_stats(&sid, *cpu, 100.0, *rx, *tx, *mem, *mem_limit).await;
+            }
+
+            for (uuid, _cpu, rx, tx, _mem, _mem_limit) in &snapshots {
+                engine.check_vpn(&uuid.to_string(), *rx, *tx).await;
+            }
+
+            tick += 1;
+            if tick % 60 == 0 {
+                engine.prune_stale(&active_ids).await;
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
