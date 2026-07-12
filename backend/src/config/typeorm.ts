@@ -183,5 +183,6 @@ export const AppDataSource = new DataSource({
     require('../models/chatIpBan.entity').ChatIpBan,
     require('../models/securityFinding.entity').SecurityFinding,
     require('../models/detectionRule.entity').DetectionRule,
+    require('../models/adminAuditEntry.entity').AdminAuditEntry,
   ],
 });

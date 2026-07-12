@@ -59,7 +59,7 @@ const severityIcons: Record<string, typeof Shield> = {
 
 export default function SocTab() {
   const t = useTranslations("adminPage")
-  const [tab, setTab] = useState<"findings" | "events" | "rules" | "incidents" | "settings">("findings")
+  const [tab, setTab] = useState<"findings" | "events" | "rules" | "incidents" | "settings" | "audit">("findings")
   const [findings, setFindings] = useState<Finding[]>([])
   const [findingsTotal, setFindingsTotal] = useState(0)
   const [findingsPage, setFindingsPage] = useState(1)
@@ -226,12 +226,12 @@ export default function SocTab() {
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-border pb-0 overflow-x-auto">
-        {(["findings", "events", "rules", "incidents", "settings"] as const).map(tb => (
+        {(["findings", "events", "rules", "incidents", "settings", "audit"] as const).map(tb => (
           <button key={tb} onClick={() => setTab(tb)}
             className={`px-3 md:px-4 py-2 text-xs md:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === tb ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}>
-            {tb === "findings" ? "Findings" : tb === "events" ? "Event Log" : tb === "rules" ? "Rules" : tb === "incidents" ? "Incidents" : "Settings"}
+            {tb === "findings" ? "Findings" : tb === "events" ? "Event Log" : tb === "rules" ? "Rules" : tb === "incidents" ? "Incidents" : tb === "audit" ? "Admin Audit" : "Settings"}
           </button>
         ))}
       </div>
@@ -388,8 +388,164 @@ export default function SocTab() {
       {tab === "incidents" && <IncidentsEmbed />}
 
 
+      {/* ── Admin Audit Tab ─────────────────────────────────────────────── */}
+      {tab === "audit" && <AdminAuditTab />}
+
       {/* ── Settings Tab ─────────────────────────────────────────────────── */}
       {tab === "settings" && <SocSettingsTab totalOpen={summaryTotal} lastScan={lastScan} onSettingsSaved={() => fetchFindings(findingsPage)} />}
+    </div>
+  )
+}
+
+type AuditEntry = {
+  id: number; adminUserId: number; adminName: string; adminEmail?: string; adminAvatarUrl?: string
+  action: string; targetId?: string; targetType?: string; metadata?: any
+  sessionId?: string; durationMs?: number; ipAddress?: string; timestamp: string
+}
+
+function AdminAuditTab() {
+  const [entries, setEntries] = useState<AuditEntry[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [adminFilter, setAdminFilter] = useState("")
+  const [actionFilter, setActionFilter] = useState("")
+  const [report, setReport] = useState<any[]>([])
+  const [showReport, setShowReport] = useState(false)
+
+  const fetchAudit = useCallback(async (p = 1) => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams({ page: String(p), perPage: "50" })
+      if (adminFilter) params.set("adminUserId", adminFilter)
+      if (actionFilter) params.set("action", actionFilter)
+      const data = await apiFetch(`/api/soc/admin-audit?${params}`)
+      setEntries(data?.entries || [])
+      setTotal(data?.total || 0)
+      setPage(p)
+    } catch { setEntries([]) }
+    finally { setLoading(false) }
+  }, [adminFilter, actionFilter])
+
+  const fetchReport = async () => {
+    try {
+      const params = new URLSearchParams()
+      if (adminFilter) params.set("adminUserId", adminFilter)
+      const data = await apiFetch(`/api/soc/admin-audit/report?${params}`)
+      setReport(data?.report || [])
+      setShowReport(true)
+    } catch { setReport([]) }
+  }
+
+  useEffect(() => { fetchAudit(1) }, [fetchAudit])
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2 flex-wrap">
+        <input type="text" placeholder="Admin user ID" value={adminFilter}
+          onChange={e => { setAdminFilter(e.target.value); setPage(1) }}
+          className="border border-border bg-card px-2 py-1 text-xs w-28" />
+        <input type="text" placeholder="Action filter" value={actionFilter}
+          onChange={e => { setActionFilter(e.target.value); setPage(1) }}
+          className="border border-border bg-card px-2 py-1 text-xs w-40" />
+        <Button size="sm" variant="outline" onClick={() => fetchAudit(page)} disabled={loading}>
+          <RefreshCw className="h-3 w-3 mr-1" />Refresh
+        </Button>
+        <Button size="sm" variant="outline" onClick={fetchReport}>
+          <BarChart3 className="h-3 w-3 mr-1" />Time Report
+        </Button>
+      </div>
+
+      {showReport && report.length > 0 && (
+        <div className="border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Clock className="h-4 w-4" />Time Spent by Admin
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-secondary/30">
+                <tr>
+                  <th className="p-2 text-left">Admin</th>
+                  <th className="p-2 text-left">Action</th>
+                  <th className="p-2 text-right">Count</th>
+                  <th className="p-2 text-right">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {report.map((r: any, i: number) => (
+                  <tr key={i} className="hover:bg-secondary/10">
+                    <td className="p-2 font-medium">{r.adminName}</td>
+                    <td className="p-2 font-mono text-muted-foreground">{r.action}</td>
+                    <td className="p-2 text-right">{r.count}</td>
+                    <td className="p-2 text-right font-mono">
+                      {r.totalMinutes >= 60 ? `${(r.totalMinutes / 60).toFixed(1)}h` : `${r.totalMinutes}m`}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      <div className="hidden md:block border border-border overflow-hidden">
+        <table className="w-full text-xs">
+          <thead className="bg-secondary/30">
+            <tr>
+              <th className="p-2 text-left">Time</th>
+              <th className="p-2 text-left">Admin</th>
+              <th className="p-2 text-left">Action</th>
+              <th className="p-2 text-left">Target</th>
+              <th className="p-2 text-right">Spent</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {loading ? (
+              <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">Loading...</td></tr>
+            ) : entries.length === 0 ? (
+              <tr><td colSpan={5} className="p-4 text-center text-muted-foreground">No audit entries yet. Admin actions will appear here automatically.</td></tr>
+            ) : entries.map(e => (
+              <tr key={e.id} className="hover:bg-secondary/10">
+                <td className="p-2 text-muted-foreground whitespace-nowrap">{new Date(e.timestamp).toLocaleString()}</td>
+                <td className="p-2 font-medium">{e.adminName}</td>
+                <td className="p-2 font-mono max-w-xs truncate">{e.action}</td>
+                <td className="p-2 text-muted-foreground">{e.targetId || "-"}</td>
+                <td className="p-2 text-right text-muted-foreground">
+                  {e.durationMs ? `${(e.durationMs / 1000).toFixed(0)}s` : "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile cards */}
+      <div className="md:hidden flex flex-col gap-2">
+        {loading ? (
+          <p className="text-xs text-muted-foreground p-4">Loading...</p>
+        ) : entries.length === 0 ? (
+          <p className="text-xs text-muted-foreground p-4">No audit entries yet.</p>
+        ) : entries.map(e => (
+          <div key={e.id} className="border border-border bg-card p-3 flex flex-col gap-1">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">{e.adminName}</span>
+              <span className="text-[10px] text-muted-foreground">{new Date(e.timestamp).toLocaleString()}</span>
+            </div>
+            <span className="font-mono text-xs text-muted-foreground truncate">{e.action}</span>
+            {e.durationMs ? <span className="text-[10px] text-muted-foreground">{(e.durationMs / 1000).toFixed(0)}s</span> : null}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>Page {page} • {total} total</span>
+        <div className="flex gap-1">
+          <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => fetchAudit(page - 1)}>
+            <ChevronLeft className="h-3 w-3" /></Button>
+          <Button size="sm" variant="outline" disabled={entries.length < 50} onClick={() => fetchAudit(page + 1)}>
+            <ChevronRight className="h-3 w-3" /></Button>
+        </div>
+      </div>
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { SocData } from '../models/socData.entity';
 import { SecurityFinding } from '../models/securityFinding.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { ServerSubuser } from '../models/serverSubuser.entity';
+import { logAdminAction, getAdminAuditEntries, getAdminTimeReport } from '../services/adminAuditService';
 import { authenticate } from '../middleware/auth';
 import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { WingsApiService } from '../services/wingsApiService';
@@ -311,6 +312,8 @@ export async function socRoutes(app: any, prefix = '') {
         metadata: body.metadata,
       });
 
+      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:finding:external_submit', targetId: finding.serverId, targetType: 'server', metadata: { title: finding.title, severity: finding.severity, sourceName: finding.sourceName }, ipAddress: ctx.ip });
+
       return { success: true, finding };
     },
     {
@@ -329,6 +332,7 @@ export async function socRoutes(app: any, prefix = '') {
     prefix + '/soc/security-scan',
     async (ctx: any) => {
       const result = await runSecurityScan();
+      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:scan:run', metadata: { created: result.created, resolved: result.resolved }, ipAddress: ctx.ip });
       return { success: true, ...result };
     },
     {
@@ -403,10 +407,12 @@ export async function socRoutes(app: any, prefix = '') {
       }
       await repo.save(finding);
 
+      void logAdminAction({ adminUserId: ctx.user?.id, action: `soc:finding:${status}`, targetId: String(id), targetType: 'finding', metadata: { title: finding.title, severity: finding.severity }, ipAddress: ctx.ip });
+
       return { success: true, finding };
     },
     {
-      beforeHandle: authenticate, // users can update own findings (handler has scoping)
+      beforeHandle: authenticate,
       response: {
         200: t.Object({ success: t.Boolean(), finding: t.Any() }),
         400: t.Object({ error: t.String() }),
@@ -436,6 +442,7 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       await repo.remove(finding);
+      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:finding:force_delete', targetId: String(id), targetType: 'finding', metadata: { title: finding.title, severity: finding.severity, category: finding.category }, ipAddress: ctx.ip });
       console.log(`[soc] Finding #${id} force-deleted by user #${ctx.user?.id}: ${finding.title}`);
       return { success: true };
     },
@@ -534,6 +541,8 @@ export async function socRoutes(app: any, prefix = '') {
       finding.metadata = { ...(finding.metadata || {}), escalated: true, escalatedAt: now.toISOString(), escalatedBy: user?.id, ticketId: savedTicket.id };
       finding.status = 'acknowledged';
       await repo.save(finding);
+
+      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:finding:escalate', targetId: String(id), targetType: 'finding', metadata: { title: finding.title, ticketId: savedTicket.id }, ipAddress: ctx.ip });
 
       return { success: true, finding, ticketId: savedTicket.id };
     },
@@ -655,6 +664,7 @@ export async function socRoutes(app: any, prefix = '') {
         await repo.save(row);
       }
 
+      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:settings:update', metadata: { keys: Object.keys(updates) }, ipAddress: ctx.ip });
       return { success: true };
     },
     {
@@ -730,6 +740,7 @@ export async function socRoutes(app: any, prefix = '') {
       });
 
       await repo.save(rule);
+      void logAdminAction({ adminUserId: user.id, action: 'soc:rule:create', targetId: String(rule.id), targetType: 'detection_rule', metadata: { name: rule.name, severity: rule.severity }, ipAddress: ctx.ip });
       return { success: true, rule };
     },
     {
@@ -765,6 +776,7 @@ export async function socRoutes(app: any, prefix = '') {
       if (body.correlation !== undefined) rule.correlation = body.correlation || null;
 
       await repo.save(rule);
+      void logAdminAction({ adminUserId: user?.id, action: 'soc:rule:update', targetId: String(rule.id), targetType: 'detection_rule', metadata: { name: rule.name }, ipAddress: ctx.ip });
       return { success: true, rule };
     },
     {
@@ -789,6 +801,7 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       await repo.remove(rule);
+      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:rule:delete', targetId: String(id), targetType: 'detection_rule', metadata: { name: rule.name }, ipAddress: ctx.ip });
       return { success: true };
     },
     {
@@ -813,6 +826,100 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Object({ matched: t.Boolean() }), 400: t.Object({ error: t.String() }) },
       detail: { summary: 'Test a rule against a sample event', tags: ['SOC'] },
+    }
+  );
+
+  app.get(
+    prefix + '/soc/admin-audit',
+    async (ctx: any) => {
+      if (!hasPermissionSync(ctx, 'soc:read')) {
+        ctx.set.status = 403;
+        return { error: 'Forbidden' };
+      }
+      const { adminUserId, action, since, until, page, perPage } = ctx.query as any;
+      const result = await getAdminAuditEntries({
+        adminUserId: adminUserId ? Number(adminUserId) : undefined,
+        action: action || undefined,
+        since: since ? new Date(since) : undefined,
+        until: until ? new Date(until) : undefined,
+        page: Number(page) || 1,
+        perPage: Number(perPage) || 50,
+      });
+
+      const userIds = [...new Set(result.entries.map(e => e.adminUserId))];
+      const userMap: Record<number, any> = {};
+      if (userIds.length > 0) {
+        const User = require('../models/user.entity').User;
+        const users = await AppDataSource.getRepository(User)
+          .createQueryBuilder('u')
+          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email', 'u.avatarUrl'])
+          .where('u.id IN (:...ids)', { ids: userIds })
+          .getMany();
+        for (const u of users) {
+          userMap[u.id] = {
+            username: [`${u.firstName || ''}`.trim(), `${u.lastName || ''}`.trim()].filter(Boolean).join(' ') || u.email || `#${u.id}`,
+            email: u.email,
+            avatarUrl: u.avatarUrl,
+          };
+        }
+      }
+
+      const entries = result.entries.map(e => ({
+        ...e,
+        adminName: userMap[e.adminUserId]?.username || `User #${e.adminUserId}`,
+        adminEmail: userMap[e.adminUserId]?.email || null,
+        adminAvatarUrl: userMap[e.adminUserId]?.avatarUrl || null,
+      }));
+
+      return { entries, total: result.total };
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List admin audit entries (read-only, immutable)', tags: ['SOC'] },
+    }
+  );
+
+  app.get(
+    prefix + '/soc/admin-audit/report',
+    async (ctx: any) => {
+      if (!hasPermissionSync(ctx, 'soc:read')) {
+        ctx.set.status = 403;
+        return { error: 'Forbidden' };
+      }
+      const { adminUserId, since, until } = ctx.query as any;
+      const rows = await getAdminTimeReport({
+        adminUserId: adminUserId ? Number(adminUserId) : undefined,
+        since: since ? new Date(since) : undefined,
+        until: until ? new Date(until) : undefined,
+      });
+
+      const userIds = [...new Set(rows.map(r => r.adminUserId))];
+      const userMap: Record<number, string> = {};
+      if (userIds.length > 0) {
+        const User = require('../models/user.entity').User;
+        const users = await AppDataSource.getRepository(User)
+          .createQueryBuilder('u')
+          .select(['u.id', 'u.firstName', 'u.lastName', 'u.email'])
+          .where('u.id IN (:...ids)', { ids: userIds })
+          .getMany();
+        for (const u of users) {
+          userMap[u.id] = [`${u.firstName || ''}`.trim(), `${u.lastName || ''}`.trim()].filter(Boolean).join(' ') || u.email || `#${u.id}`;
+        }
+      }
+
+      const report = rows.map(r => ({
+        ...r,
+        adminName: userMap[r.adminUserId] || `User #${r.adminUserId}`,
+        totalMinutes: Math.round((r.totalMs / 60000) * 10) / 10,
+      }));
+
+      return { report };
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Admin time-spent report by action', tags: ['SOC'] },
     }
   );
 

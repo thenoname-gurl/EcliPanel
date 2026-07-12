@@ -10,6 +10,7 @@ import { preloadAll } from './i18n/loader';
 import { hasPermissionSync } from './middleware/authorize';
 import { setupConfig } from './config';
 import { createActivityLog } from './handlers/logHandler';
+import { logAdminAction } from './services/adminAuditService';
 import { AppDataSource } from './config/typeorm';
 import { scheduleStudentReverifyJob } from './jobs/studentReverifyJob';
 import { scheduleMetricsCollectionJob } from './jobs/metricsCollectionJob';
@@ -646,6 +647,41 @@ app.request(async (rawCtx: unknown) => {
 app.beforeHandle(async (ctx: Record<string, unknown>) => {
   const csrfResult = await csrfProtection(ctx);
   if (csrfResult) return csrfResult;
+});
+
+app.afterHandle(async (ctx: Record<string, unknown>) => {
+  try {
+    const req = ctx.request as Request;
+    const user = (ctx as any).user;
+    if (!user?.id) return;
+
+    const path = new URL(req.url).pathname;
+
+    const isAdminPath =
+      path.startsWith('/api/soc/') ||
+      path.startsWith('/api/admin/') ||
+      path.startsWith('/api/logs') ||
+      path.startsWith('/api/servers/v1/') ||
+      path.startsWith('/api/servers/v2/') ||
+      path.startsWith('/api/wings/');
+
+    if (!isAdminPath) return;
+
+    const isAdmin = (ctx as any).userPermissions?.length > 0
+      || (user as any).role === '*'
+      || (user as any).role === 'rootAdmin'
+      || ((ctx as any).apiKey && (ctx as any).apiKeyPermissions?.length > 0);
+
+    if (!isAdmin) return;
+
+    void logAdminAction({
+      adminUserId: user.id,
+      action: `admin:${req.method.toLowerCase()}:${path}`,
+      targetType: 'api',
+      metadata: { method: req.method, path, query: new URL(req.url).search },
+      ipAddress: (ctx as any).ip,
+    });
+  } catch { /* uwu */ }
 });
 
 const _cacheSafeMethods = new Set(['GET', 'HEAD', 'OPTIONS']);

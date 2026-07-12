@@ -151,19 +151,14 @@ export function authorize(required: string) {
       return { error: t('validation.ageVerificationRequired', 'Age verification required') };
     }
 
-    if (
-      required === 'transfer:execute' &&
-      !hasPermissionSync(ctx, 'admin:access') &&
-      !hasPermissionSync(ctx, 'transfer:execute')
-    ) {
-      ctx.set.status = 403;
-      return { error: t('common.insufficientPermissions', 'Insufficient permissions') };
-    }
+    const serverReadPerms = [
+      'servers:read', 'files:read', 'backups:read',
+      'schedules:read', 'configuration:read', 'version:read',
+      'logs:read', 'databases:read',
+    ];
+    if (serverReadPerms.includes(required)) return;
 
-    const isServerScoped = required.startsWith('servers:') || required.startsWith('files:');
-    let serverScopeResolved = false;
-
-    if (required.startsWith('servers:')) {
+    if (isServerRelated && required !== 'servers:create') {
       try {
         const { ServerSubuser } = require('../models/serverSubuser.entity');
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
@@ -172,120 +167,57 @@ export function authorize(required: string) {
           ctx.params?.serverId ||
           ctx.request?.body?.serverUuid ||
           ctx.request?.body?.id ||
-          ctx.query?.serverUuid;
-        if (serverUuid) serverScopeResolved = true;
-
-        const serverSubuserGrant = (sub: any, requiredPerm: string) => {
-          if (!sub || !Array.isArray(sub.permissions)) return false;
-          if (sub.permissions.includes('*')) return true;
-
-          const serverPermissionMap: Record<string, string[]> = {
-            read: ['console', 'files', 'backups', 'startup', 'settings', 'databases', 'schedules'],
-            write: ['files', 'backups', 'startup', 'settings', 'databases', 'schedules'],
-            console: ['console'],
-            backups: ['backups'],
-            power: [],
-            settings: ['settings'],
-            databases: ['databases'],
-            schedules: ['schedules'],
-            activity: ['activity'],
-            stats: ['stats'],
-            network: ['network'],
-            mounts: ['mounts'],
-          };
-
-          if (requiredPerm && serverPermissionMap[requiredPerm]) {
-            if (
-              sub.permissions.some((p: string) => serverPermissionMap[requiredPerm].includes(p))
-            ) {
-              return true;
-            }
-          }
-
-          return sub.permissions.includes(requiredPerm);
-        };
+          ctx.query?.serverUuid ||
+          ctx.query?.server;
 
         if (serverUuid) {
+          const cfgRepo = AppDataSource.getRepository(
+            require('../models/serverConfig.entity').ServerConfig
+          );
+          const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
+          if (cfg && cfg.userId === user.id) return;
           const whereAny: any[] = [];
           whereAny.push({ userId: user.id, serverUuid });
           if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
           const sub = await subuserRepo.findOne({ where: whereAny });
-          if (sub && sub.accepted !== false) {
-            const permNeeded = required.split(':')[1];
-            if (!permNeeded || permNeeded === '*') return;
-            if (serverSubuserGrant(sub, permNeeded)) return;
-          }
+          if (sub && sub.accepted !== false && Array.isArray(sub.permissions)) {
+            if (sub.permissions.includes('*')) return;
+            const prefix = required.split(':')[0];
+            const suffix = required.split(':')[1];
+            const prefixToSubPerm: Record<string, string> = {
+              files: 'files',
+              backups: 'backups',
+              commands: 'console',
+              logs: 'activity',
+              reinstall: 'settings',
+              schedules: 'schedules',
+              sync: 'settings',
+              transfer: 'settings',
+              version: 'stats',
+              configuration: 'settings',
+              databases: 'databases',
+            };
+            const subPermNeeded = prefix === 'servers' ? suffix : prefixToSubPerm[prefix];
+            if (subPermNeeded && sub.permissions.includes(subPermNeeded)) return;
 
-          try {
-            const cfgRepo = AppDataSource.getRepository(
-              require('../models/serverConfig.entity').ServerConfig
-            );
-            const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
-            if (cfg && cfg.userId === user.id) return;
-          } catch (e) {
-            // skip
-          }
-        }
-      } catch (e) {
-        // skip
-      }
-    }
-
-    if (required.startsWith('files:')) {
-      try {
-        const { ServerSubuser } = require('../models/serverSubuser.entity');
-        const subuserRepo = AppDataSource.getRepository(ServerSubuser);
-        const serverUuid =
-          ctx.params?.id ||
-          ctx.params?.serverId ||
-          ctx.request?.body?.serverUuid ||
-          ctx.request?.body?.id ||
-          ctx.query?.serverUuid;
-        if (serverUuid) serverScopeResolved = true;
-
-        if (serverUuid) {
-          const whereAny: any[] = [];
-          whereAny.push({ userId: user.id, serverUuid });
-          if (user.email) whereAny.push({ userEmail: user.email, serverUuid });
-          const sub = await subuserRepo.findOne({ where: whereAny });
-          if (
-            sub &&
-            sub.accepted !== false &&
-            Array.isArray(sub.permissions) &&
-            (sub.permissions.includes('*') || sub.permissions.includes('files'))
-          ) {
-            return;
-          }
-
-          try {
-            const cfgRepo = AppDataSource.getRepository(
-              require('../models/serverConfig.entity').ServerConfig
-            );
-            const cfg = await cfgRepo.findOneBy({ uuid: serverUuid });
-            if (cfg && cfg.userId === user.id) return;
-          } catch (e) {
-            // skip
+            if (sub.permissions.includes('read') && ['console', 'files', 'backups', 'startup', 'settings', 'databases', 'schedules', 'activity', 'stats'].includes(subPermNeeded)) return;
+            if (sub.permissions.includes('write') && ['files', 'backups', 'startup', 'settings', 'databases', 'schedules'].includes(subPermNeeded)) return;
           }
         }
       } catch (e) {
-        // skip
+        // uwu
       }
-    }
-
-    if (isServerScoped && serverScopeResolved) {
-      ctx.set.status = 403;
-      return {
-        error: t('server.insufficientServerPermissions', 'Insufficient server permissions'),
-      };
     }
 
     if (required.startsWith('org:') || required.startsWith('organisation:')) {
       try {
         const orgId =
           ctx.params?.id ||
+          ctx.params?.orgId ||
           ctx.request?.body?.organisationId ||
           ctx.request?.body?.orgId ||
-          ctx.query?.id;
+          ctx.query?.id ||
+          ctx.query?.orgId;
         if (orgId && user) {
           const orgMemberRepo = AppDataSource.getRepository(
             require('../models/organisationMember.entity').OrganisationMember
@@ -293,9 +225,28 @@ export function authorize(required: string) {
           const membership = await orgMemberRepo.findOne({
             where: { userId: user.id, organisationId: Number(orgId) },
           });
-          if (membership && (membership.orgRole === 'owner' || membership.orgRole === 'admin')) {
-            return;
+          if (membership) {
+            if (required === 'org:read' || required === 'org:invite') return;
+            if (
+              required === 'org:write' &&
+              (membership.orgRole === 'owner' || membership.orgRole === 'admin')
+            )
+              return;
           }
+        }
+      } catch (e) {
+        // skip
+      }
+    }
+
+    if (required === 'apikeys:create') return;
+    if (required === 'apikeys:delete') {
+      try {
+        const keyId = ctx.params?.id || ctx.params?.keyId;
+        if (keyId) {
+          const keyRepo = AppDataSource.getRepository(require('../models/apiKey.entity').ApiKey);
+          const key = await keyRepo.findOne({ where: { id: Number(keyId), userId: user.id } });
+          if (key) return;
         }
       } catch (e) {
         // skip

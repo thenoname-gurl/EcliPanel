@@ -841,7 +841,8 @@ export async function organisationRoutes(app: OrganisationApp, prefix = '') {
         return { error: ctx.t('organisation.notFound') };
       }
       const user = ctx.user as User;
-      if (user.id !== org.ownerId && !hasPermissionSync(ctx, 'org:write')) {
+      const userMembership = await getMembership(user.id, org.id);
+      if (user.id !== org.ownerId && userMembership?.orgRole !== 'admin' && userMembership?.orgRole !== 'owner' && !hasPermissionSync(ctx, 'org:write')) {
         ctx.set.status = 403;
         return { error: ctx.t('common.forbidden') };
       }
