@@ -10,7 +10,7 @@ frontend/.next/
 frontend/.turbo/
 backend/.turbo/
 
-logs/
+/logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -68,6 +68,9 @@ antiabuse/READMEnew.md
 
 # Legal reff
 /legal/
+
+# Wings generated output
+wings/output/
 
 # Tunnel artifacts
 tunnel/server/target/*
