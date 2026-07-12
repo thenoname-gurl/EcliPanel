@@ -15,6 +15,8 @@ pub struct VpnDpiConfig {
     pub sample_interval_seconds: u64,
     pub sample_duration_ms: u64,
     pub bandwidth_threshold_kbps: u64,
+    pub port_scan_threshold: u32,
+    pub port_scan_action: String,
 }
 
 impl Default for VpnDpiConfig {
@@ -33,6 +35,8 @@ impl Default for VpnDpiConfig {
             sample_interval_seconds: 300,
             sample_duration_ms: 10000,
             bandwidth_threshold_kbps: 1,
+            port_scan_threshold: 15,
+            port_scan_action: "alert".into(),
         }
     }
 }
@@ -107,10 +111,40 @@ impl VpnDpiState {
             return Vec::new();
         }
 
+        let mut results: Vec<(String, String)> = Vec::new();
+
+        let profile = capture::analyze_packets(&packets);
+        let connections = capture::extract_connections(&packets);
+
+        let attack_type = classify_attack(&profile);
+
+        for (dst_ip, ports) in &connections {
+            if ports.len() >= cfg.port_scan_threshold as usize {
+                let ip_str = format!("{}.{}.{}.{}",
+                    (dst_ip >> 24) as u8, (dst_ip >> 16) as u8,
+                    (dst_ip >> 8) as u8, *dst_ip as u8);
+                let tag = if let Some(ref at) = attack_type {
+                    format!("{}:{}:{}", at, ip_str, ports.len())
+                } else {
+                    format!("PortScan:{}:{}", ip_str, ports.len())
+                };
+                results.push((tag, cfg.port_scan_action.clone()));
+                let label = attack_type.as_deref().unwrap_or("Port scan");
+                tracing::info!("{} detected on {}: {} ports → {}", label, server_id, ports.len(), ip_str);
+            }
+        }
+
+        if let Some(ref at) = attack_type {
+            if connections.values().all(|p| p.len() < cfg.port_scan_threshold as usize) {
+                results.push((format!("{}:0.0.0.0:0", at), "alert".into()));
+                tracing::info!("{} detected on {} ({} total packets)", at, server_id, profile.total);
+            }
+        }
+
         let mut detector = self.detector.lock().unwrap();
         let d = match detector.as_mut() {
             Some(d) => d,
-            None => return Vec::new(),
+            None => return results,
         };
 
         let mut matches: HashMap<String, DetectedProtocol> = HashMap::new();
@@ -124,7 +158,7 @@ impl VpnDpiState {
             }
         }
 
-        let detected: Vec<(String, String)> = matches
+        let vpn: Vec<(String, String)> = matches
             .into_values()
             .filter(|p| p.packet_count >= 3)
             .filter_map(|p| {
@@ -135,19 +169,46 @@ impl VpnDpiState {
             })
             .collect();
 
-        if !detected.is_empty() {
+        if !vpn.is_empty() {
             tracing::info!(
                 "VPN DPI: detected on {} (delta={} bytes): {:?}",
                 server_id, delta_bytes,
-                detected.iter().map(|(n, a)| format!("{n}→{a}")).collect::<Vec<_>>()
+                vpn.iter().map(|(n, a)| format!("{n}→{a}")).collect::<Vec<_>>()
             );
         }
 
-        detected
+        results.extend(vpn);
+        results
     }
 
     pub fn prune_stale(&self, active_ids: &std::collections::HashSet<String>) {
         self.last_sampled.lock().unwrap().retain(|id, _| active_ids.contains(id));
         self.prev_bytes.lock().unwrap().retain(|id, _| active_ids.contains(id));
     }
+}
+
+fn classify_attack(profile: &capture::PacketProfile) -> Option<String> {
+    let t = profile.total.max(1) as f64;
+    if profile.udp as f64 / t > 0.7 {
+        if profile.dns > 100 { return Some("DNS amplification".into()); }
+        if profile.ntp > 50 { return Some("NTP amplification".into()); }
+        if profile.ssdp > 50 { return Some("SSDP amplification".into()); }
+        if profile.memcached > 30 { return Some("Memcached amplification".into()); }
+        return Some("UDP flood".into());
+    }
+    if profile.tcp_syn as f64 / t > 0.7 {
+        if profile.http > 200 { return Some("HTTP flood".into()); }
+        if profile.ssh > 50 { return Some("SSH brute force".into()); }
+        return Some("SYN flood".into());
+    }
+    if profile.icmp as f64 / t > 0.5 {
+        return Some("ICMP flood".into());
+    }
+    if profile.http > 500 {
+        return Some("HTTP flood".into());
+    }
+    if profile.ssh > 100 {
+        return Some("SSH brute force".into());
+    }
+    None
 }

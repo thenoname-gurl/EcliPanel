@@ -99,22 +99,60 @@ impl AntiAbuseEngine {
         }).await.unwrap_or_default();
 
         for (proto_name, action) in &_detected {
-            let reason = format!(
-                "VPN protocol detected: {} — enforcement: {}",
-                proto_name, action
-            );
-            self.panel.report_incident(
-                server_id,
-                &reason,
-                "vpn_protocol",
-                action,
-                1,
-                serde_json::json!({
-                    "protocol": proto_name,
-                    "enforcement": action,
-                    "detector": "ndpi",
-                }),
-            ).await;
+            if proto_name.contains(':') && !proto_name.starts_with("PortScan:") {
+                let parts: Vec<&str> = proto_name.splitn(3, ':').collect();
+                let atype = parts.first().copied().unwrap_or("?");
+                let ip = parts.get(1).copied().unwrap_or("?");
+                let count = parts.get(2).copied().unwrap_or("?");
+                let reason = format!("{} detected: {} ports → {}", atype, count, ip);
+                self.panel.report_incident(
+                    server_id,
+                    &reason,
+                    "ddos_attack",
+                    action,
+                    1,
+                    serde_json::json!({
+                        "attack_type": atype,
+                        "target_ip": ip,
+                        "port_count": count,
+                        "detector": "ndpi",
+                    }),
+                ).await;
+            } else if proto_name.starts_with("PortScan:") {
+                let parts: Vec<&str> = proto_name.splitn(3, ':').collect();
+                let ip = parts.get(1).copied().unwrap_or("?");
+                let count = parts.get(2).copied().unwrap_or("?");
+                let reason = format!("Outgoing port scan: {} unique ports → {}", count, ip);
+                self.panel.report_incident(
+                    server_id,
+                    &reason,
+                    "port_scan",
+                    action,
+                    1,
+                    serde_json::json!({
+                        "target_ip": ip,
+                        "port_count": count,
+                        "detector": "ndpi",
+                    }),
+                ).await;
+            } else {
+                let reason = format!(
+                    "VPN protocol detected: {} — enforcement: {}",
+                    proto_name, action
+                );
+                self.panel.report_incident(
+                    server_id,
+                    &reason,
+                    "vpn_protocol",
+                    action,
+                    1,
+                    serde_json::json!({
+                        "protocol": proto_name,
+                        "enforcement": action,
+                        "detector": "ndpi",
+                    }),
+                ).await;
+            }
         }
     }
 

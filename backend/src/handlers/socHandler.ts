@@ -567,6 +567,8 @@ export async function socRoutes(app: any, prefix = '') {
         vpnDpiSampleInterval: Number(map['soc.vpn_dpi_sample_interval'] || '300'),
         vpnDpiSampleDuration: Number(map['soc.vpn_dpi_sample_duration'] || '10000'),
         vpnDpiBandwidthThreshold: Number(map['soc.vpn_dpi_bandwidth_threshold'] || '1'),
+        vpnDpiPortScanThreshold: Number(map['soc.vpn_dpi_port_scan_threshold'] || '15'),
+        vpnDpiPortScanAction: map['soc.vpn_dpi_port_scan_action'] || 'alert',
       };
     },
     {
@@ -606,6 +608,8 @@ export async function socRoutes(app: any, prefix = '') {
         'soc.vpn_dpi_sample_interval': String(body.vpnDpiSampleInterval || '300'),
         'soc.vpn_dpi_sample_duration': String(body.vpnDpiSampleDuration || '10000'),
         'soc.vpn_dpi_bandwidth_threshold': String(body.vpnDpiBandwidthThreshold || '1'),
+        'soc.vpn_dpi_port_scan_threshold': String(body.vpnDpiPortScanThreshold || '15'),
+        'soc.vpn_dpi_port_scan_action': String(body.vpnDpiPortScanAction || 'alert'),
       };
 
       for (const [key, value] of Object.entries(updates)) {
@@ -825,6 +829,8 @@ export async function socRoutes(app: any, prefix = '') {
           sampleIntervalSeconds: Number(map['soc.vpn_dpi_sample_interval'] || '300'),
           sampleDurationMs: Number(map['soc.vpn_dpi_sample_duration'] || '10000'),
           bandwidthThresholdKbps: Number(map['soc.vpn_dpi_bandwidth_threshold'] || '1'),
+          portScanThreshold: Number(map['soc.vpn_dpi_port_scan_threshold'] || '15'),
+          portScanAction: map['soc.vpn_dpi_port_scan_action'] || 'alert',
         },
         rules: rules.map(r => ({
           id: r.id, name: r.name, severity: r.severity, category: r.category,

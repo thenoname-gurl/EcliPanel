@@ -132,3 +132,85 @@ pub fn get_sandbox_key(
         .map(|s| s.to_string())
         .filter(|s| !s.is_empty())
 }
+
+fn is_tcp_syn(ip_data: &[u8]) -> bool {
+    if ip_data.len() < 20 { return false; }
+    let ihl = (ip_data[0] & 0x0F) as usize * 4;
+    if ip_data.len() < ihl + 20 { return false; }
+    ip_data[9] == 6 && ip_data.get(ihl + 13).copied().unwrap_or(0) & 0x02 != 0
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PacketProfile {
+    pub total: u32,
+    pub tcp_syn: u32,
+    pub tcp_other: u32,
+    pub udp: u32,
+    pub icmp: u32,
+    pub dns: u32,
+    pub http: u32,
+    pub ssh: u32,
+    pub ntp: u32,
+    pub ssdp: u32,
+    pub memcached: u32,
+}
+
+fn dst_port(pkt: &[u8]) -> u16 {
+    let ihl = (pkt[0] & 0x0F) as usize * 4;
+    if pkt.len() >= ihl + 4 {
+        u16::from_be_bytes([pkt[ihl + 2], pkt[ihl + 3]])
+    } else {
+        0
+    }
+}
+
+pub fn analyze_packets(packets: &[Vec<u8>]) -> PacketProfile {
+    let mut p = PacketProfile::default();
+    for pkt in packets {
+        if pkt.len() < 20 { continue; }
+        p.total += 1;
+        let proto = pkt[9];
+        match proto {
+            1 => p.icmp += 1,
+            6 => {
+                if is_tcp_syn(pkt) { p.tcp_syn += 1; } else { p.tcp_other += 1; }
+                let dp = dst_port(pkt);
+                if dp == 80 || dp == 443 || dp == 8080 || dp == 8443 { p.http += 1; }
+                if dp == 22 { p.ssh += 1; }
+            }
+            17 => {
+                p.udp += 1;
+                let ihl = (pkt[0] & 0x0F) as usize * 4;
+                if pkt.len() >= ihl + 4 {
+                    let src = u16::from_be_bytes([pkt[ihl], pkt[ihl + 1]]);
+                    let dst = u16::from_be_bytes([pkt[ihl + 2], pkt[ihl + 3]]);
+                    if src == 53 || dst == 53 { p.dns += 1; }
+                    if src == 123 || dst == 123 { p.ntp += 1; }
+                    if src == 1900 || dst == 1900 { p.ssdp += 1; }
+                    if src == 11211 || dst == 11211 { p.memcached += 1; }
+                }
+            }
+            _ => {}
+        }
+    }
+    p
+}
+
+pub fn extract_connections(packets: &[Vec<u8>]) -> std::collections::HashMap<u32, std::collections::HashSet<u16>> {
+    let mut map: std::collections::HashMap<u32, std::collections::HashSet<u16>> = std::collections::HashMap::new();
+    for pkt in packets {
+        if pkt.len() < 20 { continue; }
+        let ihl = (pkt[0] & 0x0F) as usize * 4;
+        if pkt.len() < ihl + 4 { continue; }
+        let dst_ip = u32::from_be_bytes([pkt[16], pkt[17], pkt[18], pkt[19]]);
+        if is_tcp_syn(pkt) {
+            let dst_port = u16::from_be_bytes([pkt[ihl], pkt[ihl + 1]]);
+            map.entry(dst_ip).or_default().insert(dst_port);
+        }
+        if pkt[9] == 17 && pkt.len() >= ihl + 4 {
+            let dst_port = u16::from_be_bytes([pkt[ihl], pkt[ihl + 1]]);
+            map.entry(dst_ip).or_default().insert(dst_port);
+        }
+    }
+    map
+}

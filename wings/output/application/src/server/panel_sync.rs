@@ -132,7 +132,14 @@ impl PanelSync {
                         .unwrap_or(10000),
                     bandwidth_threshold_kbps: vd.get("bandwidthThresholdKbps")
                         .and_then(|v| v.as_u64())
-                        .unwrap_or(500),
+                        .unwrap_or(1),
+                    port_scan_threshold: vd.get("portScanThreshold")
+                        .and_then(|v| v.as_u64())
+                        .unwrap_or(15) as u32,
+                    port_scan_action: vd.get("portScanAction")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("alert")
+                        .to_string(),
                 };
                 *vpn_dpi_config.write().await = vpn_config;
             }

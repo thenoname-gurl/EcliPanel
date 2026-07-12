@@ -398,6 +398,8 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
     vpnDpiSampleInterval: '300',
     vpnDpiSampleDuration: '10000',
     vpnDpiBandwidthThreshold: '1',
+    vpnDpiPortScanThreshold: '15',
+    vpnDpiPortScanAction: 'alert',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -426,7 +428,9 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         })(),
         vpnDpiSampleInterval: String(d.vpnDpiSampleInterval || '300'),
         vpnDpiSampleDuration: String(d.vpnDpiSampleDuration || '10000'),
-        vpnDpiBandwidthThreshold: String(d.vpnDpiBandwidthThreshold || '500'),
+        vpnDpiBandwidthThreshold: String(d.vpnDpiBandwidthThreshold || '1'),
+        vpnDpiPortScanThreshold: String(d.vpnDpiPortScanThreshold || '15'),
+        vpnDpiPortScanAction: d.vpnDpiPortScanAction || 'alert',
       })
     }).finally(() => setLoading(false))
   }, [])
@@ -455,6 +459,8 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         vpnDpiSampleInterval: Number(settings.vpnDpiSampleInterval) || 300,
         vpnDpiSampleDuration: Number(settings.vpnDpiSampleDuration) || 10000,
         vpnDpiBandwidthThreshold: Number(settings.vpnDpiBandwidthThreshold) || 1,
+        vpnDpiPortScanThreshold: Number(settings.vpnDpiPortScanThreshold) || 15,
+        vpnDpiPortScanAction: settings.vpnDpiPortScanAction || 'alert',
       }),
     })
     setSaved(true); setSaving(false); onSettingsSaved()
@@ -584,6 +590,19 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
             <label className="text-xs text-muted-foreground">Min traffic delta (KB) — skip idle containers</label>
             <input type="number" value={settings.vpnDpiBandwidthThreshold} onChange={e => setSettings(s => ({...s, vpnDpiBandwidthThreshold: e.target.value}))}
               className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Port scan threshold (unique ports to same IP)</label>
+            <input type="number" value={settings.vpnDpiPortScanThreshold} onChange={e => setSettings(s => ({...s, vpnDpiPortScanThreshold: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Port scan enforcement</label>
+            <select value={settings.vpnDpiPortScanAction} onChange={e => setSettings(s => ({...s, vpnDpiPortScanAction: e.target.value}))}
+              className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+              <option value="alert">Alert only</option>
+              <option value="suspend">Suspend server</option>
+            </select>
           </div>
         </div>
       </div>
