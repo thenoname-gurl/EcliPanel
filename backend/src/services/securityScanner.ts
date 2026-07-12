@@ -55,6 +55,7 @@ async function persistFindings(results: ScanCheckResult[]): Promise<{ created: n
         { checkFingerprint: r.fingerprint, status: 'acknowledged' as any },
         { checkFingerprint: r.fingerprint, status: 'resolved' as any },
         { checkFingerprint: r.fingerprint, status: 'false_positive' as any },
+        { checkFingerprint: r.fingerprint, status: 'internal_resolved' as any },
       ],
     });
     if (existing) {
@@ -810,6 +811,23 @@ export async function submitExternalFinding(data: {
   metadata?: Record<string, any>;
 }): Promise<SecurityFinding> {
   const repo = AppDataSource.getRepository(SecurityFinding);
+
+  const fingerprint = fp('ext', data.sourceName, data.category, data.title, data.serverId, data.userId);
+
+  const existing = await repo.findOne({
+    where: [
+      { checkFingerprint: fingerprint, status: 'open' as any },
+      { checkFingerprint: fingerprint, status: 'acknowledged' as any },
+      { checkFingerprint: fingerprint, status: 'resolved' as any },
+      { checkFingerprint: fingerprint, status: 'false_positive' as any },
+      { checkFingerprint: fingerprint, status: 'internal_resolved' as any },
+    ],
+  });
+  if (existing) {
+    console.log(`[securityScanner] External finding suppressed (duplicate of #${existing.id}): ${data.title}`);
+    return existing;
+  }
+
   const finding = repo.create({
     source: 'external',
     sourceName: data.sourceName || undefined,
@@ -821,9 +839,27 @@ export async function submitExternalFinding(data: {
     nodeId: data.nodeId || undefined,
     userId: data.userId || undefined,
     metadata: data.metadata || undefined,
+    checkFingerprint: fingerprint,
     status: 'open',
   });
   await repo.save(finding);
+
+  if (finding.severity === 'critical' || finding.severity === 'high') {
+    dispatchAlert({
+      id: finding.id,
+      title: finding.title,
+      description: finding.description,
+      severity: finding.severity as any,
+      category: finding.category,
+      serverId: finding.serverId || undefined,
+      nodeId: finding.nodeId || undefined,
+      userId: finding.userId || undefined,
+      metadata: finding.metadata || undefined,
+      fingerprint: finding.checkFingerprint || undefined,
+      detectedAt: finding.detectedAt,
+    }).catch(e => console.error('[securityScanner] external alert dispatch error:', e));
+  }
+
   console.log(`[securityScanner] External finding from "${data.sourceName || 'unknown'}": ${data.title}`);
   return finding;
 }

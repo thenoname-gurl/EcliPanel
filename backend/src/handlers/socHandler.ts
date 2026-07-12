@@ -419,6 +419,39 @@ export async function socRoutes(app: any, prefix = '') {
     }
   );
 
+  app.delete(
+    prefix + '/soc/security-findings/:id',
+    async (ctx: any) => {
+      const repo = findingRepo();
+      const id = Number(ctx.params['id']);
+      if (isNaN(id)) {
+        ctx.set.status = 400;
+        return { error: 'Invalid finding ID' };
+      }
+
+      const finding = await repo.findOneBy({ id });
+      if (!finding) {
+        ctx.set.status = 404;
+        return { error: 'Finding not found' };
+      }
+
+      await repo.remove(finding);
+      console.log(`[soc] Finding #${id} force-deleted by user #${ctx.user?.id}: ${finding.title}`);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('soc:read')],
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Force delete a security finding (admin only)', tags: ['SOC'] },
+    }
+  );
+
   app.post(
     prefix + '/soc/security-findings/:id/escalate',
     async (ctx: any) => {

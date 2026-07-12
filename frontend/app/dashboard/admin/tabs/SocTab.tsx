@@ -9,7 +9,7 @@ import {
   Shield, ShieldAlert, AlertTriangle, AlertCircle,
   Bug, RefreshCw, ScanLine, Search, ChevronLeft, ChevronRight,
   Check, CheckCircle, Flag, Send, Clock, Server, User, Globe,
-  Activity, BarChart3, Zap, Brain, EyeOff,
+  Activity, BarChart3, Zap, Brain, EyeOff, Trash2,
 } from "lucide-react"
 import AntiAbuseTab from "./AntiAbuseTab"
 
@@ -168,6 +168,14 @@ export default function SocTab() {
     silentFetch()
   }
 
+  const handleDelete = async (id: number, title: string) => {
+    if (!confirm(`Force delete finding #${id}: "${title}"?\n\nThis permanently removes the record. Only use for corrupted/stuck items.`)) return
+    setFindings(prev => prev.filter(f => f.id !== id))
+    try {
+      await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id)), { method: "DELETE" })
+    } catch { fetchFindings(findingsPage) }
+  }
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   const renderActions = (f: Finding) => (
@@ -182,6 +190,8 @@ export default function SocTab() {
         className="p-2.5 md:p-0.5 hover:bg-secondary/50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><EyeOff className="h-5 w-5 md:h-3 md:w-3 text-gray-500" /></button>
       <button onClick={(e) => { e.preventDefault(); handleEscalate(f.id) }} title="Escalate"
         className="p-2.5 md:p-0.5 hover:bg-secondary/50 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><Send className="h-5 w-5 md:h-3 md:w-3 text-blue-600" /></button>
+      <button onClick={(e) => { e.preventDefault(); handleDelete(f.id, f.title) }} title="Force Delete (admin only)"
+        className="p-2.5 md:p-0.5 hover:bg-red-500/10 rounded min-w-[44px] min-h-[44px] flex items-center justify-center"><Trash2 className="h-5 w-5 md:h-3 md:w-3 text-red-600" /></button>
     </>
   )
 
