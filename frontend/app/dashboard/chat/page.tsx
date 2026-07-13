@@ -186,7 +186,7 @@ function PostContent({ content, imageUrl }: { content: string; imageUrl?: string
               <img
                 src={imgSrc}
                 alt="Attached"
-                className="max-h-64 max-w-xs border border-border/40 object-contain hover:opacity-90 transition-opacity cursor-pointer"
+                className="max-h-48 md:max-h-64 max-w-[200px] md:max-w-xs border border-border/40 object-contain hover:opacity-90 transition-opacity cursor-pointer"
                 loading="lazy"
               />
             </a>
@@ -194,7 +194,7 @@ function PostContent({ content, imageUrl }: { content: string; imageUrl?: string
             <img
               src={imgSrc}
               alt="Attached"
-              className="max-h-64 max-w-xs border border-border/40 object-contain"
+              className="max-h-48 md:max-h-64 max-w-[200px] md:max-w-xs border border-border/40 object-contain"
               loading="lazy"
             />
           )}
@@ -255,6 +255,8 @@ export default function ChatPage() {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null)
   const [deletingChannel, setDeletingChannel] = useState<Channel | null>(null)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const [anonymousName, setAnonymousName] = useState(() => {
     if (typeof window === "undefined") return ""
@@ -599,84 +601,142 @@ export default function ChatPage() {
     setActiveChannel(null); setActiveThread(null); setViewMode("board"); router.push("/dashboard/chat")
   }
 
+  function renderSidebarContent() {
+    return (
+      <>
+        {loading && (
+          <div className="flex justify-center py-4">
+            <Loader2 className="h-3.5 w-3.5 text-muted-foreground/30 animate-spin" />
+          </div>
+        )}
+
+        {publicChannels.length > 0 && (
+          <>
+            <div className="px-3 pt-2 pb-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/30">
+              Anonymous
+            </div>
+            {publicChannels.map(ch => (
+              <BoardSidebarItem
+                key={ch.id} channel={ch}
+                active={activeChannel?.id === ch.id}
+                manageable={canManage(ch)}
+                onClick={() => { goToBoard(ch); setMobileSidebarOpen(false) }}
+                onEdit={() => setEditingChannel(ch)}
+                onDelete={() => setDeletingChannel(ch)}
+              />
+            ))}
+          </>
+        )}
+
+        {communityChannels.length > 0 && (
+          <>
+            <div className="px-3 pt-3 pb-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/30">
+              Community
+            </div>
+            {communityChannels.map(ch => (
+              <BoardSidebarItem
+                key={ch.id} channel={ch}
+                active={activeChannel?.id === ch.id}
+                manageable={canManage(ch)}
+                onClick={() => { goToBoard(ch); setMobileSidebarOpen(false) }}
+                onEdit={() => setEditingChannel(ch)}
+                onDelete={() => setDeletingChannel(ch)}
+                onJoin={!ch.isMember ? () => joinChannel(ch.id) : undefined}
+              />
+            ))}
+          </>
+        )}
+      </>
+    )
+  }
+
   return (
     <div className="flex h-full bg-background font-sans">
 
-      <div className="w-48 shrink-0 border-r border-border/50 bg-sidebar flex flex-col overflow-hidden">
-        <div className="px-3 py-2 border-b border-border/50 bg-card">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
-              Boards
-            </span>
-            {isLoggedIn && (
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="text-[10px] text-primary/50 hover:text-primary font-mono transition-colors"
-              >
-                [+]
-              </button>
-            )}
+      {/* Mobile sidebar overlay */}
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden" onClick={() => setMobileSidebarOpen(false)}>
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm" />
+          <div className="absolute left-0 top-0 bottom-0 w-56 bg-sidebar border-r border-border/50 flex flex-col overflow-hidden shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+            <div className="px-3 py-2 border-b border-border/50 bg-card flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">Boards</span>
+              <button onClick={() => setMobileSidebarOpen(false)} className="text-muted-foreground/50 hover:text-foreground/70 font-mono text-sm">[×]</button>
+            </div>
+            <div className="flex-1 overflow-y-auto py-1">{renderSidebarContent()}</div>
           </div>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
-          {loading && (
-            <div className="flex justify-center py-4">
-              <Loader2 className="h-3.5 w-3.5 text-muted-foreground/30 animate-spin" />
+      {/* Desktop sidebar — collapsible */}
+      {!sidebarCollapsed && (
+        <div className="w-48 shrink-0 border-r border-border/50 bg-sidebar hidden md:flex flex-col overflow-hidden">
+          <div className="px-3 py-2 border-b border-border/50 bg-card">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/50">
+                Boards
+              </span>
+              <div className="flex items-center gap-1">
+                {isLoggedIn && (
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="text-[10px] text-primary/50 hover:text-primary font-mono transition-colors"
+                  >
+                    [+]
+                  </button>
+                )}
+                <button
+                  onClick={() => setSidebarCollapsed(true)}
+                  className="text-[10px] text-muted-foreground/30 hover:text-foreground/50 font-mono transition-colors"
+                  title="Hide boards"
+                >
+                  [«]
+                </button>
+              </div>
             </div>
-          )}
+          </div>
 
-          {publicChannels.length > 0 && (
-            <>
-              <div className="px-3 pt-2 pb-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/30">
-                Anonymous
-              </div>
-              {publicChannels.map(ch => (
-                <BoardSidebarItem
-                  key={ch.id} channel={ch}
-                  active={activeChannel?.id === ch.id}
-                  manageable={canManage(ch)}
-                  onClick={() => goToBoard(ch)}
-                  onEdit={() => setEditingChannel(ch)}
-                  onDelete={() => setDeletingChannel(ch)}
-                />
-              ))}
-            </>
-          )}
+          <div className="flex-1 overflow-y-auto py-1 scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
+            {renderSidebarContent()}
+          </div>
 
-          {communityChannels.length > 0 && (
-            <>
-              <div className="px-3 pt-3 pb-0.5 text-[9px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/30">
-                Community
-              </div>
-              {communityChannels.map(ch => (
-                <BoardSidebarItem
-                  key={ch.id} channel={ch}
-                  active={activeChannel?.id === ch.id}
-                  manageable={canManage(ch)}
-                  onClick={() => goToBoard(ch)}
-                  onEdit={() => setEditingChannel(ch)}
-                  onDelete={() => setDeletingChannel(ch)}
-                  onJoin={!ch.isMember ? () => joinChannel(ch.id) : undefined}
-                />
-              ))}
-            </>
-          )}
+          <div className="px-3 py-2 border-t border-border/50 bg-card">
+            <p className="text-[9px] text-muted-foreground/30 font-mono">
+              {isLoggedIn ? "Logged in" : "Anonymous"}
+            </p>
+          </div>
         </div>
+      )}
 
-        <div className="px-3 py-2 border-t border-border/50 bg-card">
-          <p className="text-[9px] text-muted-foreground/30 font-mono">
-            {isLoggedIn ? "Logged in" : "Anonymous"}
-          </p>
+      {/* Desktop collapsed sidebar tab */}
+      {sidebarCollapsed && (
+        <div className="hidden md:flex w-8 shrink-0 border-r border-border/50 bg-sidebar flex-col items-center pt-2 gap-2">
+          <button
+            onClick={() => setSidebarCollapsed(false)}
+            className="text-muted-foreground/30 hover:text-foreground/60 transition-colors"
+            title="Show boards"
+          >
+            <PanelLeft className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </div>
+      )}
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
-        <div className="shrink-0 bg-card border-b border-border/50 px-4 py-1.5 flex items-center gap-2">
+        <div className="shrink-0 bg-card border-b border-border/50 px-3 md:px-4 py-1.5 flex items-center gap-2">
+          <button
+            onClick={() => {
+              if (window.innerWidth < 768) setMobileSidebarOpen(true)
+              else setSidebarCollapsed(!sidebarCollapsed)
+            }}
+            className="text-muted-foreground/50 hover:text-foreground/70 transition-colors"
+            aria-label="Toggle boards"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </button>
           <button
             onClick={goToIndex}
-            className="text-primary/70 font-mono font-semibold text-[12px] hover:text-primary transition-colors"
+            className="text-primary/70 font-mono font-semibold text-[12px] hover:text-primary transition-colors truncate"
           >
             /{activeChannel?.slug ?? "boards"}/
           </button>
@@ -798,7 +858,7 @@ function BoardSidebarItem({ channel, active, manageable, onClick, onEdit, onDele
         </span>
         {channel.isMature && <span className="text-[8px] font-mono text-amber-500/70 shrink-0">18+</span>}
       </button>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+      <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
         {onJoin && (
           <button onClick={e => { e.stopPropagation(); onJoin() }}
             className="text-[9px] text-primary/50 hover:text-primary font-mono px-0.5 transition-colors">
@@ -829,7 +889,7 @@ function BoardIndex({ publicChannels, communityChannels, isLoggedIn, onSelect, o
 }) {
   return (
     <div className="flex-1 overflow-y-auto bg-background">
-      <div className="max-w-3xl mx-auto px-4 py-6">
+      <div className="max-w-3xl mx-auto px-3 md:px-4 py-4 md:py-6">
 
         <div className="border border-border/40 bg-card p-4 mb-6 text-center rounded">
           <h1 className="text-lg font-semibold text-foreground/70 tracking-tight mb-1">Boards</h1>
@@ -890,7 +950,7 @@ function BoardIndexRow({ channel, onSelect, onJoin }: {
   return (
     <div className="flex items-baseline gap-3 py-1.5 border-b border-border/20 hover:bg-muted/30 px-2 transition-colors group rounded-sm">
       <button onClick={() => onSelect(channel)} className="text-left flex-1 flex items-baseline gap-3">
-        <span className="font-mono font-semibold text-primary/60 text-[12px] shrink-0 w-28 truncate">
+        <span className="font-mono font-semibold text-primary/60 text-[12px] shrink-0 w-auto md:w-28 truncate max-w-[120px] md:max-w-none">
           /{channel.slug}/
         </span>
         {channel.isMature && <span className="text-[10px] font-mono text-amber-500/60 shrink-0">[18+]</span>}
@@ -949,7 +1009,7 @@ function PostForm({
     setContent(""); setImage(null); setRevealIdentity(false); setHoneypot("")
   }
 
-  const fieldLabelCls = "text-right pr-3 py-1 text-[11px] font-mono text-primary/50 w-24 align-top pt-2 shrink-0"
+  const fieldLabelCls = "md:text-right md:pr-3 py-1 text-[11px] font-mono text-primary/50 md:w-24 md:align-top md:pt-2 shrink-0 block md:table-cell"
   const inputCls = "border border-border/40 bg-background rounded px-2 py-1 text-[12px] font-mono text-foreground/70 outline-none focus:border-primary/40 transition-colors w-full placeholder:text-muted-foreground/30"
 
   return (
@@ -958,13 +1018,13 @@ function PostForm({
         <input type="text" name="website" tabIndex={-1} autoComplete="off"
           value={honeypot} onChange={e => setHoneypot(e.target.value)} />
       </div>
-      <table className="text-[12px] border-collapse w-full">
-        <tbody>
+      <div className="text-[12px] w-full md:table border-collapse">
+        <div className="md:table-row-group">
           {isAnonymous && (
             <>
-              <tr>
-                <td className={fieldLabelCls}>Name</td>
-                <td className="py-1">
+              <div className="md:table-row">
+                <div className={fieldLabelCls}>Name</div>
+                <div className="py-1 md:table-cell">
                   <input
                     type="text" value={revealIdentity ? "" : anonymousName}
                     onChange={e => { setAnonymousName(e.target.value); localStorage.setItem("chat_anonymous_name", e.target.value) }}
@@ -972,12 +1032,12 @@ function PostForm({
                     disabled={revealIdentity}
                     className={`${inputCls} max-w-[200px] ${revealIdentity ? "opacity-40 cursor-not-allowed" : ""}`}
                   />
-                </td>
-              </tr>
+                </div>
+              </div>
               {isLoggedIn && (
-                <tr>
-                  <td />
-                  <td className="py-0.5">
+                <div className="md:table-row">
+                  <div className="md:table-cell" />
+                  <div className="py-0.5 md:table-cell">
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input type="checkbox" checked={revealIdentity} onChange={e => setRevealIdentity(e.target.checked)}
                         className="accent-primary h-3 w-3" />
@@ -985,14 +1045,14 @@ function PostForm({
                         Post as <strong className="text-primary/60 font-semibold">your display name</strong>
                       </span>
                     </label>
-                  </td>
-                </tr>
+                  </div>
+                </div>
               )}
             </>
           )}
-          <tr>
-            <td className={fieldLabelCls}>File</td>
-            <td className="py-1">
+          <div className="md:table-row">
+            <div className={fieldLabelCls}>File</div>
+            <div className="py-1 md:table-cell">
               <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif"
                 onChange={handleImageSelect} className="hidden" />
               <button
@@ -1007,11 +1067,11 @@ function PostForm({
                   <button onClick={() => setImage(null)} className="ml-1 text-destructive/50 hover:text-destructive hover:underline">[x]</button>
                 </span>
               )}
-            </td>
-          </tr>
-          <tr>
-            <td className={fieldLabelCls}>Comment</td>
-            <td className="py-1">
+            </div>
+          </div>
+          <div className="md:table-row">
+            <div className={fieldLabelCls}>Comment</div>
+            <div className="py-1 md:table-cell">
               <textarea
                 value={content}
                 onChange={e => setContent(e.target.value)}
@@ -1019,11 +1079,11 @@ function PostForm({
                 placeholder={placeholder} rows={4}
                 className={`${inputCls} resize-y max-w-lg`}
               />
-            </td>
-          </tr>
-          <tr>
-            <td />
-            <td className="py-1.5">
+            </div>
+          </div>
+          <div className="md:table-row">
+            <div className="md:table-cell" />
+            <div className="py-1.5 md:table-cell">
               <button
                 onClick={handleSubmit} disabled={!content.trim() || sending}
                 className="border border-border/50 bg-muted hover:bg-muted/80 rounded px-4 py-1 text-[11px] font-mono font-semibold text-foreground/60 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
@@ -1031,17 +1091,17 @@ function PostForm({
                 {sending ? "Posting…" : "Post"}
               </button>
               <span className="ml-3 text-[10px] text-muted-foreground/25 font-mono">Ctrl+Enter to post</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+          </div>
+        </div>
+      </div>
       {image && (
-        <div className="mt-2 ml-[96px]">
+        <div className="mt-2 md:ml-[96px]">
           <img src={image} alt="Preview"
-            className="max-h-32 max-w-xs border border-border/30 object-contain rounded" />
+            className="max-h-32 max-w-[200px] border border-border/30 object-contain rounded" />
         </div>
       )}
-      <div className="mt-2 ml-[96px] flex flex-wrap gap-2 text-[10px] text-muted-foreground/25 font-mono">
+      <div className="mt-2 md:ml-[96px] flex flex-wrap gap-2 text-[10px] text-muted-foreground/25 font-mono">
         <span><strong className="text-muted-foreground/40">**bold**</strong></span>
         <span><em className="text-muted-foreground/40">*italic*</em></span>
         <span className="text-green-500/40">&gt;greentext</span>
@@ -1091,7 +1151,7 @@ function BoardPanel({
 
   return (
     <div className="flex-1 overflow-y-auto bg-background scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
-      <div className="max-w-5xl mx-auto px-3 py-4">
+      <div className="max-w-5xl mx-auto px-2 md:px-3 py-3 md:py-4">
 
         <div className="text-center mb-4">
           <h2 className="text-lg font-semibold text-foreground/60 tracking-tight">
@@ -1159,14 +1219,14 @@ function ThreadCard({ thread, onOpen, canModerate, onToggleHide, onDelete, onLoo
   return (
     <div className="py-4 px-2 hover:bg-muted/20 transition-colors group">
       <PostHeader post={thread} isOp />
-      <div className="flex gap-3 mt-1">
+      <div className="flex flex-col sm:flex-row gap-3 mt-1">
         {thread.imageUrl && (
           <div className="shrink-0">
             <button onClick={onOpen}>
           <img
             src={thumbSrc}
             alt="Thread image"
-                className="w-[120px] h-[120px] object-cover border border-border/40 hover:opacity-90 transition-opacity rounded-sm"
+                className="w-full sm:w-[120px] h-auto sm:h-[120px] max-h-48 sm:max-h-none object-cover border border-border/40 hover:opacity-90 transition-opacity rounded-sm"
                 loading="lazy"
               />
             </button>
@@ -1187,7 +1247,7 @@ function ThreadCard({ thread, onOpen, canModerate, onToggleHide, onDelete, onLoo
               [{thread.replyCount ?? 0} replies] [View Thread]
             </button>
             {canModerate && (
-              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+              <div className="md:opacity-0 md:group-hover:opacity-100 transition-opacity flex items-center gap-2">
                 {onToggleHide && (
                   <button onClick={e => { e.stopPropagation(); onToggleHide() }}
                     className="text-[10px] font-mono text-muted-foreground/40 hover:text-amber-400/70 transition-colors">
@@ -1216,7 +1276,7 @@ function ThreadCard({ thread, onOpen, canModerate, onToggleHide, onDelete, onLoo
             )}
           </div>
           {thread.recentReplies && thread.recentReplies.length > 0 && (
-            <div className="mt-2 pl-3 border-l border-border/30 space-y-1.5">
+            <div className="mt-2 pl-2 md:pl-3 border-l border-border/30 space-y-1.5">
               {thread.recentReplies.map(reply => (
                 <div key={reply.id} className="text-[11px]">
                   <PostHeader post={reply} />
@@ -1276,7 +1336,7 @@ function ThreadViewPanel({
 
   return (
     <div className="flex-1 overflow-y-auto bg-background scrollbar-thin scrollbar-thumb-border/30 scrollbar-track-transparent">
-      <div className="max-w-5xl mx-auto px-3 py-4">
+      <div className="max-w-5xl mx-auto px-2 md:px-3 py-3 md:py-4">
 
         <div className="text-center mb-4">
           <h2 className="text-lg font-semibold text-foreground/60 tracking-tight">
@@ -1326,14 +1386,14 @@ function ThreadViewPanel({
                     <a href={opHref} target="_blank" rel="noopener noreferrer nofollow ugc">
                       <img
                         src={opImg} alt="OP image"
-                        className="max-h-72 max-w-xs border border-border/30 object-contain hover:opacity-90 transition-opacity rounded-sm"
+                        className="max-h-48 md:max-h-72 max-w-[200px] md:max-w-xs border border-border/30 object-contain hover:opacity-90 transition-opacity rounded-sm"
                         loading="lazy"
                       />
                     </a>
                   ) : (
                     <img
                       src={opImg} alt="OP image"
-                      className="max-h-72 max-w-xs border border-border/30 object-contain rounded-sm"
+                      className="max-h-48 md:max-h-72 max-w-[200px] md:max-w-xs border border-border/30 object-contain rounded-sm"
                       loading="lazy"
                     />
                   )}
@@ -1342,7 +1402,7 @@ function ThreadViewPanel({
             })()}
             <PostContent content={thread.op.content} />
             {canModerate && (
-              <div className="mt-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="mt-1.5 flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 {onToggleHideMessage && (
                   <button onClick={() => onToggleHideMessage(thread.op.id, !!thread.op.isHidden)}
                     className="text-[10px] font-mono text-muted-foreground/40 hover:text-amber-400/70 transition-colors">
@@ -1374,12 +1434,12 @@ function ThreadViewPanel({
 
         <div className="space-y-2 mt-3">
           {thread.replies.map(reply => (
-            <div key={reply.id} id={`p${reply.id}`} className="ml-6 group">
+            <div key={reply.id} id={`p${reply.id}`} className="ml-3 md:ml-6 group">
               <div className="bg-card border border-border/30 rounded p-3 inline-block max-w-full w-full">
                 <PostHeader post={reply} />
                 <PostContent content={reply.content} imageUrl={reply.imageUrl} />
                 {canModerate && (
-                  <div className="mt-1.5 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="mt-1.5 flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                     {onToggleHideMessage && (
                       <button onClick={() => onToggleHideMessage(reply.id, !!reply.isHidden)}
                         className="text-[10px] font-mono text-muted-foreground/40 hover:text-amber-400/70 transition-colors">
