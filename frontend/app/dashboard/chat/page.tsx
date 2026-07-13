@@ -1220,7 +1220,7 @@ function ThreadCard({ thread, onOpen, canModerate, onToggleHide, onDelete, onLoo
     <div className="py-4 px-2 hover:bg-muted/20 transition-colors group">
       <PostHeader post={thread} isOp />
       <div className="flex flex-col sm:flex-row gap-3 mt-1">
-        {thread.imageUrl && (
+        {thumbSrc && (
           <div className="shrink-0">
             <button onClick={onOpen}>
           <img
