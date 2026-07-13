@@ -541,6 +541,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   }
 
   async function requireEloDevlog(ctx: AuthenticatedHandlerContext) {
+    if (ctx.user?.role === '*' || ctx.user?.role === 'rootAdmin' || ctx.user?.role === 'admin') return;
     const { id } = (ctx.params ?? {}) as Record<string, string>;
     if (!id) return;
     const action: string | undefined = (ctx.body as Record<string, unknown> | undefined)?.action as string | undefined;
@@ -570,6 +571,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   }
 
   async function requireEloVote(ctx: AuthenticatedHandlerContext) {
+    if (ctx.user?.role === '*' || ctx.user?.role === 'rootAdmin' || ctx.user?.role === 'admin') return;
     const { id } = (ctx.params ?? {}) as Record<string, string>;
     if (!id) return;
     const action: string | undefined = (ctx.body as Record<string, unknown> | undefined)?.action as string | undefined;
@@ -5095,6 +5097,140 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         401: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Get server transfer progress', tags: ['Servers'] },
+    },
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/force-transfer',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const payload = (ctx.body || {}) as Record<string, unknown>;
+      const user = ctx.user;
+
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.serverNotFound') || 'Server not found' };
+      }
+
+      const sourceNodeId = cfg.nodeId;
+
+      let sourceSvc: WingsApiService;
+      try {
+        sourceSvc = await serviceFor(id) as WingsApiService;
+      } catch {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.serverNotFound') || 'Server not found' };
+      }
+
+      const targetNodeId = payload.targetNodeId != null ? Number(payload.targetNodeId) : undefined;
+      if (!targetNodeId) {
+        ctx.set.status = 400;
+        return { error: 'targetNodeId is required' };
+      }
+
+      let targetNode: Node;
+      try {
+        const found = await nodeRepo().findOneBy({ id: targetNodeId });
+        if (!found) {
+          ctx.set.status = 404;
+          return { error: ctx.t('node.targetNotFound') || 'Target node not found' };
+        }
+        targetNode = found;
+      } catch {
+        ctx.set.status = 500;
+        return { error: ctx.t('node.resolveTargetFailed') || 'Failed to resolve target node' };
+      }
+
+      if (targetNode.id === sourceNodeId) {
+        ctx.set.status = 400;
+        return { error: 'Source and target nodes must be different' };
+      }
+
+      try {
+        const targetSvc = new WingsApiService(
+          targetNode.backendWingsUrl || targetNode.url,
+          targetNode.token,
+        );
+
+        try {
+          await sourceSvc.serverRequest(id, '', 'delete');
+        } catch (e) {
+          app.log?.warn?.({ err: e, uuid: id }, 'force-transfer: source delete failed (may already be gone)');
+        }
+
+        await nodeSvc.unmapServer(id);
+        nodeSvc.invalidateNode(sourceNodeId);
+
+        cfg.nodeId = targetNode.id;
+        if (cfg.allocations && typeof cfg.allocations === 'object') {
+          const existingAlloc = cfg.allocations as Record<string, any>;
+          cfg.allocations = {
+            ...existingAlloc,
+            default: undefined,
+            mappings: {},
+            fqdns: {},
+          };
+        } else {
+          cfg.allocations = { mappings: {}, fqdns: {} };
+        }
+        await cfgRepo().save(cfg);
+
+        await nodeSvc.mapServer(id, targetNode.id);
+        nodeSvc.invalidateNode(targetNode.id);
+
+        await targetSvc.createServer({
+          uuid: id,
+          start_on_completion: true,
+          skip_scripts: false,
+        });
+
+        await createActivityLog({
+          userId: user.id,
+          action: 'server:force-transfer:complete',
+          targetId: id,
+          targetType: 'server',
+          metadata: { sourceNodeId, targetNodeId: targetNode.id },
+          ipAddress: ctx.clientIP,
+        });
+
+        return { success: true, message: 'Server force transferred successfully' };
+      } catch (e: unknown) {
+        app.log?.error?.({ err: e, uuid: id }, 'force-transfer: failed');
+
+        try {
+          if (cfg) {
+            cfg.nodeId = sourceNodeId;
+            await cfgRepo().save(cfg);
+          }
+          await nodeSvc.unmapServer(id);
+          await nodeSvc.mapServer(id, sourceNodeId);
+        } catch (rollbackErr) {
+          app.log?.error?.({ err: rollbackErr, uuid: id }, 'force-transfer: rollback failed');
+        }
+
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 502;
+        const errData = errResponse?.data;
+        const message =
+          (errData as Record<string, unknown> | undefined)?.error as string || errData ||
+          (err instanceof Error ? err.message : '') ||
+          'Force transfer failed';
+        ctx.set.status = status;
+        return { error: message as string };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('transfer:execute')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Force transfer server (delete on source, recreate on target with new ports)', tags: ['Servers'] },
     },
   );
 

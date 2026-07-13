@@ -154,6 +154,7 @@ export const API_ENDPOINTS = {
   serverV2Stats: "/api/servers/v2/:id/stats",
   serverV2Config: "/api/servers/v2/:id/configuration",
   serverTransfer: "/api/servers/v1/:id/transfer",
+  serverForceTransfer: "/api/servers/v1/:id/force-transfer",
   serverConsole: "/api/servers/v1/:id/console",
   serverFiles: "/api/servers/v1/:id/files",
   serverFileContents: "/api/servers/v1/:id/files/contents",

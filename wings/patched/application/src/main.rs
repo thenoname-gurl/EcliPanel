@@ -422,6 +422,9 @@ async fn main_rt() {
         Err(err) => exit_error!("failed to fetch servers from remote: {:?}", err),
     };
 
+    let detection_rules: Arc<tokio::sync::RwLock<Vec<crate::routes::DetectionRule>>> =
+        Arc::new(tokio::sync::RwLock::new(vec![]));
+
     let state = Arc::new(crate::routes::AppState {
         start_time: Instant::now(),
         container_type: match std::env::var("OCI_CONTAINER").as_deref() {
@@ -442,6 +445,7 @@ async fn main_rt() {
                 .expect("failed to initialize inotify manager"),
         ),
         mime_cache: moka::future::Cache::new(20480),
+        detection_rules: Arc::clone(&detection_rules),
     });
 
     tokio::spawn({

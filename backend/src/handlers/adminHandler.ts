@@ -5826,6 +5826,21 @@ export async function adminRoutes(app: any, prefix = '') {
         if (node) {
           node.lastHeartbeatAt = new Date();
           node.wingsVersion = version;
+          if (body.configVersion) node.configVersion = String(body.configVersion).slice(0, 64);
+          await nodeRepo.save(node);
+        }
+      }
+
+      let commands: { action: string; payload?: any }[] = [];
+      if (wingsNode) {
+        const token = ((ctx.headers || {})['authorization'] || '').replace('Bearer ', '');
+        const tokenOnly = token.includes('.') ? token.split('.')[1] : token;
+        const node = await nodeRepo.findOne({ where: { token: tokenOnly } });
+        if (node?.pendingCommand) {
+          try {
+            commands = JSON.parse(node.pendingCommand);
+          } catch { commands = [{ action: node.pendingCommand }]; }
+          node.pendingCommand = null as any;
           await nodeRepo.save(node);
         }
       }
@@ -5840,6 +5855,7 @@ export async function adminRoutes(app: any, prefix = '') {
         ageMs: n.lastHeartbeatAt ? now - n.lastHeartbeatAt.getTime() : 999999,
         active: n.lastHeartbeatAt ? (now - n.lastHeartbeatAt.getTime()) < 120000 : false,
         version: n.wingsVersion,
+        configVersion: n.configVersion || null,
       }));
       return {
         success: true,
@@ -5847,6 +5863,7 @@ export async function adminRoutes(app: any, prefix = '') {
         activeAgents: agents.filter(a => a.active).length,
         totalAgents: agents.length,
         agents,
+        commands: commands.length > 0 ? commands : undefined,
       };
     },
     {

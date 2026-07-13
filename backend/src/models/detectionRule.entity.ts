@@ -82,4 +82,10 @@ export class DetectionRule {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  @Column({ type: 'varchar', length: 20, default: 'public' })
+  visibility: 'public' | 'staff_only';
+
+  @Column({ default: false })
+  createsIncident: boolean;
 }

@@ -4,8 +4,9 @@ use utoipa_axum::{router::OpenApiRouter, routes};
 pub mod get {
     use crate::{
         response::{ApiResponse, ApiResponseResult},
-        routes::{GetState, api::servers::_server_::GetServer},
+        routes::{DetectionRule, GetState, api::servers::_server_::GetServer},
     };
+    use regex::Regex;
     use serde::Serialize;
     use utoipa::ToSchema;
 
@@ -22,44 +23,37 @@ pub mod get {
         total: usize,
     }
 
-    /// Known suspicious filename patterns
-    const SUSPICIOUS_PATTERNS: &[(&str, &str, &str)] = &[
-        // Crypto miners
-        ("xmrig", "Potential crypto miner binary (xmrig)", "critical"),
-        ("minerd", "Potential crypto miner binary (minerd)", "critical"),
-        ("cpuminer", "Potential crypto miner binary (cpuminer)", "critical"),
-        ("t-rex", "Potential crypto miner (T-Rex)", "critical"),
-        ("phoenixminer", "Potential crypto miner (PhoenixMiner)", "critical"),
-        ("lolminer", "Potential crypto miner (lolMiner)", "critical"),
-        ("nbminer", "Potential crypto miner (NBMiner)", "critical"),
-        ("gminer", "Potential crypto miner (GMiner)", "critical"),
-        ("config.json", "Possible miner configuration file", "medium"),
-        ("pools.txt", "Possible mining pool configuration", "medium"),
-        ("mine.sh", "Possible mining script", "high"),
-        ("start_mining", "Possible mining start script", "high"),
-        // Backdoors / webshells
-        ("shell.php", "Potential PHP webshell", "critical"),
-        ("cmd.php", "Potential command execution script", "critical"),
-        ("backdoor", "Potential backdoor file", "critical"),
-        ("c99", "Known webshell (c99)", "critical"),
-        ("r57", "Known webshell (r57)", "critical"),
-        ("wso.php", "Known webshell (WSO)", "critical"),
-        // DDoS tools
-        ("slowloris", "DDoS tool (Slowloris)", "critical"),
-        ("hping", "DDoS tool (hping)", "critical"),
-        ("flood", "Potential DDoS script", "high"),
-        ("stresser", "Potential DDoS stresser tool", "high"),
-        // Info stealers / rats
-        ("stealer", "Potential info stealer", "critical"),
-        ("keylogger", "Potential keylogger", "critical"),
-        ("rat_server", "Potential RAT server", "critical"),
-        // Suspicious permissions
-        ("id_rsa", "SSH private key may be exposed", "high"),
-        ("id_ed25519", "SSH private key may be exposed", "high"),
-        (".env", "Environment file may contain secrets", "medium"),
-        ("credentials", "Possible credentials file", "high"),
-        ("password", "Possible password file", "high"),
-    ];
+    fn extract_file_patterns(rules: &[DetectionRule]) -> Vec<(Regex, String, String)> {
+        let mut patterns = Vec::new();
+        for rule in rules {
+            let Some(rules_arr) = rule.conditions.get("rules").and_then(|v| v.as_array()) else {
+                continue;
+            };
+            for r in rules_arr {
+                let field = r.get("field").and_then(|v| v.as_str()).unwrap_or("");
+                if field != "file.name" {
+                    continue;
+                }
+                let op = r.get("operator").and_then(|v| v.as_str()).unwrap_or("");
+                let value = r.get("value").and_then(|v| v.as_str()).unwrap_or("");
+                if value.is_empty() {
+                    continue;
+                }
+
+                let pattern = match op {
+                    "regex" => value.to_string(),
+                    "contains" => regex::escape(value),
+                    "equals" => format!("^{}$", regex::escape(value)),
+                    _ => continue,
+                };
+
+                if let Ok(re) = Regex::new(&format!("(?i){}", pattern)) {
+                    patterns.push((re, rule.name.clone(), rule.severity.clone()));
+                }
+            }
+        }
+        patterns
+    }
 
     #[utoipa::path(get, path = "/scan-files", responses(
         (status = OK, body = inline(Response)),
@@ -70,10 +64,13 @@ pub mod get {
             example = "123e4567-e89b-12d3-a456-426614174000",
         ),
     ))]
-    pub async fn route(server: GetServer) -> ApiResponseResult {
+    pub async fn route(state: GetState, server: GetServer) -> ApiResponseResult {
+        let rules_guard = state.detection_rules.read().await;
+        let file_patterns = extract_file_patterns(&rules_guard);
+        drop(rules_guard);
+
         let mut suspicious: Vec<SuspiciousFile> = Vec::new();
 
-        // Check common directories for suspicious files
         let check_dirs = vec![
             std::path::PathBuf::from("."),
             std::path::PathBuf::from("plugins"),
@@ -96,16 +93,14 @@ pub mod get {
             };
 
             for entry_name in &entries {
-                let lower = entry_name.to_lowercase();
-                for (pattern, reason, severity) in SUSPICIOUS_PATTERNS {
-                    if lower.contains(pattern) {
-                        let path = dir.join(entry_name).to_string_lossy().to_string();
-                        // Avoid duplicates
+                let path = dir.join(entry_name).to_string_lossy().to_string();
+                for (regex, reason, severity) in &file_patterns {
+                    if regex.is_match(entry_name) {
                         if !suspicious.iter().any(|s| s.path == path) {
                             suspicious.push(SuspiciousFile {
                                 path,
-                                reason: reason.to_string(),
-                                severity: severity.to_string(),
+                                reason: reason.clone(),
+                                severity: severity.clone(),
                             });
                         }
                         break;

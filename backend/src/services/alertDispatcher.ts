@@ -18,6 +18,7 @@ interface FindingAlert {
   metadata?: Record<string, any>;
   fingerprint?: string;
   detectedAt: Date;
+  visibility?: 'public' | 'staff_only';
 }
 
 interface UserAlertPrefs {
@@ -57,13 +58,13 @@ async function getAdminWebhookUrl(): Promise<string> {
 
 async function getAdminSeverities(): Promise<string[]> {
   const settings = await getSocSettings();
-  const raw = settings['soc.alert_severities'] || process.env.SOC_ALERT_EMAIL_SEVERITIES || 'critical,high';
+  const raw = settings['soc.alert_severities'] || process.env.SOC_ALERT_EMAIL_SEVERITIES || 'critical';
   return raw.split(',').map(s => s.trim()).filter(Boolean);
 }
 
 const DEFAULT_PREFS: UserAlertPrefs = {
   enabled: true,
-  severities: ['critical', 'high'],
+  severities: ['critical'],
   channels: { email: true, inapp: true },
 };
 
@@ -89,7 +90,8 @@ async function getUserEmail(userId: number): Promise<string | null> {
   try {
     const userRepo = AppDataSource.getRepository(require('../models/user.entity').User);
     const user = await userRepo.findOne({ where: { id: userId } });
-    return user?.email || null;
+    if (!user?.email || !user.emailVerified) return null;
+    return user.email;
   } catch { return null; }
 }
 
@@ -99,8 +101,10 @@ async function resolveRecipients(finding: FindingAlert): Promise<Array<{ userId:
   if (finding.userId) {
     const prefs = await getUserAlertPrefs(finding.userId);
     if (prefs.enabled && prefs.severities.includes(finding.severity)) {
-      const email = prefs.emailOverride || await getUserEmail(finding.userId);
-      recipients.push({ userId: finding.userId, email: email || '', prefs });
+      // Only use emailOverride if the user's own email is verified
+      const verifiedEmail = await getUserEmail(finding.userId);
+      const email = verifiedEmail ? (prefs.emailOverride || verifiedEmail) : null;
+      if (email) recipients.push({ userId: finding.userId, email, prefs });
     }
   }
 
@@ -111,8 +115,9 @@ async function resolveRecipients(finding: FindingAlert): Promise<Array<{ userId:
       if (cfg?.userId) {
         const prefs = await getUserAlertPrefs(cfg.userId);
         if (prefs.enabled && prefs.severities.includes(finding.severity)) {
-          const email = prefs.emailOverride || await getUserEmail(cfg.userId);
-          recipients.push({ userId: cfg.userId, email: email || '', prefs });
+          const verifiedEmail = await getUserEmail(cfg.userId);
+          const email = verifiedEmail ? (prefs.emailOverride || verifiedEmail) : null;
+          if (email) recipients.push({ userId: cfg.userId, email, prefs });
         }
       }
     } catch {}
@@ -155,16 +160,33 @@ async function sendWebhook(url: string, finding: FindingAlert): Promise<boolean>
 export async function dispatchAlert(finding: FindingAlert): Promise<string[]> {
   const fired: string[] = [];
 
+  // Staff-only findings: NEVER alert end users. Only notify admin channels.
+  const isStaffOnly = finding.visibility === 'staff_only';
+
   if (finding.fingerprint) {
     const rateKey = `alert:ratelimit:${finding.fingerprint}`;
     try {
       const lastSent = await redisGet(rateKey);
-      if (lastSent && Date.now() - Number(lastSent) < 300_000) return [];
-      await redisSet(rateKey, String(Date.now()), 300);
+      if (lastSent && Date.now() - Number(lastSent) < 1_800_000) return [];
+      await redisSet(rateKey, String(Date.now()), 1800);
     } catch {}
   }
 
-  const recipients = await resolveRecipients(finding);
+  // Per-user rate limit: max 1 email per user per 10 minutes
+  if (finding.userId) {
+    const userRateKey = `alert:user_rate:${finding.userId}`;
+    try {
+      const lastUserAlert = await redisGet(userRateKey);
+      if (lastUserAlert && Date.now() - Number(lastUserAlert) < 600_000) {
+        console.log(`[alertDispatcher] #${finding.id} suppressed: user #${finding.userId} rate-limited`);
+        return [];
+      }
+      await redisSet(userRateKey, String(Date.now()), 600);
+    } catch {}
+  }
+
+  // Only resolve user recipients for public findings — never for staff-only
+  const recipients = isStaffOnly ? [] : await resolveRecipients(finding);
   for (const rec of recipients) {
     const prefs = rec.prefs;
 
@@ -197,24 +219,32 @@ export async function dispatchAlert(finding: FindingAlert): Promise<string[]> {
     }
   }
 
-  if (recipients.length === 0 || (finding.severity === 'critical')) {
+  // Admin fallback: for staff-only findings, OR when no user was notified, OR always for critical oversight
+  if (isStaffOnly || recipients.length === 0 || finding.severity === 'critical') {
     const adminEmail = await getAdminFallbackEmail();
     const adminSeverities = await getAdminSeverities();
 
     if (adminEmail && adminSeverities.includes(finding.severity)) {
-      try {
-        await sendMail({
-          to: adminEmail.split(/[,;\s]+/).filter(Boolean),
-          subject: `[ADMIN ${finding.severity.toUpperCase()}] ${finding.title}`,
-          template: 'notification',
-          vars: {
-            title: finding.title,
-            message: finding.description,
-            details: `Finding #${finding.id} | Server: ${finding.serverName || finding.serverId || 'N/A'} | User: ${finding.userId || 'unknown'}`,
-          },
-        });
-        fired.push('email:admin');
-      } catch {}
+      // Dedupe: don't send admin email if admin is already a user recipient
+      const adminAddrs = adminEmail.split(/[,;\s]+/).filter(Boolean).map(e => e.toLowerCase());
+      const userAddrs = recipients.map(r => r.email.toLowerCase());
+      const deduped = adminAddrs.filter(a => !userAddrs.includes(a));
+
+      if (deduped.length > 0) {
+        try {
+          await sendMail({
+            to: deduped,
+            subject: `${isStaffOnly ? '[STAFF-ONLY] ' : ''}[SOC ${finding.severity.toUpperCase()}] ${finding.title}`,
+            template: 'notification',
+            vars: {
+              title: finding.title,
+              message: finding.description,
+              details: `Finding #${finding.id} | Server: ${finding.serverName || finding.serverId || 'N/A'} | User: ${finding.userId || 'unknown'}`,
+            },
+          });
+          fired.push('email:admin');
+        } catch {}
+      }
     }
 
     const webhookUrl = await getAdminWebhookUrl();

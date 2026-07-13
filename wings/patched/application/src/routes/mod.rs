@@ -1,7 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::{sync::Arc, time::Instant};
+use tokio::sync::RwLock;
 use utoipa::ToSchema;
 use utoipa_axum::router::OpenApiRouter;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DetectionRule {
+    pub id: i64,
+    pub name: String,
+    pub severity: String,
+    pub conditions: serde_json::Value,
+}
 
 pub mod api;
 mod download;
@@ -145,6 +154,7 @@ pub struct AppState {
     pub backup_manager: Arc<crate::server::backup::manager::BackupManager>,
     pub inotify_manager: Arc<crate::server::filesystem::inotify::InotifyManager>,
     pub mime_cache: moka::future::Cache<MimeCacheKey, MimeCacheValue>,
+    pub detection_rules: Arc<RwLock<Vec<DetectionRule>>>,
 }
 
 impl AppState {
@@ -169,6 +179,7 @@ impl AppState {
                     .expect("Creating inotify manager failed"),
             ),
             mime_cache: moka::future::Cache::builder().build(),
+            detection_rules: Arc::new(RwLock::new(vec![])),
         })
     }
 }

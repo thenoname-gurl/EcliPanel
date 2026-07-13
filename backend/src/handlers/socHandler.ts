@@ -10,7 +10,7 @@ import { WingsApiService } from '../services/wingsApiService';
 import { redisGet, redisSet } from '../config/redis';
 import { runSecurityScan, submitExternalFinding } from '../services/securityScanner';
 import { getUserSocAlertPrefs } from '../services/alertDispatcher';
-import { In } from 'typeorm';
+import { In, Not, IsNull } from 'typeorm';
 import { t } from 'elysia';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { DetectionRule } from '../models/detectionRule.entity';
@@ -19,6 +19,61 @@ import { Ticket } from '../models/ticket.entity';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
+
+async function buildWingsConfigPayload() {
+  const psRepo = AppDataSource.getRepository(PanelSetting);
+  const rows = await psRepo.find();
+  const map: Record<string, string> = {};
+  for (const r of rows) { if (r.key.startsWith('soc.')) map[r.key] = r.value; }
+
+  const ruleRepo = AppDataSource.getRepository(DetectionRule);
+  const rules = await ruleRepo.find({ where: { enabled: true } });
+
+  let latestVersion = map['soc.wings_version'] || '';
+  if (!latestVersion) {
+    const binPath = join(process.cwd(), '..', 'wings', 'target', 'release', 'wings-rs');
+    if (existsSync(binPath)) {
+      const { createHash } = await import('crypto');
+      const bin = await readFile(binPath);
+      latestVersion = createHash('sha256').update(bin).digest('hex').slice(0, 16);
+    }
+  }
+
+  return {
+    antiabuse: {
+      enabled: map['soc.ab_enabled'] !== 'false',
+      cpuThresholdPct: Number(map['soc.ab_cpu_threshold'] || '80'),
+      networkThresholdMbps: Number(map['soc.ab_network_threshold_mbps'] || '100'),
+      cooldownSeconds: Number(map['soc.ab_cooldown_seconds'] || '300'),
+      strikesForSuspend: Number(map['soc.ab_strikes_suspend'] || '3'),
+    },
+    vpnDpi: {
+      enabled: map['soc.vpn_dpi_enabled'] !== 'false',
+      protocolActions: (() => { try { return JSON.parse(map['soc.vpn_dpi_protocol_actions'] || '{}'); } catch { return {}; } })(),
+      sampleIntervalSeconds: Number(map['soc.vpn_dpi_sample_interval'] || '300'),
+      sampleDurationMs: Number(map['soc.vpn_dpi_sample_duration'] || '10000'),
+      bandwidthThresholdKbps: Number(map['soc.vpn_dpi_bandwidth_threshold'] || '1'),
+      portScanThreshold: Number(map['soc.vpn_dpi_port_scan_threshold'] || '15'),
+      portScanAction: map['soc.vpn_dpi_port_scan_action'] || 'alert',
+      dpiRules: (() => { try { return JSON.parse(map['soc.vpn_dpi_rules'] || '[]'); } catch { return []; } })(),
+    },
+    rules: rules.map(r => ({
+      id: r.id, name: r.name, severity: r.severity, category: r.category,
+      conditions: r.conditions, frequency: r.frequency, sources: r.sources,
+      visibility: r.visibility || 'public',
+      createsIncident: r.createsIncident || false,
+    })),
+    latestVersion,
+    downloadUrl: '/api/wings/download',
+    heartbeatIntervalSeconds: 30,
+    configPollIntervalSeconds: 120,
+  };
+}
+
+async function computeConfigVersion(payload: Record<string, any>): Promise<string> {
+  const { createHash } = await import('crypto');
+  return createHash('sha256').update(JSON.stringify(payload)).digest('hex').slice(0, 16);
+}
 
 export async function socRoutes(app: any, prefix = '') {
   const socRepo = AppDataSource.getRepository(SocData);
@@ -206,12 +261,19 @@ export async function socRoutes(app: any, prefix = '') {
       if (ctx.query?.nodeId) {
         qb.andWhere('f.nodeId = :nodeId', { nodeId: Number(ctx.query.nodeId) });
       }
+      if (ctx.query?.visibility === 'public') {
+        qb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
+      } else if (ctx.query?.visibility === 'staff_only') {
+        qb.andWhere('f.visibility = :staffOnly', { staffOnly: 'staff_only' });
+      }
 
       const user = ctx.user as any;
       let scopeClause = '';
       let scopeParams: Record<string, any> = {};
 
       if (user && !hasPermissionSync(ctx, 'soc:read')) {
+        qb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
+
         const cfgRepo = AppDataSource.getRepository(ServerConfig);
         const subuserRepo = AppDataSource.getRepository(ServerSubuser);
 
@@ -269,6 +331,14 @@ export async function socRoutes(app: any, prefix = '') {
         .where('f.status = :status', { status: 'open' })
         .groupBy('f.severity');
       if (scopeClause) summaryQb.andWhere(scopeClause, scopeParams);
+      if (ctx.query?.visibility === 'public') {
+        summaryQb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
+      } else if (ctx.query?.visibility === 'staff_only') {
+        summaryQb.andWhere('f.visibility = :staffOnly', { staffOnly: 'staff_only' });
+      }
+      if (user && !hasPermissionSync(ctx, 'soc:read')) {
+        summaryQb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
+      }
       const summaryRows = await summaryQb.getRawMany();
 
       const summary: Record<string, number> = {};
@@ -611,6 +681,7 @@ export async function socRoutes(app: any, prefix = '') {
         vpnDpiBandwidthThreshold: Number(map['soc.vpn_dpi_bandwidth_threshold'] || '1'),
         vpnDpiPortScanThreshold: Number(map['soc.vpn_dpi_port_scan_threshold'] || '15'),
         vpnDpiPortScanAction: map['soc.vpn_dpi_port_scan_action'] || 'alert',
+        vpnDpiRules: (() => { try { return JSON.parse(map['soc.vpn_dpi_rules'] || '[]'); } catch { return []; } })(),
       };
     },
     {
@@ -652,6 +723,7 @@ export async function socRoutes(app: any, prefix = '') {
         'soc.vpn_dpi_bandwidth_threshold': String(body.vpnDpiBandwidthThreshold || '1'),
         'soc.vpn_dpi_port_scan_threshold': String(body.vpnDpiPortScanThreshold || '15'),
         'soc.vpn_dpi_port_scan_action': String(body.vpnDpiPortScanAction || 'alert'),
+        'soc.vpn_dpi_rules': JSON.stringify(body.vpnDpiRules || []),
       };
 
       for (const [key, value] of Object.entries(updates)) {
@@ -737,6 +809,8 @@ export async function socRoutes(app: any, prefix = '') {
         scope: isAdmin ? (body.scope || 'global') : 'user',
         scopeId: isAdmin ? (body.scopeId || null) : String(user.id),
         createdByUserId: user.id,
+        visibility: body.visibility === 'staff_only' ? 'staff_only' : 'public',
+        createsIncident: body.createsIncident === true,
       });
 
       await repo.save(rule);
@@ -774,6 +848,8 @@ export async function socRoutes(app: any, prefix = '') {
       if (body.conditions !== undefined) rule.conditions = body.conditions;
       if (body.frequency !== undefined) rule.frequency = body.frequency || null;
       if (body.correlation !== undefined) rule.correlation = body.correlation || null;
+      if (body.visibility !== undefined) rule.visibility = body.visibility === 'staff_only' ? 'staff_only' : 'public';
+      if (body.createsIncident !== undefined) rule.createsIncident = body.createsIncident === true;
 
       await repo.save(rule);
       void logAdminAction({ adminUserId: user?.id, action: 'soc:rule:update', targetId: String(rule.id), targetType: 'detection_rule', metadata: { name: rule.name }, ipAddress: ctx.ip });
@@ -937,54 +1013,81 @@ export async function socRoutes(app: any, prefix = '') {
       })();
       if (!isWings) { ctx.set.status = 403; return { error: 'Wings node token required' }; }
 
-      const psRepo = AppDataSource.getRepository(PanelSetting);
-      const rows = await psRepo.find();
-      const map: Record<string, string> = {};
-      for (const r of rows) { if (r.key.startsWith('soc.')) map[r.key] = r.value; }
-
-      const ruleRepo = AppDataSource.getRepository(DetectionRule);
-      const rules = await ruleRepo.find({ where: { enabled: true } });
-
-      let latestVersion = map['soc.wings_version'] || '';
-      if (!latestVersion) {
-        const binPath = join(process.cwd(), '..', 'wings', 'target', 'release', 'wings-rs');
-        if (existsSync(binPath)) {
-          const { createHash } = await import('crypto');
-          const bin = await readFile(binPath);
-          latestVersion = createHash('sha256').update(bin).digest('hex').slice(0, 16);
-        }
-      }
-
-      return {
-        antiabuse: {
-          enabled: map['soc.ab_enabled'] !== 'false',
-          cpuThresholdPct: Number(map['soc.ab_cpu_threshold'] || '80'),
-          networkThresholdMbps: Number(map['soc.ab_network_threshold_mbps'] || '100'),
-          cooldownSeconds: Number(map['soc.ab_cooldown_seconds'] || '300'),
-          strikesForSuspend: Number(map['soc.ab_strikes_suspend'] || '3'),
-        },
-        vpnDpi: {
-          enabled: map['soc.vpn_dpi_enabled'] !== 'false',
-          protocolActions: (() => { try { return JSON.parse(map['soc.vpn_dpi_protocol_actions'] || '{}'); } catch { return {}; } })(),
-          sampleIntervalSeconds: Number(map['soc.vpn_dpi_sample_interval'] || '300'),
-          sampleDurationMs: Number(map['soc.vpn_dpi_sample_duration'] || '10000'),
-          bandwidthThresholdKbps: Number(map['soc.vpn_dpi_bandwidth_threshold'] || '1'),
-          portScanThreshold: Number(map['soc.vpn_dpi_port_scan_threshold'] || '15'),
-          portScanAction: map['soc.vpn_dpi_port_scan_action'] || 'alert',
-        },
-        rules: rules.map(r => ({
-          id: r.id, name: r.name, severity: r.severity, category: r.category,
-          conditions: r.conditions, frequency: r.frequency, sources: r.sources,
-        })),
-        latestVersion,
-        downloadUrl: `/api/wings/download`,
-        heartbeatIntervalSeconds: 30,
-        configPollIntervalSeconds: 120,
-      };
+      const configPayload = await buildWingsConfigPayload();
+      const configVersion = await computeConfigVersion(configPayload);
+      return { ...configPayload, configVersion };
     },
     {
       response: { 200: t.Any(), 403: t.Object({ error: t.String() }) },
       detail: { summary: 'Wings config poll — anti-abuse settings + detection rules', tags: ['Wings'] },
+    }
+  );
+
+  app.post(
+    prefix + '/wings/command',
+    async (ctx: any) => {
+      if (!hasPermissionSync(ctx, 'soc:read')) {
+        ctx.set.status = 403; return { error: 'Forbidden' };
+      }
+      const body = ctx.body as any;
+      const nodeId = body?.nodeId;
+      const action = body?.action;
+      if (!nodeId || !action) {
+        ctx.set.status = 400; return { error: 'nodeId and action are required' };
+      }
+      const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
+      const node = await nodeRepo.findOne({ where: { id: Number(nodeId) } });
+      if (!node) { ctx.set.status = 404; return { error: 'Node not found' }; }
+
+      const commands = [{ action, payload: body?.payload || null }];
+      node.pendingCommand = JSON.stringify(commands);
+      await nodeRepo.save(node);
+
+      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:wings:command', targetId: String(nodeId), targetType: 'node', metadata: { action, nodeName: node.name }, ipAddress: ctx.ip });
+      return { success: true, message: `Command "${action}" queued for node "${node.name}". Will be delivered on next heartbeat.` };
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+      detail: { summary: 'Queue a command for a Wings node (delivered via heartbeat)', tags: ['SOC'] },
+    }
+  );
+
+  app.get(
+    prefix + '/soc/node-status',
+    async (ctx: any) => {
+      if (!hasPermissionSync(ctx, 'soc:read')) {
+        ctx.set.status = 403; return { error: 'Forbidden' };
+      }
+      const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
+      const nodes = await nodeRepo.find({ where: { lastHeartbeatAt: Not(IsNull()) } });
+      const now = Date.now();
+
+      const configPayload = await buildWingsConfigPayload();
+      const currentVersion = await computeConfigVersion(configPayload);
+
+      const nodeStatus = nodes.map(n => {
+        const ageMs = n.lastHeartbeatAt ? now - n.lastHeartbeatAt.getTime() : 999999;
+        const active = ageMs < 120_000;
+        const synced = active && n.configVersion === currentVersion;
+        return {
+          id: n.id, name: n.name,
+          active,
+          lastSeenMs: ageMs,
+          wingsVersion: n.wingsVersion || null,
+          nodeConfigVersion: n.configVersion || null,
+          currentConfigVersion: currentVersion,
+          synced,
+          pendingCommand: n.pendingCommand || null,
+        };
+      });
+
+      return { nodes: nodeStatus, currentConfigVersion: currentVersion };
+    },
+    {
+      beforeHandle: authenticate,
+      response: { 200: t.Any(), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Get Wings node config status', tags: ['SOC'] },
     }
   );
 

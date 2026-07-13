@@ -184,6 +184,36 @@ export async function evaluateAllRules(): Promise<RuleMatch[]> {
         rule.triggerCount += 1;
         rule.lastTriggeredAt = new Date();
         await repo.save(rule);
+
+        if (rule.createsIncident) {
+          try {
+            const formRepo = AppDataSource.getRepository(require('../models/applicationForm.entity').ApplicationForm);
+            const subRepo = AppDataSource.getRepository(require('../models/applicationSubmission.entity').ApplicationSubmission);
+            const form = await formRepo.findOne({ where: { slug: 'antiabuse-incidents' } });
+            if (form) {
+              const sampleEvent = match.matchedEvents[0] || {};
+              await subRepo.save(subRepo.create({
+                formId: form.id,
+                userId: rule.createdByUserId || null,
+                meta: {
+                  detectionType: `rule:${rule.name}`,
+                  reason: rule.description || rule.name,
+                  severity: rule.severity,
+                  serverId: sampleEvent.serverId || sampleEvent.targetId || rule.scopeId || null,
+                  nodeName: sampleEvent.nodeName || null,
+                  sourceIp: sampleEvent.ipAddress || null,
+                  matchedEvents: match.matchedEvents.slice(0, 5),
+                  ruleName: rule.name,
+                  ruleCategory: rule.category,
+                },
+                status: 'pending',
+              }));
+              console.log(`[ruleEngine] Incident created from rule "${rule.name}" (severity=${rule.severity})`);
+            }
+          } catch (e) {
+            console.error(`[ruleEngine] Failed to create incident for rule "${rule.name}":`, e);
+          }
+        }
       }
     } catch (e) {
       console.error(`[ruleEngine] Rule "${rule.name}" evaluation failed:`, e);

@@ -9,9 +9,17 @@ use super::capture;
 use super::DetectedProtocol;
 
 #[derive(Debug, Clone)]
+pub struct DpiRule {
+    pub pattern: String,
+    pub protocol: String,
+    pub action: String,
+}
+
+#[derive(Debug, Clone)]
 pub struct VpnDpiConfig {
     pub enabled: bool,
     pub protocol_actions: HashMap<String, String>,
+    pub dpi_rules: Vec<DpiRule>,
     pub sample_interval_seconds: u64,
     pub sample_duration_ms: u64,
     pub bandwidth_threshold_kbps: u64,
@@ -32,6 +40,7 @@ impl Default for VpnDpiConfig {
         Self {
             enabled: true,
             protocol_actions: actions,
+            dpi_rules: Vec::new(),
             sample_interval_seconds: 300,
             sample_duration_ms: 10000,
             bandwidth_threshold_kbps: 1,
@@ -163,11 +172,30 @@ impl VpnDpiState {
             .filter(|p| p.packet_count >= 3)
             .filter_map(|p| {
                 let name_lower = p.name.to_lowercase();
-                cfg.protocol_actions.iter().find(|(proto, _)| {
+                if let Some((_, action)) = cfg.protocol_actions.iter().find(|(proto, _)| {
                     name_lower.contains(&proto.to_lowercase())
-                }).map(|(_, action)| (p.name.clone(), action.clone()))
+                }) {
+                    return Some((p.name.clone(), action.clone()));
+                }
+                if let Some(rule) = cfg.dpi_rules.iter().find(|r| {
+                    name_lower.contains(&r.pattern.to_lowercase())
+                }) {
+                    return Some((format!("{} (custom:{})", p.name, rule.protocol), rule.action.clone()));
+                }
+                None
             })
             .collect();
+
+        for rule in &cfg.dpi_rules {
+            for pkt in &packets {
+                let payload = String::from_utf8_lossy(pkt);
+                if payload.to_lowercase().contains(&rule.pattern.to_lowercase()) {
+                    let tag = format!("DPI:{}:{}", rule.protocol, rule.pattern);
+                    results.push((tag, rule.action.clone()));
+                    break;
+                }
+            }
+        }
 
         if !vpn.is_empty() {
             tracing::info!(

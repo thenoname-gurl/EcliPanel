@@ -1,15 +1,18 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, lazy, Suspense } from "react"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
+import { DEFAULT_EDITOR_SETTINGS } from "@/lib/editor-settings"
+
+const MonacoEditor = lazy(() => import("@monaco-editor/react").then((m) => ({ default: m.default })))
 import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import {
   Shield, ShieldAlert, AlertTriangle, AlertCircle,
   Bug, RefreshCw, ScanLine, Search, ChevronLeft, ChevronRight,
   Check, CheckCircle, Flag, Send, Clock, Server, User, Globe,
-  Activity, BarChart3, Zap, Brain, EyeOff, Trash2,
+  Activity, BarChart3, Zap, Brain, EyeOff, Trash2, Siren,
 } from "lucide-react"
 import AntiAbuseTab from "./AntiAbuseTab"
 
@@ -148,8 +151,12 @@ export default function SocTab() {
   // ─── Update finding ────────────────────────────────────────────────────────
 
   const handleUpdate = async (id: number, status: string) => {
-    // Optimistic: update local state immediately, no loading flash
-    setFindings(prev => prev.map(f => f.id === id ? { ...f, status } : f))
+    setFindings(prev => {
+      if (statusFilter === 'open' && status !== 'open') {
+        return prev.filter(f => f.id !== id)
+      }
+      return prev.map(f => f.id === id ? { ...f, status } : f)
+    })
     try {
       await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id)), {
         method: "PATCH", body: JSON.stringify({ status }),
@@ -159,7 +166,7 @@ export default function SocTab() {
   }
 
   const handleEscalate = async (id: number) => {
-    setFindings(prev => prev.map(f => f.id === id ? { ...f, status: 'acknowledged' } : f))
+    setFindings(prev => prev.map(f => f.id === id ? { ...f, status: 'internal_resolved' as any } : f))
     try {
       await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id))}/escalate`, {
         method: "POST", body: JSON.stringify({ action: "reviewed", note: "Staff reviewed" }),
@@ -566,6 +573,7 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
     vpnDpiBandwidthThreshold: '1',
     vpnDpiPortScanThreshold: '15',
     vpnDpiPortScanAction: 'alert',
+    vpnDpiRules: '[]',
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -597,6 +605,7 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         vpnDpiBandwidthThreshold: String(d.vpnDpiBandwidthThreshold || '1'),
         vpnDpiPortScanThreshold: String(d.vpnDpiPortScanThreshold || '15'),
         vpnDpiPortScanAction: d.vpnDpiPortScanAction || 'alert',
+        vpnDpiRules: JSON.stringify(d.vpnDpiRules || [], null, 2),
       })
     }).finally(() => setLoading(false))
   }, [])
@@ -627,6 +636,7 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
         vpnDpiBandwidthThreshold: Number(settings.vpnDpiBandwidthThreshold) || 1,
         vpnDpiPortScanThreshold: Number(settings.vpnDpiPortScanThreshold) || 15,
         vpnDpiPortScanAction: settings.vpnDpiPortScanAction || 'alert',
+        vpnDpiRules: (() => { try { return JSON.parse(settings.vpnDpiRules || '[]'); } catch { return []; } })(),
       }),
     })
     setSaved(true); setSaving(false); onSettingsSaved()
@@ -771,6 +781,17 @@ function SocSettingsTab({ totalOpen, lastScan, onSettingsSaved }: {
             </select>
           </div>
         </div>
+        <div className="mt-4">
+          <label className="text-xs text-muted-foreground">Custom DPI Rules (JSON array) — packet payload/protocol name matching</label>
+          <textarea value={settings.vpnDpiRules} onChange={e => setSettings(s => ({...s, vpnDpiRules: e.target.value}))}
+            rows={5}
+            placeholder='[{"pattern":"BitTorrent","protocol":"bittorrent","action":"alert"}]'
+            className="w-full border border-border bg-card px-3 py-1.5 text-xs mt-1 font-mono" />
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            Each rule: pattern (substring to match in packet payload), protocol (label), action (alert|suspend|log).
+            Applied at runtime — no Wings redeploy needed. Wings nodes pick this up within 2 minutes.
+          </p>
+        </div>
       </div>
 
       <div className="border border-border bg-card p-5">
@@ -793,6 +814,9 @@ function RulesTab() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<any>(null)
+  const [showHandbook, setShowHandbook] = useState(false)
+  const [nodeStatus, setNodeStatus] = useState<any[]>([])
+  const [currentVersion, setCurrentVersion] = useState('')
 
   const fetchRules = async () => {
     setLoading(true)
@@ -801,7 +825,15 @@ function RulesTab() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchRules() }, [])
+  const fetchNodeStatus = async () => {
+    try {
+      const d = await apiFetch('/api/soc/node-status')
+      setNodeStatus(d?.nodes || [])
+      setCurrentVersion(d?.currentConfigVersion || '')
+    } catch { setNodeStatus([]) }
+  }
+
+  useEffect(() => { fetchRules(); fetchNodeStatus() }, [])
 
   const toggleRule = async (id: number, enabled: boolean) => {
     await apiFetch(`/api/soc/detection-rules/${id}`, { method: 'PUT', body: JSON.stringify({ enabled }) })
@@ -818,10 +850,68 @@ function RulesTab() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground">{rules.length} rule(s) defined. Wings nodes fetch rules every 5 minutes.</p>
-        <Button size="sm" onClick={() => { setEditing(null); setShowForm(true) }}>+ Add Rule</Button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">{rules.length} rule(s) defined.</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <Button size="sm" variant="outline" onClick={() => { fetchNodeStatus() }} title="Refresh node status" className="text-[11px] px-2 py-0.5 h-auto">
+            <RefreshCw className="h-3 w-3 mr-1" />Nodes
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setShowHandbook(!showHandbook)} className="text-[11px] px-2 py-0.5 h-auto">
+            {showHandbook ? 'Hide Handbook' : 'Handbook'}
+          </Button>
+          <Button size="sm" onClick={() => { setEditing(null); setShowForm(true) }} className="text-[11px] px-2 py-0.5 h-auto">+ Add Rule</Button>
+        </div>
       </div>
+
+      {/* Node config sync status */}
+      {nodeStatus.length > 0 && (
+        <div className="border border-border bg-card p-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-medium text-foreground">Node Config Sync</p>
+            <span className="text-[10px] text-muted-foreground font-mono">v{currentVersion}</span>
+          </div>
+          {nodeStatus.map((n: any) => (
+            <div key={n.id} className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className={`w-1.5 h-1.5 rounded-full ${n.active ? (n.synced ? 'bg-green-500' : 'bg-yellow-500') : 'bg-red-500'}`} />
+                <span className="text-foreground font-medium">{n.name}</span>
+                {n.active ? (
+                  n.synced ? (
+                    <span className="text-green-600 text-[10px]">synced</span>
+                  ) : (
+                    <span className="text-yellow-600 text-[10px]">stale (node: {n.nodeConfigVersion || 'none'})</span>
+                  )
+                ) : (
+                  <span className="text-red-600 text-[10px]">offline {Math.round(n.lastSeenMs / 1000)}s</span>
+                )}
+              </div>
+              {n.active && !n.synced && (
+                <button
+                  onClick={async () => {
+                    await apiFetch('/api/wings/command', {
+                      method: 'POST',
+                      body: JSON.stringify({ nodeId: n.id, action: 'reapply_config' }),
+                    })
+                    setTimeout(fetchNodeStatus, 5000)
+                  }}
+                  className="text-[10px] px-2 py-0.5 border border-orange-500/30 text-orange-600 hover:bg-orange-500/10"
+                  title="Queue reapply command — delivered on next heartbeat">
+                  Reapply
+                </button>
+              )}
+            </div>
+          ))}
+          <p className="text-[10px] text-muted-foreground">Nodes fetch config every 2 min. Press Reapply to force immediate refresh.</p>
+        </div>
+      )}
+
+      {nodeStatus.length === 0 && (
+        <p className="text-[10px] text-muted-foreground text-center py-1 border border-border bg-secondary/5">
+          No Wings nodes connected. Rules only apply when nodes are online and synced.
+        </p>
+      )}
+
+      {showHandbook && <RuleHandbook />}
 
       {rules.length === 0 ? (
         <div className="border border-border bg-secondary/10 p-8 text-center">
@@ -831,20 +921,22 @@ function RulesTab() {
       ) : (
         <div className="flex flex-col gap-2">
           {rules.map((r: any) => (
-            <div key={r.id} className="border border-border bg-card p-4 flex items-start justify-between gap-3">
+            <div key={r.id} className="border border-border bg-card p-3 sm:p-4 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <p className="text-sm font-medium text-foreground">{r.name}</p>
                   <span className={`text-[10px] px-1.5 py-0.5 border ${r.severity === 'critical' ? 'border-red-500/30 text-red-600' : r.severity === 'high' ? 'border-orange-500/30 text-orange-600' : 'border-yellow-500/30 text-yellow-600'}`}>{r.severity}</span>
                   <span className="text-[10px] text-muted-foreground border border-border px-1.5 py-0.5">{r.category}</span>
+                  {r.visibility === 'staff_only' && <span className="text-[10px] px-1.5 py-0.5 border border-purple-500/30 text-purple-600 flex items-center gap-1" title="Only visible to staff"><EyeOff className="h-3 w-3" />staff only</span>}
+                  {r.createsIncident && <span className="text-[10px] px-1.5 py-0.5 border border-orange-500/30 text-orange-600 flex items-center gap-1" title="Creates incident in Incidents tab"><Siren className="h-3 w-3" />incident</span>}
                   <span className="text-[10px] text-muted-foreground">{r.triggerCount || 0} hits</span>
                 </div>
                 {r.description && <p className="text-xs text-muted-foreground mt-0.5">{r.description}</p>}
-                <p className="text-[10px] text-muted-foreground mt-1">
+                <p className="text-[10px] text-muted-foreground mt-1 break-all">
                   Sources: {(r.sources || []).join(', ')} | Scope: {r.scope} | Conditions: {JSON.stringify(r.conditions).slice(0, 80)}...
                 </p>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-1 shrink-0 self-end sm:self-start">
                 <button onClick={() => toggleRule(r.id, !r.enabled)}
                   className={`text-[10px] px-2 py-0.5 border ${r.enabled ? 'border-green-500/30 text-green-600' : 'border-gray-500/30 text-gray-500'}`}>
                   {r.enabled ? 'ON' : 'OFF'}
@@ -864,6 +956,132 @@ function RulesTab() {
   )
 }
 
+function RuleHandbook() {
+  return (
+    <div className="border border-border bg-card p-3 sm:p-5 text-xs leading-relaxed flex flex-col gap-3 sm:gap-4 max-h-[60vh] overflow-y-auto">
+      <h3 className="text-sm font-semibold text-foreground">Detection Rule Handbook</h3>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Condition Structure</h4>
+        <p className="text-muted-foreground">Rules use a <b>Wazuh-style JSON condition tree</b>. Each rule has a top-level <code className="bg-secondary/30 px-1 text-[11px]">operator</code> (<code className="bg-secondary/30 px-1 text-[11px]">and</code> / <code className="bg-secondary/30 px-1 text-[11px]">or</code>) and a <code className="bg-secondary/30 px-1 text-[11px]">rules</code> array of conditions (which can themselves be nested groups).</p>
+        <pre className="bg-secondary/10 border border-border p-2 mt-1 text-[11px] overflow-x-auto">{`{
+  "operator": "or",
+  "rules": [
+    { "field": "file.name", "operator": "regex", "value": "(xmrig|miner|cryptonight)" },
+    { "field": "process.name", "operator": "contains", "value": "xmrig" }
+  ]
+}`}</pre>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Condition Operators</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+          {[
+            ['equals', 'Field value matches exactly (case-insensitive)'],
+            ['not_equals', 'Field value does not match'],
+            ['contains', 'Field value contains substring (case-insensitive)'],
+            ['not_contains', 'Field value does not contain substring'],
+            ['regex', 'Field value matches regex pattern (case-insensitive, e.g. "(xmrig|xmr-stak)")'],
+            ['not_regex', 'Field value does NOT match regex'],
+            ['gt / gte', 'Numeric greater-than / greater-or-equal'],
+            ['lt / lte', 'Numeric less-than / less-or-equal'],
+            ['exists', 'Field is present (not null/undefined) — no value needed'],
+            ['not_exists', 'Field is absent or null — no value needed'],
+          ].map(([op, desc]) => (
+            <div key={op} className="border border-border p-1.5">
+              <code className="bg-secondary/30 px-0.5 text-[11px] font-medium">{op}</code>
+              <span className="text-muted-foreground ml-1">{desc}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Available Source Fields</h4>
+        <p className="text-muted-foreground mb-1">Each data source exposes different fields. All support dot-notation for nested access (e.g. <code className="bg-secondary/30 px-1 text-[11px]">metadata.command</code>).</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[11px]">
+          {[
+            ['user_log', 'action, userId, targetId, targetType, ipAddress, userAgent, metadata.*, timestamp'],
+            ['soc_data', 'eventType, serverId, nodeName, source, severity, metadata.*, timestamp'],
+            ['server_config', 'uuid, name, nodeId, userId, suspended, cpu, memory, disk, state, createdAt'],
+            ['wings_processes', 'process.name, process.pid, process.cpu, process.memory (from Wings process scan)'],
+            ['wings_connections', 'connection.remoteAddr, connection.localPort, connection.protocol, connection.state'],
+          ].map(([src, fields]) => (
+            <div key={src} className="border border-border p-1.5">
+              <code className="bg-secondary/30 px-0.5 text-[11px] font-medium">{src}</code>
+              <span className="text-muted-foreground ml-1">{fields}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">File Scanning Rules</h4>
+        <p className="text-muted-foreground">Rules with field <code className="bg-secondary/30 px-1 text-[11px]">file.name</code> are used by Wings nodes during server file scans. These replace the old hardcoded suspicious-patterns list — define exactly what you want flagged.</p>
+        <p className="text-muted-foreground mt-0.5">Supported operators for file scanning: <b>regex</b>, <b>contains</b>, <b>equals</b>. Each match reports the rule name as the reason and the rule severity as the finding severity.</p>
+        <pre className="bg-secondary/10 border border-border p-2 mt-1 text-[11px] overflow-x-auto">{`// Example: flag crypto miners and exposed secrets
+{
+  "operator": "or",
+  "rules": [
+    { "field": "file.name", "operator": "regex", "value": "(xmrig|minerd|cpuminer|t-rex|phoenix|lolminer|nbminer|gminer)" },
+    { "field": "file.name", "operator": "contains", "value": "miner" },
+    { "field": "file.name", "operator": "regex", "value": "(id_rsa|id_ed25519|credentials|password|\\\\.env$)" },
+    { "field": "file.name", "operator": "contains", "value": "backdoor" }
+  ]
+}`}</pre>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Frequency Thresholds</h4>
+        <p className="text-muted-foreground">Optional. Fire only when conditions match <b>at least <code className="bg-secondary/30 px-1 text-[11px]">count</code> times</b> within a sliding <code className="bg-secondary/30 px-1 text-[11px]">windowSeconds</code> window. Prevents flapping on one-off events.</p>
+        <pre className="bg-secondary/10 border border-border p-2 mt-1 text-[11px]">{`{ "count": 5, "windowSeconds": 300 }`}</pre>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Correlation</h4>
+        <p className="text-muted-foreground">Optional. Trigger only when a field has <b>N distinct values</b> across matched events. E.g. flag when the same action targets multiple servers.</p>
+        <pre className="bg-secondary/10 border border-border p-2 mt-1 text-[11px]">{`{ "field": "targetId", "minSources": 3 }`}</pre>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Combining Operators</h4>
+        <p className="text-muted-foreground">Nest groups freely. An <code className="bg-secondary/30 px-1 text-[11px]">and</code> group ensures ALL sub-conditions match; <code className="bg-secondary/30 px-1 text-[11px]">or</code> fires if ANY match.</p>
+        <pre className="bg-secondary/10 border border-border p-2 mt-1 text-[11px] overflow-x-auto">{`{
+  "operator": "and",
+  "rules": [
+    { "field": "action", "operator": "contains", "value": "login" },
+    { "field": "action", "operator": "contains", "value": "fail" },
+    {
+      "operator": "or",
+      "rules": [
+        { "field": "ipAddress", "operator": "regex", "value": "^(10\\\\.|172\\\\.(1[6-9]|2[0-9]|3[0-1])|192\\\\.168\\\\.)" },
+        { "field": "metadata.country", "operator": "not_equals", "value": "US" }
+      ]
+    }
+  ]
+}`}</pre>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Visibility — Staff-Only Findings</h4>
+        <p className="text-muted-foreground">Rules set to <b>Staff Only</b> visibility generate findings hidden from end-users (server owners). Use this for abuse/malware detections where you don&apos;t want the abuser to know they were caught. Staff-only findings appear with an <EyeOff className="h-3 w-3 inline text-purple-600" /> <span className="text-purple-600">staff only</span> badge and are only visible to admins with <code className="bg-secondary/30 px-1 text-[11px]">soc:read</code> permission.</p>
+      </section>
+
+      <section>
+        <h4 className="font-medium text-foreground mb-1">Testing Rules</h4>
+        <p className="text-muted-foreground">Use the <b>Test Rule</b> endpoint (<code className="bg-secondary/30 px-1 text-[11px]">POST /api/soc/detection-rules/test</code>) with a sample event to verify your conditions before saving:</p>
+        <pre className="bg-secondary/10 border border-border p-2 mt-1 text-[11px] overflow-x-auto">{`curl -X POST /api/soc/detection-rules/test \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "conditions": {"operator":"or","rules":[{"field":"file.name","operator":"regex","value":"xmrig"}]},
+    "event": {"file": {"name": "xmrig-v6.22.0"}}
+  }'
+// → { "matched": true }`}</pre>
+      </section>
+    </div>
+  )
+}
+
 function RuleForm({ initial, onSaved, onCancel }: { initial?: any; onSaved: () => void; onCancel: () => void }) {
   const [name, setName] = useState(initial?.name || '')
   const [desc, setDesc] = useState(initial?.description || '')
@@ -874,13 +1092,15 @@ function RuleForm({ initial, onSaved, onCancel }: { initial?: any; onSaved: () =
   const [scopeId, setScopeId] = useState(initial?.scopeId || '')
   const [conditionsJson, setConditionsJson] = useState(JSON.stringify(initial?.conditions || {operator:'and',rules:[{field:'action',operator:'contains',value:'fail'}]}, null, 2))
   const [frequencyJson, setFrequencyJson] = useState(initial?.frequency ? JSON.stringify(initial.frequency, null, 2) : '')
+  const [visibility, setVisibility] = useState(initial?.visibility || 'public')
+  const [createsIncident, setCreatesIncident] = useState(initial?.createsIncident || false)
   const [saving, setSaving] = useState(false)
 
   const save = async () => {
     setSaving(true)
     try {
       let conditions; try { conditions = JSON.parse(conditionsJson) } catch { alert('Invalid conditions JSON'); setSaving(false); return }
-      const body: any = { name, description: desc, severity, category, sources: sources.split(',').map((s: string) => s.trim()).filter(Boolean), scope, conditions }
+      const body: any = { name, description: desc, severity, category, sources: sources.split(',').map((s: string) => s.trim()).filter(Boolean), scope, visibility, createsIncident, conditions }
       if (scope !== 'global') body.scopeId = scopeId
       if (frequencyJson) { try { body.frequency = JSON.parse(frequencyJson) } catch {} }
 
@@ -892,27 +1112,42 @@ function RuleForm({ initial, onSaved, onCancel }: { initial?: any; onSaved: () =
   }
 
   return (
-    <div className="border-2 border-primary/30 bg-card p-5 flex flex-col gap-4">
+    <div className="border-2 border-primary/30 bg-card p-3 sm:p-5 flex flex-col gap-3 sm:gap-4">
       <h3 className="text-sm font-semibold">{initial?.id ? 'Edit Rule' : 'New Rule'}</h3>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
         <div>
           <label className="text-[10px] text-muted-foreground">Name</label>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="SSH brute force detection"
             className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
           <div>
             <label className="text-[10px] text-muted-foreground">Severity</label>
-            <select value={severity} onChange={e => setSeverity(e.target.value)} className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+            <select value={severity} onChange={e => setSeverity(e.target.value)} className="w-full border border-border bg-card px-1 sm:px-2 py-1.5 text-xs mt-0.5">
               {['critical','high','medium','low','info'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
           </div>
           <div>
             <label className="text-[10px] text-muted-foreground">Category</label>
-            <select value={category} onChange={e => setCategory(e.target.value)} className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5">
+            <select value={category} onChange={e => setCategory(e.target.value)} className="w-full border border-border bg-card px-1 sm:px-2 py-1.5 text-xs mt-0.5">
               {['intrusion_detection','resource_anomaly','server_posture','login_anomaly','access_control','malware','configuration','other'].map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+          <div>
+            <label className="text-[10px] text-muted-foreground">Visibility</label>
+            <select value={visibility} onChange={e => setVisibility(e.target.value)} className="w-full border border-border bg-card px-1 sm:px-2 py-1.5 text-xs mt-0.5">
+              <option value="public">Public</option>
+              <option value="staff_only">Staff Only</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 mt-1">
+          <input type="checkbox" id="createsIncident" checked={createsIncident}
+            onChange={e => setCreatesIncident(e.target.checked)}
+            className="h-3.5 w-3.5 accent-primary" />
+          <label htmlFor="createsIncident" className="text-[10px] text-muted-foreground cursor-pointer">
+            Create incident in Incidents tab (for abuse enforcement tracking)
+          </label>
         </div>
       </div>
       <div>
@@ -920,7 +1155,7 @@ function RuleForm({ initial, onSaved, onCancel }: { initial?: any; onSaved: () =
         <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Detects pattern..."
           className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5" />
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <div>
           <label className="text-[10px] text-muted-foreground">Sources (comma-sep)</label>
           <input value={sources} onChange={e => setSources(e.target.value)} placeholder="user_log"
@@ -942,17 +1177,34 @@ function RuleForm({ initial, onSaved, onCancel }: { initial?: any; onSaved: () =
       </div>
       <div>
         <label className="text-[10px] text-muted-foreground">Conditions (JSON — Wazuh-style)</label>
-        <textarea value={conditionsJson} onChange={e => setConditionsJson(e.target.value)} rows={6}
-          className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5 font-mono" />
+        <div className="border border-border mt-0.5 overflow-hidden" style={{ height: 200 }}>
+          <Suspense fallback={<div className="h-full bg-secondary/10 flex items-center justify-center text-xs text-muted-foreground">Loading editor...</div>}>
+            <MonacoEditor
+              language="json"
+              theme="vs-dark"
+              value={conditionsJson}
+              onChange={(v) => setConditionsJson(v || '')}
+              options={{ ...DEFAULT_EDITOR_SETTINGS, fontSize: 12, lineNumbers: 'off', folding: false, minimap: { enabled: false }, scrollBeyondLastLine: false, wordWrap: 'on' }}
+            />
+          </Suspense>
+        </div>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           {'{"operator":"and","rules":[{"field":"action","operator":"contains","value":"fail"}]}'}
         </p>
       </div>
       <div>
         <label className="text-[10px] text-muted-foreground">Frequency (JSON, optional)</label>
-        <input value={frequencyJson} onChange={e => setFrequencyJson(e.target.value)}
-          placeholder='{"count":5,"windowSeconds":300}'
-          className="w-full border border-border bg-card px-2 py-1.5 text-xs mt-0.5 font-mono" />
+        <div className="border border-border mt-0.5 overflow-hidden" style={{ height: 80 }}>
+          <Suspense fallback={<div className="h-full bg-secondary/10 flex items-center justify-center text-xs text-muted-foreground">Loading editor...</div>}>
+            <MonacoEditor
+              language="json"
+              theme="vs-dark"
+              value={frequencyJson || ' '}
+              onChange={(v) => setFrequencyJson((v || '').trim() === '' ? '' : (v || ''))}
+              options={{ ...DEFAULT_EDITOR_SETTINGS, fontSize: 12, lineNumbers: 'off', folding: false, minimap: { enabled: false }, scrollBeyondLastLine: false, wordWrap: 'on' }}
+            />
+          </Suspense>
+        </div>
       </div>
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={save} disabled={saving || !name}>{saving ? 'Saving...' : 'Save Rule'}</Button>

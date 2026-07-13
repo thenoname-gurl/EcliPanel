@@ -30,6 +30,7 @@ pub struct PanelSync {
     node_name: String,
     wings_version: String,
     http_client: reqwest::Client,
+    config_version: tokio::sync::RwLock<String>,
 }
 
 impl PanelSync {
@@ -48,6 +49,7 @@ impl PanelSync {
                 .timeout(Duration::from_secs(10))
                 .build()
                 .expect("failed to create http client"),
+            config_version: tokio::sync::RwLock::new(String::new()),
         }
     }
 
@@ -58,11 +60,13 @@ impl PanelSync {
     pub async fn heartbeat_loop(self: &Arc<Self>) {
         let url = format!("{}/api/admin/antiabuse/heartbeat", self.panel_url);
         loop {
+            let config_ver = self.config_version.read().await.clone();
             let payload = serde_json::json!({
                 "agentId": format!("wings@{}", self.node_name),
                 "detectorName": "wings",
                 "nodeName": self.node_name,
                 "version": self.wings_version,
+                "configVersion": config_ver,
             });
             let result = self.http_client
                 .post(&url)
@@ -71,11 +75,62 @@ impl PanelSync {
                 .json(&payload)
                 .send()
                 .await;
+
             match result {
-                Ok(_) => tracing::info!("heartbeat sent"),
+                Ok(resp) => {
+                    tracing::info!("heartbeat sent (config={})", config_ver);
+                    if let Ok(json) = resp.json::<serde_json::Value>().await {
+                        if let Some(cmds) = json.get("commands").and_then(|v| v.as_array()) {
+                            for cmd in cmds {
+                                let action = cmd.get("action").and_then(|v| v.as_str()).unwrap_or("");
+                                match action {
+                                    "reapply_config" => {
+                                        tracing::info!("received reapply_config command — forcing config refresh");
+                                        self.fetch_config_once().await;
+                                    }
+                                    "restart" => {
+                                        tracing::warn!("received restart command — shutting down");
+                                        std::process::exit(0);
+                                    }
+                                    other => {
+                                        tracing::warn!("unknown command from panel: {}", other);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
                 Err(e) => tracing::warn!("heartbeat failed: {}", e),
             }
             tokio::time::sleep(Duration::from_secs(30)).await;
+        }
+    }
+
+    async fn fetch_config_once(&self) {
+        let url = format!("{}/api/wings/config", self.panel_url);
+        let resp = match self.http_client
+            .get(&url)
+            .header("Authorization", self.auth_header())
+            .send()
+            .await
+        {
+            Ok(r) => r,
+            Err(e) => { tracing::warn!("config re-fetch failed: {}", e); return; }
+        };
+        let json = match resp.json::<serde_json::Value>().await {
+            Ok(j) => j,
+            Err(_) => return,
+        };
+        if let Some(cv) = json.get("configVersion").and_then(|v| v.as_str()) {
+            let old = {
+                let mut guard = self.config_version.write().await;
+                let old = guard.clone();
+                *guard = cv.to_string();
+                old
+            };
+            tracing::info!("config re-fetched: version {} -> {}", old, cv);
+        } else {
+            tracing::info!("config re-fetched (no version in response)");
         }
     }
 
@@ -83,6 +138,7 @@ impl PanelSync {
         self: &Arc<Self>,
         config: Arc<tokio::sync::RwLock<AbConfig>>,
         vpn_dpi_config: Arc<tokio::sync::RwLock<VpnDpiConfig>>,
+        detection_rules: Arc<tokio::sync::RwLock<Vec<crate::routes::DetectionRule>>>,
     ) {
         let url = format!("{}/api/wings/config", self.panel_url);
         let mut last_version = String::new();
@@ -101,6 +157,11 @@ impl PanelSync {
                 Ok(j) => j,
                 Err(_) => continue,
             };
+
+            if let Some(cv) = json.get("configVersion").and_then(|v| v.as_str()) {
+                *self.config_version.write().await = cv.to_string();
+            }
+
             if let Some(ab) = json.get("antiabuse") {
                 let new_config = AbConfig {
                     enabled: ab.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true),
@@ -111,6 +172,7 @@ impl PanelSync {
                 };
                 *config.write().await = new_config;
             }
+
             if let Some(vd) = json.get("vpnDpi") {
                 let protocol_actions: std::collections::HashMap<String, String> = vd
                     .get("protocolActions")
@@ -121,9 +183,27 @@ impl PanelSync {
                             .collect()
                     })
                     .unwrap_or_default();
+
+                let dpi_rules: Vec<crate::dpi::engine::DpiRule> = vd
+                    .get("dpiRules")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|r| {
+                                Some(crate::dpi::engine::DpiRule {
+                                    pattern: r.get("pattern")?.as_str()?.to_string(),
+                                    protocol: r.get("protocol")?.as_str()?.to_string(),
+                                    action: r.get("action")?.as_str()?.to_string(),
+                                })
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+
                 let vpn_config = VpnDpiConfig {
                     enabled: vd.get("enabled").and_then(|v| v.as_bool()).unwrap_or(true),
                     protocol_actions,
+                    dpi_rules,
                     sample_interval_seconds: vd.get("sampleIntervalSeconds")
                         .and_then(|v| v.as_u64())
                         .unwrap_or(300),
@@ -143,6 +223,15 @@ impl PanelSync {
                 };
                 *vpn_dpi_config.write().await = vpn_config;
             }
+
+            if let Some(rules) = json.get("rules").and_then(|v| v.as_array()) {
+                let parsed: Vec<crate::routes::DetectionRule> = rules
+                    .iter()
+                    .filter_map(|r| serde_json::from_value(r.clone()).ok())
+                    .collect();
+                *detection_rules.write().await = parsed;
+            }
+
             if let Some(ver) = json.get("latestVersion").and_then(|v| v.as_str()) {
                 if last_version.is_empty() {
                     last_version = ver.to_string();

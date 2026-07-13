@@ -731,6 +731,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
   const [transferNodeId, setTransferNodeId] = useState<number | null>(null)
   const [transferError, setTransferError] = useState<string | null>(null)
   const [cancellingTransfer, setCancellingTransfer] = useState(false)
+  const [forceTransfer, setForceTransfer] = useState(false)
   const [unhealthyNodes, setUnhealthyNodes] = useState<{ id: number; name: string }[]>([])
   // Calagopus-style: transfer progress comes from the server's console WebSocket,
   // never from polling.  Open a temporary WS listener while the dialog is open.
@@ -1026,6 +1027,28 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       setTransferLoading(false)
     }
   }, [transferNodeId, id, t])
+
+  const doForceTransfer = useCallback(async () => {
+    if (!transferNodeId) {
+      setTransferError(t("errors.selectTargetNode"))
+      return
+    }
+    setTransferLoading(true)
+    setTransferError(null)
+    try {
+      await apiFetch(API_ENDPOINTS.serverForceTransfer.replace(":id", id), {
+        method: "POST",
+        body: JSON.stringify({ targetNodeId: transferNodeId }),
+      })
+      setTransferDialogOpen(false)
+      setForceTransfer(false)
+      loadServer()
+    } catch (e: any) {
+      setTransferError(e.message || t("errors.transferFailed"))
+    } finally {
+      setTransferLoading(false)
+    }
+  }, [transferNodeId, id, t, loadServer])
 
   const cancelTransfer = useCallback(async () => {
     setCancellingTransfer(true)
@@ -1634,6 +1657,25 @@ const dmcaAlert = isDmcaProtected ? (
                 <p className="text-xs text-muted-foreground">
                   {t("dialogs.transfer.notice")}
                 </p>
+                <div className="flex items-center gap-2 pt-2 border-t border-border">
+                  <input
+                    type="checkbox"
+                    id="force-transfer"
+                    checked={forceTransfer}
+                    onChange={(e) => setForceTransfer(e.target.checked)}
+                    className="h-4 w-4 rounded border-border bg-input accent-primary"
+                  />
+                  <label htmlFor="force-transfer" className="text-xs text-destructive cursor-pointer select-none">
+                    {t("dialogs.transfer.forceTransfer") || "Force Transfer"}
+                  </label>
+                </div>
+                {forceTransfer && (
+                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded">
+                    <p className="text-xs text-destructive leading-relaxed">
+                      {t("dialogs.transfer.forceTransferWarning") || "WARNING: This will delete all server data on the source node and recreate the server on the target node with new port allocations. All files, databases, and configurations stored on the server will be permanently lost."}
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <div className="space-y-4">
@@ -1710,12 +1752,15 @@ const dmcaAlert = isDmcaProtected ? (
                   {t("actions.cancel")}
                 </Button>
                 <Button
-                  onClick={doTransfer}
+                  onClick={forceTransfer ? doForceTransfer : doTransfer}
                   disabled={transferLoading || !transferNodeId}
                   className="w-full sm:w-auto"
+                  variant={forceTransfer ? "destructive" : "default"}
                  data-telemetry="servers:dotransfer">
                   {transferLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
-                  {t("actions.transfer")}
+                  {forceTransfer
+                    ? (t("dialogs.transfer.forceTransferButton") || "Force Transfer")
+                    : t("actions.transfer")}
                 </Button>
               </>
             ) : (

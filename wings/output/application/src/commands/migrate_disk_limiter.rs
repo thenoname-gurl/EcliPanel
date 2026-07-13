@@ -137,6 +137,7 @@ impl crate::commands::CliCommand<MigrateDiskLimiterArgs> for MigrateDiskLimiterC
                             .expect("failed to initialize inotify manager"),
                     ),
                     mime_cache: moka::future::Cache::new(20480),
+                    detection_rules: Arc::new(tokio::sync::RwLock::new(vec![])),
                 });
 
                 let mut migrated = 0;

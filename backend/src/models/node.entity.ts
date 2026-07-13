@@ -123,4 +123,10 @@ export class Node {
 
   @Column({ nullable: true, type: 'text' })
   wingsVersion?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  configVersion?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  pendingCommand?: string;
 }

@@ -207,7 +207,7 @@ export default function SOCDashboard() {
   // Fetch security findings
   const fetchFindings = useCallback(() => {
     setFindingsLoading(true)
-    const params = new URLSearchParams({ status: findingsFilter || 'open' })
+    const params = new URLSearchParams({ status: findingsFilter || 'open', visibility: 'public' })
     if (findingsSeverity) params.set('severity', findingsSeverity)
     apiFetch(`${API_ENDPOINTS.socSecurityFindings}?${params}`)
       .then((data: any) => {
@@ -235,7 +235,7 @@ export default function SOCDashboard() {
   }
 
   const silentFetchFindings = useCallback(() => {
-    const params = new URLSearchParams({ status: findingsFilter || 'open' })
+    const params = new URLSearchParams({ status: findingsFilter || 'open', visibility: 'public' })
     if (findingsSeverity) params.set('severity', findingsSeverity)
     apiFetch(`${API_ENDPOINTS.socSecurityFindings}?${params}`)
       .then((data: any) => {

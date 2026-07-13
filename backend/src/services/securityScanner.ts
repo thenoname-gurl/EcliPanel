@@ -19,6 +19,7 @@ interface ScanCheckResult {
   userId?: number;
   metadata: Record<string, any>;
   fingerprint: string;
+  visibility?: 'public' | 'staff_only';
 }
 
 interface ScanOutcome {
@@ -75,11 +76,12 @@ async function persistFindings(results: ScanCheckResult[]): Promise<{ created: n
       metadata: r.metadata,
       checkFingerprint: r.fingerprint,
       status: 'open',
+      visibility: (r as any).visibility || 'public',
     });
     await repo.save(finding);
     created++;
 
-    if (r.severity === 'critical' || r.severity === 'high') {
+    if (r.severity === 'critical') {
       dispatchAlert({
         id: finding.id,
         title: finding.title,
@@ -92,6 +94,7 @@ async function persistFindings(results: ScanCheckResult[]): Promise<{ created: n
         metadata: finding.metadata || undefined,
         fingerprint: finding.checkFingerprint || undefined,
         detectedAt: finding.detectedAt,
+        visibility: (r as any).visibility || finding.visibility || 'public',
       }).catch(e => console.error('[securityScanner] alert dispatch error:', e));
     }
   }
@@ -690,6 +693,13 @@ async function checkWingsFiles(): Promise<ScanCheckResult[]> {
 
         for (const file of suspicious) {
           if (file.severity === 'critical' || file.severity === 'high') {
+            let vis: 'public' | 'staff_only' = 'public';
+            try {
+              const ruleRepo = AppDataSource.getRepository(require('../models/detectionRule.entity').DetectionRule);
+              const rule = await ruleRepo.findOne({ where: { name: file.reason, enabled: true } });
+              if (rule) vis = rule.visibility || 'public';
+            } catch {}
+
             results.push({
               category: 'malware',
               severity: file.severity === 'critical' ? 'critical' : 'high',
@@ -699,6 +709,7 @@ async function checkWingsFiles(): Promise<ScanCheckResult[]> {
               userId: s.userId ?? undefined,
               metadata: { nodeName: wing.nodeName, file },
               fingerprint: fp('wings', 'file', s.uuid, file.path),
+              visibility: vis,
             });
           }
         }
@@ -844,7 +855,7 @@ export async function submitExternalFinding(data: {
   });
   await repo.save(finding);
 
-  if (finding.severity === 'critical' || finding.severity === 'high') {
+  if (finding.severity === 'critical') {
     dispatchAlert({
       id: finding.id,
       title: finding.title,
@@ -856,6 +867,7 @@ export async function submitExternalFinding(data: {
       userId: finding.userId || undefined,
       metadata: finding.metadata || undefined,
       fingerprint: finding.checkFingerprint || undefined,
+      visibility: finding.visibility,
       detectedAt: finding.detectedAt,
     }).catch(e => console.error('[securityScanner] external alert dispatch error:', e));
   }

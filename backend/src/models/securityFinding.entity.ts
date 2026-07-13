@@ -76,4 +76,7 @@ export class SecurityFinding {
 
   @Column({ nullable: true })
   resolvedByUserId?: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'public' })
+  visibility: 'public' | 'staff_only';
 }

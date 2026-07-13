@@ -2856,13 +2856,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27b02d87554356db9e9a873add8782d4ea6e3e58ea071a9adb9a2e8ddb884a8b"
 
 [[package]]
-name = "ndpi-sys"
-version = "0.1.0"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "nestify"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2882,18 +2875,6 @@ checksum = "02a2dfb3559d53e90b709376af1c379462f7fb3085a0177deb73e6ea0d99eff4"
 dependencies = [
  "mime",
  "unicase",
-]
-
-[[package]]
-name = "nix"
-version = "0.30.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
-dependencies = [
- "bitflags",
- "cfg-if",
- "cfg_aliases",
- "libc",
 ]
 
 [[package]]
@@ -3970,7 +3951,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3aec6cb630dbe85d72ffd7bcd95f07e1bd69f9f270ee8adfa1afe443a6331438"
 dependencies = [
  "log",
- "nix 0.31.3",
+ "nix",
  "ssh-encoding",
  "windows-sys 0.61.2",
 ]
@@ -5903,7 +5884,7 @@ checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 
 [[package]]
 name = "wings-rs"
-version = "1.1.1"
+version = "1.1.0"
 dependencies = [
  "accept-header",
  "anyhow",
@@ -5944,7 +5925,6 @@ dependencies = [
  "itertools 0.15.0",
  "json-patch",
  "jsonwebtoken",
- "libc",
  "libz-ng-sys",
  "lzma-rust2",
  "lzzzz",
@@ -5952,10 +5932,8 @@ dependencies = [
  "memchr",
  "mime",
  "moka",
- "ndpi-sys",
  "nestify",
  "new_mime_guess",
- "nix 0.30.1",
  "notify",
  "nu-ansi-term",
  "ouroboros",

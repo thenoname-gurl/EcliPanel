@@ -4380,7 +4380,10 @@
         "description": "Select the destination node to transfer this server to.",
         "destinationNode": "Destination Node",
         "selectNode": "Select a node…",
-        "notice": "This may take several minutes. Both nodes must be online."
+        "notice": "This may take several minutes. Both nodes must be online.",
+        "forceTransfer": "Force Transfer (delete all data on source)",
+        "forceTransferButton": "Force Transfer",
+        "forceTransferWarning": "WARNING: This will delete all server data on the source node and recreate the server on the target node with new port allocations. All files, databases, and configurations stored on the server will be permanently lost."
       }
     },
     "kvm": {

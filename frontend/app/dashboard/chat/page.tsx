@@ -24,19 +24,9 @@ function safeUrl(url: string | null | undefined, allowedProtocols: string[]): st
   return undefined
 }
 
-const ALLOWED_DATA_IMAGE_PREFIXES = [
-  'data:image/png',
-  'data:image/jpeg',
-  'data:image/webp',
-  'data:image/gif',
-  'data:image/bmp',
-]
-
 function safeImageUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined
-  if (url.startsWith('data:')) {
-    return ALLOWED_DATA_IMAGE_PREFIXES.some(p => url.startsWith(p)) ? url : undefined
-  }
+  if (url.startsWith('data:')) return undefined
   return safeUrl(url, ['http:', 'https:'])
 }
 
@@ -52,7 +42,6 @@ function proxyImageUrl(url: string | null | undefined): string | undefined {
   const safe = safeImageUrl(url)
   if (!safe) return undefined
   if (safe.startsWith('/')) return safe
-  if (!isExternalUrlSync(safe)) return safe
   return `/api/proxy/image?url=${encodeURIComponent(safe)}`
 }
 
@@ -177,7 +166,7 @@ function renderPostLine(line: string, key: number) {
 
 function PostContent({ content, imageUrl }: { content: string; imageUrl?: string | null }) {
   const imgSrc = proxyImageUrl(imageUrl)
-  const hrefUrl = safeHrefUrl(imageUrl)
+  const hrefUrl = imgSrc
 
   return (
     <div className="text-xs leading-relaxed space-y-0 break-words [overflow-wrap:break-word]">
