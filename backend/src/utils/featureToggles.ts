@@ -17,7 +17,6 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   visualeditor: true,
   elo: true,
   calendar: true,
-  paint: true,
   chat: true,
 };
 

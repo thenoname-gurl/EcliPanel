@@ -1064,16 +1064,6 @@
     "url_does_not_point_to_an_image": "URL does not point to an image",
     "image_too_large_max_50mb": "Image too large (max 50MB)"
   },
-  "paint": {
-    "painting_not_found": "Painting not found",
-    "painting_not_found_1": "Painting not found",
-    "painting_not_found_2": "Painting not found",
-    "painting_not_found_3": "Painting not found",
-    "brush_not_found": "Brush not found",
-    "brush_not_found_1": "Brush not found",
-    "brush_not_found_2": "Brush not found",
-    "brush_not_found_3": "Brush not found"
-  },
   "calendar": {
     "event_not_found": "Event not found",
     "event_not_found_1": "Event not found",

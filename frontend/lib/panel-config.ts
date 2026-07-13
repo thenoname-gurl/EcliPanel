@@ -34,7 +34,6 @@ import {
   Star,
   Trophy,
   CalendarDays,
-  Paintbrush,
   MessageCircle,
   type LucideIcon,
 } from "lucide-react"
@@ -533,16 +532,6 @@ export const API_ENDPOINTS = {
   availabilityScheduleBook: "/api/calendar/availability/s/:slug/book",
   calendarEventNotification: "/api/calendar/events/:id/notification",
 
-  // Paint Stuff
-  paints: "/api/paints",
-  paint: "/api/paints/:id",
-  paintDuplicate: "/api/paints/:id/duplicate",
-  paintBrushes: "/api/paints/brushes",
-  paintBrush: "/api/paints/brushes/:id",
-  paintBrushCommunity: "/api/paints/brushes/community",
-  paintBrushPublish: "/api/paints/brushes/:id/publish",
-  paintBrushDownload: "/api/paints/brushes/:id/download",
-
   // Chat
   chatChannels: "/api/chat/channels",
   chatChannelsAll: "/api/chat/channels/all",
@@ -622,7 +611,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'paint' | 'chat'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'chat'
 
 export interface NavItem {
   label: string
@@ -668,7 +657,6 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   Tunnels: "tunnels",
   "Admin Panel": "adminPanel",
   Calendar: "calendar",
-  Paint: "paint",
   Chat: "chat",
   "Visual Editor": "visualEditor",
 }
@@ -755,12 +743,6 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/calendar",
         icon: CalendarDays,
         feature: "calendar",
-      },
-      {
-        label: "Paint",
-        href: "/dashboard/paint",
-        icon: Paintbrush,
-        feature: "paint",
       },
       {
         label: "Visual Editor",

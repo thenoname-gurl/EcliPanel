@@ -328,7 +328,6 @@ export function PanelHeader({
     visualeditor: true,
     elo: true,
     calendar: true,
-    paint: true,
     chat: true,
   })
 
