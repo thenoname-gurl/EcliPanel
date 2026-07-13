@@ -641,7 +641,7 @@ export async function chatRoutes(app: any, prefix = '') {
 
   app.ws(prefix + '/ws/chat', {
     open(ws: any) {
-      ws.data = ws.data || {}; ws.data.channels = new Set<number>(); chatClients.add(ws);
+      ws.data.channels = new Set<number>(); chatClients.add(ws);
       try { ws.send(JSON.stringify({ type: 'connected', timestamp: Date.now() })); } catch { }
     },
     message(ws: any, message: any) {
@@ -651,7 +651,7 @@ export async function chatRoutes(app: any, prefix = '') {
         else if (data.type === 'unsubscribe' && data.channelId) ws.data.channels.delete(Number(data.channelId));
       } catch { }
     },
-    close(ws: any) { chatClients.delete(ws); ws.data = {}; },
-    error(ws: any) { chatClients.delete(ws); ws.data = {}; },
+    close(ws: any) { chatClients.delete(ws); try { ws.data.channels?.clear?.(); } catch {} },
+    error(ws: any) { chatClients.delete(ws); try { ws.data.channels?.clear?.(); } catch {} },
   });
 }

@@ -116,7 +116,6 @@ class WingsProxySession {
     this.clientWs = ws;
     this.serverId = ctx?.params?.id;
 
-    ws.data = ws.data || {};
     ws.data._ecliProxySession = this;
 
     this.init().catch(err => {

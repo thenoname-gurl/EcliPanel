@@ -1586,7 +1586,6 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         device.kind === 'server' ? readVersion('server', '0.2.6') : readVersion('client', '0.2.5');
       const updateAvailable = reportedVersion ? isOlder(reportedVersion, expectedVersion) : false;
 
-      ws.data = ws.data || {};
       ws.data._ecliDeviceCode = device.deviceCode;
       ws.data._ecliKind = device.kind;
 
