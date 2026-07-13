@@ -41,7 +41,10 @@ function safeImageUrl(url: string | null | undefined): string | undefined {
 }
 
 function safeHrefUrl(url: string | null | undefined): string | undefined {
-  return safeUrl(url, ['http:', 'https:'])
+  const safe = safeUrl(url, ['http:', 'https:'])
+  if (!safe) return undefined
+  if (safe.startsWith('/')) return safe
+  return isExternalUrlSync(safe) ? undefined : safe
 }
 
 function proxyImageUrl(url: string | null | undefined): string | undefined {
