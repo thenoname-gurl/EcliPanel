@@ -401,7 +401,7 @@ function PortRuleRow({
             "dark:hover:bg-red-950/40 transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           )}
-        >
+         data-telemetry="servers:removerule">
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </div>
@@ -732,7 +732,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
                   variant="outline"
                   onClick={addRule}
                   className="h-9 gap-1.5 text-xs"
-                >
+                 data-telemetry="servers:addrule">
                   <Plus className="h-3.5 w-3.5" />
                   {t("firewall.addPortRule")}
                 </Button>
@@ -778,7 +778,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
                     variant="outline"
                     onClick={addRule}
                     className="gap-1.5"
-                  >
+                   data-telemetry="servers:addrule">
                     <Plus className="h-3.5 w-3.5" />
                     {t("firewall.addFirstRule")}
                   </Button>
@@ -882,7 +882,7 @@ export function FirewallTab({ serverId, server }: FirewallTabProps) {
               onClick={handleSave}
               disabled={saving || hasErrors}
               className="w-full sm:w-auto h-11 sm:h-10 gap-2 font-medium"
-            >
+             data-telemetry="servers:save">
               {saving ? (
                 <Loader2 className="h-4 w-4 rounded-full animate-spin" />
               ) : (

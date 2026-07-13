@@ -555,7 +555,7 @@ export default function OrganisationDetail() {
                     />
                   </label>
                   {user && activeOrgRole !== 'owner' && (
-                    <Button size="sm" variant="destructive" onClick={leaveOrg}>{t('actions.leaveOrg')}</Button>
+                    <Button size="sm" variant="destructive" onClick={leaveOrg} data-telemetry="organisations:leaveorg">{t('actions.leaveOrg')}</Button>
                   )}
                 </>
               )}
@@ -691,7 +691,7 @@ export default function OrganisationDetail() {
                       </select>
                     </div>
                     <div>
-                      <Button size="sm" onClick={addUserDirect}>{t('actions.addUser')}</Button>
+                      <Button size="sm" onClick={addUserDirect} data-telemetry="organisations:adduserdirect">{t('actions.addUser')}</Button>
                     </div>
                   </div>
                 )}
@@ -706,7 +706,7 @@ export default function OrganisationDetail() {
                         onChange={(e) => setInviteEmail(e.target.value)}
                         className="flex-1"
                       />
-                      <Button size="sm" onClick={sendInvite}>
+                      <Button size="sm" onClick={sendInvite} data-telemetry="organisations:sendinvite">
                         <UserPlus className="h-3.5 w-3.5 mr-1.5" /> {t('actions.invite')}
                       </Button>
                     </div>
@@ -772,7 +772,7 @@ export default function OrganisationDetail() {
               <div className="border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{t('servers.title')}</p>
-                  <Button size="sm" variant="outline" onClick={loadServers} disabled={serversLoading}>
+                  <Button size="sm" variant="outline" onClick={loadServers} disabled={serversLoading} data-telemetry="organisations:loadservers">
                     {serversLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : t('actions.refresh')}
                   </Button>
                 </div>
@@ -848,7 +848,7 @@ export default function OrganisationDetail() {
               <div className="border border-border bg-card min-w-0 box-border overflow-hidden">
                 <div className="flex items-center justify-between border-b border-border p-4">
                   <p className="text-sm font-medium text-foreground">{t('nodes.title')}</p>
-                  <Button size="sm" variant="outline" onClick={loadNodes} disabled={nodesLoading}>
+                  <Button size="sm" variant="outline" onClick={loadNodes} disabled={nodesLoading} data-telemetry="organisations:loadnodes">
                     {nodesLoading ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : t('actions.refresh')}
                   </Button>
                 </div>
@@ -938,7 +938,7 @@ export default function OrganisationDetail() {
                           placeholder={t('dns.subdomainPlaceholder')}
                           className="border border-border bg-input px-3 py-2 text-sm text-foreground"
                         />
-                        <Button size="sm" onClick={createSubdomain} disabled={!org?.handle || subdomainNewName.trim() !== (org?.handle || '').replace(/\.$/, '')}>{t('actions.create')}</Button>
+                        <Button size="sm" onClick={createSubdomain} disabled={!org?.handle || subdomainNewName.trim() !== (org?.handle || '').replace(/\.$/, '')} data-telemetry="organisations:createsubdomain">{t('actions.create')}</Button>
                       </>
                     )}
                     <Button size="sm" variant="outline" onClick={() => loadSubdomains()} disabled={subdomainsLoading}>
@@ -978,7 +978,7 @@ export default function OrganisationDetail() {
                                 alert(t('alerts.failedDeleteSubdomain', { reason: e.message }))
                               }
                             }}
-                          >
+                           data-telemetry="organisations:async">
                             {t('actions.delete')}
                           </Button>
                         )}
@@ -1050,7 +1050,7 @@ export default function OrganisationDetail() {
                               <span className="text-xs text-muted-foreground">{t('dns.proxied')}</span>
                             </label>
                           </div>
-                          <Button onClick={updateSubdomainRecord}>{t('actions.save')}</Button>
+                          <Button onClick={updateSubdomainRecord} data-telemetry="organisations:updatesubdomainrecord">{t('actions.save')}</Button>
                         </div>
                         <div className="mt-2 flex gap-2">
                           <Button variant="outline" onClick={() => { setSubdomainEditId(null); setSubdomainEditingRecord(null); }}>{t('actions.cancel')}</Button>
@@ -1087,7 +1087,7 @@ export default function OrganisationDetail() {
                             <span className="text-xs text-muted-foreground">{t('dns.proxied')}</span>
                           </label>
                         </div>
-                        <Button onClick={addSubdomainRecord}>{t('actions.addRecord')}</Button>
+                        <Button onClick={addSubdomainRecord} data-telemetry="organisations:addsubdomainrecord">{t('actions.addRecord')}</Button>
                       </div>
                       <div className="mt-2">
                         <label className="text-xs text-muted-foreground">

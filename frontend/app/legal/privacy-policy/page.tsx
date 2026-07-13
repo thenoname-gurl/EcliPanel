@@ -37,7 +37,7 @@ export default function PrivacyPolicyPage() {
               Privacy Policy
             </p>
             <p className="text-sm leading-7 text-white/70 sm:text-base">
-              Last updated: April 13, 2026.
+              Last updated: July 13, 2026.
             </p>
           </div>
         </section>
@@ -80,6 +80,13 @@ export default function PrivacyPolicyPage() {
               metadata.
             </li>
             <li>
+              Telemetry data: anonymized interaction events (page views, button
+              clicks, feature usage) collected through our first-party analytics
+              system to understand how users navigate and use the service, so we
+              can improve the user experience. No third-party analytics providers
+              are used for this purpose.
+            </li>
+            <li>
               Cookies and tracking data for session management, security, and
               analytics.
             </li>
@@ -110,6 +117,11 @@ export default function PrivacyPolicyPage() {
               To communicate about your account, updates, and support requests.
             </li>
             <li>
+              To analyze usage patterns and interaction data (telemetry) in order
+              to improve the user interface, fix usability issues, and guide
+              product development.
+            </li>
+            <li>
               To detect, prevent, and respond to abuse or fraud, including using
               AI and automated systems to support security monitoring and abuse
               mitigation.
@@ -123,7 +135,9 @@ export default function PrivacyPolicyPage() {
           </h2>
           <p className="mt-4 text-[16px] leading-7 text-white/70">
             We may share your data with service providers who help operate our
-            service. We do not sell your personal data.
+            service. We do not sell your personal data. Telemetry and analytics
+            data is processed entirely within our own infrastructure and is not
+            shared with third-party analytics vendors.
           </p>
         </section>
 

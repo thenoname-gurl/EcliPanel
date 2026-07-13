@@ -420,7 +420,7 @@ export default function SOCDashboard() {
                 onClick={handleScan}
                 disabled={scanRunning}
                 className="flex items-center gap-1.5 border border-border bg-secondary/30 px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary/50 transition-colors disabled:opacity-50"
-              >
+               data-telemetry="dashboard:scan">
                 <ScanLine className={cn("h-3.5 w-3.5", scanRunning && "animate-pulse")} />
                 {scanRunning ? t("securityFindings.scanning") : t("securityFindings.scan")}
               </button>
@@ -578,21 +578,21 @@ export default function SOCDashboard() {
                                 onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'acknowledged') }}
                                 title={t("securityFindings.actions.acknowledge")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                              >
+                               data-telemetry="dashboard:acknowledge">
                                 <Check className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-foreground" />
                               </button>
                               <button
                                 onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'resolved') }}
                                 title={t("securityFindings.actions.resolve")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                              >
+                               data-telemetry="dashboard:resolve">
                                 <CheckCircle className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-green-600" />
                               </button>
                               <button
                                 onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'false_positive') }}
                                 title={t("securityFindings.actions.falsePositive")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-                              >
+                               data-telemetry="dashboard:falsepositive">
                                 <Flag className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-orange-600" />
                               </button>
                               <button

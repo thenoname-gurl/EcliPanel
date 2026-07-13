@@ -517,7 +517,7 @@ export default function BillingPage() {
                 <a
                   href="mailto:sales@ecli.app"
                   className="flex items-center gap-2 border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary transition-colors hover:bg-primary/20"
-                >
+                 data-telemetry="link:email">
                   {t("currentSubscription.requestChange")}
                 </a>
               }
@@ -580,7 +580,7 @@ export default function BillingPage() {
                           }
                         }}
                         className="mt-4 flex w-full items-center justify-center gap-2 border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
-                      >
+                       data-telemetry="billing:async">
                         {t("currentSubscription.connect")} {HACKCLUB_STUDENT_ENABLED ? 'Hack Club' : 'GitHub'}
                         <ArrowRight className="h-3 w-3" />
                       </button>
@@ -589,7 +589,7 @@ export default function BillingPage() {
                       <a
                         href="mailto:sales@ecli.app"
                         className="mt-4 flex w-full items-center justify-center gap-2 border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
-                      >
+                       data-telemetry="link:email">
                         {t("currentSubscription.contactSales")}
                         <ArrowRight className="h-3 w-3" />
                       </a>
@@ -713,7 +713,7 @@ export default function BillingPage() {
                               }
                             }}
                             className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                          >
+                           data-telemetry="billing:async">
                             <Download className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -742,11 +742,11 @@ export default function BillingPage() {
                 <div className="border border-border bg-secondary/20 p-3">
                   <div className="flex flex-col gap-2">
                     <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'now' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
-                      <input type="radio" name="activateMode" checked={activateMode === 'now'} onChange={() => setActivateMode('now')} className="accent-primary" />
+                      <input type="radio" name="activateMode" checked={activateMode === 'now'} onChange={() => setActivateMode('now')} className="accent-primary"  data-telemetry="billing:input:activatemode"/>
                       <span className="text-sm text-foreground">{t("currentSubscription.activateNow")}</span>
                     </label>
                     <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'renewal' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
-                      <input type="radio" name="activateMode" checked={activateMode === 'renewal'} onChange={() => setActivateMode('renewal')} className="accent-primary" />
+                      <input type="radio" name="activateMode" checked={activateMode === 'renewal'} onChange={() => setActivateMode('renewal')} className="accent-primary"  data-telemetry="billing:input:activatemode"/>
                       <span className="text-sm text-foreground">{t("currentSubscription.activateOnRenewal")}</span>
                     </label>
                   </div>

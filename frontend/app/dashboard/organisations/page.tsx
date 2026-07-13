@@ -32,6 +32,7 @@ export default function OrganisationsPage() {
           <div className="flex justify-end">
             {(user?.role === 'admin' || user?.role === 'rootAdmin' || user?.tier === 'enterprise') && (
               <button
+                data-telemetry="organisations:create-new"
                 onClick={() => router.push('/dashboard/organisations/create')}
                 className="bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
               >

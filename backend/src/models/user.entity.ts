@@ -356,4 +356,7 @@ export class User {
 
   @Column({ nullable: true, length: 2 })
   countryOverride?: string;
+
+  @Column({ nullable: true })
+  termsConsentVersion?: string;
 }

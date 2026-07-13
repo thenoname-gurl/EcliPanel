@@ -67,6 +67,19 @@ export default function TermsOfServicePage() {
               We may use AI and automated systems to detect fraud, prevent
               abuse, and protect platform security.
             </li>
+            <li>
+              We collect anonymized usage telemetry (page views, button clicks,
+              feature interactions) through our first-party analytics system to
+              improve the user experience. No third-party analytics or tracking
+              providers are used. See our{" "}
+              <Link
+                className="font-medium text-indigo-400 hover:text-indigo-500 transition-colors"
+                href="/legal/privacy-policy"
+              >
+                Privacy Policy
+              </Link>{" "}
+              for details.
+            </li>
           </ul>
         </section>
 

@@ -123,7 +123,7 @@ export const ErrorState = memo(function ErrorState({ title = "Something went wro
         <button
           onClick={onRetry}
           className="text-sm text-primary hover:underline"
-        >
+         data-telemetry="servers:retry">
           {t("error.tryAgain")}
         </button>
       )}

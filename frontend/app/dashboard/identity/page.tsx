@@ -218,7 +218,7 @@ export default function IdentityPage() {
                         <a
                           href="/dashboard/settings"
                           className="mt-3 inline-flex items-center gap-1.5 border border-border px-4 py-2 text-sm text-foreground hover:bg-secondary/20 transition-all"
-                        >
+                         data-telemetry="nav:settings">
                           {t("profileMissing.goToSettings")}
                           <ExternalLink className="h-3.5 w-3.5" />
                         </a>
@@ -271,7 +271,7 @@ export default function IdentityPage() {
                     }
                   }}
                   className="mt-2 bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
+                 data-telemetry="identity:async">
                   {submitting ? t('actions.uploading') : t('actions.submitForVerification')}
                 </button>
                 {submitting && (
@@ -359,7 +359,7 @@ export default function IdentityPage() {
                         }
                       }}
                       className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
-                    >
+                     data-telemetry="identity:async">
                       {t("actions.connectHackClub")}
                     </button>
                   )}
@@ -376,7 +376,7 @@ export default function IdentityPage() {
                         }
                       }}
                       className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
-                    >
+                     data-telemetry="identity:async">
                       {t("actions.connectGithub")}
                     </button>
                   )}

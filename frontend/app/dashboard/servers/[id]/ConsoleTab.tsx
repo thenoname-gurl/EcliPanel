@@ -101,7 +101,7 @@ function HistoryPanel({ history, onSelect, onClose, t }: HistoryPanelProps) {
         <button
           onClick={onClose}
           className="mt-2 text-xs text-primary hover:underline"
-        >
+         data-telemetry="servers:close">
           {t("actions.close")}
         </button>
       </div>
@@ -115,7 +115,7 @@ function HistoryPanel({ history, onSelect, onClose, t }: HistoryPanelProps) {
         <button 
           onClick={onClose} 
           className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-        >
+         data-telemetry="servers:close">
           <X className="h-3 w-3" />
         </button>
       </div>
@@ -158,7 +158,7 @@ function MobileCommandInput({
             ? "bg-primary text-primary-foreground" 
             : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
         )}
-      >
+       data-telemetry="servers:historytoggle">
         <History className="h-4 w-4" />
       </button>
       
@@ -188,7 +188,7 @@ function MobileCommandInput({
             ? "bg-primary text-primary-foreground hover:bg-primary/90"
             : "bg-secondary text-muted-foreground"
         )}
-      >
+       data-telemetry="servers:send">
         <Send className="h-4 w-4" />
       </button>
     </div>
@@ -232,7 +232,7 @@ function ConsoleToolbar({
           onClick={onCopy}
           className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           title={t("toolbar.copyOutput")}
-        >
+         data-telemetry="servers:copyoutput">
           {copied ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
           <span className="hidden sm:inline">{copied ? t("actions.copied") : t("actions.copy")}</span>
         </button>
@@ -241,7 +241,7 @@ function ConsoleToolbar({
           onClick={onClear}
           className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           title={t("toolbar.clearConsole")}
-        >
+         data-telemetry="servers:clearconsole">
           <Trash2 className="h-3 w-3" />
           <span className="hidden sm:inline">{t("actions.clear")}</span>
         </button>
@@ -251,7 +251,7 @@ function ConsoleToolbar({
           disabled={reconnecting}
           className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 disabled:opacity-60 transition-colors"
           title={t("actions.reconnect")}
-        >
+         data-telemetry="servers:reconnect">
           <RefreshCw className={cn("h-3 w-3", reconnecting && "rounded-full animate-spin")} />
         </button>
         
@@ -259,7 +259,7 @@ function ConsoleToolbar({
           onClick={onFullscreenToggle}
           className="flex items-center gap-1.5 bg-secondary px-3 py-1.5 text-xs text-secondary-foreground hover:bg-secondary/80 transition-colors"
           title={isFullscreen ? t("actions.exitFullscreen") : t("actions.fullscreen")}
-        >
+         data-telemetry="servers:fullscreentoggle">
           {isFullscreen ? <Minimize2 className="h-3 w-3" /> : <Maximize2 className="h-3 w-3" />}
         </button>
       </div>

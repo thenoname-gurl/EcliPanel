@@ -191,12 +191,12 @@ function ConfirmDialog({
         <h3 className="font-semibold text-foreground mb-2">{title}</h3>
         <p className="text-sm text-muted-foreground mb-6 leading-relaxed">{description}</p>
         <div className="flex gap-3 justify-end">
-          <Button variant="outline" size="sm" onClick={onCancel}>Cancel</Button>
+          <Button variant="outline" size="sm" onClick={onCancel} data-telemetry="servers:cancel">Cancel</Button>
           <Button
             size="sm"
             variant={destructive ? "destructive" : "default"}
             onClick={onConfirm}
-          >
+           data-telemetry="servers:confirm">
             {confirmLabel}
           </Button>
         </div>
@@ -258,7 +258,7 @@ function ImagePreviewModal({ url, filename, onClose, onDownload, t }: {
           <button
             onClick={onClose}
             className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
+           data-telemetry="servers:close">
             <X className="h-4 w-4" />
           </button>
           <div className="min-w-0">
@@ -273,16 +273,16 @@ function ImagePreviewModal({ url, filename, onClose, onDownload, t }: {
             { icon: RotateCcw, action: resetView },
           ].map(({ icon: Icon, action }, i) => (
             <button key={i} onClick={action}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" data-telemetry="servers:action">
               <Icon className="h-4 w-4" />
             </button>
           ))}
           <button onClick={toggleFullscreen}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:flex">
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:flex" data-telemetry="servers:togglefullscreen">
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </button>
           <button onClick={onDownload}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" data-telemetry="servers:download">
             <Download className="h-4 w-4" />
           </button>
         </div>
@@ -355,7 +355,7 @@ function VideoPreviewModal({ url, filename, onClose, onDownload, t }: {
       <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-black/80 to-transparent">
         <div className="flex items-center gap-3 min-w-0">
           <button onClick={onClose}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" data-telemetry="servers:close">
             <X className="h-4 w-4" />
           </button>
           <div className="min-w-0">
@@ -364,15 +364,15 @@ function VideoPreviewModal({ url, filename, onClose, onDownload, t }: {
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={togglePlay}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" data-telemetry="servers:toggleplay">
             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </button>
           <button onClick={toggleFullscreen}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:flex">
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors hidden sm:flex" data-telemetry="servers:togglefullscreen">
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </button>
           <button onClick={onDownload}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors">
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors" data-telemetry="servers:download">
             <Download className="h-4 w-4" />
           </button>
         </div>
@@ -412,7 +412,7 @@ function ToolbarBtn({
           ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
           : "bg-secondary text-secondary-foreground hover:bg-secondary/70 border border-border/50"
       )}
-    >
+     data-telemetry="servers:click">
       {loading
         ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
         : <Icon className="h-3.5 w-3.5" />}
@@ -441,7 +441,7 @@ function BulkActionsBar({
     )}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5">
-          <button onClick={onClear} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClear} className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors" data-telemetry="servers:clear">
             <X className="h-3.5 w-3.5" />
           </button>
           <span className="text-xs font-semibold text-foreground">
@@ -491,10 +491,10 @@ function CreateItemForm({ type, value, onChange, onSubmit, onCancel, t }: {
         className="flex-1 min-w-0 border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
         onKeyDown={e => { if (e.key === "Enter") onSubmit(); if (e.key === "Escape") onCancel() }}
       />
-      <Button size="sm" onClick={onSubmit} className="gap-1 h-7 text-xs">
+      <Button size="sm" onClick={onSubmit} className="gap-1 h-7 text-xs" data-telemetry="servers:submit">
         <Check className="h-3 w-3" /> Create
       </Button>
-      <button onClick={onCancel} className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors">
+      <button onClick={onCancel} className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors" data-telemetry="servers:cancel">
         <X className="h-4 w-4" />
       </button>
     </div>
@@ -592,7 +592,7 @@ function SftpConnectionPanel({
                 onClick={onCopyCommand}
                 disabled={!canUseSftp}
                 className="text-xs text-primary hover:text-primary/80 transition-colors disabled:opacity-40"
-              >
+               data-telemetry="servers:copycommand">
                 {t("actions.copy")}
               </button>
             </div>
@@ -639,7 +639,7 @@ function SftpConnectionPanel({
                   "bg-primary text-primary-foreground hover:bg-primary/90",
                   "disabled:opacity-40 disabled:cursor-not-allowed"
                 )}
-              >
+               data-telemetry="servers:connect">
                 {sftpChecking
                   ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
                   : <Unlock className="h-3.5 w-3.5" />}
@@ -697,7 +697,7 @@ function FileRow({
       <button
         onClick={onOpen}
         className="flex items-center gap-2 text-left min-w-0 group/name"
-      >
+       data-telemetry="servers:open">
         {getFileIcon(fname, isDir)}
         <span className={cn(
           "truncate transition-colors",
@@ -774,7 +774,7 @@ function ActionBtn({ onClick, icon: Icon, label, className }: {
         "p-1.5 rounded text-muted-foreground transition-colors",
         className
       )}
-    >
+     data-telemetry="servers:click">
       <Icon className="h-3.5 w-3.5" />
     </button>
   )
@@ -847,7 +847,7 @@ function ShareFileLinkModal({
             <Link2 className="h-4 w-4 text-violet-400" />
             <h3 className="font-semibold text-foreground">{t("shareModal.title")}</h3>
           </div>
-          <button onClick={onClose} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+          <button onClick={onClose} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" data-telemetry="servers:close">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -884,7 +884,7 @@ function ShareFileLinkModal({
               </div>
 
               <div className="flex gap-2 justify-end pt-1">
-                <Button size="sm" variant="outline" onClick={onClose} className="h-8 text-xs">
+                <Button size="sm" variant="outline" onClick={onClose} className="h-8 text-xs" data-telemetry="servers:close">
                   {t("shareModal.cancel")}
                 </Button>
                 <Button
@@ -892,7 +892,7 @@ function ShareFileLinkModal({
                   onClick={createShareLink}
                   disabled={creating}
                   className="h-8 text-xs gap-1.5"
-                >
+                 data-telemetry="servers:createsharelink">
                   {creating ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <Link2 className="h-3 w-3" />}
                   {t("shareModal.createShareLink")}
                 </Button>
@@ -911,7 +911,7 @@ function ShareFileLinkModal({
                     value={shareUrl}
                     className="flex-1 border border-border bg-background px-3 py-2 text-xs font-mono outline-none focus:ring-1 focus:ring-primary"
                   />
-                  <Button size="sm" onClick={copyLink} className="h-8 text-xs gap-1 flex-shrink-0">
+                  <Button size="sm" onClick={copyLink} className="h-8 text-xs gap-1 flex-shrink-0" data-telemetry="servers:copylink">
                     {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                     {copied ? t("shareModal.copied") : t("shareModal.copy")}
                   </Button>
@@ -919,7 +919,7 @@ function ShareFileLinkModal({
               </div>
 
               <div className="flex gap-2 justify-end pt-1">
-                <Button size="sm" variant="outline" onClick={onClose} className="h-8 text-xs">
+                <Button size="sm" variant="outline" onClick={onClose} className="h-8 text-xs" data-telemetry="servers:close">
                   {t("shareModal.close")}
                 </Button>
                 <Button
@@ -1754,7 +1754,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             <Button size="sm" variant="outline" onClick={() => setEditingFile(null)} className="h-7 text-xs">
               {t("actions.cancel")}
             </Button>
-            <Button size="sm" onClick={saveFile} disabled={saving} className="h-7 text-xs gap-1.5">
+            <Button size="sm" onClick={saveFile} disabled={saving} className="h-7 text-xs gap-1.5" data-telemetry="servers:savefile">
               {saving ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <Save className="h-3 w-3" />}
               {t("actions.save")}
             </Button>
@@ -2027,7 +2027,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         <button
           onClick={navigateUp}
           className="flex w-full items-center gap-2 px-4 py-2 text-sm text-muted-foreground hover:bg-secondary/30 border-b border-border/50 transition-colors"
-        >
+         data-telemetry="servers:navigateup">
           <ArrowLeft className="h-3.5 w-3.5" />
           <span className="font-mono">..</span>
         </button>

@@ -174,7 +174,7 @@ export default function EloProjectProfile() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {project.githubUrl && (
-                    <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" data-telemetry="link:external">
                       <Button size="sm" variant="outline">
                         <GitBranch className="h-4 w-4 mr-1.5" />
                         GitHub
@@ -183,7 +183,7 @@ export default function EloProjectProfile() {
                   )}
                   {project.demoUrl && (
                     project.demoUrl.startsWith("http") ? (
-                      <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
+                      <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" data-telemetry="link:external">
                         <Button size="sm">
                           <Globe className="h-4 w-4 mr-1.5" />
                           Live Demo
@@ -244,7 +244,7 @@ export default function EloProjectProfile() {
                   <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">Screenshots</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {project.screenshots.map((url: string, i: number) => (
-                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block border border-border/50 bg-secondary/20 overflow-hidden hover:border-primary/30 transition-colors">
+                      <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block border border-border/50 bg-secondary/20 overflow-hidden hover:border-primary/30 transition-colors" data-telemetry="link:external">
                         <img
                           src={url}
                           alt={`Screenshot ${i + 1}`}

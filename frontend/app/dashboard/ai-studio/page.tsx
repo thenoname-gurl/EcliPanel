@@ -274,7 +274,7 @@ export default function AIStudioPage() {
                   <button
                     onClick={closeTool}
                     className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                  >
+                   data-telemetry="ai-studio:closetool">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -327,7 +327,7 @@ export default function AIStudioPage() {
                       onClick={sendMessage}
                       disabled={sending || !input.trim()}
                       className="bg-primary/20 border border-primary/30 px-3 py-2 text-primary hover:bg-primary/30 transition-colors disabled:opacity-50"
-                    >
+                     data-telemetry="ai-studio:sendmessage">
                       <Send className="h-4 w-4" />
                     </button>
                   </div>
@@ -384,7 +384,7 @@ export default function AIStudioPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-primary/70 hover:text-primary transition-colors"
-                      >
+                       data-telemetry="link:external">
                         <Sparkles className="h-3 w-3" />
                         Bring your own AI with OpenCode Go
                         <ExternalLink className="h-2.5 w-2.5" />

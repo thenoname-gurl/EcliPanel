@@ -443,6 +443,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
       <button
         type="button"
         onClick={() => setLockedItem(item)}
+        data-telemetry={`nav:locked:${item.label}`}
         className={cn(
           baseClasses,
           "w-full cursor-pointer opacity-50 text-muted-foreground",
@@ -464,6 +465,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
       <Link
         href={item.href}
         onClick={isMobile ? handleMobileNavigate : undefined}
+        data-telemetry={`nav:${item.label}`}
         className={cn(
           baseClasses,
           active
@@ -561,6 +563,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
             <Link
               href="/dashboard/settings"
               onClick={isMobile ? handleMobileNavigate : undefined}
+              data-telemetry="nav:settings-avatar"
               className="flex h-10 w-10 shrink-0 items-center justify-center bg-gradient-to-br from-primary/20 to-primary/10 text-sm font-semibold text-primary overflow-hidden ring-2 ring-primary/10 hover:ring-primary/20 transition-all active:scale-95"
             >
               {user?.avatarUrl ? (
@@ -586,6 +589,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                   <Link
                     href="/dashboard/settings"
                     onClick={isMobile ? handleMobileNavigate : undefined}
+                    data-telemetry="nav:settings-gear"
                     className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors active:scale-95"
                     aria-label={tSidebar("accountSettings")}
                   >
@@ -601,6 +605,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
                   <button
                     onClick={handleLogout}
                     disabled={isLoggingOut}
+                    data-telemetry="nav:logout"
                     className={cn(
                       "p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors active:scale-95",
                       isLoggingOut && "opacity-50 cursor-not-allowed"
@@ -671,8 +676,9 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
         )}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-border px-4">
-          <Link 
+          <Link
             href="/dashboard"
+            data-telemetry="nav:brand-home"
             className="flex items-center gap-3 transition-opacity hover:opacity-80 active:scale-[0.98]"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5">
@@ -725,6 +731,7 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
           <TooltipTrigger asChild>
             <button
               onClick={() => setCollapsed(!collapsed)}
+              data-telemetry="nav:toggle-sidebar"
               className="flex h-11 shrink-0 items-center justify-center border-t border-border text-muted-foreground hover:bg-secondary hover:text-foreground transition-all active:scale-95"
               aria-label={collapsed ? tSidebar("expandSidebar") : tSidebar("collapseSidebar")}
             >

@@ -99,6 +99,7 @@ export default function SubuserInvitesPage() {
                     variant="secondary"
                     onClick={() => handleInviteAction(invite.id, true)}
                     disabled={!!actionLoading[invite.id]}
+                    data-telemetry="subusers:accept-invite"
                   >
                     {t("subusers.acceptInvite")}
                   </Button>
@@ -107,6 +108,7 @@ export default function SubuserInvitesPage() {
                     variant="outline"
                     onClick={() => handleInviteAction(invite.id, false)}
                     disabled={!!actionLoading[invite.id]}
+                    data-telemetry="subusers:reject-invite"
                   >
                     {t("subusers.rejectInvite")}
                   </Button>

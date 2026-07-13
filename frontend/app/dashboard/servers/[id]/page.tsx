@@ -550,7 +550,7 @@ function PowerActions({
           aria-expanded={menuOpen}
           aria-haspopup="true"
           aria-label={t("actions.morePowerOptions")}
-        >
+         data-telemetry="servers:morepoweroptions">
           <MoreVertical className="h-4 w-4" />
         </Button>
         {menuContent}
@@ -1415,7 +1415,7 @@ const dmcaAlert = isDmcaProtected ? (
                 onClick={loadServer}
                 className="h-9 w-9 p-0"
                 aria-label={t("actions.refreshServer")}
-              >
+               data-telemetry="servers:refreshserver">
                 <RefreshCw className="h-4 w-4" />
               </Button>
             </div>
@@ -1574,7 +1574,7 @@ const dmcaAlert = isDmcaProtected ? (
               onClick={doConfirmedPowerAction}
               disabled={powerLoading}
               className="w-full sm:w-auto"
-            >
+             data-telemetry="servers:doconfirmedpoweraction">
               {powerLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
               {pendingPowerAction
                 ? pendingPowerAction.charAt(0).toUpperCase() + pendingPowerAction.slice(1)
@@ -1713,7 +1713,7 @@ const dmcaAlert = isDmcaProtected ? (
                   onClick={doTransfer}
                   disabled={transferLoading || !transferNodeId}
                   className="w-full sm:w-auto"
-                >
+                 data-telemetry="servers:dotransfer">
                   {transferLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
                   {t("actions.transfer")}
                 </Button>
@@ -1724,7 +1724,7 @@ const dmcaAlert = isDmcaProtected ? (
                 onClick={cancelTransfer}
                 disabled={cancellingTransfer}
                 className="w-full sm:w-auto"
-              >
+               data-telemetry="servers:canceltransfer">
                 {cancellingTransfer && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
                 Cancel Transfer
               </Button>
@@ -1792,7 +1792,7 @@ const dmcaAlert = isDmcaProtected ? (
                   }
                 }}
                 className="w-full sm:w-auto"
-              >
+               data-telemetry="servers:async">
                 Skip with Token
               </Button>
             )}
@@ -1953,7 +1953,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
             </div>
           )}
           <div className="flex gap-2">
-            <Button size="sm" onClick={createDb} disabled={creating} className="h-9">
+            <Button size="sm" onClick={createDb} disabled={creating} className="h-9" data-telemetry="servers:createdb">
               {creating && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
               {t("databases.create")}
             </Button>
@@ -2014,7 +2014,7 @@ function DatabasesTab({ serverId }: { serverId: string }) {
                     disabled={deletingId === db.id}
                     className="h-9 w-9 p-0"
                     aria-label={t("databases.deleteDatabase")}
-                  >
+                   data-telemetry="servers:deletedatabase">
                     {deletingId === db.id ? (
                       <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                     ) : (
@@ -2205,7 +2205,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
           </div>
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={createSchedule} disabled={creating} className="h-9">
+            <Button size="sm" onClick={createSchedule} disabled={creating} className="h-9" data-telemetry="servers:createschedule">
               {creating && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
               {t("schedules.create")}
             </Button>
@@ -2259,7 +2259,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
                 onClick={() => deleteSchedule(String(sched.id))}
                 className="flex-shrink-0 h-9 w-9 p-0"
                 aria-label={t("schedules.deleteSchedule")}
-              >
+               data-telemetry="servers:deleteschedule">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -2460,7 +2460,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                 <span className="sm:hidden">IP</span>
               </Button>
             )}
-            <Button size="sm" variant="outline" onClick={requestPorts} disabled={requesting}>
+            <Button size="sm" variant="outline" onClick={requestPorts} disabled={requesting} data-telemetry="servers:requestports">
               {requesting ? (
                 <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
               ) : (
@@ -2470,7 +2470,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
               <span className="sm:hidden">Port</span>
             </Button>
             {hasSecondaryAllocations && (
-              <Button size="sm" variant="outline" onClick={clearSecondaryAllocations} disabled={requesting} className="border-border">
+              <Button size="sm" variant="outline" onClick={clearSecondaryAllocations} disabled={requesting} className="border-border" data-telemetry="servers:clearsecondaryallocations">
                 {requesting ? (
                   <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
                 ) : (
@@ -2522,7 +2522,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                 rows={4}
                 className="min-h-[120px] w-full"
                 placeholder="Describe why you need this allocation"
-              />
+               data-telemetry="servers:ip-request-reason"/>
             </div>
             {ipRequestError ? (
               <div className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -2534,7 +2534,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
             <Button variant="outline" onClick={() => setIpRequestOpen(false)} disabled={requesting}>
               Cancel
             </Button>
-            <Button onClick={submitIpRequest} disabled={requesting}>
+            <Button onClick={submitIpRequest} disabled={requesting} data-telemetry="servers:submitiprequest">
               {requesting ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" /> : null}
               Submit request
             </Button>
@@ -2575,7 +2575,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                 rows={4}
                 className="min-h-[120px] w-full"
                 placeholder="Describe why you need this allocation"
-              />
+               data-telemetry="servers:ip-request-reason"/>
             </div>
             {ipRequestError ? (
               <div className="border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -2587,7 +2587,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
             <Button variant="outline" onClick={() => setIpRequestOpen(false)} disabled={requesting}>
               Cancel
             </Button>
-            <Button onClick={submitIpRequest} disabled={requesting}>
+            <Button onClick={submitIpRequest} disabled={requesting} data-telemetry="servers:submitiprequest">
               {requesting ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" /> : null}
               Submit request
             </Button>
@@ -2769,7 +2769,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
                     disabled={deleting === key}
                     className="flex-shrink-0 h-9 w-9 p-0"
                     aria-label={t("network.removeAllocation")}
-                  >
+                   data-telemetry="servers:removeallocation">
                     {deleting === key ? (
                       <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                     ) : (
@@ -2870,7 +2870,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
         title={t("backups.title")}
         icon={HardDrive}
         action={
-          <Button size="sm" onClick={createBackup} disabled={creating}>
+          <Button size="sm" onClick={createBackup} disabled={creating} data-telemetry="servers:createbackup">
             {creating ? (
               <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
             ) : (
@@ -2975,7 +2975,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
                     disabled={isLocked}
                     className="h-9 w-9 p-0"
                     aria-label={t("backups.deleteBackup")}
-                  >
+                   data-telemetry="servers:deletebackup">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -3200,7 +3200,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                 }}
                 className="text-destructive hover:text-destructive h-9 w-9 p-0 flex-shrink-0"
                 aria-label={t("startup.removePattern")}
-              >
+               data-telemetry="servers:removepattern">
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>
@@ -3222,11 +3222,11 @@ function StartupTab({ serverId }: { serverId: string }) {
           icon={Variable}
           action={
             <div className="flex flex-wrap items-center gap-2">
-              <Button size="sm" variant="outline" onClick={resetEnvOverrides} className="h-9">
+              <Button size="sm" variant="outline" onClick={resetEnvOverrides} className="h-9" data-telemetry="servers:resetenvoverrides">
                 <RotateCcw className="h-4 w-4 mr-1.5" />
                 {t("startup.resetDefaults")}
               </Button>
-              <Button size="sm" variant="outline" onClick={addEnvRow} className="h-9">
+              <Button size="sm" variant="outline" onClick={addEnvRow} className="h-9" data-telemetry="servers:addenvrow">
                 <Plus className="h-3.5 w-3.5 mr-1.5" />
                 {t("startup.addVariable")}
               </Button>
@@ -3235,7 +3235,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                 onClick={saveEnv}
                 disabled={saving || (dockerImageOptions.length > 0 && !selectedDockerImage)}
                 className="h-9"
-              >
+               data-telemetry="servers:saveenv">
                 {saving ? (
                   <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />
                 ) : (
@@ -3325,7 +3325,7 @@ function StartupTab({ serverId }: { serverId: string }) {
                     }}
                     className="text-destructive hover:text-destructive h-9 w-9 p-0 flex-shrink-0"
                     aria-label={t("startup.removeVariable")}
-                  >
+                   data-telemetry="servers:removevariable">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -3741,7 +3741,7 @@ function SubusersTab({
           </div>
 
           <div className="flex gap-2">
-            <Button size="sm" onClick={handleAdd} disabled={adding} className="h-9">
+            <Button size="sm" onClick={handleAdd} disabled={adding} className="h-9" data-telemetry="servers:add">
               {adding && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
               {t("subusers.add")}
             </Button>
@@ -3829,7 +3829,7 @@ function SubusersTab({
                       }}
                       className="h-9 w-9 p-0"
                       aria-label={t("subusers.editSubuser")}
-                    >
+                     data-telemetry="servers:editsubuser">
                       <Pencil className="h-4 w-4" />
                     </Button>
                   )}
@@ -3858,7 +3858,7 @@ function SubusersTab({
                     className="flex-shrink-0 h-9 w-9 p-0"
                     disabled={removeDisabled}
                     aria-label={t("subusers.removeSubuser")}
-                  >
+                   data-telemetry="servers:removesubuser">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
@@ -3903,7 +3903,7 @@ function SubusersTab({
             <Button variant="ghost" size="sm" onClick={() => setEditingSubuser(null)}>
               {t("actions.cancel")}
             </Button>
-            <Button size="sm" onClick={handleEditSave} disabled={savingPerms}>
+            <Button size="sm" onClick={handleEditSave} disabled={savingPerms} data-telemetry="servers:editsave">
               {savingPerms && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
               <Save className="h-4 w-4 mr-1.5" />
               {t("subusers.savePermissions")}
@@ -4181,7 +4181,7 @@ function SettingsTab({
                 variant="outline"
                 onClick={launchSsh}
                 className="flex-1 sm:flex-none border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 active:bg-emerald-500/20 h-10 sm:h-9 px-3"
-              >
+               data-telemetry="servers:launchssh">
                 <Terminal className="h-4 w-4 mr-2" />
                 {t("settings.launchSsh")}
                 <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
@@ -4191,7 +4191,7 @@ function SettingsTab({
                 variant="outline"
                 onClick={launchSftp}
                 className="flex-1 sm:flex-none border-blue-500/30 text-blue-600 hover:bg-blue-500/10 active:bg-blue-500/20 h-10 sm:h-9 px-3"
-              >
+               data-telemetry="servers:launchsftp">
                 <Folder className="h-4 w-4 mr-2" />
                 {t("settings.launchSftp")}
                 <ExternalLink className="h-3 w-3 ml-1.5 opacity-60" />
@@ -4229,7 +4229,7 @@ function SettingsTab({
                       className="shrink-0 h-9 w-9 p-0"
                       onClick={() => navigator.clipboard.writeText(sshCmd)}
                       aria-label={t("settings.copySshCommand")}
-                    >
+                     data-telemetry="servers:copysshcommand">
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -4253,7 +4253,7 @@ function SettingsTab({
                       className="shrink-0 h-9 w-9 p-0"
                       onClick={() => navigator.clipboard.writeText(sftpCmd)}
                       aria-label={t("settings.copySftpCommand")}
-                    >
+                     data-telemetry="servers:copysftpcommand">
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -4347,7 +4347,7 @@ function SettingsTab({
                     <FileText className="h-3 w-3" />
                     Write Devlog
                   </Link>
-                  <a href="/dashboard/elo" className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-300 transition-colors ml-auto">
+                  <a href="/dashboard/elo" className="inline-flex items-center gap-1 text-xs text-purple-600 hover:text-purple-300 transition-colors ml-auto" data-telemetry="nav:elo">
                     View ELO Dashboard →
                   </a>
                 </div>
@@ -4537,7 +4537,7 @@ function SettingsTab({
                 }}
                 disabled={savingResources}
                 className="h-10 sm:h-9"
-              >
+               data-telemetry="servers:async">
                 {savingResources ? (
                   <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />
                 ) : (
@@ -4579,7 +4579,7 @@ function SettingsTab({
             size="sm"
             onClick={onDelete}
             className="w-full sm:w-auto h-10 sm:h-9"
-          >
+           data-telemetry="servers:delete">
             <Trash2 className="h-4 w-4 mr-1.5" />
             {t("settings.deleteServer")}
           </Button>
@@ -4735,7 +4735,7 @@ function SettingsTab({
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingProject(null)}>Cancel</Button>
-            <Button onClick={saveEdit} disabled={editSaving}>
+            <Button onClick={saveEdit} disabled={editSaving} data-telemetry="servers:saveedit">
               {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save
             </Button>

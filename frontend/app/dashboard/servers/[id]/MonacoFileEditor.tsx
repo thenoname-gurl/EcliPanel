@@ -181,23 +181,23 @@ function EditorToolbar({
               aiChatOpen ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
             )}
             title={aiChatOpen ? "Close AI chat" : "Open AI chat"}
-          >
+           data-telemetry="servers:toggleaichat">
             <Sparkles className="h-4 w-4" />
           </button>
         )}
-        <button onClick={onUndo} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden" title={t("actions.undo")}>
+        <button onClick={onUndo} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden" title={t("actions.undo")} data-telemetry="servers:undo">
           <Undo className="h-4 w-4" />
         </button>
-        <button onClick={onRedo} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden" title={t("actions.redo")}>
+        <button onClick={onRedo} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors sm:hidden" title={t("actions.redo")} data-telemetry="servers:redo">
           <Redo className="h-4 w-4" />
         </button>
         <div className="h-4 w-px bg-border sm:hidden mx-1" />
         <div className="hidden sm:flex items-center gap-1 mr-1">
-          <button onClick={() => onFontSizeChange(Math.max(10, fontSize - 1))} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.decreaseFont")}>
+          <button onClick={() => onFontSizeChange(Math.max(10, fontSize - 1))} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.decreaseFont")} data-telemetry="servers:decreasefont">
             <ZoomOut className="h-3.5 w-3.5" />
           </button>
           <span className="text-xs text-muted-foreground w-6 text-center font-mono">{fontSize}</span>
-          <button onClick={() => onFontSizeChange(Math.min(24, fontSize + 1))} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.increaseFont")}>
+          <button onClick={() => onFontSizeChange(Math.min(24, fontSize + 1))} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.increaseFont")} data-telemetry="servers:increasefont">
             <ZoomIn className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -206,13 +206,13 @@ function EditorToolbar({
           onClick={onWordWrapToggle}
           className={cn("p-1.5 rounded transition-colors", wordWrap ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-secondary")}
           title={wordWrap ? t("actions.disableWrap") : t("actions.enableWrap")}
-        >
+         data-telemetry="servers:wordwraptoggle">
           <WrapText className="h-4 w-4" />
         </button>
-        <button onClick={onSearch} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.search")}>
+        <button onClick={onSearch} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.search")} data-telemetry="servers:search">
           <Search className="h-4 w-4" />
         </button>
-        <button onClick={onCopy} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.copyAll")}>
+        <button onClick={onCopy} className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" title={t("actions.copyAll")} data-telemetry="servers:copyall">
           {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
         </button>
       </div>
@@ -407,10 +407,10 @@ function DiffBlockView({
           </span>
         ) : (
           <div className="flex items-center gap-1">
-            <button onClick={onPreview} className="px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-white/5 rounded transition-colors">
+            <button onClick={onPreview} className="px-2 py-0.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-white/5 rounded transition-colors" data-telemetry="servers:preview">
               Preview
             </button>
-            <button onClick={onApply} className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-primary hover:text-primary/80 hover:bg-primary/10 rounded transition-colors">
+            <button onClick={onApply} className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-primary hover:text-primary/80 hover:bg-primary/10 rounded transition-colors" data-telemetry="servers:apply">
               <Play className="h-2.5 w-2.5" /> Apply
             </button>
           </div>
@@ -618,7 +618,7 @@ function AIChatPanel({
             <p className="text-[10px] text-muted-foreground">AI Agent</p>
           </div>
         </div>
-        <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors shrink-0">
+        <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground hover:bg-secondary rounded transition-colors shrink-0" data-telemetry="servers:close">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -751,7 +751,7 @@ function AIChatPanel({
             placeholder="Ask AI to edit this file..."
             className="flex-1 border border-border bg-background/80 px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/40 transition-colors rounded-sm"
             disabled={sending}
-          />
+           data-telemetry="servers:ai-chat-input"/>
           <button
             onClick={send}
             disabled={sending || !input.trim()}
@@ -759,7 +759,7 @@ function AIChatPanel({
               "flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-all",
               input.trim() && !sending ? "bg-primary/20 text-primary hover:bg-primary/30" : "bg-secondary/30 text-muted-foreground/40"
             )}
-          >
+           data-telemetry="servers:send">
             <Send className="h-3.5 w-3.5" />
           </button>
         </div>
@@ -954,10 +954,10 @@ export function MonacoFileEditor({ value, onChange, language, editorSettings, fi
             <GitCompare className="h-3 w-3" /> Previewing AI changes — highlighted lines show modifications
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={handleRevertPreview} className="text-xs px-2 py-1 rounded text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary transition-colors">
+            <button onClick={handleRevertPreview} className="text-xs px-2 py-1 rounded text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary transition-colors" data-telemetry="servers:revertpreview">
               Revert
             </button>
-            <button onClick={handleApplyPreview} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+            <button onClick={handleApplyPreview} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" data-telemetry="servers:applypreview">
               Apply Changes
             </button>
           </div>

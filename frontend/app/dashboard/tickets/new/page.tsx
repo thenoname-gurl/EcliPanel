@@ -132,7 +132,7 @@ export default function NewTicketPage() {
                   onChange={(e) => setSubject(e.target.value)}
                   maxLength={120}
                   className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
-                />
+                 data-telemetry="tickets:subject"/>
               </div>
 
               {/* Priority & Department */}
@@ -146,7 +146,7 @@ export default function NewTicketPage() {
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
                     className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
-                  >
+                   data-telemetry="tickets:priority">
                     <option value="low">{t("fields.priority.low")}</option>
                     <option value="medium">{t("fields.priority.medium")}</option>
                     <option value="high">{t("fields.priority.high")}</option>
@@ -162,7 +162,7 @@ export default function NewTicketPage() {
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
                     className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors"
-                  >
+                   data-telemetry="tickets:department">
                     <option value="">{t("fields.department.select")}</option>
                     <option value="Support">{t("fields.department.support")}</option>
                     <option value="Billing">{t("fields.department.billing")}</option>
@@ -185,7 +185,7 @@ export default function NewTicketPage() {
                   onChange={(e) => setMessage(e.target.value)}
                   rows={8}
                   className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
-                />
+                 data-telemetry="tickets:message"/>
                 <p className="text-xs text-muted-foreground text-right">{t("fields.message.characters", { count: message.length })}</p>
               </div>
 
@@ -243,7 +243,7 @@ export default function NewTicketPage() {
                   type="submit"
                   disabled={user?.supportBanned || submitting || !subject.trim() || !message.trim()}
                   className="flex items-center gap-2 bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+                 data-telemetry="tickets:submit">
                   {submitting ? (
                     <>
                       <span className="h-3.5 w-3.5 rounded-full border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />

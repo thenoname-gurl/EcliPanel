@@ -247,6 +247,8 @@ function TemplateSelector({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+       
+        data-telemetry="servers:create:pick-template"
         data-guide-id="new-server-template"
         className="w-full border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all flex items-center justify-between gap-2 hover:bg-muted/40"
       >
@@ -378,7 +380,7 @@ function NodeSelector({
         onClick={() => setOpen(!open)}
         data-guide-id="new-server-node"
         className="w-full border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/10 transition-all flex items-center justify-between gap-2 hover:bg-muted/40"
-      >
+       data-telemetry="new-server-node">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div className="text-left min-w-0 flex-1">
             <p className="font-medium truncate">{selected?.name || t("fields.node")}</p>
@@ -746,7 +748,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               <p className="text-xs text-muted-foreground hidden sm:block">{t("header.subtitle")}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all active:scale-95">
+          <button onClick={onClose} className="p-2 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all active:scale-95" data-telemetry="servers:close">
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -778,7 +780,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 <Zap className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="text-xs text-foreground leading-relaxed">{t("fields.freePlanEloOnly")}</p>
-                  <a href="/dashboard/billing" className="inline-block mt-1.5 text-xs font-medium text-primary hover:underline">{t("fields.freePlanUpgradeLink")} →</a>
+                  <a href="/dashboard/billing" className="inline-block mt-1.5 text-xs font-medium text-primary hover:underline" data-telemetry="nav:billing">{t("fields.freePlanUpgradeLink")} →</a>
                 </div>
               </div>
             )}
@@ -793,7 +795,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 placeholder={t("fields.serverName.placeholder")}
                 data-guide-id="new-server-name"
                 className="w-full border border-border/50 bg-muted/30 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 outline-none focus:border-primary/50 focus:bg-muted/50 focus:ring-2 focus:ring-primary/10 transition-all"
-              />
+               data-telemetry="new-server-name"/>
             </div>
 
             {/* Template Selector */}
@@ -945,7 +947,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                 <a
                   href="/dashboard/elo"
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
-                >
+                 data-telemetry="nav:elo">
                   Learn more about ELO
                   <ChevronRight className="h-3 w-3" />
                 </a>
@@ -1088,7 +1090,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
 
             {selectedEgg && (selectedEgg.requiresKvm || selectedEgg.requires_kvm) ? (
               <div className="flex items-center justify-center gap-2 text-sm text-foreground">
-                <input id="new-server-kvm" type="checkbox" checked={true} disabled className="h-4 w-4 border-border bg-secondary/50 text-primary" />
+                <input id="new-server-kvm" type="checkbox" checked={true} disabled className="h-4 w-4 border-border bg-secondary/50 text-primary"  data-telemetry="servers:new-server-kvm"/>
                 <label htmlFor="new-server-kvm">{t("kvm.required")}</label>
               </div>
             ) : isAdmin ? (
@@ -1099,7 +1101,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   checked={kvmPassthroughEnabled}
                   onChange={(e) => setKvmPassthroughEnabled(e.target.checked)}
                   className="h-4 w-4 border-border bg-secondary/50 text-primary focus:ring-primary"
-                />
+                 data-telemetry="servers:new-server-kvm"/>
                 <label htmlFor="new-server-kvm">{t("kvm.enable")}</label>
               </div>
             ) : null}
@@ -1115,7 +1117,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   checked={legalConfirmed}
                   onChange={(e) => setLegalConfirmed(e.target.checked)}
                   className="mt-1 h-4 w-4 border-border bg-secondary/50 text-primary focus:ring-primary"
-                />
+                 data-telemetry="servers:new-server-legal"/>
                 <span className="leading-relaxed">
                   {t("fields.legalConfirmLabel")} <Link href="/legal/terms-of-service" className="font-semibold text-primary hover:underline">{t("fields.termsLink")}</Link>, <Link href="/legal/acceptable-use-policy" className="font-semibold text-primary hover:underline">{t("fields.aupLink")}</Link>, <Link href="/docs/sunset" className="font-semibold text-primary hover:underline">{t("fields.sunsetLink")}</Link>.
                 </span>
@@ -1132,7 +1134,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               type="button"
               onClick={onClose}
               className="border border-border/50 bg-muted/30 px-5 py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 active:scale-95 transition-all text-center"
-            >
+             data-telemetry="servers:close">
               {t("actions.cancel")}
             </button>
             <button
@@ -1140,7 +1142,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
               data-guide-id="new-server-deploy"
               disabled={creating || !canSubmit}
               className="flex items-center justify-center gap-2 bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed transition-all min-h-[44px]"
-            >
+             data-telemetry="new-server-deploy">
               {creating ? <Loader2 className="h-4 w-4 rounded-full animate-spin" /> : <Zap className="h-4 w-4" />}
               {creating ? t("actions.deploying") : t("actions.deploy")}
             </button>
@@ -1161,7 +1163,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   type="button"
                   onClick={onClose}
                   className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
-                >
+                 data-telemetry="servers:close">
                   <X className="h-4 w-4" />
                 </button>
               </div>
@@ -1271,7 +1273,7 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled }: { onClose: 
                   type="button"
                   onClick={onClose}
                   className="w-full bg-primary text-primary-foreground py-2.5 text-sm font-semibold hover:bg-primary/90 active:scale-95 transition-all"
-                >
+                 data-telemetry="servers:close">
                   {t("actions.close")}
                 </button>
               </div>
@@ -1984,7 +1986,7 @@ export default function ServersPage() {
                 disabled={needsLegalInfo}
                 className={`flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all flex-1 sm:flex-initial ${needsLegalInfo ? "bg-muted/70 cursor-not-allowed opacity-70 shadow-none" : "bg-primary shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95"}`}
                 title={needsLegalInfo ? t("warnings.legalInfoTitle") : undefined}
-              >
+               data-telemetry="servers-new">
                 <Plus className="h-4 w-4" />
                 {t("actions.newServer")}
               </button>

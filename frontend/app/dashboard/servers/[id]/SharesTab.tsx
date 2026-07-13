@@ -98,7 +98,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
       <div className="flex flex-col items-center justify-center py-20 gap-3 text-muted-foreground">
         <AlertCircle className="h-8 w-8 text-destructive" />
         <p className="text-sm">{error}</p>
-        <Button size="sm" variant="outline" onClick={load}>{t("retry")}</Button>
+        <Button size="sm" variant="outline" onClick={load} data-telemetry="servers:load">{t("retry")}</Button>
       </div>
     )
   }
@@ -113,7 +113,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
             {t("description")}
           </p>
         </div>
-        <Button size="sm" variant="outline" onClick={load} className="gap-1.5">
+        <Button size="sm" variant="outline" onClick={load} className="gap-1.5" data-telemetry="servers:load">
           <Loader2 className="h-3.5 w-3.5" />
           {t("refresh")}
         </Button>
@@ -173,7 +173,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
                       onClick={() => copyLink(share)}
                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       title={t("copyLink")}
-                    >
+                     data-telemetry="servers:copylink">
                       {copiedId === share.id ? (
                         <Check className="h-4 w-4 text-emerald-400" />
                       ) : (
@@ -186,7 +186,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
                       rel="noopener noreferrer"
                       className="p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                       title={t("openSharePage")}
-                    >
+                     data-telemetry="servers:opensharepage">
                       <ExternalLink className="h-4 w-4" />
                     </a>
                     <button
@@ -194,7 +194,7 @@ export function SharesTab({ serverId }: { serverId: string }) {
                       disabled={deleting === share.id}
                       className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-40"
                       title={t("deleteShareLink")}
-                    >
+                     data-telemetry="servers:deletesharelink">
                       {deleting === share.id ? (
                         <Loader2 className="h-4 w-4 rounded-full animate-spin" />
                       ) : (

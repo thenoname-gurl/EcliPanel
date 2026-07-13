@@ -534,7 +534,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("players.searchPlaceholder")} className="pl-8 h-9 text-xs" />
           </div>
-          <Button variant="outline" size="sm" onClick={loadPlayers} disabled={loading} className="h-9 w-9 p-0 flex-shrink-0">
+          <Button variant="outline" size="sm" onClick={loadPlayers} disabled={loading} className="h-9 w-9 p-0 flex-shrink-0" data-telemetry="servers:loadplayers">
             <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
@@ -570,7 +570,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
             }}
             disabled={togglingWhitelist}
             className={`relative h-5 w-9 rounded-full transition-colors ${whitelistEnabled ? "bg-primary" : "bg-secondary"} ${togglingWhitelist ? "opacity-50" : ""}`}
-          >
+           data-telemetry="servers:async">
             <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${whitelistEnabled ? "translate-x-4" : ""}`} />
           </button>
         </div>
@@ -605,7 +605,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                   setError(e?.message || t("errors.saveSettings"))
                 }
                 setSavingSettings(false)
-              }} disabled={savingSettings} className="self-start h-9">
+              }} disabled={savingSettings} className="self-start h-9" data-telemetry="servers:async">
                 {savingSettings ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Check className="h-4 w-4 mr-1.5" />}
                 {t("players.save")}
               </Button>
@@ -663,7 +663,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                         alert(t("startup.startupSaveFailed", { message: e?.message || t("errors.unknownError") }))
                       }
                       setSavingStartup(false)
-                    }} disabled={savingStartup || !startupCommand} className="self-start h-9">
+                    }} disabled={savingStartup || !startupCommand} className="self-start h-9" data-telemetry="servers:async">
                       {savingStartup ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Check className="h-4 w-4 mr-1.5" />}
                       {t("startup.saveStartup")}
                     </Button>
@@ -708,38 +708,38 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                     {tab === "online" && (
                       <>
                         {isWhitelisted ? (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "unwhitelist" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.removeFromWhitelist")}><UserMinus className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "unwhitelist" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.removeFromWhitelist")} data-telemetry="servers:removefromwhitelist"><UserMinus className="h-3.5 w-3.5" /></button>
                         ) : (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "whitelist" }) }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={t("dialogs.addToWhitelist")}><UserCheck className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "whitelist" }) }} className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title={t("dialogs.addToWhitelist")} data-telemetry="servers:addtowhitelist"><UserCheck className="h-3.5 w-3.5" /></button>
                         )}
                         {isBanned ? (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "pardon" }) }} className="p-1.5 text-muted-foreground hover:text-green-400 hover:bg-green-400/10 transition-colors" title={t("dialogs.pardon")}><Undo2 className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "pardon" }) }} className="p-1.5 text-muted-foreground hover:text-green-400 hover:bg-green-400/10 transition-colors" title={t("dialogs.pardon")} data-telemetry="servers:pardon"><Undo2 className="h-3.5 w-3.5" /></button>
                         ) : (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "ban" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.ban")}><Ban className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "ban" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.ban")} data-telemetry="servers:ban"><Ban className="h-3.5 w-3.5" /></button>
                         )}
-                        <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "kick" }) }} className="p-1.5 text-muted-foreground hover:text-amber-400 hover:bg-amber-400/10 transition-colors" title={t("dialogs.kick")}><LogOut className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "kick" }) }} className="p-1.5 text-muted-foreground hover:text-amber-400 hover:bg-amber-400/10 transition-colors" title={t("dialogs.kick")} data-telemetry="servers:kick"><LogOut className="h-3.5 w-3.5" /></button>
                         {isOpped ? (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "deop" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.deop")}><ShieldOff className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "deop" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.deop")} data-telemetry="servers:deop"><ShieldOff className="h-3.5 w-3.5" /></button>
                         ) : (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "op" }) }} className="p-1.5 text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors" title={t("dialogs.op")}><Crown className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "op" }) }} className="p-1.5 text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors" title={t("dialogs.op")} data-telemetry="servers:op"><Crown className="h-3.5 w-3.5" /></button>
                         )}
                       </>
                     )}
                     {tab === "whitelist" && (
                       <>
                         {isOpped ? (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "deop" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.deop")}><ShieldOff className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "deop" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.deop")} data-telemetry="servers:deop"><ShieldOff className="h-3.5 w-3.5" /></button>
                         ) : (
-                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "op" }) }} className="p-1.5 text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors" title={t("dialogs.op")}><Crown className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "op" }) }} className="p-1.5 text-muted-foreground hover:text-yellow-400 hover:bg-yellow-400/10 transition-colors" title={t("dialogs.op")} data-telemetry="servers:op"><Crown className="h-3.5 w-3.5" /></button>
                         )}
-                        <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "unwhitelist" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.removeFromWhitelist")}><UserMinus className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "unwhitelist" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.removeFromWhitelist")} data-telemetry="servers:removefromwhitelist"><UserMinus className="h-3.5 w-3.5" /></button>
                       </>
                     )}
                     {tab === "bans" && (
-                      <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "pardon" }) }} className="p-1.5 text-muted-foreground hover:text-green-400 hover:bg-green-400/10 transition-colors" title={t("dialogs.pardon")}><Undo2 className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "pardon" }) }} className="p-1.5 text-muted-foreground hover:text-green-400 hover:bg-green-400/10 transition-colors" title={t("dialogs.pardon")} data-telemetry="servers:pardon"><Undo2 className="h-3.5 w-3.5" /></button>
                     )}
                     {tab === "ops" && (
-                      <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "deop" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.deop")}><ShieldOff className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => { setActionTarget(player.name); setActionDialog({ type: "deop" }) }} className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title={t("dialogs.deop")} data-telemetry="servers:deop"><ShieldOff className="h-3.5 w-3.5" /></button>
                     )}
                   </div>
                 </motion.div>
@@ -925,7 +925,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                 disabled={applying || isInstalling || serverStatus === "suspended" || serverStatus === "dmca" ||
                   (serverType === "paper" && (!paperSelectedVersion || (paperSelectedVersion !== "latest" && paperSelectedBuild === null))) ||
                   (serverType === "vanilla" && !vanillaSelectedVersion)}
-              >
+               data-telemetry="servers:apply">
                 {applying && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 {isInstalling ? t("versions.cannotModify") : t("versions.apply", { type: serverType === "paper" ? t("versions.paper") : t("versions.vanilla") })}
               </Button>
@@ -984,7 +984,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
               onKeyDown={(e) => { if (e.key === "Enter") handlePluginSearch() }}
             />
             <Button size="sm" onClick={handlePluginSearch} disabled={pluginSearching || pluginSearch.length < 2}
-              className="absolute right-0.5 top-0.5 h-8 text-xs px-3">
+              className="absolute right-0.5 top-0.5 h-8 text-xs px-3" data-telemetry="servers:pluginsearch">
               {pluginSearching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("plugins.search")}
             </Button>
           </div>
@@ -1011,12 +1011,12 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                     <div className="flex items-center gap-1">
                       {hasSlug && (
                         <button onClick={() => openPreview(p.slug!)}
-                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors flex-shrink-0" title={t("plugins.viewDetails")}>
+                          className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors flex-shrink-0" title={t("plugins.viewDetails")} data-telemetry="servers:viewdetails">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </button>
                       )}
                       <button onClick={() => { setActionTarget(p.filename); setActionDialog({ type: "delete-plugin" }) }}
-                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0" title={t("plugins.delete")}>
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0" title={t("plugins.delete")} data-telemetry="servers:delete">
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
@@ -1078,7 +1078,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
             <p className="text-xs text-muted-foreground">
               {knownPlayersTotal} total player{knownPlayersTotal !== 1 ? 's' : ''}
             </p>
-            <Button variant="outline" size="sm" onClick={loadKnownPlayers} disabled={knownPlayersLoading} className="h-8 text-xs">
+            <Button variant="outline" size="sm" onClick={loadKnownPlayers} disabled={knownPlayersLoading} className="h-8 text-xs" data-telemetry="servers:loadknownplayers">
               <RefreshCw className={`h-3 w-3 mr-1.5 ${knownPlayersLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -1208,7 +1208,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                     <ReactMarkdown
                       components={{
                         a: ({ href, children }) => (
-                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80">{children}</a>
+                          <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:opacity-80" data-telemetry="link:external">{children}</a>
                         ),
                         code: ({ children, ...props }) => (
                           <code className="bg-secondary/30 px-1 py-0.5 text-xs font-mono rounded" {...props}>{children}</code>
@@ -1312,7 +1312,7 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
           )}
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => { setActionDialog(null); setActionTarget(""); setActionReason("") }} className="w-full sm:w-auto" disabled={actionLoading}>{t("dialogs.cancel")}</Button>
-            <Button variant={actionDialog?.type === "ban" || actionDialog?.type === "delete-plugin" ? "destructive" : "default"} onClick={handleAction} disabled={actionLoading} className="w-full sm:w-auto">
+            <Button variant={actionDialog?.type === "ban" || actionDialog?.type === "delete-plugin" ? "destructive" : "default"} onClick={handleAction} disabled={actionLoading} className="w-full sm:w-auto" data-telemetry="servers:action">
               {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : <Check className="h-4 w-4 mr-1.5" />}
               {t("dialogs.confirm")}
             </Button>

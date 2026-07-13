@@ -186,6 +186,7 @@ function JsonBlock({ label, data }: { label: string; data: unknown }) {
     <div className="border border-border bg-secondary/20 min-w-0 overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
+        data-telemetry="activity:toggle-section"
         className="flex items-center gap-1.5 w-full p-2.5 sm:p-3 hover:bg-secondary/40 transition-colors text-left"
       >
         <span className="text-muted-foreground text-[8px] w-2.5">{open ? '▼' : '▶'}</span>
@@ -442,6 +443,7 @@ export default function AccountActivity() {
             <div className="flex flex-wrap gap-1.5 sm:gap-2 min-w-0">
               <button
                 onClick={() => setFilter(null)}
+                data-telemetry="activity:filter-clear"
                 className={cn(
                   "flex items-center gap-1.5 border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
                   !filter
@@ -459,6 +461,7 @@ export default function AccountActivity() {
                   <button
                     key={key}
                     onClick={() => setFilter(isActive ? null : key)}
+                    data-telemetry={`activity:filter:${key}`}
                     className={cn(
                       "flex items-center gap-1.5 border px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-medium transition-colors flex-shrink-0",
                       isActive
@@ -495,6 +498,7 @@ export default function AccountActivity() {
                   variant="outline"
                   disabled={page <= 1 || loading}
                   onClick={() => loadLogs(Math.max(1, page - 1))}
+                  data-telemetry="activity:page-prev"
                   className="h-7 sm:h-8 px-2"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
@@ -504,6 +508,7 @@ export default function AccountActivity() {
                   variant="outline"
                   disabled={!hasMore || loading}
                   onClick={() => loadLogs(page + 1)}
+                  data-telemetry="activity:page-next"
                   className="h-7 sm:h-8 px-2"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -542,6 +547,7 @@ export default function AccountActivity() {
                         {/* Main Row */}
                         <div
                           className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 cursor-pointer hover:bg-secondary/30 min-w-0"
+                          data-telemetry="activity:expand-entry"
                           onClick={() => toggleExpand(item.id)}
                         >
                           {/* Icon */}
@@ -736,6 +742,7 @@ export default function AccountActivity() {
                   size="sm"
                   variant="ghost"
                   onClick={() => setSelectedLog(null)}
+                  data-telemetry="activity:close-detail"
                   className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground flex-shrink-0"
                 >
                   <X className="h-4 w-4" />

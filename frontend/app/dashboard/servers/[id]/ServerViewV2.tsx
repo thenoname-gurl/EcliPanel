@@ -391,7 +391,7 @@ export function ServerViewV2({ server, id }: ServerViewV2Props) {
                   }
                 }}
                 className="w-full sm:w-auto"
-              >
+               data-telemetry="servers:async">
                 <Check className="h-4 w-4 mr-2" />
                 Use Skip Token ({devlogBlock.skipTokensRemaining})
               </Button>

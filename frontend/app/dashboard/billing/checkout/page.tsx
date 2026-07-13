@@ -331,7 +331,7 @@ export default function CheckoutPage() {
                         onClick={handleApplyCoupon}
                         disabled={!couponCode.trim() || couponApplying}
                         className="h-9 px-4 bg-primary text-primary-foreground text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-                      >
+                       data-telemetry="billing:applycoupon">
                         {couponApplying ? <Loader2 className="h-4 w-4 animate-spin" /> : t("coupon.apply") || "Apply"}
                       </button>
                     </div>
@@ -444,11 +444,11 @@ export default function CheckoutPage() {
                     <p className="text-xs text-muted-foreground mb-2">{t("selectMethod.activationTitle")}</p>
                     <div className="flex flex-col gap-2">
                       <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'now' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
-                        <input type="radio" name="activateMode" checked={activateMode === 'now'} onChange={() => setActivateMode('now')} className="accent-primary" />
+                        <input type="radio" name="activateMode" checked={activateMode === 'now'} onChange={() => setActivateMode('now')} className="accent-primary"  data-telemetry="billing:input:activatemode"/>
                         <span className="text-sm text-foreground">{t("selectMethod.activateNow")}</span>
                       </label>
                       <label className={`flex items-center gap-2 p-2 cursor-pointer border transition-colors ${activateMode === 'renewal' ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
-                        <input type="radio" name="activateMode" checked={activateMode === 'renewal'} onChange={() => setActivateMode('renewal')} className="accent-primary" />
+                        <input type="radio" name="activateMode" checked={activateMode === 'renewal'} onChange={() => setActivateMode('renewal')} className="accent-primary"  data-telemetry="billing:input:activatemode"/>
                         <span className="text-sm text-foreground">{t("selectMethod.activateOnRenewal")}</span>
                       </label>
                     </div>
@@ -458,14 +458,14 @@ export default function CheckoutPage() {
                   onClick={handleSelectMethod}
                   disabled={!selectedMethod}
                   className="flex w-full items-center justify-center gap-2 bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-                >
+                 data-telemetry="billing:selectmethod">
                   {t("selectMethod.continue")}
                 </button>
                 <button
                   onClick={handleCancelOrder}
                   disabled={cancelling}
                   className="flex w-full items-center justify-center gap-2 border border-destructive/30 bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-                >
+                 data-telemetry="billing:cancelorder">
                   {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
                   {t("selectMethod.cancelOrder")}
                 </button>
@@ -531,7 +531,7 @@ export default function CheckoutPage() {
                   <a
                     href={getWalletUri(paymentDetails.network, paymentDetails.address) ?? "#"}
                     className="flex items-center justify-center gap-2 border border-primary/30 bg-primary/5 py-3 text-sm font-medium text-primary transition-all hover:bg-primary/10 hover:border-primary/50"
-                  >
+                   data-telemetry="link:external">
                     <ExternalLink className="h-4 w-4" />
                     Open in {paymentDetails.network.charAt(0).toUpperCase() + paymentDetails.network.slice(1)} Wallet
                   </a>
@@ -562,7 +562,7 @@ export default function CheckoutPage() {
                           onClick={handleMarkSent}
                           disabled={markingSent}
                           className="flex flex-1 items-center justify-center gap-2 bg-primary py-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-                        >
+                         data-telemetry="billing:marksent">
                           {markingSent ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
@@ -581,7 +581,7 @@ export default function CheckoutPage() {
                         onClick={handleCancelOrder}
                         disabled={cancelling}
                         className="flex w-full items-center justify-center gap-2 border border-destructive/30 bg-destructive/10 py-3 text-sm font-medium text-destructive transition-colors hover:bg-destructive/20 disabled:opacity-50"
-                      >
+                       data-telemetry="billing:cancelorder">
                         {cancelling ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
                         {t("instructions.cancelOrder")}
                       </button>

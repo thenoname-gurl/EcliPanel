@@ -836,14 +836,14 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                 <button
                   onClick={scheduleTodos}
                   className="px-2.5 py-1.5 text-[10px] font-medium rounded-lg border border-border/60 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors flex items-center gap-1"
-                >
+                 data-telemetry="calendar:scheduletodos">
                   <Sparkles className="h-3 w-3" /> Auto-schedule
                 </button>
                 <button
                   onClick={handleAiPlan}
                   disabled={aiPlanning}
                   className="px-2.5 py-1.5 text-[10px] font-medium rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex items-center gap-1 disabled:opacity-60"
-                >
+                 data-telemetry="calendar:aiplan">
                   <Bot className={cn("h-3 w-3", aiPlanning && "animate-spin")} />
                   AI Plan
                 </button>
@@ -865,7 +865,7 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                   <button
                     onClick={goToday}
                     className="px-2 md:px-3 py-1 md:py-1.5 text-[11px] md:text-xs font-medium rounded-lg border border-border/60 text-foreground hover:bg-secondary/60 transition-colors"
-                  >
+                   data-telemetry="calendar:gotoday">
                     Today
                   </button>
                   <button
@@ -916,7 +916,7 @@ Suggest a concise daily plan for this week, prioritizing high-priority items fir
                     onClick={handleIcsExport}
                     className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
                     title="Export ICS"
-                  >
+                   data-telemetry="calendar:icsexport">
                     <Share2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -2084,7 +2084,7 @@ function EventChip({
         onClick={onClick}
         className="w-full flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded truncate text-white font-medium hover:brightness-110 transition-all text-left"
         style={{ backgroundColor: ev.color }}
-      >
+       data-telemetry="calendar:click">
         <span className="opacity-80 shrink-0">{formatTime(ev.startTime)}</span>
         <span className="truncate">{ev.title}</span>
       </button>
@@ -2148,7 +2148,7 @@ function TodoChip({
           ps.bg,
         )}
         style={{ borderLeftColor: ps.dot }}
-      >
+       data-telemetry="calendar:click">
         {todo.dueTime && (
           <span className="text-muted-foreground shrink-0">{formatTime(todo.dueTime)}</span>
         )}
@@ -2360,14 +2360,14 @@ function EventDialog({
               size="sm"
               onClick={onDelete}
               className="text-red-600 border-red-500/30 hover:bg-red-500/10 mr-auto"
-            >
+             data-telemetry="calendar:delete">
               <Trash2 className="h-3 w-3 mr-1" /> Delete
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="sm" onClick={onSave} disabled={!form.title.trim()}>
+          <Button size="sm" onClick={onSave} disabled={!form.title.trim()} data-telemetry="calendar:save">
             {editingEvent ? "Save changes" : "Create event"}
           </Button>
         </DialogFooter>
@@ -2531,14 +2531,14 @@ function TodoDialog({
               size="sm"
               onClick={onDelete}
               className="text-red-600 border-red-500/30 hover:bg-red-500/10 mr-auto"
-            >
+             data-telemetry="calendar:delete">
               <Trash2 className="h-3 w-3 mr-1" /> Delete
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button size="sm" onClick={onSave} disabled={!form.title.trim()}>
+          <Button size="sm" onClick={onSave} disabled={!form.title.trim()} data-telemetry="calendar:save">
             {editingTodo ? "Save changes" : "Create task"}
           </Button>
         </DialogFooter>
@@ -2886,7 +2886,7 @@ function TodoView({
                 onClick={quickAdd}
                 disabled={!newTodoTitle.trim()}
                 className="p-1 text-primary hover:text-primary/80 disabled:text-muted-foreground/30 transition-colors"
-              >
+               data-telemetry="calendar:quickadd">
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -2915,7 +2915,7 @@ function TodoView({
                   onClick={applyAiPlan}
                   disabled={applyingPlan}
                   className="text-xs gap-1"
-                >
+                 data-telemetry="calendar:applyaiplan">
                   {applyingPlan ? (
                     <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
@@ -2954,7 +2954,7 @@ function TodoView({
             variant="outline"
             onClick={openNew}
             className="text-xs gap-1 h-7 mb-1"
-          >
+           data-telemetry="calendar:opennew">
             <Plus className="h-3 w-3" /> New Task
           </Button>
         </div>
@@ -3634,7 +3634,7 @@ function BookingsView({ onEventsChange }: { onEventsChange: () => void }) {
               >
                 Cancel
               </Button>
-              <Button size="sm" onClick={save} disabled={!form.name.trim()}>
+              <Button size="sm" onClick={save} disabled={!form.name.trim()} data-telemetry="calendar:save">
                 {editSchedule ? "Save changes" : "Create schedule"}
               </Button>
             </DialogFooter>

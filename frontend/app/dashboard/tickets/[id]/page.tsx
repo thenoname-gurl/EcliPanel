@@ -725,7 +725,7 @@ export default function TicketDetailPage({
         disabled={savingAdmin}
         className="w-full bg-primary text-primary-foreground"
         size="sm"
-      >
+       data-telemetry="tickets:saveadminchanges">
         {savingAdmin ? (
           <>
             <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1.5" />
@@ -764,7 +764,7 @@ export default function TicketDetailPage({
                 }
               }}
               className="flex items-center justify-center gap-1.5 border border-red-500/30 bg-red-500/5 px-2 py-2 text-[11px] sm:text-xs font-medium text-red-600 hover:bg-red-500/15 active:scale-[0.98] transition-all"
-            >
+             data-telemetry="tickets:async">
               <Ban className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {t("actions.ban")}
             </button>
@@ -789,7 +789,7 @@ export default function TicketDetailPage({
                 }
               }}
               className="flex items-center justify-center gap-1.5 border border-border px-2 py-2 text-[11px] sm:text-xs font-medium text-muted-foreground hover:bg-secondary/50 active:scale-[0.98] transition-all"
-            >
+             data-telemetry="tickets:async">
               <UserCheck className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               {t("actions.unban")}
             </button>
@@ -798,7 +798,7 @@ export default function TicketDetailPage({
             onClick={deleteTicket}
             disabled={deleting}
             className="flex items-center justify-center gap-1.5 border border-red-500/30 px-3 py-2 text-[11px] sm:text-xs font-medium text-red-600 hover:bg-red-500/15 active:scale-[0.98] transition-all disabled:opacity-50"
-          >
+           data-telemetry="tickets:deleteticket">
             {deleting ? (
               <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
             ) : (
@@ -1146,7 +1146,7 @@ export default function TicketDetailPage({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="block"
-                              >
+                               data-telemetry="link:external">
                                 <img
                                   src={url}
                                   alt={`Screenshot ${i + 1}`}
@@ -1302,7 +1302,7 @@ export default function TicketDetailPage({
                           ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 active:scale-90"
                           : "bg-secondary/50 text-muted-foreground/40 cursor-not-allowed"
                       }`}
-                    >
+                     data-telemetry="tickets:send">
                       {sending ? (
                         <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" />
                       ) : (

@@ -182,5 +182,6 @@ export const AppDataSource = new DataSource({
     require('../models/securityFinding.entity').SecurityFinding,
     require('../models/detectionRule.entity').DetectionRule,
     require('../models/adminAuditEntry.entity').AdminAuditEntry,
+    require('../models/telemetryEvent.entity').TelemetryEvent,
   ],
 });

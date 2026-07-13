@@ -375,10 +375,10 @@ export default function InfraNodesPage() {
               {t("states.nodesRegistered", { count: nodes.length })}
             </span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={loadNodes} className="flex-1 sm:flex-none border-border h-10 sm:h-9 gap-1.5">
+              <Button variant="outline" size="sm" onClick={loadNodes} className="flex-1 sm:flex-none border-border h-10 sm:h-9 gap-1.5" data-telemetry="infrastructure:loadnodes">
                 <RefreshCw className="h-4 w-4" /> {t("actions.refresh")}
               </Button>
-              <Button size="sm" onClick={openNew} className="flex-1 sm:flex-none bg-primary text-primary-foreground h-10 sm:h-9 gap-1.5">
+              <Button size="sm" onClick={openNew} className="flex-1 sm:flex-none bg-primary text-primary-foreground h-10 sm:h-9 gap-1.5" data-telemetry="infrastructure:opennew">
                 <Plus className="h-4 w-4" /> {t("actions.addNode")}
               </Button>
             </div>
@@ -394,7 +394,7 @@ export default function InfraNodesPage() {
               <HardDrive className="mx-auto h-8 w-8 text-muted-foreground/50 mb-3" />
               <p className="text-sm font-medium text-foreground">{t("states.noNodesTitle")}</p>
               <p className="text-xs text-muted-foreground mt-1">{t("states.noNodesDescription")}</p>
-              <Button size="sm" onClick={openNew} className="mt-4 bg-primary text-primary-foreground gap-1.5">
+              <Button size="sm" onClick={openNew} className="mt-4 bg-primary text-primary-foreground gap-1.5" data-telemetry="infrastructure:opennew">
                 <Plus className="h-3.5 w-3.5" /> {t("actions.addNode")}
               </Button>
             </div>
@@ -560,7 +560,7 @@ export default function InfraNodesPage() {
                     variant="outline"
                     onClick={generateToken}
                     className="border-border shrink-0 h-9 px-3 text-xs"
-                  >
+                   data-telemetry="infrastructure:generatetoken">
                     {t("actions.generate")}
                   </Button>
                 </div>
@@ -820,7 +820,7 @@ export default function InfraNodesPage() {
                 (nodeDialog === "new" && !nodeToken.trim())
               }
               className="bg-primary text-primary-foreground"
-            >
+             data-telemetry="infrastructure:savenode">
               {nodeLoading ? t("actions.saving") : nodeDialog === "new" ? t("actions.addNode") : t("actions.saveChanges")}
             </Button>
           </DialogFooter>
@@ -935,7 +935,7 @@ export default function InfraNodesPage() {
                 onClick={submitMassAlloc}
                 disabled={massAllocLoading || !massAllocOldIp.trim() || !massAllocNewIp.trim()}
                 className="bg-warning text-warning-foreground hover:bg-warning/90"
-              >
+               data-telemetry="infrastructure:submitmassalloc">
                 {massAllocLoading ? "Re-IPing..." : "Execute Re-IP"}
               </Button>
             )}
@@ -1050,7 +1050,7 @@ export default function InfraNodesPage() {
                 onClick={submitReboot}
                 disabled={rebootLoading}
                 className="bg-warning text-warning-foreground hover:bg-warning/90 gap-1.5"
-              >
+               data-telemetry="infrastructure:submitreboot">
                 {rebootLoading ? (
                   <><RefreshCw className="h-3.5 w-3.5 rounded-full animate-spin" /> Starting...</>
                 ) : (

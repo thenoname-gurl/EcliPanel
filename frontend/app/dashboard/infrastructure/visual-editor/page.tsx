@@ -1403,7 +1403,7 @@ export default function VisualEditorPage() {
             <p className="text-xs text-muted-foreground">Create powerful applications in TypeScript (Bun) via visual code editor</p>
           </div>
           <div className="flex items-center gap-1.5 flex-wrap">
-            <Button variant="outline" size="sm" className="h-7 text-[10px] lg:text-xs" onClick={loadBlueprints}>
+            <Button variant="outline" size="sm" className="h-7 text-[10px] lg:text-xs" onClick={loadBlueprints} data-telemetry="infrastructure:loadblueprints">
               <FileCode className="h-3.5 w-3.5 mr-1" />Blueprints
             </Button>
             <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => {
@@ -1414,10 +1414,10 @@ export default function VisualEditorPage() {
             }}>
               <Moon className="h-3.5 w-3.5 mr-1" />New
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleUndo} disabled={undoStackRef.current.length === 0} title="Undo (Ctrl+Z)">
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleUndo} disabled={undoStackRef.current.length === 0} title="Undo (Ctrl+Z)" data-telemetry="infrastructure:undo">
               <ChevronLeft className="h-3.5 w-3.5" />
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleRedo} disabled={redoStackRef.current.length === 0} title="Redo (Ctrl+Shift+Z)">
+            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleRedo} disabled={redoStackRef.current.length === 0} title="Redo (Ctrl+Shift+Z)" data-telemetry="infrastructure:redo">
               <ChevronRight className="h-3.5 w-3.5" />
             </Button>
             <div className="w-px h-5 bg-border/30 mx-0.5" />
@@ -1431,7 +1431,7 @@ export default function VisualEditorPage() {
               </Button>
             ) : null}
             <div className="w-px h-5 bg-border/30 mx-0.5" />
-            <Button size="sm" className="h-7 text-xs" data-guide-id="btn-generate" onClick={handleGenerate} disabled={generating}>
+            <Button size="sm" className="h-7 text-xs" data-guide-id="btn-generate" onClick={handleGenerate} disabled={generating} data-telemetry="btn-generate">
               {generating ? <Loader2 className="h-3.5 w-3.5 mr-1 rounded-full animate-spin" /> : <PlayIcon className="h-3.5 w-3.5 mr-1" />}
               {generating ? "Generating..." : validation.hasErrors ? "Fix Errors" : "Generate"}
             </Button>
@@ -1440,10 +1440,10 @@ export default function VisualEditorPage() {
                 <ClipboardCopy className="h-3.5 w-3.5 mr-1" />Paste
               </Button>
             )}
-            <Button variant="outline" size="sm" className="h-7 text-xs" data-guide-id="btn-library" onClick={() => setShowLib(true)}>
+            <Button variant="outline" size="sm" className="h-7 text-xs" data-guide-id="btn-library" onClick={() => setShowLib(true)} data-telemetry="btn-library">
               <Library className="h-3.5 w-3.5 mr-1" />Library
             </Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" data-guide-id="btn-guide" onClick={() => setShowGuide(true)}>
+            <Button variant="outline" size="sm" className="h-7 text-xs" data-guide-id="btn-guide" onClick={() => setShowGuide(true)} data-telemetry="btn-guide">
               <Compass className="h-3.5 w-3.5 mr-1" />Guide
             </Button>
           </div>
@@ -1516,7 +1516,7 @@ export default function VisualEditorPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" className="h-7 text-xs whitespace-nowrap" onClick={handleSave} disabled={saving}>
+              <Button variant="outline" size="sm" className="h-7 text-xs whitespace-nowrap" onClick={handleSave} disabled={saving} data-telemetry="infrastructure:save">
                 {saving ? <Loader2 className="h-3.5 w-3.5 mr-1 rounded-full animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
                 {selectedBpToOverwrite ? "Overwrite" : "Save current"}
               </Button>
@@ -1559,7 +1559,7 @@ export default function VisualEditorPage() {
                 maxLength={512}
                 className="h-7 text-xs"
               />
-              <Button variant="outline" size="sm" className="h-7 text-xs whitespace-nowrap" onClick={saveToLibrary}>
+              <Button variant="outline" size="sm" className="h-7 text-xs whitespace-nowrap" onClick={saveToLibrary} data-telemetry="infrastructure:savetolibrary">
                 <Save className="h-3.5 w-3.5 mr-1" />Save current
               </Button>
             </div>
@@ -1612,7 +1612,7 @@ export default function VisualEditorPage() {
               )}
             </div>
           ))}
-          <button onClick={addFile} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground border-b-2 border-transparent">
+          <button onClick={addFile} className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground border-b-2 border-transparent" data-telemetry="infrastructure:addfile">
             + Add File
           </button>
         </div>
@@ -1822,7 +1822,7 @@ export default function VisualEditorPage() {
                   type="text" placeholder="Search blocks..."
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   className="w-full h-7 pl-6 pr-2 text-[11px] border border-border/20 bg-background/50 focus:outline-none focus:border-purple-500/40 placeholder:text-muted-foreground/30"
-                />
+                 data-telemetry="palette-search"/>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0" data-guide-id="palette-list">
@@ -2062,7 +2062,7 @@ export default function VisualEditorPage() {
                 <FileCode className="h-3.5 w-3.5 text-amber-500" />Generated Bun Code
               </span>
               <div className="flex items-center gap-1.5">
-                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={handleCopy}>
+                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={handleCopy} data-telemetry="infrastructure:copy">
                   {copied ? <Check className="h-3 w-3 mr-0.5 text-green-500" /> : <Copy className="h-3 w-3 mr-0.5" />}
                   {copied ? "Copied!" : "Copy"}
                 </Button>
@@ -2269,7 +2269,7 @@ function ConditionsBuilder({ block, onUpdate }: { block: Block; onUpdate: (id: s
     <div className="space-y-3 pt-2 border-t border-border/20">
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-medium text-muted-foreground/70">Extra conditions</p>
-        <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={addCondition}>
+        <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={addCondition} data-telemetry="infrastructure:addcondition">
           <Plus className="h-3 w-3" /> Add condition
         </Button>
       </div>

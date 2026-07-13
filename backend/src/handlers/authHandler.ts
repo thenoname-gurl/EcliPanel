@@ -2315,6 +2315,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
             emailVerified: user.emailVerified ?? false,
             passkeyCount,
             studentVerified: user.studentVerified || false,
+            termsConsentVersion: user.termsConsentVersion || null,
             twoFactorEnabled: !!user.twoFactorEnabled,
             avatarUrl: user.avatarUrl || null,
             supportBanned: !!user.supportBanned,

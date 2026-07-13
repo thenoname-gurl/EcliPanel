@@ -141,7 +141,7 @@ function markdownToHtml(md: string): string {
       .replace(/\*(.+?)\*/g, "<em>$1</em>")
       .replace(/~~(.+?)~~/g, "<s>$1</s>")
       .replace(/`([^`]+)`/g, "<code style=\"background:hsl(var(--card));padding:1px 5px;border-radius:4px;font-size:0.875em\">$1</code>")
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary))">$1</a>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" style="color:hsl(var(--primary))" data-telemetry="link:external">$1</a>')
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
@@ -613,7 +613,7 @@ function AttachmentCard({ attachment }: { attachment: Attachment }) {
             </button>
           )}
           <a href={attachment.url} download={attachment.filename} target="_blank" rel="noreferrer"
-            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors">
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors" data-telemetry="link:external">
             <Download className="h-3.5 w-3.5" />
           </a>
         </div>
@@ -699,10 +699,10 @@ function RemoteImagesBar({ onAllow, onAlwaysAllow }: { onAllow: () => void; onAl
         Remote images are blocked for privacy
       </div>
       <div className="flex items-center gap-3 ml-auto">
-        <button onClick={onAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2">
+        <button onClick={onAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2" data-telemetry="mailbox:allow">
           Show once
         </button>
-        <button onClick={onAlwaysAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2">
+        <button onClick={onAlwaysAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2" data-telemetry="mailbox:alwaysallow">
           Always allow from sender
         </button>
       </div>
@@ -1016,7 +1016,7 @@ function ComposePane({
           type="button"
           onClick={onClose}
           className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
-        >
+         data-telemetry="mailbox:close">
           <ChevronLeft className="h-4 w-4" />
         </button>
         <div className="min-w-0 flex-1">
@@ -1036,7 +1036,7 @@ function ComposePane({
             className="h-9 px-3 text-xs"
             onClick={handleSend}
             disabled={sending || !canSend}
-          >
+           data-telemetry="mailbox:send">
             {sending ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             <span className="hidden sm:inline">Send</span>
           </Button>
@@ -1646,7 +1646,7 @@ export default function MailboxPage() {
               onClick={handleRefresh}
               disabled={refreshing || sentLoading}
               className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
-            >
+             data-telemetry="mailbox:refresh">
               <RefreshCw className={cn("h-3.5 w-3.5", (refreshing || sentLoading) && "rounded-full animate-spin")} />
             </button>
           </div>

@@ -37,7 +37,7 @@ export default function CookiesPolicyPage() {
               Cookies Policy
             </p>
             <p className="text-sm leading-7 text-white/70 sm:text-base">
-              Effective Date: April 13th, 2026.
+              Effective Date: July 13th, 2026.
             </p>
           </div>
         </section>
@@ -70,8 +70,11 @@ export default function CookiesPolicyPage() {
               support UI features.
             </li>
             <li>
-              <strong>Analytics cookies:</strong> Help us understand usage
-              patterns and improve our products.
+              <strong>Analytics cookies:</strong> First-party cookies that help
+              us understand usage patterns (page views, feature interactions,
+              navigation flows) so we can improve the user experience. All
+              analytics are processed on our own infrastructure; no third-party
+              analytics providers are used.
             </li>
           </ul>
         </section>
@@ -93,8 +96,10 @@ export default function CookiesPolicyPage() {
             Third-Party Cookies
           </h2>
           <p className="mt-4 text-[16px] leading-7 text-white/70">
-            We may permit third parties to set cookies for analytics, security,
-            or performance. Those providers operate under their own policies.
+            We may permit third parties to set cookies for security or
+            performance purposes (such as CAPTCHA providers). Those providers
+            operate under their own policies. We do not use third-party
+            analytics or advertising cookies.
           </p>
         </section>
       </div>

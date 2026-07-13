@@ -608,6 +608,30 @@ export async function userRoutes(app: any, prefix = '') {
     }
   );
 
+  app.post(
+    prefix + '/users/me/terms-consent',
+    async (ctx: any) => {
+      const requester = ctx.user as User;
+      if (!requester) {
+        ctx.set.status = 401;
+        return { error: 'Not authenticated' };
+      }
+      const body = ctx.body as { version?: string };
+      const version = String(body?.version || '').slice(0, 32);
+      if (!version) {
+        ctx.set.status = 400;
+        return { error: 'version required' };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      await userRepo.update(requester.id, { termsConsentVersion: version });
+      return { ok: true, version };
+    },
+    {
+      beforeHandle: authenticate,
+      detail: { summary: 'Record terms/policy consent version', tags: ['Users'] },
+    }
+  );
+
 
   const mailboxDomain = String(
     process.env.MAILBOX_DOMAIN || process.env.MAIL_DOMAIN || 'ecli.app'

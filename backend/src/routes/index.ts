@@ -39,6 +39,7 @@ import { paymentRoutes } from '../handlers/paymentHandler';
 import { eloRoutes } from '../handlers/eloHandler';
 import { slackRoutes } from '../handlers/slackHandler';
 import { proxyRoutes } from '../handlers/proxyHandler';
+import { telemetryIngestRoutes, telemetryAdminRoutes } from '../handlers/telemetryHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 // Elysia 2 is amazing but hell they did a lot of changes :sob:
@@ -167,4 +168,6 @@ export function registerRoutes(app: any) {
   calendarRoutes(app, '/api');
   chatRoutes(app, '/api');
   proxyRoutes(app, '/api');
+  telemetryIngestRoutes(app, '/api');
+  telemetryAdminRoutes(app, '/api');
 }

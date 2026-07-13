@@ -172,7 +172,7 @@ export default function DashboardEloUserProfile() {
                             <div className="shrink-0 flex items-center gap-2">
                               {p.demoUrl && (
                                 p.demoUrl.startsWith("http") ? (
-                                  <a href={p.demoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                  <a href={p.demoUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} data-telemetry="link:external">
                                     <Globe className="h-4 w-4 text-primary hover:text-primary/80" />
                                   </a>
                                 ) : (
@@ -182,7 +182,7 @@ export default function DashboardEloUserProfile() {
                                 )
                               )}
                               {p.githubUrl && (
-                                <a href={p.githubUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                                <a href={p.githubUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} data-telemetry="link:external">
                                   <GitBranch className="h-4 w-4 text-muted-foreground hover:text-foreground" />
                                 </a>
                               )}

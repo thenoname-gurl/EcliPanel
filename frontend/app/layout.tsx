@@ -63,6 +63,7 @@ import GlobalQueryBanner from "@/components/GlobalQueryBanner";
 import Guide from "@/components/Guide";
 import { GlobalLinkGuard } from "@/components/panel/global-link-guard";
 import { GlobalImageProxy } from "@/components/panel/global-image-proxy";
+import TelemetryProvider from "@/components/TelemetryProvider";
 
 export default async function RootLayout({
   children,
@@ -171,6 +172,9 @@ export default async function RootLayout({
             </Suspense>
             <Suspense fallback={null}>
               <GlobalImageProxy />
+            </Suspense>
+            <Suspense fallback={null}>
+              <TelemetryProvider />
             </Suspense>
             <div className="flex-1 flex flex-col min-w-0">{children}</div>
             <Footer hideOnDashboard />

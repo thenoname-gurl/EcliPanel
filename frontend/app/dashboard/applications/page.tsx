@@ -302,7 +302,7 @@ function FormCard({
                   ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                   : "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
               )}
-            >
+             data-telemetry="link:external">
               {action.type === "apply" ? (
                 <>
                   Open Application
@@ -537,7 +537,7 @@ export default function ApplicationsPage() {
                     <button
                       onClick={loadData}
                       className="flex items-center gap-2 px-4 py-2 border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                    >
+                     data-telemetry="applications:loaddata">
                       <RefreshCw className="h-4 w-4" />
                       Refresh
                     </button>
@@ -552,7 +552,7 @@ export default function ApplicationsPage() {
                         onClick={loadData}
                         className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                         title="Refresh"
-                      >
+                       data-telemetry="applications:loaddata">
                         <RefreshCw className="h-3.5 w-3.5" />
                       </button>
                     </div>

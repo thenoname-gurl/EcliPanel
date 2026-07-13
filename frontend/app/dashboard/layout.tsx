@@ -8,6 +8,7 @@ import { EnforcementBanner } from "@/components/panel/enforcement-banner";
 import { PasswordUpgradeBanner } from "@/components/panel/password-upgrade-banner";
 import { SunsetNoticeBanner } from "@/components/panel/sunset-notice-banner";
 import { KycBanner } from "@/components/panel/kyc-banner";
+import { TermsUpdateBanner } from "@/components/panel/terms-update-banner";
 import { FeedbackDialog } from "@/components/panel/feedback-dialog";
 import { Footer } from "@/components/Footer";
 import { createContext, useContext } from "react";
@@ -53,7 +54,7 @@ export default function DashboardLayout({
               onClick={() => setMobileSidebarOpen(true)}
               className="p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
               aria-label="Open navigation"
-            >
+             data-telemetry="dashboard:open-mobile-sidebar">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z" clipRule="evenodd" />
             </svg>
@@ -65,6 +66,7 @@ export default function DashboardLayout({
         <PasswordUpgradeBanner />
         <SunsetNoticeBanner />
         <KycBanner />
+        <TermsUpdateBanner />
         <FeedbackDialog />
         <div className={"flex-1 min-h-0"}>
           <SidebarContext.Provider value={{ show: showSidebar, toggle: () => setShowSidebar(s => !s) }}>

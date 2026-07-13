@@ -387,7 +387,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                   onClick={() => setMessages(INITIAL_MESSAGES)}
                   className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center bg-secondary/50 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                   title={t("actions.clearChat")}
-                >
+                 data-telemetry="ai-chat:clearchat">
                   <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 </button>
               </div>
@@ -400,7 +400,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
               target="_blank"
               rel="noopener noreferrer"
               className="shrink-0 flex items-center justify-center gap-1.5 border-b border-border/50 bg-primary/5 px-3 py-1.5 text-[10px] sm:text-[11px] text-primary/70 hover:text-primary hover:bg-primary/10 transition-colors"
-            >
+             data-telemetry="link:external">
               <Sparkles className="h-3 w-3" />
               Bring your own AI — get an API key from OpenCode Go
               <ExternalLink className="h-2.5 w-2.5" />
@@ -465,7 +465,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                             onClick={() => copyToClipboard(msg.content, msg.id)}
                             className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.copy")}
-                          >
+                           data-telemetry="ai-chat:copy">
                             {copiedId === msg.id ? (
                               <Check className="h-3 w-3 text-green-600" />
                             ) : (
@@ -475,19 +475,19 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                           <button
                             className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.good")}
-                          >
+                           data-telemetry="ai-chat:good">
                             <ThumbsUp className="h-3 w-3" />
                           </button>
                           <button
                             className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.bad")}
-                          >
+                           data-telemetry="ai-chat:bad">
                             <ThumbsDown className="h-3 w-3" />
                           </button>
                           <button
                             className="p-1 text-muted-foreground/60 hover:bg-secondary hover:text-foreground transition-colors"
                             title={t("messageActions.retry")}
-                          >
+                           data-telemetry="ai-chat:retry">
                             <RotateCcw className="h-3 w-3" />
                           </button>
                         </div>
@@ -618,7 +618,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                       ? "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-primary/40 active:scale-90"
                       : "bg-secondary/50 text-muted-foreground/40 cursor-not-allowed"
                     }`}
-                >
+                 data-telemetry="ai-chat:send">
                   <Send className="h-4 w-4" />
                 </button>
               </div>
@@ -691,7 +691,7 @@ Keep responses concise and actionable. Use code blocks for commands, configs, an
                     key={i}
                     onClick={item.action}
                     className="flex flex-col items-center gap-1.5 bg-secondary/40 border border-border/30 p-3 active:scale-95 active:bg-secondary transition-all"
-                  >
+                   data-telemetry="ai-chat:item">
                     <item.icon className="h-5 w-5 text-foreground" />
                     <span className="text-[10px] text-muted-foreground font-medium">
                       {item.label}

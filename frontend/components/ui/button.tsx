@@ -36,6 +36,10 @@ const buttonVariants = cva(
   },
 )
 
+function sanitizeTelemetry(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9-\s]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
+}
+
 function Button({
   className,
   variant,
@@ -48,11 +52,18 @@ function Button({
   }) {
   const Comp = asChild ? Slot : 'button'
 
+  const autoTelemetry = !asChild
+    ? (props['aria-label'] ? sanitizeTelemetry(props['aria-label'])
+      : props.title ? sanitizeTelemetry(props.title)
+      : undefined)
+    : undefined;
+
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
+      {...(autoTelemetry && !props['data-telemetry'] ? { 'data-telemetry': autoTelemetry } : {})}
     />
   )
 }

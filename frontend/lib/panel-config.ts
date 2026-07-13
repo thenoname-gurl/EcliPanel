@@ -449,6 +449,7 @@ export const API_ENDPOINTS = {
   // alias for current user
   me: "/api/users/me",
   sunsetConfirm: "/api/users/me/sunset-confirm",
+  termsConsent: "/api/users/me/terms-consent",
   userUpdate: "/api/users/:id",
   userFavorites: "/api/users/me/favorites",
   mailboxFavorites: "/api/users/me/mailbox/favorites",
@@ -544,6 +545,11 @@ export const API_ENDPOINTS = {
   chatPublicChannels: "/api/chat/public/channels",
   chatWs: "/api/ws/chat",
   chatUpload: "/api/chat/upload",
+
+  // Telemetry
+  telemetryIngest: "/api/telemetry/ingest",
+  adminTelemetry: "/api/admin/telemetry",
+  adminTelemetryClear: "/api/admin/telemetry/clear",
 } as const
 
 // ============================================

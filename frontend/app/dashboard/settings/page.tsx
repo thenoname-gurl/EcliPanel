@@ -278,7 +278,7 @@ function TabButton({
           ? "bg-primary text-primary-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground hover:bg-secondary/50 active:bg-secondary"
       )}
-    >
+     data-telemetry="settings:click">
       <Icon className="h-4 w-4" />
       <span className="hidden sm:inline">{label}</span>
       {count !== undefined && count > 0 && (
@@ -506,7 +506,7 @@ function PasskeyManager() {
           (typeof window !== "undefined" && (!window.isSecureContext || !navigator.credentials))
         }
         className="flex items-center justify-center gap-2 border-2 border-dashed border-border bg-secondary/20 px-4 py-3.5 text-sm font-medium text-muted-foreground transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-      >
+       data-telemetry="settings:addpasskey">
         {registering ? (
           <>
             <Loader2 className="h-4 w-4 rounded-full animate-spin" />
@@ -731,7 +731,7 @@ function SshKeyManager() {
               onClick={handleAdd}
               disabled={adding || !name.trim() || !publicKey.trim()}
               className="flex-1 flex items-center justify-center gap-2 bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors active:scale-[0.98]"
-            >
+             data-telemetry="settings:add">
               {adding ? <Loader2 className="h-4 w-4 rounded-full animate-spin" /> : <Plus className="h-4 w-4" />}
               {t("ssh.addKey")}
             </button>
@@ -843,7 +843,7 @@ function TwoFactorManager() {
                 onClick={startSetup}
                 disabled={loading}
                 className="w-full sm:w-auto shrink-0 bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
-              >
+               data-telemetry="settings:startsetup">
                 {loading ? t("twoFactor.loading") : t("twoFactor.enable")}
               </button>
             </div>
@@ -876,7 +876,7 @@ function TwoFactorManager() {
                       onClick={copySecret}
                       className="absolute top-2 right-2 p-2 bg-secondary/80 hover:bg-secondary transition-colors"
                       title={t("twoFactor.copyToClipboard")}
-                    >
+                     data-telemetry="settings:copytoclipboard">
                       {copied ? (
                         <Check className="h-4 w-4 text-green-500" />
                       ) : (
@@ -909,7 +909,7 @@ function TwoFactorManager() {
                     onClick={verifyAndEnable}
                     disabled={loading || !token || token.length !== 6}
                     className="flex-1 bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 active:scale-[0.98] transition-all"
-                  >
+                   data-telemetry="settings:verifyandenable">
                     {loading ? t("twoFactor.verifying") : t("twoFactor.verifyEnable")}
                   </button>
                 </div>
@@ -940,7 +940,7 @@ function TwoFactorManager() {
               onClick={disable2fa}
               disabled={loading || !disableToken || disableToken.length !== 6}
               className="bg-destructive py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 active:scale-[0.98] transition-all"
-            >
+             data-telemetry="settings:disable2fa">
               {loading ? t("twoFactor.disabling") : t("twoFactor.disable")}
             </button>
           </div>
@@ -1953,7 +1953,7 @@ export default function SettingsPage() {
                     onClick={saveProfile}
                     disabled={saving}
                     className="w-full md:w-auto flex items-center justify-center gap-2 bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-all active:scale-[0.98] disabled:opacity-50"
-                  >
+                   data-telemetry="settings:saveprofile">
                     {saving ? (
                       <>
                         <Loader2 className="h-4 w-4 rounded-full animate-spin" />
@@ -1987,7 +1987,7 @@ export default function SettingsPage() {
                 <button
                   onClick={showGuideAgain}
                   className="w-full sm:w-auto shrink-0 flex items-center justify-center gap-2 border border-border bg-background/50 px-4 py-2.5 text-xs font-medium text-foreground hover:bg-background transition-all active:scale-[0.98]"
-                >
+                 data-telemetry="settings:showguideagain">
                   <BookOpen className="h-4 w-4" />
                   {t("profile.showGuideAgain")}
                 </button>
@@ -2069,7 +2069,7 @@ export default function SettingsPage() {
                     onClick={updatePassword}
                     disabled={passwordSaving}
                     className="w-full md:w-auto flex items-center justify-center gap-2 bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
-                  >
+                   data-telemetry="settings:updatepassword">
                     {passwordSaving ? (
                       <>
                         <Loader2 className="h-4 w-4 rounded-full animate-spin" />
@@ -2132,7 +2132,7 @@ export default function SettingsPage() {
                       }
                     }}
                     className="border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/50 transition-all active:scale-[0.98]"
-                  >
+                   data-telemetry="settings:async">
                     {t("security.logoutElsewhere")}
                   </button>
                   <button
@@ -2146,7 +2146,7 @@ export default function SettingsPage() {
                       }
                     }}
                     className="bg-destructive px-4 py-2.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-all active:scale-[0.98]"
-                  >
+                   data-telemetry="settings:async">
                     {t("security.requestDeletion")}
                   </button>
                 </div>
@@ -2256,7 +2256,7 @@ export default function SettingsPage() {
                                   target="_blank"
                                   rel="noreferrer"
                                   className="text-xs font-medium text-primary hover:underline"
-                                >
+                                 data-telemetry="link:external">
                                   {t("documents.view")}
                                 </a>
                               ) : null}
@@ -2309,7 +2309,7 @@ export default function SettingsPage() {
                                   target="_blank"
                                   rel="noreferrer"
                                   className="text-xs font-medium text-primary hover:underline"
-                                >
+                                 data-telemetry="link:external">
                                   {t("documents.download")}
                                 </a>
                               ) : null}
@@ -2413,7 +2413,7 @@ export default function SettingsPage() {
                         onClick={createApiKey}
                         disabled={!newKeyName.trim()}
                         className="flex-1 bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-all active:scale-[0.98]"
-                      >
+                       data-telemetry="settings:createapikey">
                         {t("api.createKey")}
                       </button>
                     </div>
@@ -2804,7 +2804,7 @@ export default function SettingsPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary transition-colors mt-1"
-                        >
+                         data-telemetry="link:external">
                           {t("ai.connection.getApiKey")}
                           <ExternalLink className="h-2.5 w-2.5" />
                         </a>

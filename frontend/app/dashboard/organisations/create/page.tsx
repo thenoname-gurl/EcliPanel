@@ -69,7 +69,7 @@ export default function CreateOrganisationPage() {
                 type="submit"
                 disabled={loading}
                 className="mt-2 rounded bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
+               data-telemetry="organisations:submit">
                 {loading ? t("actions.creating") : t("actions.create")}
               </button>
             </form>
