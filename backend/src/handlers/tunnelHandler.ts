@@ -77,7 +77,7 @@ function getAuthError(authResult: unknown): string | undefined {
 }
 
 function isCtxLike(v: unknown): v is TunnelRequestContext {
-  return typeof v === 'object' && v !== null && (
+ return typeof v === 'object' && v !== null && !isWsLikeObj(v) && (
     'params' in (v as Record<string, unknown>) ||
     'query' in (v as Record<string, unknown>) ||
     'headers' in (v as Record<string, unknown>)
@@ -1497,9 +1497,15 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         if (isWsLikeObj(a1)) ws = a1;
       }
     } else if (arr.length >= 3) {
-      ctx = arr[0] as TunnelRequestContext;
-      ws = isWsLikeObj(arr[1]) ? arr[1] : undefined;
-      message = arr[2];
+      if (isWsLikeObj(arr[0])) {
+        ws = arr[0];
+        ctx = (ws.data as TunnelRequestContext) || {};
+        message = arr[1];
+      } else {
+        ctx = arr[0] as TunnelRequestContext;
+        ws = isWsLikeObj(arr[1]) ? arr[1] : undefined;
+        message = arr[2];
+      }
     }
 
     return { ctx, ws, message };
@@ -1512,7 +1518,11 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
       const { ctx, ws } = unwrapWsArgs(args);
       if (!ws) return;
 
-      const token = getAuthToken(ctx as unknown as { headers?: Headers | Record<string, string>; query?: Record<string, string> } ) ;
+      const wsAny = ws as unknown as Record<string, unknown>;
+      const rawReq = wsAny.request as Request | undefined;
+      const effectiveHeaders = ctx?.headers || rawReq?.headers || null;
+      const effectiveQuery = (ctx?.query || (wsAny.query as Record<string, unknown> | undefined));
+      const token = getAuthToken({ headers: effectiveHeaders as Headers | Record<string, string> | undefined, query: effectiveQuery as Record<string, string> | undefined });
 
       if (!token) {
         ws.send(JSON.stringify({ type: 'error', error: 'missing_token' }));
@@ -1531,7 +1541,7 @@ export function tunnelRoutes(app: TunnelApp, prefix: string): void {
         return;
       }
 
-      const reportedVersion = (ctx.query?.version as string) ?? null;
+      const reportedVersion = (effectiveQuery?.version as string) ?? null;
       if (reportedVersion) {
         device.clientVersion = reportedVersion;
         const repo = AppDataSource.getRepository(TunnelDevice);
