@@ -431,7 +431,7 @@ export default function SocTab() {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block rounded border border-border overflow-hidden">
+          <div className="hidden md:block rounded border border-border overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
                 <tr className="bg-secondary/40 border-b border-border">
@@ -742,7 +742,8 @@ function AdminAuditTab() {
             <Clock className="h-4 w-4 text-muted-foreground" />
             <h3 className="text-sm font-semibold">Time Spent by Admin</h3>
           </div>
-          <table className="w-full text-xs">
+          <div className="overflow-x-auto">
+          <table className="w-full text-xs min-w-[500px]">
             <thead>
               <tr className="border-b border-border">
                 <th className="px-4 py-2.5 text-left font-medium text-muted-foreground">Admin</th>
@@ -764,11 +765,12 @@ function AdminAuditTab() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* Table */}
-      <div className="rounded border border-border overflow-hidden">
+      <div className="rounded border border-border overflow-x-auto">
         <table className="w-full text-xs hidden md:table">
           <thead>
             <tr className="bg-secondary/40 border-b border-border">

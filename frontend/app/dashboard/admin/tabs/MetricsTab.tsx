@@ -191,7 +191,7 @@ export default function MetricsTab() {
             <p className="text-sm font-semibold text-foreground">{t("header.title")}</p>
             <span className="text-xs text-muted-foreground">{t("header.lastDays", { days: windowDays })}</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <div className="flex items-center gap-1 border border-border bg-secondary/40 p-1">
               {WINDOW_OPTIONS.map((d) => (
                 <button key={d} onClick={() => setWindowDays(d)}

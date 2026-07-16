@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
@@ -59,6 +60,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
   const canRequireStudentReverify = !!user && hasPermission(user, 'users:write')
   const canDeassignStudent = !!user && hasPermission(user, 'admin:student:deassign')
   const canRequestKyc = !!user && hasPermission(user, 'admin:kyc:manage')
+  const [moreOpenId, setMoreOpenId] = useState<number | null>(null)
 
   return (
     <div className="flex flex-col gap-4">
@@ -390,30 +392,35 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                   </button>
                 )}
 
-                <div className="relative group/more">
-                  <button className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors">
+                <div className="relative">
+                  <button
+                    onClick={() => setMoreOpenId(moreOpenId === user.id ? null : user.id)}
+                    className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                  >
                     <MoreHorizontal className="h-3.5 w-3.5" />
                   </button>
-                  <div className="absolute bottom-full right-0 mb-1 hidden group-focus-within/more:block border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
-                    {(user.studentVerified || user.portalType === "educational") && canDeassignStudent && (
-                      <button onClick={() => deassignStudent(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                        <UserMinus className="h-3.5 w-3.5" />
-                        {t("actions.deassignStudent")}
-                      </button>
-                    )}
-                    {(user.studentVerified || user.portalType === "educational") && canRequireStudentReverify && (
-                      <button onClick={() => requireStudentReverify(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors">
-                        <RotateCcw className="h-3.5 w-3.5" />
-                        {t("actions.requireReverify")}
-                      </button>
-                    )}
-                    {canDeleteUser && (
-                      <button onClick={() => deleteUser(user)} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors border-t border-border">
-                        <Trash2 className="h-3.5 w-3.5" />
-                        {t("actions.deleteAccount")}
-                      </button>
-                    )}
-                  </div>
+                  {moreOpenId === user.id && (
+                    <div className="absolute bottom-full right-0 mb-1 border border-border bg-card shadow-xl overflow-hidden z-50 min-w-[160px]">
+                      {(user.studentVerified || user.portalType === "educational") && canDeassignStudent && (
+                        <button onClick={() => { deassignStudent(user); setMoreOpenId(null) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                          <UserMinus className="h-3.5 w-3.5" />
+                          {t("actions.deassignStudent")}
+                        </button>
+                      )}
+                      {(user.studentVerified || user.portalType === "educational") && canRequireStudentReverify && (
+                        <button onClick={() => { requireStudentReverify(user); setMoreOpenId(null) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors">
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          {t("actions.requireReverify")}
+                        </button>
+                      )}
+                      {canDeleteUser && (
+                        <button onClick={() => { deleteUser(user); setMoreOpenId(null) }} className="flex w-full items-center gap-2 px-3 py-2 text-xs text-destructive hover:bg-destructive/10 transition-colors border-t border-border">
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {t("actions.deleteAccount")}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

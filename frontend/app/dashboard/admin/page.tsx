@@ -4211,7 +4211,7 @@ remote: ${panelUrl}`
         <div className="flex flex-col gap-6 p-4 sm:p-5 lg:p-6 max-w-full w-full min-w-0 overflow-x-hidden box-border">
 
           {/* Stat cards */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard title="Total Users" value={stats ? String(stats.totalUsers) : "—"} icon={Users} />
             <StatCard title="Organisations" value={stats ? String(stats.totalOrganisations) : "—"} icon={Building2} />
             <StatCard title="Servers" value={stats ? String(stats.totalServers) : "—"} icon={Server} />
@@ -4343,7 +4343,7 @@ remote: ${panelUrl}`
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full min-w-0 max-w-full">
             <TabsList
-              className="flex w-full min-w-0 max-w-full flex-wrap gap-2 overflow-x-hidden px-2 border border-border bg-secondary/50"
+              className="flex w-full min-w-0 max-w-full flex-wrap gap-2 overflow-x-auto px-2 border border-border bg-secondary/50"
             >
               {adminTabs
                 .filter((t) => (!t.feature || panelSettings.featureToggles[t.feature]) && hasAnyPermission(t.permissions))
