@@ -1108,5 +1108,31 @@
   },
   "mcp": {
     "invalidJsonRpcBody": "Invalid JSON-RPC body"
+  },
+  "blog": {
+    "notFound": "Blog not found",
+    "postNotFound": "Post not found",
+    "titleRequired": "Title is required",
+    "noFileProvided": "No file provided",
+    "invalidImageType": "Invalid image type. Allowed: PNG, JPEG, WebP, GIF",
+    "invalidBlogId": "Invalid blog ID",
+    "cannotSubscribeOwn": "Cannot subscribe to your own blog",
+    "alreadySubscribed": "Already subscribed",
+    "notSubscribed": "Not subscribed",
+    "memberEmailRequired": "Email is required",
+    "userNotFound": "User not found",
+    "memberAlreadyExists": "Member already exists",
+    "memberNotFound": "Member not found",
+    "invalidRole": "Invalid role",
+    "onlyOwnerCanTransfer": "Only the blog owner can transfer ownership",
+    "cannotRemoveOwner": "Cannot remove the blog owner",
+    "orgMembershipRequired": "You must be a member of this organisation",
+    "alreadyExists": "You already have a blog",
+    "invalidSlug": "Invalid slug. Use letters, numbers, and hyphens (min 2 chars).",
+    "slugReserved": "This slug is reserved",
+    "slugTaken": "This URL is already taken. Try another.",
+    "contentflag": "Content flag",
+    "mature": "Mature content",
+    "political": "Political opinion"
   }
 }

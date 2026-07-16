@@ -551,6 +551,7 @@ const SHORT_URL_RESERVED_ROOT_PATHS = new Set([
   'changelogs',
   'changelog',
   'contributors',
+  'blog',
 ])
 
 function getShortUrlPath(pathname: string): { prefix: 'a' | 'root'; code: string } | null {

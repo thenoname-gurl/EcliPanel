@@ -263,6 +263,10 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'wings:deauthorize', category: 'Wings', admin: true },
   { value: 'wings:*', category: 'Wings', admin: true },
   { value: 'chat:manage', category: 'Chat', admin: true },
+  { value: 'blog:read', category: 'Blog', admin: false },
+  { value: 'blog:write', category: 'Blog', admin: false },
+  { value: 'blog:delete', category: 'Blog', admin: false },
+  { value: 'blog:manage', category: 'Blog', description: 'Manage all blogs', admin: true },
 ];
 
 export const PERMISSION_METADATA_MAP: Record<string, PermissionDefinition> = Object.fromEntries(

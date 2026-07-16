@@ -252,3 +252,39 @@ CREATE TABLE `elo_devlog` (
   `createdAt` datetime NOT NULL,
   INDEX `idx_elo_devlog_project` (`projectId`)
 );
+
+CREATE TABLE `blog` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `slug` varchar(255) NOT NULL UNIQUE,
+  `userId` int NOT NULL,
+  `organisationId` int,
+  `name` varchar(255) NOT NULL,
+  `description` text,
+  `coverImageUrl` text,
+  `visibility` varchar(20) DEFAULT 'public',
+  `theme` json,
+  `layout` json,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL,
+  INDEX `idx_blog_user` (`userId`),
+  INDEX `idx_blog_org` (`organisationId`)
+);
+
+CREATE TABLE `blog_post` (
+  `id` int PRIMARY KEY AUTO_INCREMENT,
+  `blogId` int NOT NULL,
+  `authorId` int NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `slug` varchar(255) NOT NULL,
+  `content` mediumtext,
+  `excerpt` text,
+  `coverImageUrl` text,
+  `status` varchar(20) DEFAULT 'draft',
+  `visibility` varchar(20),
+  `tags` json,
+  `createdAt` datetime NOT NULL,
+  `updatedAt` datetime NOT NULL,
+  INDEX `idx_blogpost_blog` (`blogId`),
+  INDEX `idx_blogpost_author` (`authorId`),
+  INDEX `idx_blogpost_slug` (`slug`)
+);

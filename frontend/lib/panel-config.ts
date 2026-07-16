@@ -35,6 +35,7 @@ import {
   Trophy,
   CalendarDays,
   MessageCircle,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react"
 
@@ -551,6 +552,30 @@ export const API_ENDPOINTS = {
   telemetryIngest: "/api/telemetry/ingest",
   adminTelemetry: "/api/admin/telemetry",
   adminTelemetryClear: "/api/admin/telemetry/clear",
+
+  // Blog
+  blogMine: "/api/blog/mine",
+  blogMinePosts: "/api/blog/mine/posts",
+  blogMinePostDetail: "/api/blog/mine/posts/:id",
+  blogMineUpload: "/api/blog/mine/upload",
+  blogMineTheme: "/api/blog/mine/theme",
+  blogMineLayout: "/api/blog/mine/layout",
+  publicBlog: "/api/public/blog/:slug",
+  publicBlogPosts: "/api/public/blog/:slug/posts",
+  publicBlogPost: "/api/public/blog/:slug/posts/:postSlug",
+  adminBlog: "/api/admin/blog",
+  adminBlogDelete: "/api/admin/blog/:id",
+  blogOrg: "/api/blog/org/:orgId",
+  blogMembers: "/api/blog/:blogId/members",
+  blogMemberDetail: "/api/blog/:blogId/members/:userId",
+  blogSubscribers: "/api/blog/mine/subscribers",
+  blogSubscribe: "/api/public/blog/:slug/subscribe",
+  blogPostChat: "/api/public/blog/posts/:postId/chat",
+  blogPostChatMessage: "/api/public/blog/posts/:postId/chat/message",
+  blogMemberProfile: "/api/blog/:blogId/members/me",
+  blogAuthorProfile: "/api/public/blog/:slug/author/:userId",
+  blogList: "/api/blog/list",
+  blogAnalytics: "/api/blog/mine/analytics",
 } as const
 
 // ============================================
@@ -618,7 +643,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'chat'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'chat' | 'blog'
 
 export interface NavItem {
   label: string
@@ -762,6 +787,13 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/chat",
         icon: MessageCircle,
         feature: "chat",
+      },
+      {
+        label: "Blog",
+        href: "/dashboard/blog",
+        icon: BookOpen,
+        feature: "blog",
+        badge: "New",
       },
     ],
   },

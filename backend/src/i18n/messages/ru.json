@@ -1108,5 +1108,28 @@
     "this_time_slot_has_already_passed": "This time slot has already passed",
     "invalid_country_code": "Invalid country code",
     "invalid_year": "Invalid year"
+  },
+  "blog": {
+    "notFound": "Блог не найден",
+    "postNotFound": "Пост не найден",
+    "titleRequired": "Заголовок обязателен",
+    "noFileProvided": "Файл не предоставлен",
+    "invalidImageType": "Неверный тип изображения. Разрешены: PNG, JPEG, WebP, GIF",
+    "invalidBlogId": "Неверный ID блога",
+    "cannotSubscribeOwn": "Нельзя подписаться на свой блог",
+    "alreadySubscribed": "Уже подписаны",
+    "notSubscribed": "Не подписаны",
+    "memberEmailRequired": "Email обязателен",
+    "userNotFound": "Пользователь не найден",
+    "memberAlreadyExists": "Участник уже существует",
+    "memberNotFound": "Участник не найден",
+    "invalidRole": "Неверная роль",
+    "onlyOwnerCanTransfer": "Только владелец блога может передать права",
+    "cannotRemoveOwner": "Нельзя удалить владельца блога",
+    "orgMembershipRequired": "Вы должны быть участником этой организации",
+    "alreadyExists": "У вас уже есть блог",
+    "invalidSlug": "Неверный slug. Используйте буквы, цифры и дефисы (мин. 2 символа).",
+    "slugReserved": "Этот slug зарезервирован",
+    "slugTaken": "Этот URL уже занят. Попробуйте другой."
   }
 }

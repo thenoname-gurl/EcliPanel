@@ -36,7 +36,8 @@ export function Footer({
   if (
     typeof pathname === "string" &&
     (pathname.startsWith("/dashboard/tickets") ||
-      pathname.startsWith("/dashboard/ai"))
+      pathname.startsWith("/dashboard/ai") ||
+      pathname.startsWith("/blog"))
   ) {
     return null;
   }

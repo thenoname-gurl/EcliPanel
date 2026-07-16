@@ -39,6 +39,16 @@
           "icon": "LifeBuoy"
         }
       ]
+    },
+    {
+      "name": "Blog",
+      "pages": [
+        {
+          "name": "Blog Handbook",
+          "href": "/docs/blog-handbook",
+          "icon": "BookOpen"
+        }
+      ]
     }
   ]
 }

@@ -18,6 +18,7 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   elo: true,
   calendar: true,
   chat: true,
+  blog: true,
 };
 
 export async function getPanelFeatureToggles(): Promise<Record<string, boolean>> {

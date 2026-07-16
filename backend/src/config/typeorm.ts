@@ -183,5 +183,9 @@ export const AppDataSource = new DataSource({
     require('../models/detectionRule.entity').DetectionRule,
     require('../models/adminAuditEntry.entity').AdminAuditEntry,
     require('../models/telemetryEvent.entity').TelemetryEvent,
+    require('../models/blog.entity').Blog,
+    require('../models/blogPost.entity').BlogPost,
+    require('../models/blogMember.entity').BlogMember,
+    require('../models/blogSubscriber.entity').BlogSubscriber,
   ],
 });
