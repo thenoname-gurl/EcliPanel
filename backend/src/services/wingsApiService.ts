@@ -259,24 +259,24 @@ export class WingsApiService {
     return this.serverRequest(serverId, '/reinstall', 'post', payload);
   }
 
-  async getServerSchedules(serverId: string) {
-    return this.serverRequest(serverId, '/schedules');
+  async triggerServerSchedule(serverId: string, scheduleId: string, skipCondition = false, timeoutMs?: number) {
+    return this.serverRequest(serverId, `/schedules/${scheduleId}/trigger`, 'post', { skip_condition: skipCondition }, timeoutMs);
   }
 
-  async createServerSchedule(serverId: string, payload: any) {
-    return this.serverRequest(serverId, '/schedules', 'post', payload);
+  async abortServerSchedule(serverId: string, scheduleId: string, timeoutMs?: number) {
+    return this.serverRequest(serverId, `/schedules/${scheduleId}/abort`, 'post', undefined, timeoutMs);
   }
 
-  async syncServer(serverId: string, payload: any) {
+  async syncServer(serverId: string, payload: any, timeoutMs?: number) {
     if (!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) {
-      return this.serverRequest(serverId, '/sync', 'post', payload);
+      return this.serverRequest(serverId, '/sync', 'post', payload, timeoutMs);
     }
 
     if (payload.server) {
-      return this.serverRequest(serverId, '/sync', 'post', payload);
+      return this.serverRequest(serverId, '/sync', 'post', payload, timeoutMs);
     }
 
-    const result = await this.getServer(serverId);
+    const result = await this.request(`/servers/${serverId}`, timeoutMs ? { timeoutMs } : {});
     const server = result.data as any;
     const settings = server.settings || {};
     const processConfiguration = server.process_configuration || {};
@@ -400,7 +400,7 @@ export class WingsApiService {
       };
     }
 
-    return this.serverRequest(serverId, '/sync', 'post', { server });
+    return this.serverRequest(serverId, '/sync', 'post', { server }, timeoutMs);
   }
 
   async transferServer(serverId: string, payload: any) {
@@ -469,17 +469,19 @@ export class WingsApiService {
     serverId: string,
     subpath: string,
     method: 'get' | 'post' | 'put' | 'delete' = 'get',
-    data?: any
+    data?: any,
+    timeoutMs?: number
   ) {
+    const opts = timeoutMs ? { timeoutMs } : {};
     switch (method) {
       case 'get':
-        return this.request(`/servers/${serverId}${subpath}`);
+        return this.request(`/servers/${serverId}${subpath}`, opts);
       case 'delete':
-        return this.request(`/servers/${serverId}${subpath}`, { method: 'DELETE', body: data });
+        return this.request(`/servers/${serverId}${subpath}`, { ...opts, method: 'DELETE', body: data });
       case 'post':
-        return this.request(`/servers/${serverId}${subpath}`, { method: 'POST', body: data });
+        return this.request(`/servers/${serverId}${subpath}`, { ...opts, method: 'POST', body: data });
       case 'put':
-        return this.request(`/servers/${serverId}${subpath}`, { method: 'PUT', body: data });
+        return this.request(`/servers/${serverId}${subpath}`, { ...opts, method: 'PUT', body: data });
       default:
         throw new Error(`Unsupported method: ${method}`);
     }

@@ -48,6 +48,9 @@ import { WingsApiService } from '../services/wingsApiService';
 import { restoreDesiredPowerStatesForNode } from '../services/serverDesiredStateService';
 import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
 import type { AllocationLike, RemoteNodeOverrides, WingsApp, WingsContext } from '../types/remote';
+import { buildWingsSchedules, type ScheduleRecord } from '../types/schedule';
+import { ServerSchedule } from '../models/serverSchedule.entity';
+import { ServerScheduleStep } from '../models/serverScheduleStep.entity';
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 
@@ -253,12 +256,35 @@ function buildAllocationDefault(alloc: AllocationLike): { ip: string; port: numb
   return null;
 }
 
-function buildServerObject(
+async function buildSchedulesFromDb(serverUuid: string): Promise<Record<string, unknown>[]> {
+  const schedRepo = AppDataSource.getRepository(ServerSchedule);
+  const stepRepo = AppDataSource.getRepository(ServerScheduleStep);
+  const schedules = await schedRepo.find({
+    where: { serverUuid, enabled: true },
+    order: { created: 'ASC' },
+  });
+  const result: Record<string, unknown>[] = [];
+  for (const s of schedules) {
+    const steps = await stepRepo.find({
+      where: { scheduleUuid: s.uuid },
+      order: { order_: 'ASC', created: 'ASC' },
+    });
+    result.push({
+      uuid: s.uuid,
+      triggers: s.triggers,
+      condition: s.condition,
+      actions: steps.map(st => ({ uuid: st.uuid, ...st.action })),
+    });
+  }
+  return result;
+}
+
+async function buildServerObject(
   cfg: ServerConfig,
   egg?: Egg | null,
   mounts?: Mount[],
   nodeOverrides?: RemoteNodeOverrides
-): object {
+): Promise<object> {
   const eggProc = egg?.processConfig || {};
   const cfgProc = cfg.processConfig || {};
   const proc = { ...eggProc, ...cfgProc };
@@ -291,7 +317,7 @@ function buildServerObject(
       environment: cfg.environment || {},
       labels: {},
       backups: [],
-      schedules: [],
+      schedules: await buildSchedulesFromDb(cfg.uuid),
       allocations: {
         force_outgoing_ip: alloc.force_outgoing_ip ?? false,
         ...(defaultAlloc ? { default: defaultAlloc } : {}),
@@ -456,9 +482,9 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
         ipv6ExcludedPorts: node.ipv6ExcludedPorts,
       };
       return {
-        data: configs.map(cfg =>
+        data: await Promise.all(configs.map(cfg =>
           buildServerObject(cfg, eggMap[cfg.eggId ?? -1] ?? null, mountMap[cfg.uuid], nodeOverrides)
-        ),
+        )),
         meta: {
           current_page: pageNum + 1,
           last_page: totalPages,
@@ -510,7 +536,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           portRangeEnd: node.portRangeEnd,
           ipv6ExcludedPorts: node.ipv6ExcludedPorts,
         };
-        const obj = buildServerObject(cfg, egg, mounts, nodeOverrides);
+        const obj = await buildServerObject(cfg, egg, mounts, nodeOverrides);
         return obj;
       } catch (err) {
         app.log?.error?.(
@@ -701,7 +727,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
         portRangeEnd: node.portRangeEnd,
         ipv6ExcludedPorts: node.ipv6ExcludedPorts,
       };
-      return buildServerObject(cfg, egg, mounts, nodeOverrides);
+      return await buildServerObject(cfg, egg, mounts, nodeOverrides);
     },
     {
       beforeHandle: authenticateWings,
@@ -1485,19 +1511,37 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
     }
   );
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // POST /api/remote/schedule — Wings reports schedule step completion
-  // body: { data: [{ uuid, successful, errors, timestamp }] }
-  // ═══════════════════════════════════════════════════════════════════════════
   app.post(
     prefix + '/remote/schedule',
     async (ctx: WingsContext) => {
+      const body = (ctx.body || {}) as { data?: Array<{ uuid: string; successful: boolean; errors: Record<string, string>; timestamp: string }> };
+      if (!body.data || !Array.isArray(body.data)) {
+        ctx.set.status = 204;
+        return;
+      }
+
+      const schedRepo = AppDataSource.getRepository(ServerSchedule);
+
+      for (const report of body.data) {
+        if (!report.uuid) continue;
+        const schedule = await schedRepo.findOneBy({ uuid: report.uuid });
+        if (!schedule) continue;
+
+        if (report.successful) {
+          schedule.lastRun = new Date(report.timestamp);
+          schedule.lastFailure = null;
+        } else {
+          schedule.lastFailure = new Date(report.timestamp);
+        }
+        await schedRepo.save(schedule);
+      }
+
       ctx.set.status = 204;
       return;
     },
     {
       beforeHandle: authenticateWings,
-      detail: { summary: 'Wings schedule callback (noop)', tags: ['Remote'] },
+      detail: { summary: 'Wings schedule completion callback', tags: ['Remote'] },
       response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
   );

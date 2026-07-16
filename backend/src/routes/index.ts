@@ -13,6 +13,7 @@ import { couponRoutes } from '../handlers/couponHandler';
 import { socRoutes } from '../handlers/socHandler';
 import { aiRoutes } from '../handlers/aiHandler';
 import { serverRoutes } from '../handlers/serverHandler';
+import { scheduleRoutes } from '../handlers/scheduleHandler';
 import { nodeRoutes } from '../handlers/nodeHandler';
 import { apiKeyRoutes } from '../handlers/apiKeyHandler';
 import { ticketRoutes } from '../handlers/ticketHandler';
@@ -144,6 +145,7 @@ export function registerRoutes(app: any) {
   socRoutes(app, '/api');
   aiRoutes(app, '/api');
   serverRoutes(app, '/api');
+  scheduleRoutes(app, '/api');
   sharedFileRoutes(app, '/api');
   nodeRoutes(app, '/api');
   apiKeyRoutes(app, '/api');

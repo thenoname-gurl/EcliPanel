@@ -22,6 +22,17 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
@@ -2123,26 +2134,111 @@ function DatabasesTab({ serverId }: { serverId: string }) {
 
 // ─── Schedules Tab ───────────────────────────────────────────────────────────
 
+const CRON_PRESETS: Record<string, string> = {
+  everyHour: "0 * * * *",
+  every6Hours: "0 */6 * * *",
+  every12Hours: "0 */12 * * *",
+  daily: "0 0 * * *",
+  daily3am: "0 3 * * *",
+  weekly: "0 0 * * 1",
+}
+
+function cronToHuman(cron: string, t: (k: string) => string): string {
+  for (const [key, val] of Object.entries(CRON_PRESETS)) {
+    if (val === cron) return t(`schedules.triggerPresets.${key}`)
+  }
+  return cron || "* * * * *"
+}
+
+function scheduleActionsSummary(actions: any[], t: (k: string) => string): string {
+  if (!actions || actions.length === 0) return t("schedules.noActions")
+  const labels = actions.slice(0, 3).map((a) => {
+    switch (a.type) {
+      case "send_power":
+        return t(`schedules.actionPower${a.action?.charAt(0).toUpperCase() + a.action?.slice(1)}` as any) || a.action
+      case "send_command":
+        return t("schedules.actionSendCommand")
+      case "create_backup":
+        return t("schedules.actionCreateBackup")
+      default:
+        return a.type || "?"
+    }
+  })
+  if (actions.length > 3) labels.push(`+${actions.length - 3}`)
+  return labels.join(", ")
+}
+
+function newActionUuid() {
+  return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
+
+interface ScheduleFormState {
+  uuid: string
+  name: string
+  is_active: boolean
+  cronPreset: string
+  customCron: string
+  actions: any[]
+}
+
+function emptyForm(): ScheduleFormState {
+  return {
+    uuid: "",
+    name: "",
+    is_active: true,
+    cronPreset: "daily3am",
+    customCron: "",
+    actions: [],
+  }
+}
+
+function scheduleToForm(s: any): ScheduleFormState {
+  const cronStr =
+    s.triggers?.find((t: any) => t.type === "cron")?.schedule || "* * * * *"
+  const preset = Object.entries(CRON_PRESETS).find(([, v]) => v === cronStr)?.[0] || "custom"
+  return {
+    uuid: s.uuid || "",
+    name: s.name || "",
+    is_active: s.enabled !== false,
+    cronPreset: preset,
+    customCron: preset === "custom" ? cronStr : "",
+    actions: (s.actions || []).map((a: any) => ({ ...a })),
+  }
+}
+
+function formToSchedulePayload(f: ScheduleFormState) {
+  const cronStr =
+    f.cronPreset === "custom"
+      ? f.customCron || "* * * * *"
+      : CRON_PRESETS[f.cronPreset] || "0 3 * * *"
+  return {
+    name: f.name,
+    enabled: f.is_active,
+    triggers: [{ type: "cron", schedule: cronStr }],
+    condition: { type: "none" },
+  }
+}
+
 function SchedulesTab({ serverId }: { serverId: string }) {
   const t = useTranslations("serverDetailPage")
   const [schedules, setSchedules] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({
-    name: "",
-    cron_minute: "*",
-    cron_hour: "*",
-    cron_day_of_month: "*",
-    cron_month: "*",
-    cron_day_of_week: "*",
-    is_active: true,
-  })
-  const [creating, setCreating] = useState(false)
+
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState<ScheduleFormState>(emptyForm())
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+  const [triggering, setTriggering] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
-      const data = await apiFetch(API_ENDPOINTS.serverSchedules.replace(":id", serverId))
-      setSchedules(Array.isArray(data) ? data : [])
+      const data = await apiFetch(
+        API_ENDPOINTS.serverSchedules.replace(":id", serverId)
+      )
+      // New API returns { schedules: { data, total, per_page, page } }
+      const list = data?.schedules?.data || (Array.isArray(data) ? data : [])
+      setSchedules(list)
     } catch {
       setSchedules([])
     } finally {
@@ -2154,37 +2250,51 @@ function SchedulesTab({ serverId }: { serverId: string }) {
     load()
   }, [load])
 
-  const createSchedule = async () => {
-    setCreating(true)
+  const openCreate = () => {
+    setForm(emptyForm())
+    setEditing(false)
+    setDialogOpen(true)
+  }
+
+  const openEdit = (s: any) => {
+    setForm(scheduleToForm(s))
+    setEditing(true)
+    setDialogOpen(true)
+  }
+
+  const saveSchedule = async () => {
+    setSaving(true)
     try {
-      await apiFetch(API_ENDPOINTS.serverSchedules.replace(":id", serverId), {
-        method: "POST",
-        body: JSON.stringify(form),
-      })
-      setShowForm(false)
-      setForm({
-        name: "",
-        cron_minute: "*",
-        cron_hour: "*",
-        cron_day_of_month: "*",
-        cron_month: "*",
-        cron_day_of_week: "*",
-        is_active: true,
-      })
+      const payload = formToSchedulePayload(form)
+      if (editing) {
+        await apiFetch(
+          API_ENDPOINTS.serverScheduleUpdate
+            .replace(":id", serverId)
+            .replace(":sid", form.uuid),
+          { method: "POST", body: JSON.stringify(payload) }
+        )
+      } else {
+        await apiFetch(
+          API_ENDPOINTS.serverSchedules.replace(":id", serverId),
+          { method: "POST", body: JSON.stringify(payload) }
+        )
+      }
+      setDialogOpen(false)
       load()
     } catch (e: any) {
       alert(t("schedules.failed", { reason: e.message }))
     } finally {
-      setCreating(false)
+      setSaving(false)
     }
   }
 
-  const deleteSchedule = async (sid: string) => {
-    if (!confirm(t("schedules.confirmDelete"))) return
+  const toggleActive = async (s: any) => {
     try {
       await apiFetch(
-        API_ENDPOINTS.serverScheduleDelete.replace(":id", serverId).replace(":sid", sid),
-        { method: "DELETE" }
+        API_ENDPOINTS.serverScheduleUpdate
+          .replace(":id", serverId)
+          .replace(":sid", s.uuid),
+        { method: "POST", body: JSON.stringify({ enabled: !s.enabled }) }
       )
       load()
     } catch (e: any) {
@@ -2192,16 +2302,75 @@ function SchedulesTab({ serverId }: { serverId: string }) {
     }
   }
 
-  if (loading) return <LoadingState />
+  const deleteSchedule = async () => {
+    if (!deleteTarget) return
+    try {
+      await apiFetch(
+        API_ENDPOINTS.serverScheduleDelete
+          .replace(":id", serverId)
+          .replace(":sid", deleteTarget),
+        { method: "DELETE" }
+      )
+      setDeleteTarget(null)
+      load()
+    } catch (e: any) {
+      alert(t("schedules.failed", { reason: e.message }))
+    }
+  }
 
-  const cronLabels = ["Min", "Hr", "Day", "Mon", "Wk"] as const
-  const cronFields = [
-    "cron_minute",
-    "cron_hour",
-    "cron_day_of_month",
-    "cron_month",
-    "cron_day_of_week",
-  ] as const
+  const triggerSchedule = async (sid: string) => {
+    setTriggering(sid)
+    try {
+      await apiFetch(
+        API_ENDPOINTS.serverScheduleTrigger
+          .replace(":id", serverId)
+          .replace(":sid", sid),
+        { method: "POST", body: JSON.stringify({ skip_condition: false }), timeout: 30_000 }
+      )
+      setTimeout(() => load(), 1500)
+    } catch (e: any) {
+      alert(t("schedules.failed", { reason: e.message }))
+    } finally {
+      setTriggering(null)
+    }
+  }
+
+  const addAction = (type: string) => {
+    const base: any = { uuid: newActionUuid(), type }
+    switch (type) {
+      case "send_power":
+        base.action = "restart"
+        base.ignore_failure = false
+        break
+      case "send_command":
+        base.command = ""
+        base.ignore_failure = false
+        break
+      case "create_backup":
+        base.name = ""
+        base.ignored_files = []
+        base.ignore_failure = false
+        break
+    }
+    setForm((f) => ({ ...f, actions: [...f.actions, base] }))
+  }
+
+  const updateAction = (idx: number, patch: Record<string, unknown>) => {
+    setForm((f) => {
+      const actions = [...f.actions]
+      actions[idx] = { ...actions[idx], ...patch }
+      return { ...f, actions }
+    })
+  }
+
+  const removeAction = (idx: number) => {
+    setForm((f) => ({
+      ...f,
+      actions: f.actions.filter((_, i) => i !== idx),
+    }))
+  }
+
+  if (loading) return <LoadingState />
 
   return (
     <div className="p-3 sm:p-4 md:p-6 space-y-4 min-w-0 overflow-hidden">
@@ -2209,7 +2378,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
         title={t("schedules.title")}
         icon={Clock}
         action={
-          <Button size="sm" onClick={() => setShowForm(!showForm)}>
+          <Button size="sm" onClick={openCreate}>
             <Plus className="h-3.5 w-3.5 mr-1.5" />
             <span className="hidden sm:inline">{t("schedules.newSchedule")}</span>
             <span className="sm:hidden">{t("schedules.new")}</span>
@@ -2217,100 +2386,406 @@ function SchedulesTab({ serverId }: { serverId: string }) {
         }
       />
 
-      {showForm && (
-        <div className="border border-border bg-secondary/20 p-3 sm:p-4 space-y-4 overflow-hidden">
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">{t("schedules.name")}</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={t("schedules.namePlaceholder")}
-              className="w-full border border-border bg-input px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">{t("schedules.cronExpression")}</label>
-            <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
-              {cronFields.map((field, idx) => (
-                <div key={field} className="space-y-1 min-w-0">
-                  <label className="text-[10px] text-muted-foreground block text-center">
-                    {cronLabels[idx]}
-                  </label>
-                  <input
-                    type="text"
-                    value={form[field]}
-                    onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    className="w-full border border-border bg-input px-1 py-2.5 text-sm font-mono outline-none text-center focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button size="sm" onClick={createSchedule} disabled={creating} className="h-9" data-telemetry="servers:createschedule">
-              {creating && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-1.5" />}
-              {t("schedules.create")}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setShowForm(false)}
-              className="h-9"
-            >
-              {t("actions.cancel")}
-            </Button>
-          </div>
-        </div>
-      )}
-
       {schedules.length === 0 ? (
         <EmptyState icon={Clock} message={t("schedules.empty")} />
       ) : (
         <div className="space-y-3 min-w-0">
-          {schedules.map((sched: any) => (
-            <div
-              key={sched.id}
-              className="flex items-start justify-between gap-3 border border-border bg-secondary/20 p-3 sm:p-4 min-w-0 overflow-hidden"
-            >
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <p className="text-sm font-medium text-foreground truncate">
-                  {sched.name || t("schedules.unnamed")}
-                </p>
-                <p className="text-xs text-muted-foreground font-mono mt-1 truncate">
-                  {sched.cron_minute} {sched.cron_hour} {sched.cron_day_of_month}{" "}
-                  {sched.cron_month} {sched.cron_day_of_week}
-                </p>
-                <div className="flex flex-wrap items-center gap-2 mt-2">
-                  <Badge
-                    variant="outline"
-                    className={cn(
-                      "text-[10px]",
-                      sched.is_active ? "text-green-600" : "text-muted-foreground"
+          {schedules.map((sched: any) => {
+            const cronStr =
+              sched.triggers?.find((tr: any) => tr.type === "cron")
+                ?.schedule || "* * * * *"
+            const actionCount = sched.steps_count ?? sched.actions?.length ?? 0
+            // New API: last_run / last_failure timestamps — newer one determines status
+            const lastRunOk = sched.last_run || sched.last_failure
+              ? !sched.last_failure || (sched.last_run && new Date(sched.last_run) >= new Date(sched.last_failure))
+              : null
+            return (
+              <div
+                key={sched.uuid}
+                className="flex items-start justify-between gap-3 border border-border bg-secondary/20 p-3 sm:p-4 min-w-0 overflow-hidden"
+              >
+                <div className="min-w-0 flex-1 overflow-hidden">
+                  <p className="text-sm font-medium text-foreground truncate">
+                    {sched.name || t("schedules.unnamed")}
+                  </p>
+                  <p className="text-xs text-muted-foreground font-mono mt-1 truncate">
+                    {cronToHuman(cronStr, t)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <div className="flex items-center gap-1.5">
+                      <Switch
+                        checked={sched.enabled !== false}
+                        onCheckedChange={() => toggleActive(sched)}
+                        className="scale-75 origin-left"
+                      />
+                      <span
+                        className={cn(
+                          "text-[10px]",
+                          sched.enabled !== false
+                            ? "text-green-600"
+                            : "text-muted-foreground"
+                        )}
+                      >
+                        {sched.enabled !== false
+                          ? t("schedules.active")
+                          : t("schedules.inactive")}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {actionCount} {actionCount === 1 ? "action" : "actions"}
+                    </span>
+                    {lastRunOk !== null && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "text-[10px]",
+                          lastRunOk ? "text-green-600" : "text-red-600"
+                        )}
+                      >
+                        {lastRunOk
+                          ? t("schedules.runSuccessful")
+                          : t("schedules.runFailed")}
+                      </Badge>
                     )}
+                    <span className="text-[10px] text-muted-foreground truncate min-w-0">
+                      {t("schedules.lastRun")}:{" "}
+                      {sched.last_run
+                        ? new Date(sched.last_run).toLocaleString()
+                        : t("schedules.never")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 flex-shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0"
+                    onClick={() => triggerSchedule(sched.uuid)}
+                    disabled={triggering === sched.uuid}
+                    aria-label={t("schedules.triggerNow")}
+                    data-telemetry="servers:triggerschedule"
                   >
-                    {sched.is_active ? t("schedules.active") : t("schedules.inactive")}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground truncate min-w-0">
-                    {t("schedules.last")}: {sched.last_run_at ? new Date(sched.last_run_at).toLocaleString() : t("schedules.never")}
-                  </span>
+                    {triggering === sched.uuid ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Play className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0"
+                    onClick={() => openEdit(sched)}
+                    aria-label={t("schedules.edit")}
+                    data-telemetry="servers:editschedule"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 w-8 p-0 hover:text-destructive"
+                    onClick={() => setDeleteTarget(sched.uuid)}
+                    aria-label={t("schedules.deleteSchedule")}
+                    data-telemetry="servers:deleteschedule"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <Button
-                size="sm"
-                variant="destructive"
-                onClick={() => deleteSchedule(String(sched.id))}
-                className="flex-shrink-0 h-9 w-9 p-0"
-                aria-label={t("schedules.deleteSchedule")}
-               data-telemetry="servers:deleteschedule">
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto border-border bg-card">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? t("schedules.edit") : t("schedules.newSchedule")}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              {t("schedules.triggerHint")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            {/* Name */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">
+                {t("schedules.name")}
+              </Label>
+              <Input
+                value={form.name}
+                onChange={(e) =>
+                  setForm({ ...form, name: e.target.value })
+                }
+                placeholder={t("schedules.namePlaceholder")}
+              />
+            </div>
+
+            {/* Cron preset */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">
+                {t("schedules.triggerCron")}
+              </Label>
+              <Select
+                value={form.cronPreset}
+                onValueChange={(v) =>
+                  setForm({ ...form, cronPreset: v })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.keys(CRON_PRESETS).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {t(`schedules.triggerPresets.${k}`)}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">
+                    {t("schedules.triggerPresets.custom")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              {form.cronPreset === "custom" && (
+                <Input
+                  className="mt-1 font-mono text-sm"
+                  value={form.customCron}
+                  onChange={(e) =>
+                    setForm({ ...form, customCron: e.target.value })
+                  }
+                  placeholder="0 */6 * * *"
+                />
+              )}
+              {form.cronPreset !== "custom" && (
+                <p className="text-[11px] text-muted-foreground font-mono">
+                  {CRON_PRESETS[form.cronPreset] || ""}
+                </p>
+              )}
+            </div>
+
+            {/* Active toggle */}
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium">
+                {t("schedules.active")}
+              </Label>
+              <Switch
+                checked={form.is_active}
+                onCheckedChange={(v) =>
+                  setForm({ ...form, is_active: !!v })
+                }
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium">
+                  {t("schedules.actions")}
+                </Label>
+                <Select
+                  value=""
+                  onValueChange={(v) => {
+                    if (v) addAction(v)
+                  }}
+                >
+                  <SelectTrigger className="h-7 text-xs w-[140px]">
+                    <SelectValue placeholder={t("schedules.addAction")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="send_command">
+                      {t("schedules.actionSendCommand")}
+                    </SelectItem>
+                    <SelectItem value="send_power">
+                      {t("schedules.actionPowerRestart")}
+                    </SelectItem>
+                    <SelectItem value="create_backup">
+                      {t("schedules.actionCreateBackup")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {form.actions.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">
+                  {t("schedules.noActions")}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {form.actions.map((action, idx) => (
+                    <div
+                      key={action.uuid}
+                      className="border border-border bg-secondary/10 p-3 space-y-2 text-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground">
+                          {idx + 1}.{" "}
+                          {action.type === "send_command"
+                            ? t("schedules.actionSendCommand")
+                            : action.type === "send_power"
+                              ? t(
+                                  `schedules.actionPower${
+                                    (action.action || "restart")
+                                      .charAt(0)
+                                      .toUpperCase() +
+                                    (action.action || "restart").slice(1)
+                                  }` as any
+                                )
+                              : action.type === "create_backup"
+                                ? t("schedules.actionCreateBackup")
+                                : action.type}
+                        </span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 w-6 p-0 hover:text-destructive"
+                          onClick={() => removeAction(idx)}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+
+                      {/* Action-specific fields */}
+                      {action.type === "send_command" && (
+                        <div className="space-y-1.5">
+                          <Input
+                            className="font-mono text-xs h-8"
+                            value={action.command || ""}
+                            onChange={(e) =>
+                              updateAction(idx, {
+                                command: e.target.value,
+                              })
+                            }
+                            placeholder={t("schedules.commandPlaceholder")}
+                          />
+                        </div>
+                      )}
+                      {action.type === "send_power" && (
+                        <Select
+                          value={action.action || "restart"}
+                          onValueChange={(v) =>
+                            updateAction(idx, { action: v })
+                          }
+                        >
+                          <SelectTrigger className="h-7 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="start">
+                              {t("schedules.actionPowerStart")}
+                            </SelectItem>
+                            <SelectItem value="restart">
+                              {t("schedules.actionPowerRestart")}
+                            </SelectItem>
+                            <SelectItem value="stop">
+                              {t("schedules.actionPowerStop")}
+                            </SelectItem>
+                            <SelectItem value="kill">
+                              {t("schedules.actionPowerKill")}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {action.type === "create_backup" && (
+                        <div className="space-y-1.5">
+                          <Input
+                            className="text-xs h-8"
+                            value={action.name || ""}
+                            onChange={(e) =>
+                              updateAction(idx, { name: e.target.value })
+                            }
+                            placeholder={t("schedules.backupNamePlaceholder")}
+                          />
+                          <Textarea
+                            className="text-xs min-h-[40px]"
+                            value={
+                              (action.ignored_files || []).join("\n")
+                            }
+                            onChange={(e) =>
+                              updateAction(idx, {
+                                ignored_files: e.target.value
+                                  .split("\n")
+                                  .filter(Boolean),
+                              })
+                            }
+                            placeholder={t("schedules.ignoredFiles")}
+                            rows={2}
+                          />
+                        </div>
+                      )}
+
+                      {/* ignore_failure toggle */}
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={action.ignore_failure || false}
+                          onCheckedChange={(v) =>
+                            updateAction(idx, {
+                              ignore_failure: !!v,
+                            })
+                          }
+                          className="scale-75 origin-left"
+                        />
+                        <span className="text-[10px] text-muted-foreground">
+                          {t("schedules.ignoreFailure")}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setDialogOpen(false)}
+            >
+              {t("actions.cancel")}
+            </Button>
+            <Button
+              size="sm"
+              onClick={saveSchedule}
+              disabled={saving}
+            >
+              {saving && (
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              )}
+              {editing ? t("schedules.save") : t("schedules.create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Delete confirmation ────────────────────────────────────────── */}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent className="border-border bg-card">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("schedules.deleteSchedule")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("schedules.confirmDelete")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("actions.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteSchedule}>
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              {t("schedules.deleteSchedule")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

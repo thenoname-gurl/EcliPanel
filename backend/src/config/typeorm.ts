@@ -132,6 +132,8 @@ export const AppDataSource = new DataSource({
     require('../models/ticket.entity').Ticket,
     require('../models/egg.entity').Egg,
     require('../models/serverConfig.entity').ServerConfig,
+    require('../models/serverSchedule.entity').ServerSchedule,
+    require('../models/serverScheduleStep.entity').ServerScheduleStep,
     require('../models/nodeHeartbeat.entity').NodeHeartbeat,
     require('../models/serverBackup.entity').ServerBackup,
     require('../models/oauthApp.entity').OAuthApp,
