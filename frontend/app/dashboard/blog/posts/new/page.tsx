@@ -19,6 +19,7 @@ import {
   ArrowLeft, Eye, Save, Upload, Bold, Italic, Heading, LinkIcon, Image, Code, Quote,
   List, ListOrdered, Video,
 } from "lucide-react"
+import { renderTitleHtml } from "@/components/blog/blog-format"
 import Link from "next/link"
 
 function renderMarkdown(md: string): React.ReactNode {
@@ -283,8 +284,16 @@ export default function NewBlogPostPage() {
                 <Card>
                   <CardContent className="py-6 min-h-[350px]">
                     {content ? (
-                      <div className="max-w-none">
-                        {renderMarkdown(content.substring(0, 5000))}
+                      <div className="max-w-none text-sm leading-relaxed space-y-1.5">
+                        {content.substring(0, 5000).split("\n").map((line, i) => {
+                          if (line.startsWith("## ")) return <h2 key={i} className="text-xl font-bold mt-4 mb-1" dangerouslySetInnerHTML={{ __html: renderTitleHtml(line.slice(3)) }} />
+                          if (line.startsWith("### ")) return <h3 key={i} className="text-lg font-semibold mt-3 mb-1" dangerouslySetInnerHTML={{ __html: renderTitleHtml(line.slice(4)) }} />
+                          if (line.startsWith("> ")) return <blockquote key={i} className="border-l-[3px] pl-3 my-1.5 italic opacity-70" dangerouslySetInnerHTML={{ __html: renderTitleHtml(line.slice(2)) }} />
+                          if (line.startsWith("- ")) return <li key={i} className="ml-4 my-0.5" dangerouslySetInnerHTML={{ __html: renderTitleHtml(line.slice(2)) }} />
+                          if (line.match(/^\d+\. /)) return <li key={i} className="ml-4 my-0.5" dangerouslySetInnerHTML={{ __html: renderTitleHtml(line.replace(/^\d+\. /, "")) }} />
+                          if (line === "") return <br key={i} />
+                          return <p key={i} dangerouslySetInnerHTML={{ __html: renderTitleHtml(line) }} />
+                        })}
                         {content.length > 5000 && (
                           <p className="text-xs text-muted-foreground mt-4 italic border-t pt-3">
                             Preview truncated at 5000 characters
