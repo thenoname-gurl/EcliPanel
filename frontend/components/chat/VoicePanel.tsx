@@ -352,7 +352,7 @@ function DeviceSelectors({
         <div className="flex items-center gap-2">
           {!compact && <span className="text-[9px] font-mono text-muted-foreground/50 w-10">Mic</span>}
           <select value={selectedAudioInput} onChange={e => setSelectedAudioInput(e.target.value)} className={selCls}>
-            <option value="">{compact ? "🎤 Mic" : "Default"}</option>
+            <option value="">{compact ? "Mic" : "Default Mic"}</option>
             {audioInputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId.slice(0, 14)}</option>)}
           </select>
         </div>
@@ -361,7 +361,7 @@ function DeviceSelectors({
         <div className="flex items-center gap-2">
           {!compact && <span className="text-[9px] font-mono text-muted-foreground/50 w-10">Spkr</span>}
           <select value={selectedAudioOutput} onChange={e => setSelectedAudioOutput(e.target.value)} className={selCls}>
-            <option value="">{compact ? "🔊 Speaker" : "Default"}</option>
+            <option value="">{compact ? "Speaker" : "Default Speaker"}</option>
             {audioOutputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId.slice(0, 14)}</option>)}
           </select>
         </div>
@@ -370,7 +370,7 @@ function DeviceSelectors({
         <div className="flex items-center gap-2">
           {!compact && <span className="text-[9px] font-mono text-muted-foreground/50 w-10">Cam</span>}
           <select value={selectedVideoInput} onChange={e => setSelectedVideoInput(e.target.value)} className={selCls}>
-            <option value="">{compact ? "📷 Camera" : "Default"}</option>
+            <option value="">{compact ? "Camera" : "Default Camera"}</option>
             {videoInputs.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId.slice(0, 14)}</option>)}
           </select>
         </div>
@@ -422,8 +422,9 @@ function VolumeControl({
         disabled={muted}
         className={`flex-1 h-1 ${accentColor} cursor-pointer disabled:opacity-30`}
       />
-      <span className="text-[9px] text-muted-foreground/40 w-12 text-right font-mono">
-        {label === "Voice" ? "🎤" : "📺"} {Math.round(volume * 100)}%
+      <span className="text-[9px] text-muted-foreground/40 w-12 text-right font-mono flex items-center gap-0.5 justify-end">
+        {label === "Voice" ? <Mic className="h-3 w-3" /> : <Monitor className="h-3 w-3" />}
+        {Math.round(volume * 100)}%
       </span>
     </div>
   )
@@ -442,6 +443,11 @@ export default function VoicePanel({ roomSlug, roomName, onLeave }: VoicePanelPr
     audioInputs, audioOutputs, videoInputs,
     selectedAudioInput, selectedAudioOutput, selectedVideoInput,
     setSelectedAudioInput, setSelectedAudioOutput, setSelectedVideoInput,
+    echoCancellation, noiseSuppression,
+    setEchoCancellation, setNoiseSuppression, restartMic,
+    noiseGateEnabled, noiseGateThreshold,
+    setNoiseGateEnabled, setNoiseGateThreshold,
+    noScreenAudio,
   } = useVoiceMedia(roomSlug)
 
   const [joined, setJoined] = useState(false)
@@ -758,6 +764,35 @@ export default function VoicePanel({ roomSlug, roomName, onLeave }: VoicePanelPr
                   setSelectedVideoInput={setSelectedVideoInput}
                   compact
                 />
+                <div className="flex items-center gap-4 mt-2 pt-2 border-t border-border/30">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={echoCancellation}
+                      onChange={e => { setEchoCancellation(e.target.checked); restartMic() }}
+                      className="accent-primary h-3 w-3" />
+                    <span className="text-[10px] font-mono text-foreground/60">Echo Cancel</span>
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={noiseSuppression}
+                      onChange={e => { setNoiseSuppression(e.target.checked); restartMic() }}
+                      className="accent-primary h-3 w-3" />
+                    <span className="text-[10px] font-mono text-foreground/60">Noise Suppress</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 pt-1.5 border-t border-border/30">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input type="checkbox" checked={noiseGateEnabled}
+                      onChange={e => setNoiseGateEnabled(e.target.checked)}
+                      className="accent-primary h-3 w-3" />
+                    <span className="text-[10px] font-mono text-foreground/60">Noise Gate</span>
+                  </label>
+                  <input type="range" min="0" max="5" step="0.1"
+                    value={Math.round(noiseGateThreshold * 100)} disabled={!noiseGateEnabled}
+                    onChange={e => setNoiseGateThreshold(Number(e.target.value) / 100)}
+                    className="flex-1 h-1 accent-primary disabled:opacity-30" />
+                  <span className="text-[9px] text-muted-foreground/40 w-8 text-right font-mono">
+                    {Math.round(noiseGateThreshold * 100)}
+                  </span>
+                </div>
               </div>
             </motion.div>
           )}
@@ -816,6 +851,13 @@ export default function VoicePanel({ roomSlug, roomName, onLeave }: VoicePanelPr
           />
 
           <div className="w-px h-6 bg-border/40 mx-1" />
+
+          {/* No system audio notice */}
+          {isScreenSharing && noScreenAudio && (
+            <span className="text-[9px] font-mono text-amber-400/70 bg-amber-400/5 border border-amber-400/20 rounded px-1.5 py-0.5">
+              No system audio — use virtual cable for game/app sound
+            </span>
+          )}
 
           <button
             onClick={handleLeave}

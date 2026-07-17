@@ -1,6 +1,7 @@
 "use client"
 
 import { useRef, useState, useCallback, useEffect } from "react"
+import { createVoiceCrypto, type VoiceCrypto } from "@/lib/voice-crypto"
 
 export interface VoicePeer {
   peerId: string
@@ -293,7 +294,7 @@ class RemoteAudioPlayer {
     }
   }
 
-  private lastScheduledEnd = 0
+  lastScheduledEnd = 0
 
   getAcTime(): number { return this.ac.currentTime }
 
@@ -323,6 +324,17 @@ export function useVoiceMedia(roomSlug: string | null) {
   const [hasVideo, setHasVideo] = useState(false)
   const [isScreenSharing, setIsScreenSharing] = useState(false)
   const [bgBlur, setBgBlur] = useState(false)
+  const [echoCancellation, setEchoCancellation] = useState(true)
+  const [noiseSuppression, setNoiseSuppression] = useState(true)
+  const [noiseGateEnabled, setNoiseGateEnabled] = useState(true)
+  const [noiseGateThreshold, setNoiseGateThreshold] = useState(0.03)
+  const [noScreenAudio, setNoScreenAudio] = useState(false)
+  const echoRef = useRef(true)
+  const noiseRef = useRef(true)
+  const noiseGateRef = useRef<number | undefined>(0.03)
+  useEffect(() => { echoRef.current = echoCancellation }, [echoCancellation])
+  useEffect(() => { noiseRef.current = noiseSuppression }, [noiseSuppression])
+  useEffect(() => { noiseGateRef.current = noiseGateEnabled ? noiseGateThreshold : undefined }, [noiseGateEnabled, noiseGateThreshold])
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([])
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([])
   const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([])
@@ -344,6 +356,8 @@ export function useVoiceMedia(roomSlug: string | null) {
   const screenProcessorRef = useRef<ScriptProcessorNode | null>(null)
   const micSourceRef = useRef<MediaStreamAudioSourceNode | null>(null)
   const screenAudioSrcRef = useRef<MediaStreamAudioSourceNode | null>(null)
+  const cryptoRef = useRef<VoiceCrypto | null>(null)
+  const sentKeyToRef = useRef<Set<string>>(new Set())
   const camRecorderRef = useRef<MediaRecorder | null>(null)
   const screenRecorderRef = useRef<MediaRecorder | null>(null)
   const micAudioPlayersRef = useRef<Map<string, RemoteAudioPlayer>>(new Map())
@@ -379,6 +393,27 @@ export function useVoiceMedia(roomSlug: string | null) {
       ws.send(JSON.stringify(msg))
     }
   }, [])
+
+  const encryptAndSend = useCallback(async (msg: { type: string; roomSlug: string | null; kind: string; chunk: string } & Record<string, unknown>) => {
+    const ws = wsRef.current
+    if (!msg.roomSlug || ws?.readyState !== WebSocket.OPEN) return
+    if (cryptoRef.current?.hasRoomKey()) {
+      try {
+        const raw = base64U8(msg.chunk)
+        const encrypted = await cryptoRef.current.encryptChunk(raw.buffer as ArrayBuffer)
+        msg = { ...msg, chunk: u8ToBase64(new Uint8Array(encrypted)) }
+      } catch (e) { console.warn("[voice] encrypt failed:", e) }
+    }
+    ws.send(JSON.stringify(msg))
+  }, [])
+  function base64U8(b64: string): Uint8Array {
+    return Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+  }
+  function u8ToBase64(u8: Uint8Array): string {
+    let bin = ""; const CHUNK = 8192
+    for (let i = 0; i < u8.length; i += CHUNK) bin += String.fromCharCode(...u8.subarray(i, i + CHUNK))
+    return btoa(bin)
+  }
 
   const startMicCapture = useCallback(() => {
     const micStream = micStreamRef.current
@@ -430,17 +465,27 @@ export function useVoiceMedia(roomSlug: string | null) {
 
       let offset = 0
       while (offset + CHUNK_SIZE <= combined.length) {
-        const chunk = combined.slice(offset, offset + CHUNK_SIZE)
+        let chunk = combined.slice(offset, offset + CHUNK_SIZE)
         offset += CHUNK_SIZE
+
+        if (noiseGateRef.current !== undefined) {
+          let sumSq = 0
+          for (let i = 0; i < chunk.length; i++) sumSq += chunk[i] * chunk[i]
+          const rms = Math.sqrt(sumSq / chunk.length)
+          if (rms < noiseGateRef.current) {
+            chunk = new Float32Array(CHUNK_SIZE)
+          }
+        }
+
         try {
-          wsRef.current!.send(JSON.stringify({
+          encryptAndSend({
             type: "voice_media",
             roomSlug: roomSlugRef.current,
             kind: "mic_audio",
             chunk: f32ToBase64(chunk),
             seq: micSeqRef.current++,
             senderTime: Date.now(),
-          }))
+          })
         } catch { }
       }
 
@@ -511,14 +556,14 @@ export function useVoiceMedia(roomSlug: string | null) {
         const chunk = combined.slice(offset, offset + CHUNK_SIZE)
         offset += CHUNK_SIZE
         try {
-          wsRef.current!.send(JSON.stringify({
+          encryptAndSend({
             type: "voice_media",
             roomSlug: roomSlugRef.current,
             kind: "screen_audio",
             chunk: f32ToBase64(chunk),
             seq: screenSeqRef.current++,
             senderTime: Date.now(),
-          }))
+          })
         } catch { }
       }
 
@@ -555,12 +600,12 @@ export function useVoiceMedia(roomSlug: string | null) {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
         try {
           const chunk = await blobToBase64(e.data)
-          wsRef.current.send(JSON.stringify({
+          encryptAndSend({
             type: "voice_media",
             roomSlug: roomSlugRef.current,
             kind: "camera_video",
             chunk,
-          }))
+          })
         } catch { }
       }
 
@@ -600,14 +645,14 @@ export function useVoiceMedia(roomSlug: string | null) {
         try {
           const chunk = await blobToBase64(e.data)
           const seq = screenSeqRef.current++
-          wsRef.current.send(JSON.stringify({
+          encryptAndSend({
             type: "voice_media",
             roomSlug: roomSlugRef.current,
             kind: "screen_video",
             chunk,
             seq,
             senderTime: Date.now(),
-          }))
+          })
         } catch { }
       }
 
@@ -770,16 +815,16 @@ export function useVoiceMedia(roomSlug: string | null) {
   const acquireMicStream = useCallback(async () => {
     if (micStreamRef.current) return micStreamRef.current
     const constraints: MediaTrackConstraints = {
-      echoCancellation: true,
-      noiseSuppression: true,
+      echoCancellation: echoRef.current,
+      noiseSuppression: noiseRef.current,
       autoGainControl: true,
       sampleRate: AUDIO_SAMPLE_RATE,
       sampleSize: 16,
       channelCount: 1,
       latency: 0.02,
       volume: 1.0,
-      googEchoCancellation: true,
-      googNoiseSuppression: true,
+      googEchoCancellation: echoRef.current,
+      googNoiseSuppression: noiseRef.current,
       googAutoGainControl: true,
       googHighpassFilter: true,
       googExperimentalEchoCancellation: true,
@@ -811,11 +856,11 @@ export function useVoiceMedia(roomSlug: string | null) {
     const d = !isDeafenedRef.current
     isDeafenedRef.current = d
     setIsDeafened(d)
-    for (const [, p] of micAudioPlayersRef.current) {
-      p.setMuted(d || (peerMutesRef.current.get(p["peerId" as any] as any) ?? false))
+    for (const [peerId, p] of micAudioPlayersRef.current) {
+      p.setMuted(d || (peerMutesRef.current.get(peerId) ?? false))
     }
-    for (const [, p] of screenAudioPlayersRef.current) {
-      p.setMuted(d || (peerScreenMutesRef.current.get(p["peerId" as any] as any) ?? false))
+    for (const [peerId, p] of screenAudioPlayersRef.current) {
+      p.setMuted(d || (peerScreenMutesRef.current.get(peerId) ?? false))
     }
     wsSend({ type: d ? "voice_deafen" : "voice_undeafen", roomSlug: roomSlugRef.current })
   }, [wsSend])
@@ -878,6 +923,10 @@ export function useVoiceMedia(roomSlug: string | null) {
       startScreenRecorder()
       if (audioTracks.length > 0) {
         startScreenAudioCapture()
+        setNoScreenAudio(false)
+      } else {
+        console.warn("[voice] no system audio - game/app audio needs virtual cable (BlackHole/VB-Cable/PipeWire)")
+        setNoScreenAudio(true)
       }
 
       wsSend({ type: "voice_screen_start", roomSlug: roomSlugRef.current })
@@ -961,14 +1010,21 @@ export function useVoiceMedia(roomSlug: string | null) {
     const ws = new WebSocket(`${protocol}//${window.location.host}/api/ws/voice`)
     wsRef.current = ws
 
-    ws.onopen = () => {
+    ws.onopen = async () => {
       console.log("[voice] connected, joining", roomSlug)
-      ws.send(JSON.stringify({ type: "voice_join", roomSlug }))
+      if (!cryptoRef.current) {
+        cryptoRef.current = await createVoiceCrypto()
+      }
+      ws.send(JSON.stringify({
+        type: "voice_join",
+        roomSlug,
+        publicKey: cryptoRef.current.ownPublicKey,
+      }))
       startMicCapture()
       if (video) startCamRecorder()
     }
 
-    ws.onmessage = (evt) => {
+    ws.onmessage = async (evt) => {
       let data: any
       try { data = JSON.parse(evt.data) } catch { return }
       if (!data?.type) return
@@ -1027,6 +1083,38 @@ export function useVoiceMedia(roomSlug: string | null) {
                 }
               })
           })
+          if (cryptoRef.current?.hasRoomKey()) {
+            for (const p of incoming) {
+              if (p.peerId === localPeerIdRef.current) continue
+              if (p.publicKey && !sentKeyToRef.current.has(p.peerId)) {
+                sentKeyToRef.current.add(p.peerId)
+                cryptoRef.current.getEncryptedRoomKey(p.publicKey).then(ek => {
+                  if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                      type: "voice_room_key",
+                      roomSlug,
+                      targetPeerId: p.peerId,
+                      encryptedKey: ek.encryptedKey,
+                      iv: ek.iv,
+                      senderPublicKey: ek.exporterPublicKey,
+                    }))
+                  }
+                }).catch(() => {})
+              }
+            }
+          }
+          break
+        }
+        case "voice_room_key": {
+          if (cryptoRef.current && !cryptoRef.current.hasRoomKey()) {
+            cryptoRef.current.ingestEncryptedRoomKey(
+              data.encryptedKey, data.iv, data.senderPublicKey,
+            ).then(() => {
+              console.log("[voice] E2E room key received")
+            }).catch(e => {
+              console.warn("[voice] E2E key ingest failed:", e)
+            })
+          }
           break
         }
 
@@ -1036,9 +1124,25 @@ export function useVoiceMedia(roomSlug: string | null) {
           const kind: string = data.kind
 
           if (kind === "mic_audio" || kind === "screen_audio") {
-            handleRemoteAudio(from, kind, data.chunk, data.senderTime, data.seq)
+            let chunk = data.chunk
+            if (cryptoRef.current?.hasRoomKey()) {
+              try {
+                const encrypted = base64U8(data.chunk)
+                const decrypted = await cryptoRef.current.decryptChunk(encrypted.buffer as ArrayBuffer)
+                chunk = u8ToBase64(new Uint8Array(decrypted))
+              } catch { /* buh */ }
+            }
+            handleRemoteAudio(from, kind, chunk, data.senderTime, data.seq)
           } else if (kind === "camera_video" || kind === "screen_video") {
-            handleRemoteVideo(from, kind, data.chunk, data.senderTime, data.seq)
+            let chunk = data.chunk
+            if (cryptoRef.current?.hasRoomKey()) {
+              try {
+                const encrypted = base64U8(data.chunk)
+                const decrypted = await cryptoRef.current.decryptChunk(encrypted.buffer as ArrayBuffer)
+                chunk = u8ToBase64(new Uint8Array(decrypted))
+              } catch { /* buh */ }
+            }
+            handleRemoteVideo(from, kind, chunk, data.senderTime, data.seq)
           }
           break
         }
@@ -1175,5 +1279,26 @@ export function useVoiceMedia(roomSlug: string | null) {
     audioInputs, audioOutputs, videoInputs,
     selectedAudioInput, selectedAudioOutput, selectedVideoInput,
     setSelectedAudioInput, setSelectedAudioOutput, setSelectedVideoInput,
+    echoCancellation, noiseSuppression,
+    setEchoCancellation, setNoiseSuppression,
+    noiseGateEnabled, noiseGateThreshold,
+    setNoiseGateEnabled, setNoiseGateThreshold,
+    noScreenAudio,
+    restartMic: async () => {
+      if (micStreamRef.current) {
+        micStreamRef.current.getTracks().forEach(t => t.stop())
+        micStreamRef.current = null
+      }
+      if (micProcessorRef.current) {
+        try { micProcessorRef.current.disconnect() } catch {}
+        micProcessorRef.current = null
+      }
+      if (micSourceRef.current) {
+        try { micSourceRef.current.disconnect() } catch {}
+        micSourceRef.current = null
+      }
+      await acquireMicStream()
+      startMicCapture()
+    },
   }
 }

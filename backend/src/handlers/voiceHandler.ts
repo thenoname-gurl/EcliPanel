@@ -12,6 +12,7 @@ interface PeerState {
   hasVideo: boolean;
   isScreenSharing: boolean;
   lastSeen: number;
+  publicKey: string | null;
 }
 
 const rooms = new Map<string, Map<string, PeerState>>();
@@ -29,6 +30,7 @@ function getRoomPeers(slug: string): object[] {
     isDeafened: p.isDeafened,
     hasVideo: p.hasVideo,
     isScreenSharing: p.isScreenSharing,
+    publicKey: p.publicKey,
   }));
 }
 
@@ -183,6 +185,11 @@ function handleMessage(ws: any, raw: any): void {
     case 'voice_join': {
       if (!slug) return;
       addPeer(ws, slug);
+      if (data.publicKey) {
+        const room = rooms.get(slug);
+        const peer = room?.get(ws.data?.peerId);
+        if (peer) { peer.publicKey = data.publicKey; broadcastRoomState(slug); }
+      }
       break;
     }
     case 'voice_leave': {
@@ -198,6 +205,22 @@ function handleMessage(ws: any, raw: any): void {
     case 'voice_screen_start': { if (slug) updatePeerState(ws, slug, { isScreenSharing: true }); break; }
     case 'voice_screen_stop': { if (slug) updatePeerState(ws, slug, { isScreenSharing: false }); break; }
     case 'voice_pong': { break; }
+    case 'voice_room_key': {
+      if (!slug || !data.targetPeerId) return;
+      const room = rooms.get(slug);
+      if (!room) return;
+      const target = room.get(data.targetPeerId);
+      if (target) {
+        safeSend(target.ws, JSON.stringify({
+          type: 'voice_room_key',
+          peerId: ws.data.peerId,
+          encryptedKey: data.encryptedKey,
+          iv: data.iv,
+          senderPublicKey: data.senderPublicKey,
+        }));
+      }
+      break;
+    }
     case 'voice_media': {
       if (!slug) return;
       const room = rooms.get(slug);
