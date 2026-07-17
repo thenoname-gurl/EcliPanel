@@ -8,8 +8,9 @@ import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { isExternalUrlSync } from "@/lib/internal-domains"
-import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert } from "lucide-react"
+import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert, Phone } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import VoicePanel from "@/components/chat/VoicePanel"
 
 function safeUrl(url: string | null | undefined, allowedProtocols: string[]): string | undefined {
   if (!url) return undefined
@@ -255,6 +256,9 @@ export default function ChatPage() {
     return localStorage.getItem("chat_anonymous_name") || ""
   })
 
+  const [activeVoiceRoom, setActiveVoiceRoom] = useState<{ slug: string; id: number } | null>(null)
+  const [creatingVoiceRoom, setCreatingVoiceRoom] = useState(false)
+
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => { loadChannels() }, [])
@@ -286,6 +290,18 @@ export default function ChatPage() {
       }
     }
   }, [activeChannel?.id, activeThread?.op.id, channels, router, searchParams])
+
+  // Handle voice room share links
+  useEffect(() => {
+    const voiceSlug = searchParams.get("voice")?.trim()
+    if (!voiceSlug) return
+    // Validate and set voice room
+    apiFetch(API_ENDPOINTS.voiceRoom.replace(":slug", encodeURIComponent(voiceSlug)))
+      .then((res: any) => {
+        if (res?.slug) setActiveVoiceRoom({ slug: res.slug, id: res.id })
+      })
+      .catch(() => {})
+  }, [searchParams])
 
   useEffect(() => {
     if (activeChannel) { loadThreads(activeChannel.id); setActiveThread(null); setViewMode("board") }
@@ -469,6 +485,26 @@ export default function ChatPage() {
     } catch { }
   }
 
+  async function createVoiceRoom(channelId: number) {
+    if (creatingVoiceRoom) return
+    setCreatingVoiceRoom(true)
+    try {
+      const res = await apiFetch(API_ENDPOINTS.voiceRooms, {
+        method: "POST",
+        body: JSON.stringify({ channelId }),
+      })
+      if (res?.slug) {
+        setActiveVoiceRoom({ slug: res.slug, id: res.id })
+        const ch = channels.find(c => c.id === channelId)
+        if (ch) {
+          setActiveChannel(ch)
+          router.push(`/dashboard/chat?board=${ch.slug}&voice=${res.slug}`)
+        }
+      }
+    } catch { }
+    setCreatingVoiceRoom(false)
+  }
+
   async function updateChannel(channelId: number, data: { name?: string; slug?: string; description?: string | null; isMature?: boolean }) {
     try {
       const updated = await apiFetch(API_ENDPOINTS.chatChannel.replace(":id", String(channelId)), {
@@ -574,7 +610,7 @@ export default function ChatPage() {
   const canPost = (c: Channel) =>
     c.type === "public_anonymous" || (!!isLoggedIn && c.type === "community" && !!c.isMember)
 
-  const canModerate = isLoggedIn && user && hasPermission(user, 'chat:manage')
+  const canModerate = !!(isLoggedIn && user && hasPermission(user, 'chat:manage'))
 
   const communityChannels = isLoggedIn ? channels.filter(c => c.type === "community") : []
   const publicChannels = channels.filter(c => c.type === "public_anonymous")
@@ -748,74 +784,116 @@ export default function ChatPage() {
           )}
           <div className="ml-auto flex items-center gap-1.5">
             {activeChannel && (
-              <button
-                onClick={() => copyLink(
-                  activeChannel
-                    ? `/dashboard/chat?board=${activeChannel.slug}${viewMode === "thread" && activeThread ? `&thread=${activeThread.op.id}` : ""}`
-                    : "/dashboard/chat"
-                )}
-                className="p-1 text-muted-foreground/30 hover:text-foreground/50 hover:bg-muted rounded transition-all"
-                title="Copy link"
-              >
-                <Link2 className="h-3 w-3" />
-              </button>
+              <>
+                <button
+                  onClick={() => createVoiceRoom(activeChannel.id)}
+                  disabled={creatingVoiceRoom}
+                  className="p-1 text-muted-foreground/30 hover:text-primary/60 hover:bg-muted rounded transition-all disabled:opacity-30"
+                  title="Create voice room"
+                >
+                  <Phone className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={() => copyLink(
+                    activeChannel
+                      ? `/dashboard/chat?board=${activeChannel.slug}${viewMode === "thread" && activeThread ? `&thread=${activeThread.op.id}` : ""}`
+                      : "/dashboard/chat"
+                  )}
+                  className="p-1 text-muted-foreground/30 hover:text-foreground/50 hover:bg-muted rounded transition-all"
+                  title="Copy link"
+                >
+                  <Link2 className="h-3 w-3" />
+                </button>
+              </>
             )}
           </div>
         </div>
 
         {!activeChannel ? (
-          <BoardIndex
-            publicChannels={publicChannels}
-            communityChannels={communityChannels}
-            isLoggedIn={isLoggedIn}
-            onSelect={goToBoard}
-            onJoin={joinChannel}
-            loading={loading}
-          />
-        ) : viewMode === "thread" && activeThread ? (
-          <ThreadViewPanel
-            thread={activeThread}
-            channel={activeChannel}
-            isLoggedIn={isLoggedIn}
-            anonymousName={anonymousName}
-            setAnonymousName={setAnonymousName}
-            isAnonymous={activeChannel.type === "public_anonymous"}
-            canPost={canPost(activeChannel)}
-            canModerate={canModerate}
-            sending={sending}
-            onBack={goBack}
-            onReply={(content, imageUrl, revealIdentity) =>
-              replyToThread(activeThread.op.id, content, activeChannel.type === "public_anonymous", imageUrl, revealIdentity)
-            }
-            onToggleHideMessage={(messageId, hidden) => toggleHideMessage(activeChannel.id, messageId, hidden)}
-            onDeleteMessage={(messageId) => deleteMessage(activeChannel.id, messageId)}
-            onLookupPost={lookupPost}
-            onMassDelete={massDeletePost}
-          />
+          <>
+            {activeVoiceRoom && (
+              <div className="shrink-0 px-3 pt-3">
+                <VoicePanel
+                  roomSlug={activeVoiceRoom.slug}
+                  roomName="Voice Room"
+                  onLeave={() => {
+                    setActiveVoiceRoom(null)
+                    router.push("/dashboard/chat")
+                  }}
+                />
+              </div>
+            )}
+            <BoardIndex
+              publicChannels={publicChannels}
+              communityChannels={communityChannels}
+              isLoggedIn={isLoggedIn}
+              onSelect={goToBoard}
+              onJoin={joinChannel}
+              loading={loading}
+              onCreateVoiceRoom={createVoiceRoom}
+              creatingVoiceRoom={creatingVoiceRoom}
+            />
+          </>
         ) : (
-          <BoardPanel
-            channel={activeChannel}
-            threads={threads}
-            isLoggedIn={isLoggedIn}
-            anonymousName={anonymousName}
-            setAnonymousName={setAnonymousName}
-            canPost={canPost(activeChannel)}
-            canModerate={canModerate}
-            isAnonymous={activeChannel.type === "public_anonymous"}
-            sending={sending}
-            onSelectThread={t => {
-              void loadThread(activeChannel.id, t.id).then(found => {
-                if (found) { goToThread(activeChannel, t.id); setViewMode("thread") }
-              })
-            }}
-            onNewThread={(content, imageUrl, revealIdentity) =>
-              createServerThread(content, activeChannel.type === "public_anonymous", imageUrl, revealIdentity)
-            }
-            onToggleHideMessage={(messageId, hidden) => toggleHideMessage(activeChannel.id, messageId, hidden)}
-            onDeleteMessage={(messageId) => deleteMessage(activeChannel.id, messageId)}
-            onLookupPost={lookupPost}
-            onMassDelete={massDeletePost}
-          />
+          <>
+            {activeVoiceRoom && (
+              <div className="shrink-0 px-3 pt-3">
+                <VoicePanel
+                  roomSlug={activeVoiceRoom.slug}
+                  roomName={activeChannel.name}
+                  onLeave={() => {
+                    setActiveVoiceRoom(null)
+                    router.push(`/dashboard/chat?board=${activeChannel.slug}${viewMode === "thread" && activeThread ? `&thread=${activeThread.op.id}` : ""}`)
+                  }}
+                />
+              </div>
+            )}
+            {viewMode === "thread" && activeThread ? (
+              <ThreadViewPanel
+                thread={activeThread}
+                channel={activeChannel}
+                isLoggedIn={isLoggedIn}
+                anonymousName={anonymousName}
+                setAnonymousName={setAnonymousName}
+                isAnonymous={activeChannel.type === "public_anonymous"}
+                canPost={canPost(activeChannel)}
+                canModerate={canModerate}
+                sending={sending}
+                onBack={goBack}
+                onReply={(content, imageUrl, revealIdentity) =>
+                  replyToThread(activeThread.op.id, content, activeChannel.type === "public_anonymous", imageUrl, revealIdentity)
+                }
+                onToggleHideMessage={(messageId, hidden) => toggleHideMessage(activeChannel.id, messageId, hidden)}
+                onDeleteMessage={(messageId) => deleteMessage(activeChannel.id, messageId)}
+                onLookupPost={lookupPost}
+                onMassDelete={massDeletePost}
+              />
+            ) : (
+              <BoardPanel
+                channel={activeChannel}
+                threads={threads}
+                isLoggedIn={isLoggedIn}
+                anonymousName={anonymousName}
+                setAnonymousName={setAnonymousName}
+                canPost={canPost(activeChannel)}
+                canModerate={canModerate}
+                isAnonymous={activeChannel.type === "public_anonymous"}
+                sending={sending}
+                onSelectThread={t => {
+                  void loadThread(activeChannel.id, t.id).then(found => {
+                    if (found) { goToThread(activeChannel, t.id); setViewMode("thread") }
+                  })
+                }}
+                onNewThread={(content, imageUrl, revealIdentity) =>
+                  createServerThread(content, activeChannel.type === "public_anonymous", imageUrl, revealIdentity)
+                }
+                onToggleHideMessage={(messageId, hidden) => toggleHideMessage(activeChannel.id, messageId, hidden)}
+                onDeleteMessage={(messageId) => deleteMessage(activeChannel.id, messageId)}
+                onLookupPost={lookupPost}
+                onMassDelete={massDeletePost}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -874,10 +952,11 @@ function BoardSidebarItem({ channel, active, manageable, onClick, onEdit, onDele
   )
 }
 
-function BoardIndex({ publicChannels, communityChannels, isLoggedIn, onSelect, onJoin, loading }: {
+function BoardIndex({ publicChannels, communityChannels, isLoggedIn, onSelect, onJoin, loading, onCreateVoiceRoom, creatingVoiceRoom }: {
   publicChannels: Channel[]; communityChannels: Channel[]
   isLoggedIn: boolean; onSelect: (ch: Channel) => void
   onJoin: (id: number) => void; loading: boolean
+  onCreateVoiceRoom: (channelId: number) => void; creatingVoiceRoom: boolean
 }) {
   return (
     <div className="flex-1 overflow-y-auto bg-background">
@@ -904,7 +983,7 @@ function BoardIndex({ publicChannels, communityChannels, isLoggedIn, onSelect, o
               Anonymous Boards
             </h2>
             {publicChannels.map(ch => (
-              <BoardIndexRow key={ch.id} channel={ch} onSelect={onSelect} />
+              <BoardIndexRow key={ch.id} channel={ch} onSelect={onSelect} onCreateVoiceRoom={onCreateVoiceRoom} creatingVoiceRoom={creatingVoiceRoom} />
             ))}
           </div>
         )}
@@ -916,7 +995,8 @@ function BoardIndex({ publicChannels, communityChannels, isLoggedIn, onSelect, o
             </h2>
             {communityChannels.map(ch => (
               <BoardIndexRow key={ch.id} channel={ch} onSelect={onSelect}
-                onJoin={!ch.isMember ? () => onJoin(ch.id) : undefined} />
+                onJoin={!ch.isMember ? () => onJoin(ch.id) : undefined}
+                onCreateVoiceRoom={onCreateVoiceRoom} creatingVoiceRoom={creatingVoiceRoom} />
             ))}
           </div>
         )}
@@ -935,8 +1015,9 @@ function BoardIndex({ publicChannels, communityChannels, isLoggedIn, onSelect, o
   )
 }
 
-function BoardIndexRow({ channel, onSelect, onJoin }: {
+function BoardIndexRow({ channel, onSelect, onJoin, onCreateVoiceRoom, creatingVoiceRoom }: {
   channel: Channel; onSelect: (ch: Channel) => void; onJoin?: () => void
+  onCreateVoiceRoom: (channelId: number) => void; creatingVoiceRoom: boolean
 }) {
   const Icon = getChannelIcon(channel.type)
   return (
@@ -958,6 +1039,14 @@ function BoardIndexRow({ channel, onSelect, onJoin }: {
       <div className="flex items-center gap-3 text-[10px] text-muted-foreground/30 font-mono shrink-0">
         <span>{channel.threadCount ?? 0}T</span>
         <span>{channel.postCount ?? 0}P</span>
+        <button
+          onClick={e => { e.stopPropagation(); onCreateVoiceRoom(channel.id) }}
+          disabled={creatingVoiceRoom}
+          className="text-green-500/50 hover:text-green-400 disabled:opacity-30 transition-colors font-mono"
+          title="Join voice"
+        >
+          <Phone className="h-3 w-3 inline" /> Voice
+        </button>
         {onJoin && (
           <button onClick={e => { e.stopPropagation(); onJoin() }}
             className="text-primary/50 hover:text-primary transition-colors hover:underline">

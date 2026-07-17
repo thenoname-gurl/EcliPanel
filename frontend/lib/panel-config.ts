@@ -560,6 +560,12 @@ export const API_ENDPOINTS = {
   chatWs: "/api/ws/chat",
   chatUpload: "/api/chat/upload",
 
+  // Voice
+  voiceRooms: "/api/voice/rooms",
+  voiceRoom: "/api/voice/rooms/:slug",
+  voiceChannelRooms: "/api/voice/channels/:channelId/rooms",
+  voiceWs: "/api/ws/voice",
+
   // Telemetry
   telemetryIngest: "/api/telemetry/ingest",
   adminTelemetry: "/api/admin/telemetry",
