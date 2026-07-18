@@ -28,6 +28,7 @@ export class ChatChannel {
   @Column({ nullable: true })
   createdById: number | null;
 
+  @Index(['isArchived', 'isListed', 'type'])
   @Column({ default: true })
   isListed: boolean;
 

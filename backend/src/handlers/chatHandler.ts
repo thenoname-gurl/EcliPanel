@@ -5,7 +5,7 @@ import { ChatMessage } from '../models/chatMessage.entity';
 import { ChatChannelMember } from '../models/chatChannelMember.entity';
 import { ChatIpLog } from '../models/chatIpLog.entity';
 import { ChatIpBan } from '../models/chatIpBan.entity';
-import { In, IsNull, LessThan, MoreThan } from 'typeorm';
+import { In, IsNull, MoreThan } from 'typeorm';
 import { User } from '../models/user.entity';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
@@ -96,17 +96,21 @@ async function checkBan(ctx: any): Promise<string | null> {
   return null;
 }
 
-async function enrichPost(ctx: any, post: any): Promise<any> {
+async function enrichPost(ctx: any, post: any, staffCache?: Map<number, boolean>): Promise<any> {
   const mod = isChatMod(ctx);
   let authorIsStaff = false;
   if (post.userId) {
-    const author = await AppDataSource.getRepository(User).findOne({
-      where: { id: post.userId },
-      relations: { userRoles: { role: { permissions: true, parentRole: { permissions: true } } } },
-    });
-    if (author) {
-      const authorCtx = { user: author, userPermissions: undefined as string[] | undefined };
-      authorIsStaff = hasPermissionSync(authorCtx, 'chat:manage');
+    if (staffCache) {
+      authorIsStaff = staffCache.get(post.userId) ?? false;
+    } else {
+      const author = await AppDataSource.getRepository(User).findOne({
+        where: { id: post.userId },
+        relations: { userRoles: { role: { permissions: true, parentRole: { permissions: true } } } },
+      });
+      if (author) {
+        const authorCtx = { user: author, userPermissions: undefined as string[] | undefined };
+        authorIsStaff = hasPermissionSync(authorCtx, 'chat:manage');
+      }
     }
   }
   return {
@@ -115,6 +119,20 @@ async function enrichPost(ctx: any, post: any): Promise<any> {
     formattedId: formatPostId(post.id),
     content: post.isHidden && !mod ? '[removed by moderator]' : post.content,
   };
+}
+
+async function batchStaffCheck(userIds: number[]): Promise<Map<number, boolean>> {
+  const map = new Map<number, boolean>();
+  if (!userIds.length) return map;
+  const users = await AppDataSource.getRepository(User).find({
+    where: { id: In(userIds) },
+    relations: { userRoles: { role: { permissions: true, parentRole: { permissions: true } } } },
+  });
+  for (const u of users) {
+    const ctx = { user: u, userPermissions: undefined as string[] | undefined };
+    map.set(u.id, hasPermissionSync(ctx, 'chat:manage'));
+  }
+  return map;
 }
 
 function getClientIp(ctx: any): string {
@@ -144,13 +162,33 @@ export async function chatRoutes(app: any, prefix = '') {
     if (userId) qb.andWhere('(c.isListed = :listed OR c.createdById = :userId)', { listed: 1, userId });
     if (type) qb.andWhere('c.type = :type', { type });
     const channels = await qb.orderBy('c.createdAt', 'DESC').getMany();
+    const channelIds = channels.map(c => c.id);
+    const [countRows, members] = await Promise.all([
+      channelIds.length
+        ? messageRepo().createQueryBuilder('m')
+            .select('m.channelId', 'channelId')
+            .addSelect('COUNT(*)', 'cnt')
+            .addSelect('SUM(CASE WHEN m.parentId IS NULL THEN 1 ELSE 0 END)', 'threads')
+            .where('m.channelId IN (:...ids)', { ids: channelIds })
+            .groupBy('m.channelId').getRawMany()
+        : [],
+      userId
+        ? memberRepo().find({ where: { channelId: In(channelIds), userId }, select: { channelId: true, role: true } })
+        : [],
+    ]);
+
+    const postCounts = new Map(countRows.map(r => [Number(r.channelId), Number(r.cnt)]));
+    const threadCounts = new Map(countRows.map(r => [Number(r.channelId), Number(r.threads)]));
+    const memberMap = new Map<number, string>(members.map((m: any) => [m.channelId, m.role] as [number, string]));
     const result: any[] = [];
     for (const c of channels) {
-      const threadCount = await messageRepo().countBy({ channelId: c.id, parentId: IsNull() });
-      const postCount = await messageRepo().countBy({ channelId: c.id });
-      let isMember = false, myRole: string | null = null;
-      if (userId) { const m = await memberRepo().findOneBy({ channelId: c.id, userId }); isMember = !!m; if (m) myRole = m.role; }
-      result.push({ ...c, threadCount, postCount, isMember, myRole });
+      result.push({
+        ...c,
+        threadCount: threadCounts.get(c.id) ?? 0,
+        postCount: postCounts.get(c.id) ?? 0,
+        isMember: memberMap.has(c.id),
+        myRole: memberMap.get(c.id) ?? null,
+      });
     }
     return result;
   }, { detail: { tags: ['Chat'], summary: 'List chat channels' } });
@@ -260,12 +298,24 @@ export async function chatRoutes(app: any, prefix = '') {
     const page = Math.max(1, Number(ctx.query?.page) || 1);
     const limit = Math.min(Math.max(Number(ctx.query?.limit) || 20, 1), 50);
     const threads = await messageRepo().find({ where: { channelId, parentId: IsNull(), ...(mod ? {} : { isHidden: false }) }, order: { bumpedAt: 'DESC', createdAt: 'DESC' }, skip: (page - 1) * limit, take: limit });
+    const threadIds = threads.map(t => t.id);
+    const replyCountMap = new Map<number, number>();
+    const counts = await messageRepo().createQueryBuilder('m')
+      .select('m.parentId', 'parentId').addSelect('COUNT(*)', 'cnt')
+      .where('m.parentId IN (:...ids)', { ids: threadIds.length ? threadIds : [0] })
+      .andWhere(mod ? '1=1' : 'm.isHidden = false')
+      .groupBy('m.parentId').getRawMany();
+    for (const r of counts) replyCountMap.set(Number(r.parentId), Number(r.cnt));
+
+    const allUserIds = new Set(threads.map(t => t.userId).filter(Boolean));
+    const staffCache = await batchStaffCheck([...allUserIds]);
+
     const result: any[] = [];
     for (const op of threads) {
-      const replyCount = await messageRepo().countBy({ channelId, parentId: op.id, ...(mod ? {} : { isHidden: false }) });
+      const replyCount = replyCountMap.get(op.id) ?? 0;
       const recentReplies = await messageRepo().find({ where: { channelId, parentId: op.id, ...(mod ? {} : { isHidden: false }) }, order: { createdAt: 'DESC' }, take: 5 });
       recentReplies.reverse();
-      result.push(await enrichPost(ctx, { ...op, replyCount, recentReplies }));
+      result.push(await enrichPost(ctx, { ...op, replyCount, recentReplies }, staffCache));
     }
     const total = await messageRepo().countBy({ channelId, parentId: IsNull(), ...(mod ? {} : { isHidden: false }) });
     return { threads: result, total, page, limit };
@@ -278,9 +328,11 @@ export async function chatRoutes(app: any, prefix = '') {
     const op = await messageRepo().findOneBy({ id: threadId, channelId, parentId: IsNull() });
     if (!op) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
     if (op.isHidden && !mod) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
-    const replies = await messageRepo().find({ where: { channelId, parentId: threadId, ...(mod ? {} : { isHidden: false }) }, order: { createdAt: 'ASC' } });
+    const replies = await messageRepo().find({ where: { channelId, parentId: threadId, ...(mod ? {} : { isHidden: false }) }, order: { createdAt: 'ASC' }, take: 200 });
     const channel = await channelRepo().findOneBy({ id: channelId });
-    return { op: await enrichPost(ctx, op), replies: await Promise.all(replies.map(r => enrichPost(ctx, r))), channel: channel ? { id: channel.id, name: channel.name, slug: channel.slug, type: channel.type } : null };
+    const allIds = new Set([op.userId, ...replies.map(r => r.userId)].filter(Boolean));
+    const staffCache = await batchStaffCheck([...allIds]);
+    return { op: await enrichPost(ctx, op, staffCache), replies: await Promise.all(replies.map(r => enrichPost(ctx, r, staffCache))), channel: channel ? { id: channel.id, name: channel.name, slug: channel.slug, type: channel.type } : null };
   }, { beforeHandle: [optionalAuth], detail: { tags: ['Chat'], summary: 'Get single thread with all replies' } });
 
   app.post(prefix + '/chat/channels/:id/threads', async (ctx: any) => {

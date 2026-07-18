@@ -205,6 +205,13 @@ export async function setupConfig(app: ConfigApp) {
   }
 
   try {
+    const { ensureAutoPartitions } = require('../utils/autoPartition');
+    await ensureAutoPartitions(app.log ?? console);
+  } catch (err: unknown) {
+    app.log?.warn({ err }, 'Failed to ensure auto-partitioning');
+  }
+
+  try {
     await connectRedis();
     (app.log ?? console).info('Redis connected');
   } catch (err: unknown) {

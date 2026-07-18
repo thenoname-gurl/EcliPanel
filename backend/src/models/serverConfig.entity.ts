@@ -1,6 +1,7 @@
 import { Entity, PrimaryColumn, Column, CreateDateColumn, Index } from 'typeorm';
 
 @Entity()
+@Index(['nodeId', 'desiredPowerState', 'suspended', 'dmca', 'hibernated'])
 export class ServerConfig {
   @PrimaryColumn()
   uuid: string;
@@ -134,15 +135,16 @@ export class ServerConfig {
   @Column({ default: false })
   installing: boolean;
 
-  @Column('json', { nullable: true })
+  @Column('json', { nullable: true, select: false })
   allocations?: Record<string, any>;
 
-  @Column('json', { nullable: true })
+  @Column('json', { nullable: true, select: false })
   schedules?: Record<string, any>[];
 
-  @Column('json', { nullable: true })
+  @Column('json', { nullable: true, select: false })
   processConfig?: Record<string, any>;
 
+  @Index()
   @Column({ nullable: true, type: 'datetime' })
   lastActivityAt?: Date;
 

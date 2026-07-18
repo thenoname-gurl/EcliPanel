@@ -5,6 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  Index,
 } from 'typeorm';
 import { User } from './user.entity';
 
@@ -13,6 +14,7 @@ export class OutboundEmail {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @Column()
   userId: number;
 

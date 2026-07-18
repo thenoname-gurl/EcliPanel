@@ -48,7 +48,6 @@ import { WingsApiService } from '../services/wingsApiService';
 import { restoreDesiredPowerStatesForNode } from '../services/serverDesiredStateService';
 import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/startupDetection';
 import type { AllocationLike, RemoteNodeOverrides, WingsApp, WingsContext } from '../types/remote';
-import { buildWingsSchedules, type ScheduleRecord } from '../types/schedule';
 import { ServerSchedule } from '../models/serverSchedule.entity';
 import { ServerScheduleStep } from '../models/serverScheduleStep.entity';
 
@@ -114,6 +113,21 @@ async function authenticateWings(ctx: WingsContext): Promise<unknown> {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+async function loadServerConfig(uuid: string, nodeId: number): Promise<ServerConfig | null> {
+  const r = AppDataSource.getRepository(ServerConfig);
+  return r.createQueryBuilder('cfg')
+    .addSelect('cfg.allocations').addSelect('cfg.schedules').addSelect('cfg.processConfig')
+    .where('cfg.uuid = :uuid AND cfg.nodeId = :nodeId', { uuid, nodeId })
+    .getOne();
+}
+async function loadServerConfigByUuid(uuid: string): Promise<ServerConfig | null> {
+  const r = AppDataSource.getRepository(ServerConfig);
+  return r.createQueryBuilder('cfg')
+    .addSelect('cfg.allocations').addSelect('cfg.schedules').addSelect('cfg.processConfig')
+    .where('cfg.uuid = :uuid', { uuid })
+    .getOne();
+}
 
 /** Convert a numeric egg ID into a deterministic UUID-v4-like string.
  * Cuz wings want that and we did not do that properly before
@@ -515,17 +529,15 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
     async (ctx: WingsContext) => {
       const { uuid } = (ctx.params || {}) as Record<string, string>;
       const node = ctx.wingNode as Node;
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      const cfg = await loadServerConfig(uuid, node.id);
       if (!cfg) {
         ctx.set.status = 404;
         return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
       }
-      let egg: Egg | null = null;
-      if (cfg.eggId) egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
-
-      const serverMounts = await AppDataSource.getRepository(ServerMount).findBy({
-        serverUuid: uuid,
-      });
+      const [egg, serverMounts] = await Promise.all([
+        cfg.eggId ? AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId }) : null,
+        AppDataSource.getRepository(ServerMount).findBy({ serverUuid: uuid }),
+      ]);
       const mountIds = serverMounts.map(sm => sm.mountId);
       const mounts = mountIds.length
         ? await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) })
@@ -623,7 +635,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
     async (ctx: WingsContext) => {
       const { uuid } = (ctx.params || {}) as Record<string, string>;
       const node = ctx.wingNode as Node;
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      const cfg = await loadServerConfig(uuid, node.id);
       if (!cfg) {
         ctx.set.status = 404;
         return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
@@ -674,7 +686,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       try {
         await repo().update({ uuid }, { installing: false });
 
-        const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+        const cfg = await loadServerConfig(uuid, node.id);
         if (cfg) {
           await AppDataSource.getRepository(UserLog).save(
             AppDataSource.getRepository(UserLog).create({
@@ -706,17 +718,15 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
     async (ctx: WingsContext) => {
       const { uuid } = (ctx.params || {}) as Record<string, string>;
       const node = ctx.wingNode as Node;
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      const cfg = await loadServerConfig(uuid, node.id);
       if (!cfg) {
         ctx.set.status = 404;
         return { errors: [{ code: 'NotFound', detail: `Server ${uuid} not found` }] };
       }
-      let egg: Egg | null = null;
-      if (cfg.eggId) egg = await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId });
-
-      const serverMounts = await AppDataSource.getRepository(ServerMount).findBy({
-        serverUuid: uuid,
-      });
+      const [egg, serverMounts] = await Promise.all([
+        cfg.eggId ? AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId }) : null,
+        AppDataSource.getRepository(ServerMount).findBy({ serverUuid: uuid }),
+      ]);
       const mountIds = serverMounts.map(sm => sm.mountId);
       const mounts = mountIds.length
         ? await AppDataSource.getRepository(Mount).findBy({ id: In(mountIds) })
@@ -770,7 +780,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       for (const evt of eventList) {
         const uuid = String(evt.server ?? evt.uuid ?? '');
         if (!uuid) continue;
-        const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+        const cfg = await loadServerConfig(uuid, node.id);
         if (!cfg) continue;
         try {
           await createActivityLog({
@@ -1248,7 +1258,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       const { env_variable, value } = (ctx.body || {}) as Record<string, unknown>;
       const envKey = typeof env_variable === 'string' ? env_variable : '';
       const envValue = typeof value === 'string' ? value : '';
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      const cfg = await loadServerConfig(uuid, node.id);
       if (cfg && envKey) {
         const env = cfg.environment || {};
         env[envKey] = envValue;
@@ -1275,7 +1285,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       const node = ctx.wingNode as Node;
       const { command } = (ctx.body || {}) as Record<string, unknown>;
       const commandValue = typeof command === 'string' ? command : '';
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      const cfg = await loadServerConfig(uuid, node.id);
       if (cfg && commandValue) {
         cfg.startup = commandValue;
         await repo().save(cfg);
@@ -1297,7 +1307,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       const node = ctx.wingNode as Node;
       const { image } = (ctx.body || {}) as Record<string, unknown>;
       const imageValue = typeof image === 'string' ? image : '';
-      const cfg = await repo().findOneBy({ uuid, nodeId: node.id });
+      const cfg = await loadServerConfig(uuid, node.id);
       if (cfg && imageValue) {
         cfg.dockerImage = imageValue;
         await repo().save(cfg);
@@ -1429,7 +1439,7 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       const reportingNode = ctx.wingNode as Node;
 
       try {
-        const cfg = await repo().findOneBy({ uuid });
+        const cfg = await loadServerConfigByUuid(uuid);
         const sourceNodeId = cfg?.nodeId;
 
         // Only clean up if the reporting node is the TARGET (different from source)

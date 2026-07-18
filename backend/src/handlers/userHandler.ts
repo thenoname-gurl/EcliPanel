@@ -537,13 +537,7 @@ export async function userRoutes(app: any, prefix = '') {
         ctx.set.status = 401;
         return { error: ctx.t('auth.notLoggedIn') };
       }
-      const userRepo = AppDataSource.getRepository(User);
-      const user = await userRepo.findOneBy({ id: requester.id });
-      if (!user) {
-        ctx.set.status = 404;
-        return { error: ctx.t('user.notFound') };
-      }
-      return await safeUser(user);
+      return await safeUser(ctx.user || requester);
     },
     {
       beforeHandle: authenticate,
@@ -649,7 +643,7 @@ export async function userRoutes(app: any, prefix = '') {
     if (!normalizedAddresses.length) return null;
 
     const mailboxRepo = AppDataSource.getRepository(MailboxAccount);
-    const accounts = await mailboxRepo.find();
+    const accounts = await mailboxRepo.find({ take: 5000 });
 
     for (const address of normalizedAddresses) {
       for (const account of accounts) {
@@ -2408,13 +2402,19 @@ export async function userRoutes(app: any, prefix = '') {
       }
        const repo = AppDataSource.getRepository(require('../models/node.entity').Node);
        const nodes = await repo.find();
-       const results: any[] = [];
-       for (const n of nodes) {
+       const wingsResults = await Promise.allSettled(nodes.map(async n => {
          const base = n.backendWingsUrl || n.url;
-        const svc = new WingsApiService(base, n.token);
-        const res = await svc.getServers();
+         const svc = new WingsApiService(base, n.token);
+         const res = await svc.getServers();
+         return { node: n, servers: (res.data || []) as any[] };
+       }));
+       const results: any[] = [];
+       for (const r of wingsResults) {
+         if (r.status !== 'fulfilled') continue;
+         const n = r.value.node;
+         const serverList = r.value.servers;
 
-        const userServers = (res.data || []).filter((s: any) => {
+        const userServers = serverList.filter((s: any) => {
           const ownerCandidate =
             s.owner ?? s.ownerId ?? s.user ?? s.userId ?? s.owner_id ?? s.user_id;
           const serverOwner = Number(ownerCandidate);

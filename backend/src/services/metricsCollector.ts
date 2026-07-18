@@ -70,9 +70,11 @@ export async function collectAndStoreMetrics() {
   const socRepo = AppDataSource.getRepository(SocData);
 
   const servers = await cfgRepo.find();
+  const allNodes = await nodeRepo.find();
+  const nodeMap = new Map(allNodes.map(n => [n.id, n]));
   for (const server of servers) {
     try {
-      const node = await nodeRepo.findOneBy({ id: server.nodeId });
+      const node = nodeMap.get(server.nodeId);
       if (!node) continue;
       const svc = new WingsApiService(node.backendWingsUrl || node.url, node.token);
       let stats = null;

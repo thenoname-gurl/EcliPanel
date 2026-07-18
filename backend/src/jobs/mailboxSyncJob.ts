@@ -11,7 +11,7 @@ export async function syncMailboxAccounts() {
   }
 
   const userRepo = AppDataSource.getRepository(User);
-  const allUsers = await userRepo.find();
+  const allUsers = await userRepo.find({ take: 5000 });
   let sawCriticalFailure = false;
 
   for (const user of allUsers) {

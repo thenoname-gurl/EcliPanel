@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, Index } from 'typeorm';
 
 @Entity()
 @Index(['targetType', 'targetId', 'timestamp'])
+@Index(['userId', 'timestamp'])
 export class UserLog {
   @PrimaryGeneratedColumn()
   id: number;

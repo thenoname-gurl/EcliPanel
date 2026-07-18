@@ -70,6 +70,7 @@ export class Order {
   @Column('datetime')
   createdAt: Date;
 
+  @Index()
   @Column('datetime')
   expiresAt: Date;
 

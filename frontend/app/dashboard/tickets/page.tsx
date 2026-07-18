@@ -27,6 +27,9 @@ export default function TicketsPage() {
   const { user } = useAuth()
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [ticketPage, setTicketPage] = useState(1)
+  const [ticketTotal, setTicketTotal] = useState(0)
+  const perPage = 25
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("")
   const [priorityFilter, setPriorityFilter] = useState("")
@@ -53,9 +56,18 @@ export default function TicketsPage() {
       if (includeReplied) params.set("includeReplied", "1")
       if (includeClosed) params.set("includeClosed", "1")
 
+      params.set("page", String(ticketPage))
+      params.set("limit", String(perPage))
       const url = `${API_ENDPOINTS.tickets}${params.toString() ? `?${params.toString()}` : ""}`
       const data = await apiFetch(url)
-      setTickets(Array.isArray(data) ? data : [])
+      if (data && Array.isArray(data.tickets)) {
+        setTickets(data.tickets)
+        setTicketTotal(data.total ?? 0)
+      } else if (Array.isArray(data)) {
+        setTickets(data)
+      } else {
+        setTickets([])
+      }
     } catch (err) {
       console.error("failed to load tickets", err)
     } finally {
@@ -78,9 +90,13 @@ export default function TicketsPage() {
   }
 
   useEffect(() => {
+    setTicketPage(1)
+  }, [statusFilter, priorityFilter, departmentFilter])
+
+  useEffect(() => {
     loadTickets()
     loadTicketStats()
-  }, [statusFilter, priorityFilter, departmentFilter])
+  }, [statusFilter, priorityFilter, departmentFilter, ticketPage])
 
   function formatDurationMs(ms: number | null | undefined) {
     if (ms == null || !Number.isFinite(ms)) return t("common.na")
@@ -234,6 +250,27 @@ export default function TicketsPage() {
                   </div>
                 </Link>
               ))}
+            </div>
+          )}
+          {ticketTotal > perPage && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button
+                onClick={() => setTicketPage(p => Math.max(1, p - 1))}
+                disabled={ticketPage <= 1}
+                className="px-3 py-1.5 text-sm border border-border rounded hover:bg-secondary disabled:opacity-30"
+              >
+                ←
+              </button>
+              <span className="text-sm text-muted-foreground px-2">
+                {t("pagination.page")} {ticketPage} / {Math.ceil(ticketTotal / perPage)}
+              </span>
+              <button
+                onClick={() => setTicketPage(p => p + 1)}
+                disabled={ticketPage >= Math.ceil(ticketTotal / perPage)}
+                className="px-3 py-1.5 text-sm border border-border rounded hover:bg-secondary disabled:opacity-30"
+              >
+                →
+              </button>
             </div>
           )}
         </div>

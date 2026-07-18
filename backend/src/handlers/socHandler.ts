@@ -14,7 +14,7 @@ import { In, Not, IsNull } from 'typeorm';
 import { t } from 'elysia';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { DetectionRule } from '../models/detectionRule.entity';
-import { evaluateAllRules, testRule } from '../services/ruleEngine';
+import { testRule } from '../services/ruleEngine';
 import { Ticket } from '../models/ticket.entity';
 import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
@@ -111,16 +111,22 @@ export async function socRoutes(app: any, prefix = '') {
           const nodeRepo = AppDataSource.getRepository(require('../models/node.entity').Node);
           const nodes = await nodeRepo.find();
 
+          const nodeResults = await Promise.allSettled(
+            nodes.map(async n => {
+              try {
+                const base = (n as any).backendWingsUrl || n.url;
+                const svc = new WingsApiService(base, n.token);
+                const res = await svc.getServers();
+                return { servers: Array.isArray(res.data) ? res.data : [] };
+              } catch { return null; }
+            })
+          );
           const serverIds: string[] = [];
-          for (const n of nodes) {
-            try {
-              const base = (n as any).backendWingsUrl || n.url;
-              const svc = new WingsApiService(base, n.token);
-              const res = await svc.getServers();
-              for (const s of Array.isArray(res.data) ? res.data : []) {
-                if (s.owner === user.id) serverIds.push(s.uuid);
-              }
-            } catch { }
+          for (const r of nodeResults) {
+            if (r.status !== 'fulfilled' || !r.value) continue;
+            for (const s of r.value.servers) {
+              if (s.owner === user.id) serverIds.push(s.uuid);
+            }
           }
 
           if (!serverIds.length) return [];
@@ -147,9 +153,14 @@ export async function socRoutes(app: any, prefix = '') {
     prefix + '/soc/data',
     async (ctx: any) => {
       const payload = ctx.body as Partial<SocData>;
+      const metrics = payload.metrics || {};
+      if (JSON.stringify(metrics).length > 64000) {
+        ctx.set.status = 413;
+        return { error: 'Metrics payload exceeds 64KB limit' };
+      }
       const entry = socRepo.create({
         serverId: payload.serverId,
-        metrics: payload.metrics || {},
+        metrics,
         timestamp: new Date(),
       });
       await socRepo.save(entry);

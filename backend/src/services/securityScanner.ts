@@ -365,7 +365,10 @@ async function checkHighCpu(): Promise<ScanCheckResult[]> {
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
     const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
 
-    const allCfgs = await cfgRepo.find({ where: { suspended: false } });
+    const allCfgs = await cfgRepo.createQueryBuilder('c')
+      .select(['c.uuid', 'c.cpu'])
+      .where('c.suspended = false')
+      .getMany();
     const cpuLimits = new Map<string, number>();
     for (const c of allCfgs) {
       cpuLimits.set(c.uuid, Number(c.cpu) || 100);
@@ -373,12 +376,14 @@ async function checkHighCpu(): Promise<ScanCheckResult[]> {
 
     const rows = await socRepo
       .createQueryBuilder('s')
-      .select(['s.serverId', 's.metrics', 's.timestamp'])
+      .select('s.serverId', 'serverId')
+      .addSelect('s.timestamp', 'timestamp')
+      .addSelect("COALESCE(JSON_EXTRACT(s.metrics, '$.cpu_absolute'), JSON_EXTRACT(s.metrics, '$.cpu'), '0')", 'cpuVal')
       .where('s.timestamp >= :since', { since: twoMinAgo })
       .andWhere('s.serverId NOT LIKE :nodePrefix', { nodePrefix: 'node:%' })
       .orderBy('s.serverId', 'ASC')
       .addOrderBy('s.timestamp', 'DESC')
-      .getMany();
+      .getRawMany();
 
     const groups = new Map<string, typeof rows>();
     for (const row of rows) {
@@ -393,7 +398,7 @@ async function checkHighCpu(): Promise<ScanCheckResult[]> {
       const cpuLimit = cpuLimits.get(serverId) || 100;
 
       const getUsagePct = (r: any): number => {
-        const raw = Number(r.metrics?.cpu_absolute ?? r.metrics?.cpu ?? 0);
+        const raw = Number(r.cpuVal ?? 0);
         return cpuLimit > 0 ? (raw / cpuLimit) * 100 : raw;
       };
 
@@ -599,7 +604,9 @@ async function checkWingsProcesses(): Promise<ScanCheckResult[]> {
   const results: ScanCheckResult[] = [];
   try {
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const servers = await cfgRepo.find({ where: { suspended: false }, take: 200 });
+    const servers = await cfgRepo.createQueryBuilder('c')
+      .select(['c.uuid', 'c.userId', 'c.name', 'c.nodeId'])
+      .where('c.suspended = false').take(200).getMany();
 
     for (const s of servers) {
       try {
@@ -642,7 +649,9 @@ async function checkWingsPorts(): Promise<ScanCheckResult[]> {
   const results: ScanCheckResult[] = [];
   try {
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const servers = await cfgRepo.find({ where: { suspended: false }, take: 200 });
+    const servers = await cfgRepo.createQueryBuilder('c')
+      .select(['c.uuid', 'c.userId', 'c.name', 'c.nodeId'])
+      .where('c.suspended = false').take(200).getMany();
 
     for (const s of servers) {
       try {
@@ -680,7 +689,9 @@ async function checkWingsFiles(): Promise<ScanCheckResult[]> {
   const results: ScanCheckResult[] = [];
   try {
     const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
-    const servers = await cfgRepo.find({ where: { suspended: false }, take: 200 });
+    const servers = await cfgRepo.createQueryBuilder('c')
+      .select(['c.uuid', 'c.userId', 'c.name', 'c.nodeId'])
+      .where('c.suspended = false').take(200).getMany();
 
     for (const s of servers) {
       try {

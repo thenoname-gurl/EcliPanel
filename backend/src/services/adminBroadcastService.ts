@@ -54,7 +54,7 @@ export async function processPendingAdminBroadcastJobs() {
       : adminUser?.email || 'admin';
 
     try {
-      const users = await userRepo.find();
+      const users = await userRepo.find({ take: 1000 });
       for (const user of users) {
         if (!user.email) continue;
         if (!user.emailVerified) continue;

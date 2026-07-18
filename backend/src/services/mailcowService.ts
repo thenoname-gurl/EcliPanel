@@ -262,7 +262,7 @@ export async function isPanelAssignedMailboxEmail(email: string) {
   const exact = await repo.findOneBy({ email: normalizedEmail });
   if (exact) return true;
 
-  const accounts = await repo.find();
+  const accounts = await repo.find({ take: 5000 });
   for (const account of accounts) {
     if (Array.isArray(account.aliases)) {
       for (const alias of account.aliases) {

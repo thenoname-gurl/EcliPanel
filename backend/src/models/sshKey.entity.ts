@@ -5,6 +5,7 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from './user.entity';
 
@@ -13,6 +14,7 @@ export class SshKey {
   @PrimaryGeneratedColumn()
   id: number;
 
+  @Index()
   @Column()
   userId: number;
 

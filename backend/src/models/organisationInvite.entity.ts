@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, Index } from 'typeorm';
 import { Organisation } from './organisation.entity';
 
 @Entity()
@@ -12,6 +12,7 @@ export class OrganisationInvite {
   @Column()
   email: string;
 
+  @Index()
   @Column()
   token: string;
 

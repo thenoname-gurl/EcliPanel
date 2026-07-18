@@ -90,6 +90,24 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
   const eloProjectRepo = () => AppDataSource.getRepository(EloProject);
   const eloDevlogRepo = () => AppDataSource.getRepository(EloDevlog);
   const eloVoteRepo = () => AppDataSource.getRepository(EloVote);
+  const SERVER_LIST_SELECT = [
+    'ServerConfig.uuid', 'ServerConfig.nodeId', 'ServerConfig.userId',
+    'ServerConfig.name', 'ServerConfig.description', 'ServerConfig.suspended',
+    'ServerConfig.suspendedBy', 'ServerConfig.suspendedReason', 'ServerConfig.suspendedAt',
+    'ServerConfig.dmca', 'ServerConfig.ignoreAntiAbuse', 'ServerConfig.hibernated',
+    'ServerConfig.desiredPowerState', 'ServerConfig.dockerImage', 'ServerConfig.startup',
+    'ServerConfig.memory', 'ServerConfig.disk', 'ServerConfig.cpu', 'ServerConfig.swap',
+    'ServerConfig.ioWeight', 'ServerConfig.oomDisabled', 'ServerConfig.eggId',
+    'ServerConfig.skipEggScripts', 'ServerConfig.installing', 'ServerConfig.lastActivityAt',
+    'ServerConfig.maxDatabases', 'ServerConfig.maxBackups', 'ServerConfig.createdAt',
+    'ServerConfig.environment', 'ServerConfig.vmType', 'ServerConfig.vmid',
+    'ServerConfig.template', 'ServerConfig.isoFile', 'ServerConfig.cores',
+    'ServerConfig.sockets', 'ServerConfig.ostemplate', 'ServerConfig.rootfs',
+    'ServerConfig.netif', 'ServerConfig.nameserver', 'ServerConfig.searchdomain',
+    'ServerConfig.autoSyncOnEggChange', 'ServerConfig.kvmPassthroughEnabled',
+    'ServerConfig.dmcaBy', 'ServerConfig.dmcaReason', 'ServerConfig.dmcaAt',
+    'ServerConfig.dmcaDeletionAt',
+  ];
 
   const getOrCreateIpRequestForm = async () => {
     let form = await applicationFormRepo().findOneBy({ slug: 'ip-request' });
@@ -754,7 +772,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const cfgRepo = AppDataSource.getRepository(ServerConfig);
 
         const configs = (isAdmin
-          ? await cfgRepo.find()
+          ? await cfgRepo.createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT).getMany()
           : await (async () => {
               const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
                 where: { userId: user.id },
@@ -762,9 +780,12 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
               const subuserUuids = subuserEntries.map(s => s.serverUuid);
               const where: Record<string, unknown>[] = [{ userId: user.id }];
               if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
-              const found = await cfgRepo.find({ where });
+              const qb = cfgRepo.createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT);
+              if (where.length === 1) qb.where('ServerConfig.userId = :uid', { uid: user.id });
+              else qb.where('ServerConfig.userId = :uid OR ServerConfig.uuid IN (:...uuids)', { uid: user.id, uuids: subuserUuids.length ? subuserUuids : [''] });
+              const found = await qb.getMany();
               return found;
-            })()) as ServerConfig[];
+            })()) as any[];
 
         const cfgMap = new Map(configs.map((c: ServerConfig) => [c.uuid, c]));
         const all: Record<string, unknown>[] = [];
@@ -999,16 +1020,20 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
       const configs = (isAdmin
-        ? await cfgRepo().find()
+        ? await cfgRepo().createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT).getMany()
         : await (async () => {
             const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
               where: { userId: user.id },
             });
             const subuserUuids = subuserEntries.map(s => s.serverUuid);
-            const where: Record<string, unknown>[] = [{ userId: user.id }];
-            if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
-            return await cfgRepo().find({ where });
-          })()) as ServerConfig[];
+            if (subuserUuids.length) {
+              return await cfgRepo().createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT)
+                .where('ServerConfig.userId = :uid OR ServerConfig.uuid IN (:...uuids)', { uid: user.id, uuids: subuserUuids })
+                .getMany();
+            }
+            return await cfgRepo().createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT)
+              .where('ServerConfig.userId = :uid', { uid: user.id }).getMany();
+          })()) as any[];
 
       const cfgMap = new Map(configs.map(c => [c.uuid, c]));
 

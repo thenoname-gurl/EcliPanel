@@ -1,4 +1,5 @@
 import { AppDataSource } from '../config/typeorm';
+import { In } from 'typeorm';
 import { Ticket } from '../models/ticket.entity';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
@@ -990,35 +991,30 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
     const showClosed = includeClosed === 'true' || includeClosed === '1' || includeClosed === 'yes';
     const showReplied = includeReplied === 'true' || includeReplied === '1' || includeReplied === 'yes';
 
+    const page = Math.max(1, Number(ctx.query?.page) || 1);
+    const limit = Math.min(Math.max(Number(ctx.query?.limit) || 25, 1), 100);
     const isAdminApiKey = ctx.apiKey?.type === 'admin';
     const hasTicketAccess = isAdminApiKey || hasPermissionSync(ctx, 'tickets:read') || hasPermissionSync(ctx, 'admin:ticket:staff');
-    const tickets = hasTicketAccess
-      ? await repo.find({ order: { created: 'DESC' } })
-      : await repo.find({ where: { userId: user.id }, order: { created: 'DESC' } });
 
+    const where: any = hasTicketAccess ? {} : { userId: user.id };
     const statusIsArchived = statusFilter === 'archived';
+    if (statusFilter && !statusIsArchived) {
+      const s = statusFilter.toLowerCase();
+      if (s === 'opened') where.status = In(['open', 'opened']);
+      else if (s === 'awaiting_staff_reply') where.status = In(['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff']);
+      else if (s === 'replied') where.status = 'replied';
+      else if (s === 'closed') where.status = 'closed';
+      else where.status = statusFilter;
+    }
+    if (priorityFilter) where.priority = priorityFilter;
+    if (departmentFilter) where.department = departmentFilter;
 
-    const statusMatch = (ticketStatus: string, filter: string) => {
-      const ts = String(ticketStatus || '').toLowerCase();
-      if (!ts) return false;
-      if (filter === 'opened') return ['open', 'opened'].includes(ts);
-      if (filter === 'awaiting_staff_reply') return ['pending', 'awaiting_staff_reply', 'waiting', 'waiting_staff'].includes(ts);
-      if (filter === 'replied') return ts === 'replied';
-      if (filter === 'closed') return ts === 'closed';
-      return ts === filter;
-    };
+    const [tickets, total] = await Promise.all([
+      repo.find({ where, order: { created: 'DESC' }, skip: (page - 1) * limit, take: limit }),
+      repo.count({ where }),
+    ]);
 
     let filtered = tickets;
-    if (statusFilter && !statusIsArchived) {
-      filtered = filtered.filter((ticketItem) => statusMatch(ticketItem.status, statusFilter));
-    }
-    if (priorityFilter) {
-      filtered = filtered.filter((ticketItem) => (ticketItem.priority || '').toString().toLowerCase() === priorityFilter);
-    }
-    if (departmentFilter) {
-      filtered = filtered.filter((ticketItem) => (ticketItem.department || '').toString().toLowerCase() === departmentFilter);
-    }
-
     if (archiveOnly === 'true' || archiveOnly === '1' || archiveOnly === 'yes' || statusIsArchived) {
       filtered = filtered.filter((ticketItem) => ticketItem.archived === true);
     } else if (includeArchived === 'true' || includeArchived === '1' || includeArchived === 'yes') {
@@ -1038,21 +1034,26 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
       });
     }
 
-    return (filtered || tickets).map((t) => ({
-      ...t,
-      status: normalizeStatus(t.status),
-      lastReply: computeLastReply(t),
-    }));
+    return {
+      tickets: filtered.map((t) => ({
+        ...t,
+        status: normalizeStatus(t.status),
+        lastReply: computeLastReply(t),
+      })),
+      total,
+      page,
+      limit,
+    };
   }, {
     beforeHandle: authenticate,
-    response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+    response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
     detail: { summary: 'List tickets', tags: ['Tickets'] }
   });
 
   app.get(prefix + '/tickets/stats', async (ctx: TicketContext) => {
     requireFeature(ctx, 'ticketing');
 
-    const allTickets = await repo.find();
+    const allTickets = await repo.find({ take: 2000 });
     const nonSpam = allTickets.filter((ticketItem) => !ticketItem.aiMarkedSpam);
 
     const WINDOW_MS = 30 * 24 * 60 * 60 * 1000;

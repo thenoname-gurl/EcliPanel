@@ -28,6 +28,7 @@ export class ChatMessage {
   @Column({ length: 64, nullable: true, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   anonymousName: string | null;
 
+  @Index()
   @Column({ length: 16, nullable: true, charset: 'utf8mb4', collation: 'utf8mb4_unicode_ci' })
   posterId: string | null;
 

@@ -43,6 +43,7 @@ export class MailMessage {
   @Column({ nullable: true, type: 'text' })
   headers?: string;
 
+  @Index()
   @Column({ nullable: true })
   category?: string;
 

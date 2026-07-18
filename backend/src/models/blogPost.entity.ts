@@ -26,7 +26,7 @@ export class BlogPost {
   @Column()
   title: string;
 
-  @Index()
+  @Index(['blogId', 'slug'], { unique: true })
   @Column()
   slug: string;
 

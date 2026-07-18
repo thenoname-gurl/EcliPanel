@@ -156,12 +156,14 @@ export async function publicRoutes(app: any, prefix = '') {
         const [recentRows, requestRow, totalUsers] = await Promise.all([
           socRepo
             .createQueryBuilder('soc')
-            .select(['soc.serverId', 'soc.metrics', 'soc.timestamp'])
+            .select('soc.serverId', 'serverId')
+            .addSelect('soc.timestamp', 'timestamp')
+            .addSelect("JSON_OBJECT('network', JSON_EXTRACT(soc.metrics, '$.network'))", 'metrics')
             .where('soc.timestamp >= :since', { since })
             .andWhere('soc.serverId LIKE :serverPrefix', { serverPrefix: nodeServerPrefix })
             .orderBy('soc.serverId', 'ASC')
             .addOrderBy('soc.timestamp', 'ASC')
-            .getMany(),
+            .getRawMany(),
 
           apiRepo
             .createQueryBuilder('l')
@@ -173,10 +175,10 @@ export async function publicRoutes(app: any, prefix = '') {
         ]);
 
         const serverIds = [
-          ...new Set(recentRows.map((r: SocData) => r.serverId).filter(Boolean)),
+          ...new Set(recentRows.map(r => r.serverId).filter(Boolean)),
         ] as string[];
 
-        const beforeRows: SocData[] =
+        const beforeRows =
           serverIds.length > 0
             ? await socRepo
                 .createQueryBuilder('soc')
@@ -196,15 +198,17 @@ export async function publicRoutes(app: any, prefix = '') {
                   'latest.serverId = soc.serverId AND latest.timestamp = soc.timestamp'
                 )
                 .setParameters({ since, serverIds, serverPrefix: nodeServerPrefix })
-                .select(['soc.serverId', 'soc.metrics', 'soc.timestamp'])
-                .getMany()
+                .select('soc.serverId', 'serverId')
+                .addSelect('soc.timestamp', 'timestamp')
+                .addSelect("JSON_OBJECT('network', JSON_EXTRACT(soc.metrics, '$.network'))", 'metrics')
+                .getRawMany()
             : [];
 
-        const firstBeforeByServer = new Map<string, SocData>(beforeRows.map(r => [r.serverId, r]));
+        const firstBeforeByServer = new Map(beforeRows.map(r => [r.serverId, r]));
 
-        const rowsByServerId: Record<string, SocData[]> = {};
+        const rowsByServerId: Record<string, any[]> = {};
         for (const row of recentRows) {
-          (rowsByServerId[row.serverId] ??= []).push(row as SocData);
+          (rowsByServerId[row.serverId] ??= []).push(row);
         }
 
         let nodeTrafficBytes = 0;

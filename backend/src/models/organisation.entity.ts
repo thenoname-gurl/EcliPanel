@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany, Index } from 'typeorm';
 
 @Entity()
 export class Organisation {
@@ -11,6 +11,7 @@ export class Organisation {
   @Column({ unique: true })
   handle: string;
 
+  @Index()
   @Column()
   ownerId: number;
 

@@ -65,7 +65,7 @@ export class NodeHeartbeatService {
     }
 
     const hbRepo = AppDataSource.getRepository(NodeHeartbeat);
-    await hbRepo.save(hbRepo.create({ nodeId: node.id, responseMs, status, errorMessage })).catch(() => {});
+    await hbRepo.insert({ nodeId: node.id, responseMs, status, errorMessage } as any).catch(() => {});
   }
 
   private async pingWings(node: Node) {

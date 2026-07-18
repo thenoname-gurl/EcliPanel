@@ -1,5 +1,5 @@
 import { AppDataSource } from '../config/typeorm';
-import { In, IsNull, Like, MoreThanOrEqual, Not } from 'typeorm';
+import { In, IsNull, MoreThanOrEqual, Not } from 'typeorm';
 import { t } from 'elysia';
 import { EloProject } from '../models/eloProject.entity';
 import { EloVote } from '../models/eloVote.entity';
@@ -18,9 +18,8 @@ import { requireFeature } from '../middleware/featureToggle';
 import { saveServerConfig, removeServerConfig } from './remoteHandler';
 import { nodeService } from '../services/nodeService';
 import { WingsApiService } from '../services/wingsApiService';
-import { ProxmoxApiService } from '../services/proxmoxApiService';
 import { createActivityLog } from './logHandler';
-import { updateElo, kFactorForProject, calculateEloResources, expectedScore } from '../services/eloService';
+import { updateElo, kFactorForProject, calculateEloResources } from '../services/eloService';
 import { sanitizeError } from '../utils/sanitizeError';
 import { getRolloutTreatment } from '../services/rolloutService';
 import { httpRequest } from '../utils/http';
@@ -95,7 +94,7 @@ export async function eloRoutes(app: any, prefix = '') {
       if (r !== true) return r;
 
       const page = Math.max(1, Number((ctx.query as any)?.page || 1));
-      const per = Math.min(50, Math.max(1, Number((ctx.query as any)?.per || 20)));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
       const sort = String((ctx.query as any)?.sort || 'elo_desc');
 
       const order: Record<string, string> =
@@ -752,7 +751,7 @@ export async function eloRoutes(app: any, prefix = '') {
       if (r !== true) return r;
 
       const page = Math.max(1, Number((ctx.query as any)?.page || 1));
-      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 20)));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
 
       const [projects, total] = await eloProjectRepo().findAndCount({
         where: { serverId: Not(IsNull()) } as any,
@@ -1043,7 +1042,7 @@ export async function eloRoutes(app: any, prefix = '') {
 
       const userId = ctx.user.id;
       const page = Math.max(1, Number((ctx.query as any)?.page || 1));
-      const per = Math.min(50, Math.max(1, Number((ctx.query as any)?.per || 20)));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
 
       const [votes, total] = await eloVoteRepo().findAndCount({
         where: { voterId: userId },
@@ -1070,7 +1069,7 @@ export async function eloRoutes(app: any, prefix = '') {
       if (!project) { ctx.set.status = 404; return { error: ctx.t('elo.project_not_found') }; }
 
       const page = Math.max(1, Number((ctx.query as any)?.page || 1));
-      const per = Math.min(50, Math.max(1, Number((ctx.query as any)?.per || 20)));
+      const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
 
       const [votes, total] = await eloVoteRepo().findAndCount({
         where: [

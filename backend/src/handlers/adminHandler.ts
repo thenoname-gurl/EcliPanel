@@ -1398,11 +1398,11 @@ export async function adminRoutes(app: any, prefix = '') {
       } catch {}
 
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
-      const configs = await cfgRepo.find();
+      const configCount = await cfgRepo.count();
       const nodes = await AppDataSource.getRepository(Node).find();
       const unhealthyNodeIds = await getUnhealthyNodeIds();
 
-      let totalServers = configs.length;
+      let totalServers = configCount;
       const nodeResults = await Promise.allSettled(
         nodes.map(async n => {
           if (unhealthyNodeIds.includes(n.id)) return null;
@@ -1424,7 +1424,9 @@ export async function adminRoutes(app: any, prefix = '') {
         return acc;
       }, 0);
 
-      const healthyNodeConfigCount = configs.filter((c: any) =>
+      const nodeConfigs = await cfgRepo.createQueryBuilder('c')
+        .select(['c.nodeId']).getMany();
+      const healthyNodeConfigCount = nodeConfigs.filter((c: any) =>
         unhealthyNodeIds.includes(c.nodeId)
       ).length;
       totalServers = healthyServerCount + healthyNodeConfigCount;
@@ -1446,7 +1448,7 @@ export async function adminRoutes(app: any, prefix = '') {
             )
           : null;
 
-      const allTickets = await ticketRepo.find();
+      const allTickets = await ticketRepo.find({ take: 2000 });
       const nonSpamAllTickets = allTickets.filter(t => !(t as any).aiMarkedSpam);
       const responseDurationsAll = nonSpamAllTickets.flatMap(t => getTicketResponseDurations(t));
       const avgTicketResponseMsGlobal =
@@ -1964,21 +1966,24 @@ export async function adminRoutes(app: any, prefix = '') {
       let serversOffline = 0;
 
       const nodes = await AppDataSource.getRepository(Node).find();
-      for (const n of nodes) {
+      const results = await Promise.allSettled(nodes.map(async n => {
         try {
           const base = (n as any).backendWingsUrl || n.url;
           const svc = new WingsApiService(base, n.token);
           const res = await svc.getServers();
-          const servers = Array.isArray((res as any)?.data) ? (res as any).data : [];
-          for (const server of servers) {
-            totalServers += 1;
+          return Array.isArray((res as any)?.data) ? (res as any).data : [];
+        } catch { return []; }
+      }));
+      for (const r of results) {
+        if (r.status !== 'fulfilled') continue;
+        for (const server of r.value) {
+          totalServers += 1;
             const bucket = classifyServerStatus((server as any)?.state || (server as any)?.status);
             if (bucket === 'online') serversOnline += 1;
             else if (bucket === 'transitioning') serversTransitioning += 1;
             else serversOffline += 1;
           }
-        } catch {}
-      }
+        }
 
       const growthPct = (current: number, previous: number) => {
         if (previous <= 0) return current > 0 ? 100 : 0;
@@ -7488,16 +7493,17 @@ export async function adminRoutes(app: any, prefix = '') {
     async ctx => {
       const adminErr = requireAdminPermission(ctx, 'logs:read');
       if (adminErr !== true) return adminErr;
-      const { userId, page = '1', per = '200', type = 'audit' } = ctx.query as any;
+      const { userId, page = '1', per = '200', type = 'audit', nocount } = ctx.query as any;
       const perNum = Math.min(Math.max(Number(per) || 200, 1), 500);
       const p = Math.max(1, Number(page) || 1);
+      const skipCount = nocount === '1' || nocount === 'true';
 
       if (type === 'requests') {
         const repo = AppDataSource.getRepository(ApiRequestLog);
         let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
         if (userId !== undefined && userId !== null && userId !== '')
           qb = qb.where('l.userId = :uid', { uid: Number(userId) });
-        const total = await qb.getCount();
+        const total = skipCount ? -1 : await qb.getCount();
         const logs = await qb
           .skip((p - 1) * perNum)
           .take(perNum)
@@ -7547,7 +7553,7 @@ export async function adminRoutes(app: any, prefix = '') {
           .orderBy('l.timestamp', 'DESC');
         if (userId !== undefined && userId !== null && userId !== '')
           qb = qb.andWhere('l.userId = :uid', { uid: Number(userId) });
-        const total = await qb.getCount();
+        const total = skipCount ? -1 : await qb.getCount();
         const entries = await qb
           .skip((p - 1) * perNum)
           .take(perNum)
@@ -7584,7 +7590,7 @@ export async function adminRoutes(app: any, prefix = '') {
       let qb = repo.createQueryBuilder('l').orderBy('l.timestamp', 'DESC');
       if (userId !== undefined && userId !== null && userId !== '')
         qb = qb.where('l.userId = :uid', { uid: Number(userId) });
-      const total = await qb.getCount();
+      const total = skipCount ? -1 : await qb.getCount();
       const entries = await qb
         .skip((p - 1) * perNum)
         .take(perNum)
@@ -7654,10 +7660,15 @@ export async function adminRoutes(app: any, prefix = '') {
       const p = Math.max(1, Number(ctx.query.page || '1'));
       const logRepo = AppDataSource.getRepository(UserLog);
 
+      const nocount = ctx.query.nocount === '1' || ctx.query.nocount === 'true';
+      const fullSearch = ctx.query.full === '1' || ctx.query.full === 'true';
+      let where = '(l.targetId = :uuid AND l.targetType = :type)';
+      const params: any = { uuid, type: 'server' };
+      if (fullSearch) { where += ' OR l.metadata LIKE :ms'; params.ms = `%"${uuid}"%`; }
       const qb = logRepo.createQueryBuilder('l')
-        .where('(l.targetId = :uuid AND l.targetType = :type) OR l.metadata LIKE :ms', { uuid, type: 'server', ms: `%"${uuid}"%` })
+        .where(where, params)
         .orderBy('l.timestamp', 'DESC');
-      const total = await qb.getCount();
+      const total = nocount ? -1 : await qb.getCount();
       const entries = await qb.skip((p - 1) * perNum).take(perNum).getMany();
 
       const userIds = [...new Set(entries.map(e => e.userId).filter(Boolean))] as number[];
@@ -7768,7 +7779,7 @@ export async function adminRoutes(app: any, prefix = '') {
         let errorCount = 0;
         try {
           const userRepo = AppDataSource.getRepository(User);
-          const users = await userRepo.find();
+          const users = await userRepo.find({ take: 5000 });
           for (let i = 0; i < users.length; i++) {
             const user = users[i];
             try {
@@ -8095,7 +8106,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const adminErr = requireAdminPermission(ctx, 'admin:geoblock:view');
       if (adminErr !== true) return adminErr;
       const userRepo = AppDataSource.getRepository(User);
-      const users = await userRepo.find({ select: { billingCountry: true } });
+      const users = await userRepo.find();
       const rules = await getGeoBlockRules();
       const { decrypt, isEncryptedString } = require('../utils/crypto');
 
@@ -9328,8 +9339,8 @@ export async function adminRoutes(app: any, prefix = '') {
       const orderRepo = AppDataSource.getRepository(Order);
 
       const users = portalType
-        ? await userRepo.find({ where: { portalType } })
-        : await userRepo.find();
+        ? await userRepo.find({ where: { portalType }, take: 5000 })
+        : await userRepo.find({ take: 5000 });
 
       let assigned = 0;
       for (const user of users) {

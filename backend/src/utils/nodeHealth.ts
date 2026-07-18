@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/typeorm';
 import { NodeHeartbeat } from '../models/nodeHeartbeat.entity';
+import { withRedisCache } from '../config/redis';
 
 export const NODE_HEALTH_MAX_AGE_MS = 120_000;
 
@@ -32,6 +33,7 @@ export async function getLastNodeHeartbeats(): Promise<
 }
 
 export async function getUnhealthyNodeIds(maxAgeMs = NODE_HEALTH_MAX_AGE_MS): Promise<number[]> {
+  return withRedisCache('nodes:health:unhealthy:v1', 5, async () => {
   const latest = await getLastNodeHeartbeats();
   const now = Date.now();
   const unhealthy: number[] = [];
@@ -43,4 +45,5 @@ export async function getUnhealthyNodeIds(maxAgeMs = NODE_HEALTH_MAX_AGE_MS): Pr
   }
 
   return unhealthy;
+  });
 }

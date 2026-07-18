@@ -30,6 +30,7 @@ import { scheduleTempEmailBlacklistSyncJob } from './jobs/tempEmailBlacklistSync
 import { scheduleWingsSyncJob } from './jobs/wingsSyncJob';
 import { scheduleCalendarNotificationJob } from './jobs/calendarNotificationJob';
 import { scheduleSecurityScanJob } from './jobs/securityScanJob';
+import { scheduleAutoPartitionMaintenance } from './utils/autoPartition';
 import { initSlackBot } from './slack/index';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
@@ -902,6 +903,11 @@ export async function initApp() {
     scheduleSecurityScanJob();
   } catch (e) {
     console.error('Failed to schedule security scan job:', e);
+  }
+  try {
+    scheduleAutoPartitionMaintenance(console);
+  } catch (e) {
+    console.error('Failed to schedule auto-partition maintenance:', e);
   }
 
   (app as any).get(

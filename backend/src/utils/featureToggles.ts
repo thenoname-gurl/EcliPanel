@@ -1,5 +1,6 @@
 import { AppDataSource } from '../config/typeorm';
 import { PanelSetting } from '../models/panelSetting.entity';
+import { withRedisCache } from '../config/redis';
 
 export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   registration: true,
@@ -22,6 +23,7 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
 };
 
 export async function getPanelFeatureToggles(): Promise<Record<string, boolean>> {
+  return withRedisCache('panel:feature-toggles:v1', 10, async () => {
   const repo = AppDataSource.getRepository(PanelSetting);
   const row = await repo.findOneBy({ key: 'panelFeatureToggles' });
   const result = { ...DEFAULT_FEATURE_TOGGLES };
@@ -48,6 +50,7 @@ export async function getPanelFeatureToggles(): Promise<Record<string, boolean>>
   }
 
   return result;
+  });
 }
 
 export async function isFeatureEnabled(feature: string): Promise<boolean> {
