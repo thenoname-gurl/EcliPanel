@@ -295,14 +295,6 @@ export const AuthProvider = ({
         return data
       }
 
-      if (typeof window !== "undefined") {
-        if (data.token) {
-          localStorage.setItem("token", data.token)
-        } else {
-          localStorage.removeItem("token")
-        }
-      }
-
       if (data.user) {
         setUser(data.user)
         applyUserTheme(data.user)
@@ -341,7 +333,6 @@ export const AuthProvider = ({
     }
 
     if (typeof window !== "undefined") {
-      localStorage.removeItem("token")
       localStorage.removeItem("csrfToken")
       window.location.assign("/login")
       return

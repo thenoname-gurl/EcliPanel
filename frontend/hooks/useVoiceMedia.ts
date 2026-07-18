@@ -402,9 +402,11 @@ export function useVoiceMedia(roomSlug: string | null) {
         const raw = base64U8(msg.chunk)
         const encrypted = await cryptoRef.current.encryptChunk(raw.buffer as ArrayBuffer)
         msg = { ...msg, chunk: u8ToBase64(new Uint8Array(encrypted)) }
-      } catch (e) { console.warn("[voice] encrypt failed:", e) }
+        ws.send(JSON.stringify(msg))
+      } catch (e) { console.warn("[voice] encrypt failed, chunk dropped:", e) }
+    } else {
+      ws.send(JSON.stringify(msg))
     }
-    ws.send(JSON.stringify(msg))
   }, [])
   function base64U8(b64: string): Uint8Array {
     return Uint8Array.from(atob(b64), c => c.charCodeAt(0))

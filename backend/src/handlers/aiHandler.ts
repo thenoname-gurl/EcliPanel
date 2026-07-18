@@ -789,6 +789,18 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     return { endpoint, apiKey, modelId };
   }
 
+  function validateEndpointUrl(raw: string): string | null {
+    try {
+      const u = new URL(raw);
+      if (!['http:', 'https:'].includes(u.protocol)) return 'Only HTTP/HTTPS endpoints are allowed';
+      const block = /^(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|169\.254\.)/;
+      if (block.test(u.hostname) || u.hostname === 'localhost' || u.hostname === '0.0.0.0' || u.hostname === '::1' || u.hostname.endsWith('.local')) {
+        return 'Internal/private endpoints are not allowed';
+      }
+      return null;
+    } catch { return 'Invalid endpoint URL'; }
+  }
+
   app.post(prefix + '/ai/byoai/chat', async (ctx: AIContext) => {
     const f = await requireFeature(ctx, 'ai'); if (f !== true) return f;
     const user = ctx.user as User | null;
@@ -806,6 +818,9 @@ export async function aiRoutes(app: AIApp, prefix = '') {
       ctx.set.status = 400;
       return { error: ctx.t('validation.messageRequired') };
     }
+
+    const epErr1 = validateEndpointUrl(String(byoai.endpoint));
+    if (epErr1) { ctx.set.status = 400; return { error: epErr1 }; }
 
     try {
       const messages: { role: string; content: string }[] = [];
@@ -869,6 +884,9 @@ export async function aiRoutes(app: AIApp, prefix = '') {
     }
     const body = (ctx.body || {}) as Record<string, unknown>;
 
+    const epErr2 = validateEndpointUrl(String(byoai.endpoint));
+    if (epErr2) { ctx.set.status = 400; return { error: epErr2 }; }
+
     try {
       const forwardBody: Record<string, unknown> = { ...body };
       forwardBody.model = byoai.modelId;
@@ -906,6 +924,8 @@ export async function aiRoutes(app: AIApp, prefix = '') {
       ctx.set.status = 400;
       return { error: ctx.t('ai.byoai_is_not_configured') };
     }
+    const epErr3 = validateEndpointUrl(String(byoai.endpoint));
+    if (epErr3) { ctx.set.status = 400; return { error: epErr3 }; }
     try {
       const url = `${byoai.endpoint}/v1/models`;
       const res = await httpRequest(url, {

@@ -6,18 +6,14 @@ import { Badge } from "@/components/ui/badge"
 import { Rss } from "lucide-react"
 import { BlogContentWarning } from "@/components/blog/content-warning"
 import { renderTitleHtml } from "@/components/blog/blog-format"
+import DOMPurify from "dompurify"
 
 function readingTimeFromWords(words: number): string {
   return `${Math.max(1, Math.ceil((words || 0) / 200))} min read`
 }
 
 function sanitizeHtml(html: string): string {
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/\bon\w+\s*=\s*"[^"]*"/gi, '')
-    .replace(/\bon\w+\s*=\s*'[^']*'/gi, '')
-    .replace(/\bon\w+\s*=\s*\w+/gi, '')
-    .replace(/javascript\s*:/gi, '')
+  return DOMPurify.sanitize(html)
 }
 
 export interface LayoutSection {

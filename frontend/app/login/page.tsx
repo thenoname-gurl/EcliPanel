@@ -253,9 +253,6 @@ export default function LoginPage() {
         method: "POST",
         body: JSON.stringify({ email, authenticationResponse }),
       });
-      if (data?.token && typeof window !== "undefined") {
-        localStorage.setItem("token", data.token);
-      }
       await refreshUser();
       router.push(redirectTo);
     } catch (err: any) {

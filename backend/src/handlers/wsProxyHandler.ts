@@ -5,6 +5,7 @@ import { ServerSubuser } from '../models/serverSubuser.entity';
 import { Node } from '../models/node.entity';
 import { User } from '../models/user.entity';
 import { hasPermissionSync } from '../middleware/authorize';
+import { authenticate } from '../middleware/auth';
 import { signWingsJwt } from './remoteHandler';
 import { handleSocConnection } from './wsRoutes';
 
@@ -40,6 +41,7 @@ function unwrapArgs(args: IArguments | any[]) {
 
 export function wsProxyRoutes(app: any, prefix: string) {
   app.ws(prefix + '/ws/soc', {
+    beforeHandle: authenticate,
     open(...args: any[]) {
       const { ctx, ws } = unwrapArgs(arguments);
       if (!ws) return;
