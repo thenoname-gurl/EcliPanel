@@ -11,8 +11,17 @@ use axum::{
 };
 use compact_str::ToCompactString;
 use futures::{SinkExt, StreamExt};
-use std::{net::SocketAddr, pin::Pin, sync::Arc};
+use std::{
+    net::SocketAddr,
+    pin::Pin,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
 use tokio::sync::{Mutex, RwLock, broadcast::error::RecvError};
+
+const MAX_MISSED_PONGS: usize = 2;
 
 pub async fn handle_ws(
     ws: WebSocketUpgrade,
@@ -36,6 +45,7 @@ pub async fn handle_ws(
         let (sender, mut receiver) = socket.split();
         let sender = Arc::new(Mutex::new(sender));
         let socket_jwt = Arc::new(RwLock::new(None));
+        let missed_pongs = Arc::new(AtomicUsize::new(0));
 
         let websocket_handler = Arc::new(super::ServerWebsocketHandler::new(
             Arc::clone(&sender),
@@ -47,6 +57,7 @@ pub async fn handle_ws(
             let state = Arc::clone(&state);
             let socket_jwt = Arc::clone(&socket_jwt);
             let websocket_handler = Arc::clone(&websocket_handler);
+            let missed_pongs = Arc::clone(&missed_pongs);
             let server = server.clone();
 
             async move {
@@ -71,7 +82,10 @@ pub async fn handle_ws(
                             break;
                         }
                         data = receiver.next() => match data {
-                            Some(Ok(data)) => data,
+                            Some(Ok(data)) => {
+                                missed_pongs.store(0, Ordering::Relaxed);
+                                data
+                            }
                             Some(Err(err)) => {
                                 tracing::debug!(
                                     server = %server.uuid,
@@ -175,7 +189,7 @@ pub async fn handle_ws(
             }
         };
 
-        let futures: [Pin<Box<dyn Future<Output = ()> + Send>>; 4] = [
+        let futures: [Pin<Box<dyn Future<Output = ()> + Send>>; 3] = [
             // Server Listener
             {
                 let socket_jwt = Arc::clone(&socket_jwt);
@@ -208,6 +222,7 @@ pub async fn handle_ws(
                                                 websocket::WebsocketEvent::ServerBackupStarted
                                                 | websocket::WebsocketEvent::ServerBackupProgress
                                                 | websocket::WebsocketEvent::ServerBackupCompleted
+                                                | websocket::WebsocketEvent::ServerBackupDeleted
                                                     if !websocket_handler
                                                         .has_permission(Permission::BackupRead).await?
                                                     => {
@@ -376,27 +391,41 @@ pub async fn handle_ws(
                     super::jwt::listen_jwt(&websocket_handler).await;
                 })
             },
-            // Pinger
-            {
-                let sender = Arc::clone(&sender);
-
-                Box::pin(async move {
-                    loop {
-                        tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-
-                        let ping = sender
-                            .lock()
-                            .await
-                            .send(Message::Ping(Bytes::from_static(&[1, 2, 3])))
-                            .await;
-
-                        if ping.is_err() {
-                            break;
-                        }
-                    }
-                })
-            },
         ];
+
+        let pinger = {
+            let sender = Arc::clone(&sender);
+            let missed_pongs = Arc::clone(&missed_pongs);
+            let server = server.clone();
+
+            async move {
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+
+                    if missed_pongs.fetch_add(1, Ordering::Relaxed) >= MAX_MISSED_PONGS {
+                        tracing::debug!(
+                            server = %server.uuid,
+                            "websocket ping timeout, closing dead connection",
+                        );
+                        break;
+                    }
+
+                    let ping = sender
+                        .lock()
+                        .await
+                        .send(Message::Ping(Bytes::from_static(&[1, 2, 3])))
+                        .await;
+
+                    if ping.is_err() {
+                        tracing::debug!(
+                            server = %server.uuid,
+                            "websocket ping failed, closing dead connection",
+                        );
+                        break;
+                    }
+                }
+            }
+        };
 
         tokio::select! {
             _ = writer => {
@@ -409,6 +438,12 @@ pub async fn handle_ws(
                 tracing::debug!(
                     server = %server.uuid,
                     "websocket handles finished",
+                );
+            }
+            _ = pinger => {
+                tracing::debug!(
+                    server = %server.uuid,
+                    "websocket pinger finished",
                 );
             }
         }

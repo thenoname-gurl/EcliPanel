@@ -1,6 +1,6 @@
 diff -ruN wings/source/Cargo.toml wings/patched/Cargo.toml
---- wings/source/Cargo.toml	2026-07-10 16:22:33.219120334 +0000
-+++ wings/patched/Cargo.toml	2026-07-12 08:43:23.034397804 +0000
+--- wings/source/Cargo.toml	2026-07-19 18:47:09.599741547 +0000
++++ wings/patched/Cargo.toml	2026-07-19 18:56:23.000000000 +0000
 @@ -1,6 +1,6 @@
  [workspace]
  resolver = "3"
@@ -10,8 +10,8 @@ diff -ruN wings/source/Cargo.toml wings/patched/Cargo.toml
  package.rust-version = "1.97.0"
  
 diff -ruN wings/source/LICENSE wings/patched/LICENSE
---- wings/source/LICENSE	2026-07-10 16:22:33.219457264 +0000
-+++ wings/patched/LICENSE	2026-07-11 08:10:44.701803356 +0000
+--- wings/source/LICENSE	2026-07-19 18:47:09.599741547 +0000
++++ wings/patched/LICENSE	2026-07-19 18:56:23.000000000 +0000
 @@ -1,3 +1,106 @@
 +LICENSE FOR PATCHED CODE:
 +
@@ -120,8 +120,8 @@ diff -ruN wings/source/LICENSE wings/patched/LICENSE
  
  Copyright (c) Calagopus, 0x7d8
 diff -ruN wings/source/application/Cargo.toml wings/patched/application/Cargo.toml
---- wings/source/application/Cargo.toml	2026-07-10 16:22:33.219892695 +0000
-+++ wings/patched/application/Cargo.toml	2026-07-12 15:53:54.761575652 +0000
+--- wings/source/application/Cargo.toml	2026-07-19 18:47:09.600840668 +0000
++++ wings/patched/application/Cargo.toml	2026-07-19 18:56:23.000000000 +0000
 @@ -1,12 +1,13 @@
  [package]
  name = "wings-rs"
@@ -137,7 +137,7 @@ diff -ruN wings/source/application/Cargo.toml wings/patched/application/Cargo.to
  tracing = { version = "0.1.41", features = ["max_level_debug"] }
  tracing-subscriber = { version = "0.3.19", features = ["chrono"] }
  tracing-appender = "0.2.3"
-@@ -55,6 +56,8 @@
+@@ -56,6 +57,8 @@
  crc32fast = { workspace = true }
  cap-std = "4.0.0"
  rustix = "1.0.7"
@@ -149,19 +149,19 @@ diff -ruN wings/source/application/Cargo.toml wings/patched/application/Cargo.to
 Binary files wings/source/application/bins/fusequota and wings/patched/application/bins/fusequota differ
 diff -ruN wings/source/application/bins/fusequota.version wings/patched/application/bins/fusequota.version
 --- wings/source/application/bins/fusequota.version	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/bins/fusequota.version	2026-07-10 17:39:26.518773915 +0000
++++ wings/patched/application/bins/fusequota.version	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1 @@
 +f939851
 \ No newline at end of file
 diff -ruN wings/source/application/seccomp.min.json wings/patched/application/seccomp.min.json
 --- wings/source/application/seccomp.min.json	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/seccomp.min.json	2026-07-10 20:34:50.542124215 +0000
++++ wings/patched/application/seccomp.min.json	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1 @@
 +{"defaultAction":"SCMP_ACT_ERRNO","defaultErrnoRet":38,"defaultErrno":"ENOSYS","archMap":[{"architecture":"SCMP_ARCH_X86_64","subArchitectures":["SCMP_ARCH_X86","SCMP_ARCH_X32"]},{"architecture":"SCMP_ARCH_AARCH64","subArchitectures":["SCMP_ARCH_ARM"]},{"architecture":"SCMP_ARCH_MIPS64","subArchitectures":["SCMP_ARCH_MIPS","SCMP_ARCH_MIPS64N32"]},{"architecture":"SCMP_ARCH_MIPS64N32","subArchitectures":["SCMP_ARCH_MIPS","SCMP_ARCH_MIPS64"]},{"architecture":"SCMP_ARCH_MIPSEL64","subArchitectures":["SCMP_ARCH_MIPSEL","SCMP_ARCH_MIPSEL64N32"]},{"architecture":"SCMP_ARCH_MIPSEL64N32","subArchitectures":["SCMP_ARCH_MIPSEL","SCMP_ARCH_MIPSEL64"]},{"architecture":"SCMP_ARCH_S390X","subArchitectures":["SCMP_ARCH_S390"]}],"syscalls":[{"names":["bdflush","cachestat","futex_requeue","futex_wait","futex_waitv","futex_wake","io_pgetevents","io_pgetevents_time64","kexec_file_load","kexec_load","map_shadow_stack","migrate_pages","move_pages","nfsservctl","nice","oldfstat","oldlstat","oldolduname","oldstat","olduname","pciconfig_iobase","pciconfig_read","pciconfig_write","sgetmask","ssetmask","swapoff","swapon","syscall","sysfs","uselib","userfaultfd","ustat","vm86","vm86old","vmsplice"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{},"errnoRet":1,"errno":"EPERM"},{"names":["_llseek","_newselect","accept","accept4","access","adjtimex","alarm","bind","brk","capget","capset","chdir","chmod","chown","chown32","clock_adjtime","clock_adjtime64","clock_getres","clock_getres_time64","clock_gettime","clock_gettime64","clock_nanosleep","clock_nanosleep_time64","clone","clone3","close","close_range","connect","copy_file_range","creat","dup","dup2","dup3","epoll_create","epoll_create1","epoll_ctl","epoll_ctl_old","epoll_pwait","epoll_pwait2","epoll_wait","epoll_wait_old","eventfd","eventfd2","execve","execveat","exit","exit_group","faccessat","faccessat2","fadvise64","fadvise64_64","fallocate","fanotify_init","fanotify_mark","fchdir","fchmod","fchmodat","fchmodat2","fchown","fchown32","fchownat","fcntl","fcntl64","fdatasync","fgetxattr","flistxattr","flock","fork","fremovexattr","fsconfig","fsetxattr","fsmount","fsopen","fspick","fstat","fstat64","fstatat64","fstatfs","fstatfs64","fsync","ftruncate","ftruncate64","futex","futex_time64","futimesat","get_mempolicy","get_robust_list","get_thread_area","getcpu","getcwd","getdents","getdents64","getegid","getegid32","geteuid","geteuid32","getgid","getgid32","getgroups","getgroups32","getitimer","getpeername","getpgid","getpgrp","getpid","getppid","getpriority","getrandom","getresgid","getresgid32","getresuid","getresuid32","getrlimit","getrusage","getsid","getsockname","getsockopt","gettid","gettimeofday","getuid","getuid32","getxattr","inotify_add_watch","inotify_init","inotify_init1","inotify_rm_watch","io_cancel","io_destroy","io_getevents","io_setup","io_submit","ioctl","ioprio_get","ioprio_set","ipc","keyctl","kill","landlock_add_rule","landlock_create_ruleset","landlock_restrict_self","lchown","lchown32","lgetxattr","link","linkat","listen","listxattr","llistxattr","lremovexattr","lseek","lsetxattr","lstat","lstat64","madvise","mbind","membarrier","memfd_create","memfd_secret","mincore","mkdir","mkdirat","mknod","mknodat","mlock","mlock2","mlockall","mmap","mmap2","mount","mount_setattr","move_mount","mprotect","mq_getsetattr","mq_notify","mq_open","mq_timedreceive","mq_timedreceive_time64","mq_timedsend","mq_timedsend_time64","mq_unlink","mremap","msgctl","msgget","msgrcv","msgsnd","msync","munlock","munlockall","munmap","name_to_handle_at","nanosleep","newfstatat","open","open_tree","openat","openat2","pause","pidfd_getfd","pidfd_open","pidfd_send_signal","pipe","pipe2","pivot_root","pkey_alloc","pkey_free","pkey_mprotect","poll","ppoll","ppoll_time64","prctl","pread64","preadv","preadv2","prlimit64","process_mrelease","process_vm_readv","process_vm_writev","pselect6","pselect6_time64","ptrace","pwrite64","pwritev","pwritev2","read","readahead","readlink","readlinkat","readv","reboot","recv","recvfrom","recvmmsg","recvmmsg_time64","recvmsg","remap_file_pages","removexattr","rename","renameat","renameat2","restart_syscall","rmdir","rseq","rt_sigaction","rt_sigpending","rt_sigprocmask","rt_sigqueueinfo","rt_sigreturn","rt_sigsuspend","rt_sigtimedwait","rt_sigtimedwait_time64","rt_tgsigqueueinfo","sched_get_priority_max","sched_get_priority_min","sched_getaffinity","sched_getattr","sched_getparam","sched_getscheduler","sched_rr_get_interval","sched_rr_get_interval_time64","sched_setaffinity","sched_setattr","sched_setparam","sched_setscheduler","sched_yield","seccomp","select","semctl","semget","semop","semtimedop","semtimedop_time64","send","sendfile","sendfile64","sendmmsg","sendmsg","sendto","set_mempolicy","set_robust_list","set_thread_area","set_tid_address","setfsgid","setfsgid32","setfsuid","setfsuid32","setgid","setgid32","setgroups","setgroups32","setitimer","setns","setpgid","setpriority","setregid","setregid32","setresgid","setresgid32","setresuid","setresuid32","setreuid","setreuid32","setrlimit","setsid","setsockopt","setuid","setuid32","setxattr","shmat","shmctl","shmdt","shmget","shutdown","sigaltstack","signal","signalfd","signalfd4","sigprocmask","sigreturn","socketcall","socketpair","splice","stat","stat64","statfs","statfs64","statx","symlink","symlinkat","sync","sync_file_range","syncfs","sysinfo","syslog","tee","tgkill","time","timer_create","timer_delete","timer_getoverrun","timer_gettime","timer_gettime64","timer_settime","timer_settime64","timerfd_create","timerfd_gettime","timerfd_gettime64","timerfd_settime","timerfd_settime64","times","tkill","truncate","truncate64","ugetrlimit","umask","umount","umount2","uname","unlink","unlinkat","unshare","utime","utimensat","utimensat_time64","utimes","vfork","wait4","waitid","waitpid","write","writev"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{},"excludes":{}},{"names":["personality"],"action":"SCMP_ACT_ALLOW","args":[{"index":0,"value":0,"valueTwo":0,"op":"SCMP_CMP_EQ"}],"comment":"","includes":{},"excludes":{}},{"names":["personality"],"action":"SCMP_ACT_ALLOW","args":[{"index":0,"value":8,"valueTwo":0,"op":"SCMP_CMP_EQ"}],"comment":"","includes":{},"excludes":{}},{"names":["personality"],"action":"SCMP_ACT_ALLOW","args":[{"index":0,"value":131072,"valueTwo":0,"op":"SCMP_CMP_EQ"}],"comment":"","includes":{},"excludes":{}},{"names":["personality"],"action":"SCMP_ACT_ALLOW","args":[{"index":0,"value":131080,"valueTwo":0,"op":"SCMP_CMP_EQ"}],"comment":"","includes":{},"excludes":{}},{"names":["personality"],"action":"SCMP_ACT_ALLOW","args":[{"index":0,"value":4294967295,"valueTwo":0,"op":"SCMP_CMP_EQ"}],"comment":"","includes":{},"excludes":{}},{"names":["sync_file_range2","swapcontext"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"arches":["ppc64le"]},"excludes":{}},{"names":["arm_fadvise64_64","arm_sync_file_range","breakpoint","cacheflush","set_tls","sync_file_range2"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"arches":["arm","arm64"]},"excludes":{}},{"names":["arch_prctl"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"arches":["amd64","x32"]},"excludes":{}},{"names":["modify_ldt"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"arches":["amd64","x32","x86"]},"excludes":{}},{"names":["s390_pci_mmio_read","s390_pci_mmio_write","s390_runtime_instr"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"arches":["s390","s390x"]},"excludes":{}},{"names":["riscv_flush_icache"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"arches":["riscv64"]},"excludes":{}},{"names":["open_by_handle_at"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_DAC_READ_SEARCH"]},"excludes":{}},{"names":["open_by_handle_at"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_DAC_READ_SEARCH"]},"errnoRet":1,"errno":"EPERM"},{"names":["bpf","lookup_dcookie","quotactl","quotactl_fd","setdomainname","sethostname","setns"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_ADMIN"]},"excludes":{}},{"names":["lookup_dcookie","perf_event_open","quotactl","quotactl_fd","setdomainname","sethostname","setns"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_ADMIN"]},"errnoRet":1,"errno":"EPERM"},{"names":["chroot"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_CHROOT"]},"excludes":{}},{"names":["chroot"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_CHROOT"]},"errnoRet":1,"errno":"EPERM"},{"names":["delete_module","finit_module","init_module","query_module"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_MODULE"]},"excludes":{}},{"names":["delete_module","finit_module","init_module","query_module"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_MODULE"]},"errnoRet":1,"errno":"EPERM"},{"names":["acct"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_PACCT"]},"excludes":{}},{"names":["acct"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_PACCT"]},"errnoRet":1,"errno":"EPERM"},{"names":["kcmp","process_madvise"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_PTRACE"]},"excludes":{}},{"names":["kcmp","process_madvise"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_PTRACE"]},"errnoRet":1,"errno":"EPERM"},{"names":["ioperm","iopl"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_RAWIO"]},"excludes":{}},{"names":["ioperm","iopl"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_RAWIO"]},"errnoRet":1,"errno":"EPERM"},{"names":["clock_settime","clock_settime64","settimeofday","stime"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_TIME"]},"excludes":{}},{"names":["clock_settime","clock_settime64","settimeofday","stime"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_TIME"]},"errnoRet":1,"errno":"EPERM"},{"names":["vhangup"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_SYS_TTY_CONFIG"]},"excludes":{}},{"names":["vhangup"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_TTY_CONFIG"]},"errnoRet":1,"errno":"EPERM"},{"names":["socket"],"action":"SCMP_ACT_ERRNO","args":[{"index":0,"value":16,"valueTwo":0,"op":"SCMP_CMP_EQ"},{"index":2,"value":9,"valueTwo":0,"op":"SCMP_CMP_EQ"}],"comment":"","includes":{},"excludes":{"caps":["CAP_AUDIT_WRITE"]},"errnoRet":22,"errno":"EINVAL"},{"names":["socket"],"action":"SCMP_ACT_ALLOW","args":[{"index":2,"value":9,"valueTwo":0,"op":"SCMP_CMP_NE"}],"comment":"","includes":{},"excludes":{"caps":["CAP_AUDIT_WRITE"]}},{"names":["socket"],"action":"SCMP_ACT_ALLOW","args":[{"index":0,"value":16,"valueTwo":0,"op":"SCMP_CMP_NE"}],"comment":"","includes":{},"excludes":{"caps":["CAP_AUDIT_WRITE"]}},{"names":["socket"],"action":"SCMP_ACT_ALLOW","args":[{"index":2,"value":9,"valueTwo":0,"op":"SCMP_CMP_NE"}],"comment":"","includes":{},"excludes":{"caps":["CAP_AUDIT_WRITE"]}},{"names":["socket"],"action":"SCMP_ACT_ALLOW","args":null,"comment":"","includes":{"caps":["CAP_AUDIT_WRITE"]},"excludes":{}},{"names":["bpf"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_ADMIN","CAP_BPF"]},"errnoRet":1,"errno":"EPERM"},{"names":["bpf"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_BPF"]},"excludes":{}},{"names":["perf_event_open"],"action":"SCMP_ACT_ERRNO","args":[],"comment":"","includes":{},"excludes":{"caps":["CAP_SYS_ADMIN","CAP_BPF"]},"errnoRet":1,"errno":"EPERM"},{"names":["perf_event_open"],"action":"SCMP_ACT_ALLOW","args":[],"comment":"","includes":{"caps":["CAP_PERFMON"]},"excludes":{}}]}
 \ No newline at end of file
 diff -ruN wings/source/application/src/commands/migrate_disk_limiter.rs wings/patched/application/src/commands/migrate_disk_limiter.rs
---- wings/source/application/src/commands/migrate_disk_limiter.rs	2026-07-10 16:22:33.220844001 +0000
-+++ wings/patched/application/src/commands/migrate_disk_limiter.rs	2026-07-13 09:32:22.296652194 +0000
+--- wings/source/application/src/commands/migrate_disk_limiter.rs	2026-07-19 18:47:09.601247880 +0000
++++ wings/patched/application/src/commands/migrate_disk_limiter.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -113,12 +113,17 @@
                      }
                  };
@@ -190,7 +190,7 @@ diff -ruN wings/source/application/src/commands/migrate_disk_limiter.rs wings/pa
                  let mut migrated = 0;
 diff -ruN wings/source/application/src/dpi/capture.rs wings/patched/application/src/dpi/capture.rs
 --- wings/source/application/src/dpi/capture.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/dpi/capture.rs	2026-07-12 16:42:43.213232233 +0000
++++ wings/patched/application/src/dpi/capture.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,216 @@
 +use std::os::fd::{FromRawFd, OwnedFd};
 +use std::os::unix::io::AsRawFd;
@@ -410,7 +410,7 @@ diff -ruN wings/source/application/src/dpi/capture.rs wings/patched/application/
 +}
 diff -ruN wings/source/application/src/dpi/engine.rs wings/patched/application/src/dpi/engine.rs
 --- wings/source/application/src/dpi/engine.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/dpi/engine.rs	2026-07-13 09:51:08.596918556 +0000
++++ wings/patched/application/src/dpi/engine.rs	2026-07-19 19:16:46.016017270 +0000
 @@ -0,0 +1,242 @@
 +use std::collections::HashMap;
 +use std::sync::Mutex;
@@ -498,7 +498,7 @@ diff -ruN wings/source/application/src/dpi/engine.rs wings/patched/application/s
 +        }
 +
 +        {
-+            let mut last = self.last_sampled.lock().unwrap();
++            let last = self.last_sampled.lock().unwrap();
 +            if let Some(prev) = last.get(server_id) {
 +                if prev.elapsed().as_secs() < cfg.sample_interval_seconds {
 +                    return Vec::new();
@@ -656,7 +656,7 @@ diff -ruN wings/source/application/src/dpi/engine.rs wings/patched/application/s
 +}
 diff -ruN wings/source/application/src/dpi/mod.rs wings/patched/application/src/dpi/mod.rs
 --- wings/source/application/src/dpi/mod.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/dpi/mod.rs	2026-07-12 10:06:11.859819601 +0000
++++ wings/patched/application/src/dpi/mod.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,94 @@
 +pub mod capture;
 +pub mod engine;
@@ -753,9 +753,9 @@ diff -ruN wings/source/application/src/dpi/mod.rs wings/patched/application/src/
 +    }
 +}
 diff -ruN wings/source/application/src/main.rs wings/patched/application/src/main.rs
---- wings/source/application/src/main.rs	2026-07-10 16:22:33.223645236 +0000
-+++ wings/patched/application/src/main.rs	2026-07-13 09:23:42.735024538 +0000
-@@ -17,6 +17,7 @@
+--- wings/source/application/src/main.rs	2026-07-19 18:47:09.601933460 +0000
++++ wings/patched/application/src/main.rs	2026-07-19 18:56:23.000000000 +0000
+@@ -25,6 +25,7 @@
  mod commands;
  mod config;
  mod deserialize;
@@ -763,7 +763,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
  mod io;
  mod models;
  mod payload;
-@@ -53,6 +54,10 @@
+@@ -61,6 +62,10 @@
      }
  }
  
@@ -774,7 +774,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
  fn spawn_blocking_handled<
      F: FnOnce() -> Result<(), E> + Send + 'static,
      E: Debug + Send + 'static,
-@@ -287,7 +292,7 @@
+@@ -299,7 +304,7 @@
              tracing::info!("                    __/ | | '__/ __|");
              tracing::info!("                   |___/  | |  \\__ \\");
              tracing::info!("{: >25} |_|  |___/", crate::VERSION);
@@ -783,7 +783,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
          }
      }
  
-@@ -362,9 +367,9 @@
+@@ -374,9 +379,9 @@
      });
  
      tracing::info!("connecting to docker");
@@ -795,7 +795,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
              match if config_ref.docker.socket.starts_with("http://")
                  || config_ref.docker.socket.starts_with("tcp://")
              {
-@@ -383,14 +388,14 @@
+@@ -395,14 +400,14 @@
                  Ok(docker) => docker,
                  Err(err) => exit_error!("failed to connect to docker: {:?}", err),
              },
@@ -816,7 +816,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
      tracing::info!("running server executor boot tasks");
      if let Err(err) = executor.boot().await {
          exit_error!("failed to boot server executor: {:?}", err);
-@@ -417,6 +422,9 @@
+@@ -429,6 +434,9 @@
          Err(err) => exit_error!("failed to fetch servers from remote: {:?}", err),
      };
  
@@ -826,7 +826,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
      let state = Arc::new(crate::routes::AppState {
          start_time: Instant::now(),
          container_type: match std::env::var("OCI_CONTAINER").as_deref() {
-@@ -424,9 +432,10 @@
+@@ -436,9 +444,10 @@
              Ok(_) => crate::routes::AppContainerType::Unknown,
              Err(_) => crate::routes::AppContainerType::None,
          },
@@ -838,7 +838,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
          executor,
          stats_manager: Arc::new(crate::stats::StatsManager::default()),
          server_manager: Arc::new(crate::server::manager::ServerManager::new(&servers)),
-@@ -436,6 +445,7 @@
+@@ -448,6 +457,7 @@
                  .expect("failed to initialize inotify manager"),
          ),
          mime_cache: moka::future::Cache::new(20480),
@@ -846,7 +846,7 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
      });
  
      tokio::spawn({
-@@ -446,6 +456,24 @@
+@@ -458,6 +468,24 @@
          }
      });
  
@@ -872,8 +872,8 @@ diff -ruN wings/source/application/src/main.rs wings/patched/application/src/mai
          .merge(crate::routes::router(&state))
          .fallback(|state: GetState, req: Request| async move {
 diff -ruN wings/source/application/src/routes/api/servers/_server_/mod.rs wings/patched/application/src/routes/api/servers/_server_/mod.rs
---- wings/source/application/src/routes/api/servers/_server_/mod.rs	2026-07-10 16:22:33.230834237 +0000
-+++ wings/patched/application/src/routes/api/servers/_server_/mod.rs	2026-07-10 16:23:25.941374625 +0000
+--- wings/source/application/src/routes/api/servers/_server_/mod.rs	2026-07-19 18:47:09.605756870 +0000
++++ wings/patched/application/src/routes/api/servers/_server_/mod.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -18,6 +18,7 @@
  mod reinstall;
  mod schedules;
@@ -892,7 +892,7 @@ diff -ruN wings/source/application/src/routes/api/servers/_server_/mod.rs wings/
          .nest("/schedules", schedules::router(state))
 diff -ruN wings/source/application/src/routes/api/servers/_server_/security/connections.rs wings/patched/application/src/routes/api/servers/_server_/security/connections.rs
 --- wings/source/application/src/routes/api/servers/_server_/security/connections.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/routes/api/servers/_server_/security/connections.rs	2026-07-10 17:37:13.654413618 +0000
++++ wings/patched/application/src/routes/api/servers/_server_/security/connections.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,134 @@
 +pub mod get {
 +    use crate::{
@@ -1030,7 +1030,7 @@ diff -ruN wings/source/application/src/routes/api/servers/_server_/security/conn
 +}
 diff -ruN wings/source/application/src/routes/api/servers/_server_/security/mod.rs wings/patched/application/src/routes/api/servers/_server_/security/mod.rs
 --- wings/source/application/src/routes/api/servers/_server_/security/mod.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/routes/api/servers/_server_/security/mod.rs	2026-07-10 16:23:25.942182376 +0000
++++ wings/patched/application/src/routes/api/servers/_server_/security/mod.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,14 @@
 +use super::State;
 +use utoipa_axum::{router::OpenApiRouter, routes};
@@ -1048,11 +1048,8 @@ diff -ruN wings/source/application/src/routes/api/servers/_server_/security/mod.
 +}
 diff -ruN wings/source/application/src/routes/api/servers/_server_/security/processes.rs wings/patched/application/src/routes/api/servers/_server_/security/processes.rs
 --- wings/source/application/src/routes/api/servers/_server_/security/processes.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/routes/api/servers/_server_/security/processes.rs	2026-07-10 17:37:13.651918891 +0000
-@@ -0,0 +1,103 @@
-+use super::State;
-+use utoipa_axum::{router::OpenApiRouter, routes};
-+
++++ wings/patched/application/src/routes/api/servers/_server_/security/processes.rs	2026-07-19 19:17:01.918462141 +0000
+@@ -0,0 +1,100 @@
 +pub mod get {
 +    use crate::{
 +        response::{ApiResponse, ApiResponseResult},
@@ -1155,11 +1152,8 @@ diff -ruN wings/source/application/src/routes/api/servers/_server_/security/proc
 +}
 diff -ruN wings/source/application/src/routes/api/servers/_server_/security/scan_files.rs wings/patched/application/src/routes/api/servers/_server_/security/scan_files.rs
 --- wings/source/application/src/routes/api/servers/_server_/security/scan_files.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/routes/api/servers/_server_/security/scan_files.rs	2026-07-13 09:49:50.312723038 +0000
-@@ -0,0 +1,120 @@
-+use super::State;
-+use utoipa_axum::{router::OpenApiRouter, routes};
-+
++++ wings/patched/application/src/routes/api/servers/_server_/security/scan_files.rs	2026-07-19 19:16:28.867673839 +0000
+@@ -0,0 +1,117 @@
 +pub mod get {
 +    use crate::{
 +        response::{ApiResponse, ApiResponseResult},
@@ -1278,8 +1272,8 @@ diff -ruN wings/source/application/src/routes/api/servers/_server_/security/scan
 +    }
 +}
 diff -ruN wings/source/application/src/routes/mod.rs wings/patched/application/src/routes/mod.rs
---- wings/source/application/src/routes/mod.rs	2026-07-10 16:22:33.235988744 +0000
-+++ wings/patched/application/src/routes/mod.rs	2026-07-13 09:47:49.132283418 +0000
+--- wings/source/application/src/routes/mod.rs	2026-07-19 18:47:09.607741375 +0000
++++ wings/patched/application/src/routes/mod.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -1,8 +1,17 @@
  use serde::{Deserialize, Serialize};
  use std::{sync::Arc, time::Instant};
@@ -1338,15 +1332,14 @@ diff -ruN wings/source/application/src/routes/mod.rs wings/patched/application/s
  }
 diff -ruN wings/source/application/src/server/antiabuse.rs wings/patched/application/src/server/antiabuse.rs
 --- wings/source/application/src/server/antiabuse.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/server/antiabuse.rs	2026-07-12 16:19:10.733214245 +0000
-@@ -0,0 +1,317 @@
++++ wings/patched/application/src/server/antiabuse.rs	2026-07-19 19:16:30.041570382 +0000
+@@ -0,0 +1,316 @@
 +use std::collections::HashMap;
 +use std::sync::Arc;
 +use std::time::Instant;
 +use tokio::sync::RwLock;
-+use super::panel_sync::{AbConfig, PanelSync, VpnDpiConfig};
++use super::panel_sync::{AbConfig, PanelSync};
 +use crate::dpi::engine::VpnDpiState;
-+use crate::dpi::capture;
 +
 +struct ServerAbuseState {
 +    last_rx_bytes: u64,
@@ -1658,8 +1651,8 @@ diff -ruN wings/source/application/src/server/antiabuse.rs wings/patched/applica
 +    tracing::info!("anti-abuse detection engine started");
 +}
 diff -ruN wings/source/application/src/server/mod.rs wings/patched/application/src/server/mod.rs
---- wings/source/application/src/server/mod.rs	2026-07-10 16:22:33.249298730 +0000
-+++ wings/patched/application/src/server/mod.rs	2026-07-11 09:06:58.482966305 +0000
+--- wings/source/application/src/server/mod.rs	2026-07-19 18:47:09.614391795 +0000
++++ wings/patched/application/src/server/mod.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -11,6 +11,9 @@
  use tokio::sync::{Mutex, RwLock};
  
@@ -1672,7 +1665,7 @@ diff -ruN wings/source/application/src/server/mod.rs wings/patched/application/s
  pub mod configuration;
 diff -ruN wings/source/application/src/server/panel_sync.rs wings/patched/application/src/server/panel_sync.rs
 --- wings/source/application/src/server/panel_sync.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/server/panel_sync.rs	2026-07-13 14:33:45.734710792 +0000
++++ wings/patched/application/src/server/panel_sync.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,301 @@
 +use std::sync::Arc;
 +use std::time::Duration;
@@ -1978,7 +1971,7 @@ diff -ruN wings/source/application/src/server/panel_sync.rs wings/patched/applic
 \ No newline at end of file
 diff -ruN wings/source/application/src/server/soc.rs wings/patched/application/src/server/soc.rs
 --- wings/source/application/src/server/soc.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/application/src/server/soc.rs	2026-07-13 09:23:34.685688904 +0000
++++ wings/patched/application/src/server/soc.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,27 @@
 +use std::sync::Arc;
 +use super::panel_sync::{AbConfig, PanelSync, VpnDpiConfig};
@@ -2010,7 +2003,7 @@ diff -ruN wings/source/application/src/server/soc.rs wings/patched/application/s
 \ No newline at end of file
 diff -ruN wings/source/ndpi-sys/Cargo.toml wings/patched/ndpi-sys/Cargo.toml
 --- wings/source/ndpi-sys/Cargo.toml	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/ndpi-sys/Cargo.toml	2026-07-12 08:43:06.227377002 +0000
++++ wings/patched/ndpi-sys/Cargo.toml	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,10 @@
 +[package]
 +name = "ndpi-sys"
@@ -2024,14 +2017,14 @@ diff -ruN wings/source/ndpi-sys/Cargo.toml wings/patched/ndpi-sys/Cargo.toml
 +libc = "0.2"
 diff -ruN wings/source/ndpi-sys/build.rs wings/patched/ndpi-sys/build.rs
 --- wings/source/ndpi-sys/build.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/ndpi-sys/build.rs	2026-07-12 11:35:48.557172317 +0000
++++ wings/patched/ndpi-sys/build.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,3 @@
 +fn main() {
 +    println!("cargo:rustc-link-lib=ndpi");
 +}
 diff -ruN wings/source/ndpi-sys/src/lib.rs wings/patched/ndpi-sys/src/lib.rs
 --- wings/source/ndpi-sys/src/lib.rs	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/ndpi-sys/src/lib.rs	2026-07-12 09:31:25.393289301 +0000
++++ wings/patched/ndpi-sys/src/lib.rs	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,56 @@
 +use libc::{c_char, c_uint, c_ushort, c_void, size_t, time_t};
 +
@@ -2091,7 +2084,7 @@ diff -ruN wings/source/ndpi-sys/src/lib.rs wings/patched/ndpi-sys/src/lib.rs
 +}
 diff -ruN wings/source/patches/README.md wings/patched/patches/README.md
 --- wings/source/patches/README.md	1970-01-01 00:00:00.000000000 +0000
-+++ wings/patched/patches/README.md	2026-07-10 17:22:57.296730162 +0000
++++ wings/patched/patches/README.md	2026-07-19 18:56:23.000000000 +0000
 @@ -0,0 +1,41 @@
 +# Wings Patches
 +

@@ -17,7 +17,7 @@ crc32fast = "1.4.2"
 zstd = { version = "0.13.3", features = ["zstdmt"] }
 hex = "0.4.3"
 tar = "0.4.44"
-compact_str = { git = "https://github.com/ParkMyCar/compact_str.git", version = "0.9.0", features = ["serde"] }
+compact_str = { version = "0.10.0", features = ["serde"] }
 positioned-io = "0.3.5"
 futures = "0.3.31"
 

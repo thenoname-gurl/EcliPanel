@@ -547,6 +547,35 @@ mod post {
                                         err
                                     );
                                 }
+                            } else if field.name() == Some("diff-db") {
+                                let file = match runtime.block_on(server.diff.prepare_import()) {
+                                    Ok(file) => file,
+                                    Err(err) => {
+                                        tracing::error!(
+                                            "failed to create file history database: {:#?}",
+                                            err
+                                        );
+                                        continue;
+                                    }
+                                };
+                                let mut file = runtime.block_on(file.into_std());
+
+                                while let Some(chunk) = runtime.block_on(field.chunk())? {
+                                    if let Err(err) = file.write_all(&chunk) {
+                                        tracing::error!(
+                                            "failed to write file history database chunk: {:#?}",
+                                            err
+                                        );
+                                        break;
+                                    }
+                                }
+
+                                if let Err(err) = file.flush() {
+                                    tracing::error!(
+                                        "failed to flush file history database: {:#?}",
+                                        err
+                                    );
+                                }
                             } else if field.name().is_some_and(|n| n.starts_with("backup-")) {
                                 backup_receiver.handle_field(&runtime, field)?;
                             }

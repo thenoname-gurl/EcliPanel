@@ -8,7 +8,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
-use std::net::SocketAddr;
 
 mod tcp;
 mod udp;
@@ -32,8 +31,12 @@ pub async fn handle_ws(
     server: GetServer,
     Query(params): Query<Params>,
 ) -> Response {
-    let ip = match state.executor.resolve_internal_target(&server).await {
-        Ok(Some(ip)) => ip,
+    let target = match state
+        .executor
+        .resolve_internal_target(&server, params.port)
+        .await
+    {
+        Ok(Some(target)) => target,
         Ok(None) => {
             return ApiResponse::error("server is offline")
                 .with_status(StatusCode::CONFLICT)
@@ -46,8 +49,6 @@ pub async fn handle_ws(
                 .into_response();
         }
     };
-
-    let target = SocketAddr::new(ip, params.port);
 
     match params.protocol {
         Protocol::Tcp => ws.on_upgrade(move |socket| tcp::tunnel(socket, target)),

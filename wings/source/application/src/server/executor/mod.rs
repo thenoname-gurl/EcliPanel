@@ -1,9 +1,17 @@
-use std::sync::Arc;
+use serde::Serialize;
+use std::{collections::HashMap, net::IpAddr, sync::Arc};
+use utoipa::ToSchema;
 
 pub mod docker;
 pub mod noop;
 
 type StatusReceiver = tokio::sync::mpsc::Receiver<ProcessStatus>;
+
+#[derive(ToSchema, Serialize, Debug, Clone, Copy)]
+pub struct UsedPort {
+    pub port: u16,
+    pub server: Option<uuid::Uuid>,
+}
 
 #[derive(Debug, Clone, Copy)]
 pub enum ProcessStatus {
@@ -71,5 +79,11 @@ pub trait ServerExecutor: Send + Sync {
     async fn resolve_internal_target(
         &self,
         server: &super::Server,
-    ) -> Result<Option<std::net::IpAddr>, anyhow::Error>;
+        port: u16,
+    ) -> Result<Option<std::net::SocketAddr>, anyhow::Error>;
+
+    async fn used_ports(
+        &self,
+        ips: &[IpAddr],
+    ) -> Result<HashMap<IpAddr, Vec<UsedPort>>, anyhow::Error>;
 }

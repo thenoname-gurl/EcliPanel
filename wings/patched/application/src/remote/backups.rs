@@ -83,6 +83,25 @@ pub async fn set_backup_status(
     Ok(())
 }
 
+pub async fn set_backup_deletion_status(
+    client: &Client,
+    uuid: uuid::Uuid,
+    successful: bool,
+) -> Result<(), anyhow::Error> {
+    client
+        .client
+        .post(format!("{}/backups/{}/deletion", client.url, uuid))
+        .json(&json!({
+            "successful": successful,
+        }))
+        .send()
+        .await?
+        .error_for_remote_status()
+        .await?;
+
+    Ok(())
+}
+
 pub async fn set_backup_restore_status(
     client: &Client,
     server: uuid::Uuid,
@@ -216,11 +235,138 @@ pub async fn backup_kopia_configuration(
     Ok(response)
 }
 
+#[allow(clippy::too_many_arguments)]
+pub async fn restore_backup(
+    client: &Client,
+    server: uuid::Uuid,
+    schedule: Option<uuid::Uuid>,
+    backup: Option<uuid::Uuid>,
+    backup_name: Option<&str>,
+    backup_group: Option<uuid::Uuid>,
+    oldest: bool,
+    truncate_directory: bool,
+    restore_startup: bool,
+) -> Result<
+    (
+        BackupAdapter,
+        uuid::Uuid,
+        Option<compact_str::CompactString>,
+    ),
+    anyhow::Error,
+> {
+    let response: Response = super::into_json(
+        client
+            .client
+            .post(format!("{}/servers/{}/backups/restore", client.url, server))
+            .json(&json!({
+                "schedule_uuid": schedule,
+                "backup_uuid": backup,
+                "backup_name": backup_name,
+                "backup_group_uuid": backup_group,
+                "oldest": oldest,
+                "truncate_directory": truncate_directory,
+                "restore_startup": restore_startup,
+            }))
+            .send()
+            .await?
+            .error_for_remote_status()
+            .await?
+            .text()
+            .await?,
+    )?;
+
+    #[derive(Deserialize)]
+    struct Response {
+        adapter: BackupAdapter,
+        uuid: uuid::Uuid,
+        download_url: Option<compact_str::CompactString>,
+    }
+
+    Ok((response.adapter, response.uuid, response.download_url))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn delete_backup(
+    client: &Client,
+    server: uuid::Uuid,
+    schedule: Option<uuid::Uuid>,
+    backup: Option<uuid::Uuid>,
+    backup_name: Option<&str>,
+    backup_group: Option<uuid::Uuid>,
+    oldest: bool,
+) -> Result<uuid::Uuid, anyhow::Error> {
+    let response: Response = super::into_json(
+        client
+            .client
+            .delete(format!("{}/servers/{}/backups", client.url, server))
+            .json(&json!({
+                "schedule_uuid": schedule,
+                "backup_uuid": backup,
+                "backup_name": backup_name,
+                "backup_group_uuid": backup_group,
+                "oldest": oldest,
+            }))
+            .send()
+            .await?
+            .error_for_remote_status()
+            .await?
+            .text()
+            .await?,
+    )?;
+
+    #[derive(Deserialize)]
+    struct Response {
+        uuid: uuid::Uuid,
+    }
+
+    Ok(response.uuid)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn move_backup(
+    client: &Client,
+    server: uuid::Uuid,
+    schedule: Option<uuid::Uuid>,
+    backup: Option<uuid::Uuid>,
+    backup_name: Option<&str>,
+    backup_group: Option<uuid::Uuid>,
+    oldest: bool,
+    target_backup_group: Option<uuid::Uuid>,
+) -> Result<uuid::Uuid, anyhow::Error> {
+    let response: Response = super::into_json(
+        client
+            .client
+            .patch(format!("{}/servers/{}/backups", client.url, server))
+            .json(&json!({
+                "schedule_uuid": schedule,
+                "backup_uuid": backup,
+                "backup_name": backup_name,
+                "backup_group_uuid": backup_group,
+                "oldest": oldest,
+                "target_backup_group_uuid": target_backup_group,
+            }))
+            .send()
+            .await?
+            .error_for_remote_status()
+            .await?
+            .text()
+            .await?,
+    )?;
+
+    #[derive(Deserialize)]
+    struct Response {
+        uuid: uuid::Uuid,
+    }
+
+    Ok(response.uuid)
+}
+
 pub async fn create_backup(
     client: &Client,
     server: uuid::Uuid,
     schedule: Option<uuid::Uuid>,
     name: Option<&str>,
+    backup_group: Option<uuid::Uuid>,
     ignored_files: &[impl Serialize + AsRef<str>],
 ) -> Result<(BackupAdapter, uuid::Uuid), anyhow::Error> {
     let response: Response = super::into_json(
@@ -230,6 +376,7 @@ pub async fn create_backup(
             .json(&json!({
                 "schedule_uuid": schedule,
                 "name": name,
+                "backup_group_uuid": backup_group,
                 "ignored_files": ignored_files,
             }))
             .send()

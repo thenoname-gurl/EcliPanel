@@ -2,9 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::RwLock;
-use super::panel_sync::{AbConfig, PanelSync, VpnDpiConfig};
+use super::panel_sync::{AbConfig, PanelSync};
 use crate::dpi::engine::VpnDpiState;
-use crate::dpi::capture;
 
 struct ServerAbuseState {
     last_rx_bytes: u64,

@@ -50,6 +50,20 @@ mod post {
         pub destination_path: compact_str::CompactString,
     }
 
+    fn remap_root_path(path: &Path, files: &[crate::models::CopyFile]) -> PathBuf {
+        for file in files {
+            if let Ok(stripped) = path.strip_prefix(Path::new(&file.from)) {
+                return if stripped.as_os_str().is_empty() {
+                    PathBuf::from(&file.to)
+                } else {
+                    Path::new(&file.to).join(stripped)
+                };
+            }
+        }
+
+        path.to_path_buf()
+    }
+
     #[utoipa::path(post, path = "/", responses(
         (status = OK, body = inline(Response)),
         (status = UNAUTHORIZED, body = ApiError),
@@ -124,7 +138,7 @@ mod post {
         let total_bytes: u64 = headers
             .get("Total-Bytes")
             .map_or(Ok(0), |v| v.to_str().unwrap_or_default().parse())?;
-        let root_files: Vec<compact_str::CompactString> = serde_json::from_str(
+        let root_files: Vec<crate::models::CopyFile> = serde_json::from_str(
             headers
                 .get("Root-Files")
                 .map_or("[]", |v| v.to_str().unwrap_or("[]")),
@@ -148,7 +162,7 @@ mod post {
                 crate::server::filesystem::operations::FilesystemOperation::CopyRemote {
                     server: payload.server,
                     path: PathBuf::from(&payload.root),
-                    files: root_files.into_iter().map(PathBuf::from).collect(),
+                    files: root_files.iter().map(|file| PathBuf::from(&file.from)).collect(),
                     destination_server: server.uuid,
                     destination_path: PathBuf::from(&payload.destination_path),
                     start_time: chrono::Utc::now(),
@@ -205,7 +219,8 @@ mod post {
                                                 }
 
                                                 let destination_path =
-                                                    Path::new(&payload.destination_path).join(&rel);
+                                                    Path::new(&payload.destination_path)
+                                                        .join(remap_root_path(&rel, &root_files));
 
                                                 let is_dir = matches!(
                                                     &entry,
@@ -299,7 +314,8 @@ mod post {
                                                     continue;
                                                 }
 
-                                                let destination_path = Path::new(&payload.destination_path).join(&path);
+                                                let destination_path = Path::new(&payload.destination_path)
+                                                    .join(remap_root_path(&path, &root_files));
                                                 let header = entry.header();
 
                                                 let is_dir = header.entry_type() == tar::EntryType::Directory;

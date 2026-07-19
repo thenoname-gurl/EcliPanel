@@ -44,6 +44,20 @@ impl std::fmt::Display for ApiError {
 
 impl std::error::Error for ApiError {}
 
+impl ApiError {
+    pub fn message_or(
+        err: &anyhow::Error,
+        fallback: &'static str,
+    ) -> std::borrow::Cow<'static, str> {
+        match err.downcast_ref::<ApiError>() {
+            Some(api_err) if !api_err.errors.is_empty() => {
+                std::borrow::Cow::Owned(format!("panel error: {}", api_err.errors.join(", ")))
+            }
+            _ => std::borrow::Cow::Borrowed(fallback),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct ApiErrorBody {
     errors: Vec<String>,

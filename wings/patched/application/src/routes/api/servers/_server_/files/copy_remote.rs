@@ -44,7 +44,7 @@ mod post {
 
         #[serde(default)]
         root: compact_str::CompactString,
-        files: Vec<compact_str::CompactString>,
+        files: Vec<crate::models::CopyFile>,
 
         destination_server: uuid::Uuid,
         destination_path: compact_str::CompactString,
@@ -99,7 +99,7 @@ mod post {
         let mut total_size = 0;
         for file in &data.files {
             let directory_entry = match filesystem
-                .async_directory_entry_buffer(&root.join(file), &[])
+                .async_directory_entry_buffer(&root.join(&file.from), &[])
                 .await
             {
                 Ok(entry) => entry,
@@ -147,7 +147,7 @@ mod post {
                     crate::server::filesystem::operations::FilesystemOperation::CopyRemote {
                         server: server.uuid,
                         path: PathBuf::from(&data.root),
-                        files: data.files.iter().map(PathBuf::from).collect(),
+                        files: data.files.iter().map(|file| PathBuf::from(&file.from)).collect(),
                         destination_server: data.destination_server,
                         destination_path: PathBuf::from(&data.destination_path),
                         start_time: chrono::Utc::now(),
@@ -158,7 +158,7 @@ mod post {
                     {
                         let server = server.clone();
                         let root = root.clone();
-                        let files = data.files.clone();
+                        let files = Arc::new(data.files.clone());
                         let filesystem = filesystem.clone();
                         let destination_server = destination_server.clone();
                         let destination_path = Arc::new(destination_path);
@@ -171,7 +171,7 @@ mod post {
                                 let mut walker = filesystem
                                     .async_walk_dir_files_stream(
                                         &root,
-                                        files.into_iter().map(PathBuf::from).collect(),
+                                        files.iter().map(|file| PathBuf::from(&file.from)).collect(),
                                         ignored,
                                     )
                                     .await?;
@@ -183,6 +183,7 @@ mod post {
                                             let server = server.clone();
                                             let filesystem = filesystem.clone();
                                             let source_path = Arc::new(root);
+                                            let files = Arc::clone(&files);
                                             let destination_server = destination_server.clone();
                                             let destination_path = Arc::new(destination_path);
                                             let destination_filesystem = destination_filesystem.clone();
@@ -193,6 +194,7 @@ mod post {
                                                 let server = server.clone();
                                                 let filesystem = filesystem.clone();
                                                 let source_path = Arc::clone(&source_path);
+                                                let files = Arc::clone(&files);
                                                 let destination_server = destination_server.clone();
                                                 let destination_path = Arc::clone(&destination_path);
                                                 let destination_filesystem = destination_filesystem.clone();
@@ -210,8 +212,19 @@ mod post {
                                                         Ok(p) => p,
                                                         Err(_) => return Ok(()),
                                                     };
+                                                    let destination_relative_path = files
+                                                        .iter()
+                                                        .find_map(|file| {
+                                                            let stripped = relative_path.strip_prefix(Path::new(&file.from)).ok()?;
+                                                            if stripped.as_os_str().is_empty() {
+                                                                Some(PathBuf::from(&file.to))
+                                                            } else {
+                                                                Some(Path::new(&file.to).join(stripped))
+                                                            }
+                                                        })
+                                                        .unwrap_or_else(|| relative_path.to_path_buf());
                                                     let source_path = source_path.join(relative_path);
-                                                    let destination_path = destination_path.join(relative_path);
+                                                    let destination_path = destination_path.join(destination_relative_path);
 
                                                     if metadata.file_type.is_file() {
                                                         if let Some(parent) = destination_path.parent() {
@@ -290,7 +303,11 @@ mod post {
                     crate::server::filesystem::operations::FilesystemOperation::CopyRemote {
                         server: server.uuid,
                         path: PathBuf::from(data.root),
-                        files: data.files.iter().map(PathBuf::from).collect(),
+                        files: data
+                            .files
+                            .iter()
+                            .map(|file| PathBuf::from(&file.from))
+                            .collect(),
                         destination_server: data.destination_server,
                         destination_path: PathBuf::from(data.destination_path),
                         start_time: chrono::Utc::now(),
@@ -361,7 +378,7 @@ mod post {
                     crate::server::filesystem::operations::FilesystemOperation::CopyRemote {
                         server: server.uuid,
                         path: root.clone(),
-                        files: data.files.iter().map(PathBuf::from).collect(),
+                        files: data.files.iter().map(|file| PathBuf::from(&file.from)).collect(),
                         destination_server: data.destination_server,
                         destination_path: PathBuf::from(data.destination_path),
                         start_time: chrono::Utc::now(),
@@ -392,7 +409,7 @@ mod post {
                                 let mut reader = filesystem
                                     .async_read_dir_files_archive(
                                         &root,
-                                        files.into_iter().map(PathBuf::from).collect(),
+                                        files.into_iter().map(|file| PathBuf::from(file.from)).collect(),
                                         data.archive_format.into(),
                                         data.compression_level.unwrap_or_else(|| {
                                             state.config.load().system.backups.compression_level
