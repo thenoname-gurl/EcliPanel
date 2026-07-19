@@ -142,7 +142,7 @@ export default function TicketsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard title={t("stats.openTickets")} value={openCount} icon={AlertCircle} />
             <StatCard title={t("stats.pendingReply")} value={pendingCount} icon={Clock} />
-            <StatCard title={t("stats.totalTickets")} value={tickets.length} icon={MessageSquare} />
+            <StatCard title={t("stats.totalTickets")} value={ticketTotal} icon={MessageSquare} />
             <StatCard
               title={t("stats.avgResponse30d")}
               value={formatDurationMs(globalAvgResponseMs)}

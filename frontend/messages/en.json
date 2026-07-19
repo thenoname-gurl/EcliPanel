@@ -4967,6 +4967,9 @@
       "created": "Created: {value}",
       "lastReply": "Last reply: {value}",
       "updated": "Updated: {value}"
+    },
+    "pagination": {
+      "page": "Page"
     }
   },
   "ticketsNewPage": {
@@ -6076,6 +6079,17 @@
     "mature": "Mature (NSFW)",
     "political": "Political opinion",
     "analytics": "Analytics",
-    "analyticsDescription": "Post performance and view statistics"
+    "analyticsDescription": "Post performance and view statistics",
+    "analyticsTotalViews": "Total views",
+    "analyticsLastNDays": "Last {days}d",
+    "analyticsTopPostsByViews": "Top posts by views",
+    "analyticsNoPublishedPosts": "No published posts yet.",
+    "analyticsAllPosts": "All posts",
+    "analyticsTableTitle": "Title",
+    "analyticsTableViews": "Views",
+    "analyticsTableStatus": "Status",
+    "analyticsTableCreated": "Created",
+    "views": "views",
+    "handbook": "Handbook"
   }
 }
