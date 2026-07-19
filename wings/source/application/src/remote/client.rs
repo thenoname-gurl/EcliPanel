@@ -293,6 +293,21 @@ impl Client {
     }
 
     #[tracing::instrument(skip(self))]
+    pub async fn set_backup_deletion_status(
+        &self,
+        uuid: uuid::Uuid,
+        successful: bool,
+    ) -> Result<(), anyhow::Error> {
+        tracing::info!("setting backup deletion status");
+
+        self.retry(
+            || super::backups::set_backup_deletion_status(self, uuid, successful),
+            Self::skip_client_errors,
+        )
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
     pub async fn set_backup_restore_status(
         &self,
         server: uuid::Uuid,
@@ -374,10 +389,100 @@ impl Client {
         server: uuid::Uuid,
         schedule: Option<uuid::Uuid>,
         name: Option<&str>,
+        backup_group: Option<uuid::Uuid>,
         ignored_files: &[impl Serialize + Debug + AsRef<str>],
     ) -> Result<(BackupAdapter, uuid::Uuid), anyhow::Error> {
         tracing::info!("creating backup");
 
-        super::backups::create_backup(self, server, schedule, name, ignored_files).await
+        super::backups::create_backup(self, server, schedule, name, backup_group, ignored_files)
+            .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn restore_backup(
+        &self,
+        server: uuid::Uuid,
+        schedule: Option<uuid::Uuid>,
+        backup: Option<uuid::Uuid>,
+        backup_name: Option<&str>,
+        backup_group: Option<uuid::Uuid>,
+        oldest: bool,
+        truncate_directory: bool,
+        restore_startup: bool,
+    ) -> Result<
+        (
+            BackupAdapter,
+            uuid::Uuid,
+            Option<compact_str::CompactString>,
+        ),
+        anyhow::Error,
+    > {
+        tracing::info!("requesting backup restore");
+
+        super::backups::restore_backup(
+            self,
+            server,
+            schedule,
+            backup,
+            backup_name,
+            backup_group,
+            oldest,
+            truncate_directory,
+            restore_startup,
+        )
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn delete_backup(
+        &self,
+        server: uuid::Uuid,
+        schedule: Option<uuid::Uuid>,
+        backup: Option<uuid::Uuid>,
+        backup_name: Option<&str>,
+        backup_group: Option<uuid::Uuid>,
+        oldest: bool,
+    ) -> Result<uuid::Uuid, anyhow::Error> {
+        tracing::info!("requesting backup deletion");
+
+        super::backups::delete_backup(
+            self,
+            server,
+            schedule,
+            backup,
+            backup_name,
+            backup_group,
+            oldest,
+        )
+        .await
+    }
+
+    #[tracing::instrument(skip(self))]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn move_backup(
+        &self,
+        server: uuid::Uuid,
+        schedule: Option<uuid::Uuid>,
+        backup: Option<uuid::Uuid>,
+        backup_name: Option<&str>,
+        backup_group: Option<uuid::Uuid>,
+        oldest: bool,
+        target_backup_group: Option<uuid::Uuid>,
+    ) -> Result<uuid::Uuid, anyhow::Error> {
+        tracing::info!("requesting backup move");
+
+        super::backups::move_backup(
+            self,
+            server,
+            schedule,
+            backup,
+            backup_name,
+            backup_group,
+            oldest,
+            target_backup_group,
+        )
+        .await
     }
 }

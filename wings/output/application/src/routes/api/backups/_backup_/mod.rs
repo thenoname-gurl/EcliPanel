@@ -11,6 +11,7 @@ mod delete {
         server::backup::adapters::BackupAdapter,
     };
     use axum::{extract::Path, http::StatusCode};
+    use compact_str::ToCompactString;
     use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
 
@@ -19,6 +20,8 @@ mod delete {
         adapter: BackupAdapter,
         #[serde(default)]
         foreground: bool,
+        #[serde(default)]
+        server: Option<uuid::Uuid>,
     }
 
     #[derive(ToSchema, Serialize)]
@@ -60,13 +63,49 @@ mod delete {
         }
 
         tokio::spawn(async move {
-            if let Err(err) = backup.delete(&state).await {
+            let successful = match backup.delete(&state).await {
+                Ok(()) => true,
+                Err(err) => {
+                    tracing::error!(
+                        backup = %backup.uuid(),
+                        adapter = ?backup.adapter(),
+                        "failed to delete backup: {:#?}",
+                        err
+                    );
+
+                    false
+                }
+            };
+
+            if let Err(err) = state
+                .config
+                .client
+                .set_backup_deletion_status(backup.uuid(), successful)
+                .await
+            {
                 tracing::error!(
                     backup = %backup.uuid(),
-                    adapter = ?backup.adapter(),
-                    "failed to delete backup: {:#?}",
+                    "failed to set backup deletion status: {:#?}",
                     err
                 );
+            }
+
+            if let Some(server) = data.server
+                && let Some(server) = state.server_manager.get_server(server).await
+            {
+                server
+                    .websocket
+                    .send(
+                        crate::server::websocket::WebsocketMessage::builder(
+                            crate::server::websocket::WebsocketEvent::ServerBackupDeleted,
+                        )
+                        .arg(backup.uuid().to_compact_string())
+                        .structured_arg(serde_json::json!({
+                            "successful": successful,
+                        }))
+                        .build(),
+                    )
+                    .ok();
             }
         });
 

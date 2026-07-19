@@ -414,6 +414,63 @@ impl DiffManager {
         .await?
     }
 
+    pub async fn export_snapshot(&self) -> Result<Option<tokio::fs::File>, anyhow::Error> {
+        let db_path = self.db_path.clone();
+        let zstd_level = self.config.load().system.file_history.zstd_level;
+        let storage = Arc::clone(&self.storage);
+
+        let temp_path =
+            tokio::task::spawn_blocking(move || -> Result<Option<PathBuf>, anyhow::Error> {
+                let guard = storage.blocking_lock();
+
+                let mut temp = db_path.clone().into_os_string();
+                temp.push(".transfer");
+                let temp_path = PathBuf::from(temp);
+                std::fs::remove_file(&temp_path).ok();
+
+                match guard.as_ref() {
+                    Some(s) => s.vacuum_into(&temp_path)?,
+                    None => {
+                        if !db_path.exists() {
+                            return Ok(None);
+                        }
+
+                        Storage::open(&db_path, zstd_level)?.vacuum_into(&temp_path)?;
+                    }
+                }
+
+                Ok(Some(temp_path))
+            })
+            .await??;
+
+        match temp_path {
+            Some(path) => {
+                let file = tokio::fs::File::open(&path).await?;
+                tokio::fs::remove_file(&path).await.ok();
+
+                Ok(Some(file))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn prepare_import(&self) -> Result<tokio::fs::File, anyhow::Error> {
+        let mut guard = self.storage.lock().await;
+        *guard = None;
+
+        if let Some(parent) = self.db_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+
+        for ext in ["-wal", "-shm"] {
+            let mut s = self.db_path.clone().into_os_string();
+            s.push(ext);
+            tokio::fs::remove_file(PathBuf::from(s)).await.ok();
+        }
+
+        Ok(tokio::fs::File::create(&self.db_path).await?)
+    }
+
     pub async fn close(&self) {
         let mut guard = self.storage.lock().await;
         *guard = None;

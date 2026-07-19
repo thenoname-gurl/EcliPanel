@@ -84,7 +84,7 @@ impl VpnDpiState {
         }
 
         {
-            let mut last = self.last_sampled.lock().unwrap();
+            let last = self.last_sampled.lock().unwrap();
             if let Some(prev) = last.get(server_id) {
                 if prev.elapsed().as_secs() < cfg.sample_interval_seconds {
                     return Vec::new();

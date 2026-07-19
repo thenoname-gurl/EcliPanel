@@ -510,6 +510,35 @@ impl OutgoingServerTransfer {
                 );
             }
 
+            match server.diff.export_snapshot().await {
+                Ok(Some(diff_db)) => {
+                    bytes_total.fetch_add(diff_db.metadata().await.map(|m| m.len()).unwrap_or(0), Ordering::Relaxed);
+
+                    form = form.part(
+                        "diff-db",
+                        reqwest::multipart::Part::stream(reqwest::Body::wrap_stream(
+                            tokio_util::io::ReaderStream::with_capacity(
+                                AsyncCountingReader::new_with_bytes_read(
+                                    diff_db,
+                                    Arc::clone(&bytes_archived),
+                                ),
+                                crate::TRANSFER_BUFFER_SIZE,
+                            ),
+                        ))
+                        .file_name("diffs.db")
+                        .mime_str("application/octet-stream")
+                        .expect("failed to set mime type for diff db"),
+                    );
+                }
+                Ok(None) => {}
+                Err(err) => {
+                    tracing::warn!(
+                        server = %server.uuid,
+                        "failed to export file history for transfer: {err:#}"
+                    );
+                }
+            }
+
             let destination_capabilities = if backups.is_empty() {
                 None
             } else {

@@ -493,6 +493,14 @@ impl Storage {
         Ok(())
     }
 
+    pub fn vacuum_into(&self, path: &Path) -> Result<(), anyhow::Error> {
+        self.conn.execute(
+            "VACUUM INTO ?",
+            params![path.to_string_lossy().into_owned()],
+        )?;
+        Ok(())
+    }
+
     pub fn vacuum(&mut self) -> Result<(), anyhow::Error> {
         self.conn
             .execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")?;

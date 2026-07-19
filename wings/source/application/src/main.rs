@@ -9,9 +9,17 @@ use axum::{
 };
 use colored::Colorize;
 use russh::server::Server;
-use std::{fmt::Debug, net::SocketAddr, path::Path, sync::Arc, time::Instant};
+use std::{
+    fmt::Debug,
+    net::SocketAddr,
+    path::Path,
+    sync::{Arc, OnceLock},
+    time::Instant,
+};
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
 use utoipa_axum::router::OpenApiRouter;
+
+pub static CLAP_COMMAND: OnceLock<clap::Command> = OnceLock::new();
 
 mod bins;
 mod commands;
@@ -231,12 +239,16 @@ async fn handle_cors(
 
 async fn main_rt() {
     let cli = crate::commands::CliCommandGroupBuilder::new(
-        "wings-rs",
+        "calagopus-wings",
         "The wings server implementing server management for the panel.",
     );
 
     let mut cli = crate::commands::commands(cli);
     let mut matches = cli.get_matches();
+
+    CLAP_COMMAND
+        .set(cli.get_command())
+        .expect("failed to set CLAP_COMMAND");
 
     let config_path = matches
         .get_one::<String>("config")
