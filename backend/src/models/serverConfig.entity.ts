@@ -135,13 +135,13 @@ export class ServerConfig {
   @Column({ default: false })
   installing: boolean;
 
-  @Column('json', { nullable: true, select: false })
+  @Column('json', { nullable: true })
   allocations?: Record<string, any>;
 
-  @Column('json', { nullable: true, select: false })
+  @Column('json', { nullable: true })
   schedules?: Record<string, any>[];
 
-  @Column('json', { nullable: true, select: false })
+  @Column('json', { nullable: true })
   processConfig?: Record<string, any>;
 
   @Index()

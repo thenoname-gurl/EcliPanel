@@ -24,7 +24,7 @@ export class NodeService {
 
   async getServiceForServer(uuid: string): Promise<ProviderService> {
     const repo = AppDataSource.getRepository(ServerMapping);
-    const mapping = await repo.findOne({ where: { uuid }, select: { node: { id: true } } });
+    const mapping = await repo.findOne({ where: { uuid }, relations: { node: true }, select: { node: { id: true } } });
     if (!mapping) throw new Error('No node mapping for server');
     return this.getServiceForNode(mapping.node.id);
   }
