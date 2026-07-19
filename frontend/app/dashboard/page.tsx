@@ -248,9 +248,8 @@ export default function SOCDashboard() {
   const handleUpdateFinding = async (id: number, status: string) => {
     setFindings(prev => prev.map(f => f.id === id ? { ...f, status } : f))
     try {
-      await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(':id', String(id)), {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
+      await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(':id', String(id))}/${status}`, {
+        method: 'PUT',
       })
     } catch {}
     silentFetchFindings()
@@ -573,30 +572,30 @@ export default function SOCDashboard() {
                               </div>
                             </div>
                             {/* Action buttons */}
-                            <div className="flex items-center gap-1.5 shrink-0" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <button
-                                onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'acknowledged') }}
+                                onClick={() => handleUpdateFinding(item.id, 'acknowledged')}
                                 title={t("securityFindings.actions.acknowledge")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                                data-telemetry="dashboard:acknowledge">
                                 <Check className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-foreground" />
                               </button>
                               <button
-                                onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'resolved') }}
+                                onClick={() => handleUpdateFinding(item.id, 'resolved')}
                                 title={t("securityFindings.actions.resolve")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                                data-telemetry="dashboard:resolve">
                                 <CheckCircle className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-green-600" />
                               </button>
                               <button
-                                onClick={(e) => { e.preventDefault(); handleUpdateFinding(item.id, 'false_positive') }}
+                                onClick={() => handleUpdateFinding(item.id, 'false_positive')}
                                 title={t("securityFindings.actions.falsePositive")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                                data-telemetry="dashboard:falsepositive">
                                 <Flag className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-orange-600" />
                               </button>
                               <button
-                                onClick={(e) => { e.preventDefault(); handleEscalate(item.id) }}
+                                onClick={() => handleEscalate(item.id)}
                                 title="Escalate to staff"
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                               >

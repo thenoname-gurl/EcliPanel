@@ -243,8 +243,8 @@ export default function SocTab() {
       return prev.map(f => f.id === id ? { ...f, status } : f)
     })
     try {
-      await apiFetch(API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id)), {
-        method: "PATCH", body: JSON.stringify({ status }),
+      await apiFetch(`${API_ENDPOINTS.socSecurityFindingDetail.replace(":id", String(id))}/${status}`, {
+        method: "PUT",
       })
     } catch {}
     silentFetch()

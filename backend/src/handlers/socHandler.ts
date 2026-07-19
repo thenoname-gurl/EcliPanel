@@ -432,8 +432,8 @@ export async function socRoutes(app: any, prefix = '') {
     }
   );
 
-  app.patch(
-    prefix + '/soc/security-findings/:id',
+  app.put(
+    prefix + '/soc/security-findings/:id/:status',
     async (ctx: any) => {
       const repo = findingRepo();
       const id = Number(ctx.params['id']);
@@ -471,7 +471,7 @@ export async function socRoutes(app: any, prefix = '') {
         }
       }
 
-      const { status } = (ctx.body || {}) as any;
+      const status = ctx.params['status'];
       const validStatuses = ['acknowledged', 'resolved', 'false_positive', 'internal_resolved'];
       if (!validStatuses.includes(status)) {
         ctx.set.status = 400;
