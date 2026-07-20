@@ -594,7 +594,7 @@ function getIP(req: NextRequest): string {
   );
 }
 
-export async function middleware(req: NextRequest): Promise<NextResponse> {
+export async function proxy(req: NextRequest): Promise<NextResponse> {
   const { pathname } = req.nextUrl;
   refreshAllCrawlerIPs();
 
