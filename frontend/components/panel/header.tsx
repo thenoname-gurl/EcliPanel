@@ -229,9 +229,11 @@ function NotificationDropdown({
                     {formatNotificationAction(n.action || n.event || "", tHeader) || labels.accountEvent}
                   </p>
                   <p className="text-[10px] text-muted-foreground">
-                    {n.timestamp
-                      ? new Date(n.timestamp).toLocaleDateString()
-                      : ""}
+                    <span suppressHydrationWarning>
+                      {n.timestamp
+                        ? new Date(n.timestamp).toLocaleDateString()
+                        : ""}
+                    </span>
                   </p>
                 </div>
                 {!n.isRead && (

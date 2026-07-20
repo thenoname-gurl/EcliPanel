@@ -109,6 +109,8 @@ const FilesTabLazy = lazy(() => import("./FilesTab").then((m) => ({ default: m.F
 const FirewallTabLazy = lazy(() => import("./FirewallTab").then((m) => ({ default: m.FirewallTab })))
 const SharesTabLazy = lazy(() => import("./SharesTab").then((m) => ({ default: m.SharesTab })))
 const MinecraftTabLazy = lazy(() => import("./MinecraftTab").then((m) => ({ default: m.MinecraftTab })))
+const BackupsTabLazy = lazy(() => import("./BackupsTab").then((m) => ({ default: m.BackupsTab })))
+const SchedulesTabLazy = lazy(() => import("./SchedulesTab").then((m) => ({ default: m.SchedulesTab })))
 
 // ─── Shared UI Primitives ────────────────────────────────────────────────────
 
@@ -1516,7 +1518,11 @@ const dmcaAlert = isDmcaProtected ? (
               </Suspense>
             )}
             {activeTab === "databases" && <DatabasesTab serverId={id} />}
-            {activeTab === "schedules" && <SchedulesTab serverId={id} />}
+            {activeTab === "schedules" && (
+              <Suspense fallback={<LoadingState message={t("states.loadingSchedules")} />}>
+                <SchedulesTabLazy serverId={id} />
+              </Suspense>
+            )}
             {activeTab === "network" && <NetworkTab serverId={id} server={server} />}
             {activeTab === "firewall" && (
               <Suspense fallback={<LoadingState message={t("states.loadingFirewall")} />}>
@@ -1525,7 +1531,11 @@ const dmcaAlert = isDmcaProtected ? (
             )}
             {activeTab === "mounts" && <MountsTab serverId={id} isKvm={isKvm} />}
             
-            {activeTab === "backups" && <BackupsTab serverId={id} />}
+            {activeTab === "backups" && (
+              <Suspense fallback={<LoadingState message={t("states.loadingBackups")} />}>
+                <BackupsTabLazy serverId={id} />
+              </Suspense>
+            )}
             {activeTab === "activity" && <ActivityTab serverId={id} />}
             {activeTab === "subusers" && (
               <SubusersTab
@@ -2169,7 +2179,7 @@ function scheduleActionsSummary(actions: any[], t: (k: string) => string): strin
 }
 
 function newActionUuid() {
-  return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return crypto.randomUUID()
 }
 
 interface ScheduleFormState {
@@ -3545,7 +3555,7 @@ function StartupTab({ serverId }: { serverId: string }) {
   const addEnvRow = () => {
     setExtraEnvRows((prev) => [
       ...prev,
-      { id: `env-${Date.now()}-${Math.random()}`, key: "", value: "" },
+      { id: `env-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`, key: "", value: "" },
     ])
   }
 

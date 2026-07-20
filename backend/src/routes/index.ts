@@ -14,6 +14,8 @@ import { socRoutes } from '../handlers/socHandler';
 import { aiRoutes } from '../handlers/aiHandler';
 import { serverRoutes } from '../handlers/serverHandler';
 import { scheduleRoutes } from '../handlers/scheduleHandler';
+import { backupGroupRoutes } from '../handlers/backupGroupHandler';
+import { backupConfigRoutes } from '../handlers/backupConfigHandler';
 import { nodeRoutes } from '../handlers/nodeHandler';
 import { apiKeyRoutes } from '../handlers/apiKeyHandler';
 import { ticketRoutes } from '../handlers/ticketHandler';
@@ -147,6 +149,8 @@ export function registerRoutes(app: any) {
   aiRoutes(app, '/api');
   serverRoutes(app, '/api');
   scheduleRoutes(app, '/api');
+  backupGroupRoutes(app, '/api');
+  backupConfigRoutes(app, '/api');
   sharedFileRoutes(app, '/api');
   nodeRoutes(app, '/api');
   apiKeyRoutes(app, '/api');

@@ -39,7 +39,7 @@ function validateTriggers(triggers: unknown): string | null {
   for (const tr of triggers) {
     if (!tr || typeof tr !== 'object') return 'Invalid trigger';
     const type = (tr as any).type;
-    const valid = ['cron','power_action','server_state','backup_status','schedule_completion','resource_usage','console_line','crash'];
+    const valid = ['cron','power_action','server_state','backup_status','schedule_completion','resource_usage','resource_usage_over_time','console_line','crash'];
     if (!valid.includes(type)) return `Invalid trigger type: ${type}`;
   }
   return null;
@@ -49,8 +49,8 @@ function validateCondition(cond: unknown, depth = 0): string | null {
   if (depth > 8) return 'Maximum condition nesting depth exceeded';
   if (!cond || typeof cond !== 'object') return 'Invalid condition';
   const c = cond as any;
-  if (c.type === 'and' || c.type === 'or') {
-    if (!Array.isArray(c.conditions)) return 'and/or requires conditions array';
+  if (c.type === 'and' || c.type === 'or' || c.type === 'xor') {
+    if (!Array.isArray(c.conditions)) return `${c.type} requires conditions array`;
     for (const sc of c.conditions) {
       const err = validateCondition(sc, depth + 1);
       if (err) return err;

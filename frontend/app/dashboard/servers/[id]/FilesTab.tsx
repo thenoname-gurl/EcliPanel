@@ -7,6 +7,8 @@ import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { MonacoFileEditor } from "./MonacoFileEditor"
+import { FileRevisionsDrawer } from "./FileRevisionsDrawer"
+import { useAuth } from "@/hooks/useAuth"
 import { formatBytes, displayPath, MONACO_LANGUAGE_MAP, isArchiveFile } from "./serverTabHelpers"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -945,6 +947,7 @@ function ShareFileLinkModal({
 export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTabProps) {
   const t = useTranslations("serverFilesTab")
   const { toasts, toast, dismiss } = useToast()
+  const { user } = useAuth()
 
   const [path, setPath] = useState("/")
   const [files, setFiles] = useState<FileItem[]>([])
@@ -1004,68 +1007,58 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
     }
   }, [serverId, path])
 
-  const [revisions, setRevisions] = useState<any[] | null>(null)
-  const [revisionsLoading, setRevisionsLoading] = useState(false)
+  const [revisionsOpen, setRevisionsOpen] = useState(false)
   const [revisionContent, setRevisionContent] = useState<string | null>(null)
   const [revisionContentLoading, setRevisionContentLoading] = useState(false)
   const [activeRevisionId, setActiveRevisionId] = useState<string | null>(null)
-  const [restoringRevision, setRestoringRevision] = useState(false)
 
-  const loadRevisions = useCallback(async (filePath: string) => {
-    setRevisionsLoading(true)
-    setRevisions(null)
+  const handleRevisionRestore = useCallback((content: string) => {
+    setFileContent(content)
     setRevisionContent(null)
-    try {
-      const data = await apiFetch(
-        API_ENDPOINTS.serverFileRevisions.replace(":id", serverId) +
-        `?file=${encodeURIComponent(filePath)}`
-      )
-      setRevisions(Array.isArray(data) ? data : [])
-    } catch {
-      setRevisions([])
-    } finally {
-      setRevisionsLoading(false)
-    }
-  }, [serverId])
+    setActiveRevisionId(null)
+    setRevisionsOpen(false)
+    toast("success", "File restored to selected revision")
+  }, [toast])
 
-  const loadRevisionContent = useCallback(async (revisionId: string) => {
+  const [diffOriginal, setDiffOriginal] = useState<string | undefined>(undefined)
+  const [diffOriginalLabel, setDiffOriginalLabel] = useState<string>('')
+  const [diffModifiedLabel, setDiffModifiedLabel] = useState<string>('')
+
+  const handleRevisionDiff = useCallback((revisionId: number, previousRevisionId?: number) => {
     setRevisionContentLoading(true)
-    setActiveRevisionId(revisionId)
-    try {
-      const data = await apiFetch(
-        API_ENDPOINTS.serverFileRevisionContent
-          .replace(":id", serverId)
-          .replace(":revisionId", revisionId)
-      )
-      setRevisionContent(typeof data === "string" ? data : JSON.stringify(data, null, 2))
-    } catch {
-      setRevisionContent("Failed to load revision content")
-    } finally {
-      setRevisionContentLoading(false)
-    }
-  }, [serverId])
+    setActiveRevisionId(String(revisionId))
+    const revisionPromise = apiFetch(
+      API_ENDPOINTS.serverFileRevisionContent
+        .replace(':id', serverId)
+        .replace(':revisionId', String(revisionId))
+    ).then(data => typeof data === 'string' ? data : JSON.stringify(data, null, 2))
 
-  const restoreRevision = useCallback(async (revisionId: string) => {
-    if (!editingFile) return
-    setRestoringRevision(true)
-    try {
-      await apiFetch(
-        API_ENDPOINTS.serverFileRevisionRestore
-          .replace(":id", serverId)
-          .replace(":revisionId", revisionId),
-        { method: "POST", body: JSON.stringify({ path: editingFile }) }
-      )
-      toast("success", t("states.revisionRestored"))
-      setRevisions(null)
-      setRevisionContent(null)
-      setActiveRevisionId(null)
-      setFileContent(revisionContent || "")
-    } catch (err: any) {
-      toast("error", err?.message || t("errors.revisionRestoreFailed"))
-    } finally {
-      setRestoringRevision(false)
-    }
-  }, [serverId, editingFile, revisionContent, toast, t])
+    const currentPromise = previousRevisionId
+      ? apiFetch(
+          API_ENDPOINTS.serverFileRevisionContent
+            .replace(':id', serverId)
+            .replace(':revisionId', String(previousRevisionId))
+        ).then(data => typeof data === 'string' ? data : JSON.stringify(data, null, 2))
+      : Promise.resolve(null)
+
+    Promise.all([revisionPromise, currentPromise]).then(([revContent, prevContent]) => {
+      if (prevContent !== null) {
+        setDiffOriginal(prevContent)
+        setDiffOriginalLabel(`#${previousRevisionId}`)
+        setDiffModifiedLabel(`#${revisionId}`)
+        setFileContent(revContent)
+      } else {
+        setDiffOriginal(revContent)
+        setDiffOriginalLabel(`#${revisionId}`)
+        setDiffModifiedLabel('Current')
+      }
+      setRevisionContent(revContent)
+    }).catch(() => {
+      setRevisionContent('Failed to load revision content')
+    }).finally(() => {
+      setRevisionContentLoading(false)
+    })
+  }, [serverId])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropRef = useRef<HTMLDivElement>(null)
@@ -1744,11 +1737,10 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
           <div className="flex items-center gap-2 flex-shrink-0">
             <Button
               size="sm" variant="outline"
-              onClick={() => loadRevisions(editingFile)}
-              disabled={revisionsLoading}
+              onClick={() => setRevisionsOpen(true)}
               className="h-7 text-xs gap-1.5"
             >
-              {revisionsLoading ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+              <Clock className="h-3 w-3" />
               History
             </Button>
             <Button size="sm" variant="outline" onClick={() => setEditingFile(null)} className="h-7 text-xs">
@@ -1765,63 +1757,31 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             <MonacoFileEditor
               value={revisionContent ?? fileContent}
               onChange={v => {
-                if (!revisionContent) setFileContent(v ?? "")
+                if (!revisionContent && !diffOriginal) setFileContent(v ?? "")
+                if (diffOriginal) { setDiffOriginal(undefined); setRevisionContent(null); setActiveRevisionId(null); }
               }}
               language={MONACO_LANGUAGE_MAP[ext] || "plaintext"}
               editorSettings={editorSettings}
               filePath={editingFile}
               fileName={editingFile?.split("/").pop()}
+              diffOriginal={diffOriginal}
+              diffOriginalLabel={diffOriginalLabel}
+              diffModifiedLabel={diffModifiedLabel}
+              collab={editingFile ? {
+                filePath: editingFile,
+                serverId: serverId,
+                userName: user?.displayName || user?.email || 'unknown',
+              } : undefined}
             />
           </div>
-          {revisions && (
-            <div className="w-64 flex-shrink-0 border-l border-border bg-secondary/10 overflow-y-auto">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Revisions</span>
-                <button
-                  onClick={() => { setRevisions(null); setRevisionContent(null); setActiveRevisionId(null) }}
-                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-              {revisions.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-muted-foreground text-center">No revisions found</div>
-              ) : (
-                revisions.map((rev: any) => (
-                  <button
-                    key={rev.id || rev.revision}
-                    onClick={() => loadRevisionContent(rev.id || rev.revision)}
-                    className={cn(
-                      "w-full text-left px-3 py-2 text-xs border-b border-border/30 hover:bg-secondary/20 transition-colors",
-                      activeRevisionId === (rev.id || rev.revision) && "bg-primary/10 text-primary"
-                    )}
-                  >
-                    <div className="font-mono truncate">{rev.id || rev.revision}</div>
-                    <div className="text-muted-foreground mt-0.5">{rev.timestamp ? new Date(rev.timestamp).toLocaleString() : ""}</div>
-                    {rev.size != null && <div className="text-muted-foreground">{formatBytes(rev.size)}</div>}
-                  </button>
-                ))
-              )}
-              {revisionContentLoading && (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="h-4 w-4 rounded-full animate-spin text-muted-foreground" />
-                </div>
-              )}
-              {activeRevisionId && revisionContent !== null && !revisionContentLoading && (
-                <div className="px-3 py-3 border-t border-border">
-                  <Button
-                    size="sm"
-                    onClick={() => restoreRevision(activeRevisionId)}
-                    disabled={restoringRevision}
-                    className="w-full h-7 text-xs gap-1.5"
-                  >
-                    {restoringRevision ? <Loader2 className="h-3 w-3 rounded-full animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                    Restore this version
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+          <FileRevisionsDrawer
+            serverId={serverId}
+            filePath={editingFile}
+            open={revisionsOpen}
+            onClose={() => setRevisionsOpen(false)}
+            onRestore={handleRevisionRestore}
+            onDiff={handleRevisionDiff}
+          />
         </div>
         <ToastContainer toasts={toasts} onDismiss={dismiss} />
       </div>

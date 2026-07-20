@@ -31,18 +31,21 @@ function BinaryStrip() {
 function CrashLog({ error }: { error: Error & { digest?: string } }) {
   const t = useTranslations("errorPage");
 
-  const [timestamp] = useState(() => new Date().toISOString());
+  const [timestamp, setTimestamp] = useState("");
+  const [pid, setPid] = useState(0);
+  const [memAddr, setMemAddr] = useState("");
 
-  const [pid] = useState(() => Math.floor(Math.random() * 65535));
-
-  const [memAddr] = useState(
-    () =>
+  useEffect(() => {
+    setTimestamp(new Date().toISOString());
+    setPid(Math.floor(Math.random() * 65535));
+    setMemAddr(
       "0x" +
-      Math.floor(Math.random() * 0xffffffff)
-        .toString(16)
-        .padStart(8, "0")
-        .toUpperCase(),
-  );
+        Math.floor(Math.random() * 0xffffffff)
+          .toString(16)
+          .padStart(8, "0")
+          .toUpperCase(),
+    );
+  }, []);
 
   return (
     <div className="space-y-2 font-mono text-sm leading-relaxed sm:text-base">

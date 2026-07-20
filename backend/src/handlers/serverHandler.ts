@@ -3765,8 +3765,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       const svc = await serviceFor(id);
       try {
         const res = await svc.getRevisionContent(id, Number(revisionId));
-        ctx.set.headers = { 'Content-Type': 'text/plain; charset=utf-8' };
-        return res;
+        const content = (res as any)?.data ?? res;
+        ctx.set.headers['Content-Type'] = 'text/plain; charset=utf-8';
+        return content;
       } catch (e: unknown) {
         const err = e as Record<string, unknown>;
         const errResponse = err?.response as Record<string, unknown> | undefined;
@@ -4425,10 +4426,15 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       const adapter = 'wings';
       const uuid = body.uuid || crypto.randomUUID();
       const ignore = typeof body.ignore === 'string' ? body.ignore : '';
+      const compressionType = typeof body.compression_type === 'string' ? body.compression_type : undefined;
+      const backupGroupUuid = typeof body.backup_group_uuid === 'string' ? body.backup_group_uuid : undefined;
 
       try {
         const svc = await serviceFor(id);
-        const res = await svc.createServerBackup(id, { adapter, uuid, ignore });
+        const payload: Record<string, unknown> = { adapter, uuid, ignore };
+        if (compressionType) payload.compression_type = compressionType;
+        if (backupGroupUuid) payload.backup_group_uuid = backupGroupUuid;
+        const res = await svc.createServerBackup(id, payload);
         try {
           const repo = AppDataSource.getRepository(
             require('../models/serverBackup.entity').ServerBackup

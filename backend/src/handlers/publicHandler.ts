@@ -17,9 +17,13 @@ import { PanelSetting } from '../models/panelSetting.entity';
 const { getGithubContributorsSnapshot } = require('../services/githubContributorsService');
 
 const readNumber = (source: any, paths: string[]): number => {
+  let obj = source;
+  if (typeof obj === 'string') {
+    try { obj = JSON.parse(obj); } catch { return 0; }
+  }
   for (const path of paths) {
     const parts = path.split('.');
-    let cur = source;
+    let cur = obj;
     for (const p of parts) {
       if (cur == null) break;
       cur = cur[p];

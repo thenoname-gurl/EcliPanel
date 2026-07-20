@@ -27,6 +27,23 @@ class Emitter {
   }
 }
 
+export const SocketEvent = {
+  FILE_COLLAB_SYNC: 'file collab sync',
+  FILE_COLLAB_UPDATE: 'file collab update',
+  FILE_COLLAB_AWARENESS: 'file collab awareness',
+  FILE_COLLAB_PARTICIPANTS: 'file collab participants',
+  FILE_COLLAB_SAVED: 'file collab saved',
+  FILE_COLLAB_ERROR: 'file collab error',
+} as const
+
+export const SocketRequest = {
+  FILE_COLLAB_SUBSCRIBE: 'file collab subscribe',
+  FILE_COLLAB_UNSUBSCRIBE: 'file collab unsubscribe',
+  FILE_COLLAB_UPDATE: 'file collab update',
+  FILE_COLLAB_AWARENESS: 'file collab awareness',
+  FILE_COLLAB_SAVE: 'file collab save',
+} as const
+
 export const SocketState = {
   CONNECTING: 'CONNECTING',
   CONNECTED: 'CONNECTED',
@@ -101,9 +118,13 @@ export class WingsSocket extends Emitter {
   }
 
   send(event: string, payload?: unknown) {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      if (event.startsWith('file collab')) console.log('[ws] send SKIPPED (not open):', event, payload)
+      return
+    }
     try {
       const args = payload != null ? (Array.isArray(payload) ? payload : [payload]) : []
+      if (event.startsWith('file collab')) console.log('[ws] send:', event, args[0])
       this.socket.send(JSON.stringify({ event, args }))
     } catch (err) {
       console.warn('[WingsSocket] send error:', err)
@@ -147,7 +168,8 @@ export class WingsSocket extends Emitter {
       try {
         if (typeof e.data !== 'string') return
         const { event, args } = JSON.parse(e.data)
-        if (event) this.emit(event, args ?? [])
+        if (event && event.startsWith('file collab')) console.log('[ws] recv:', event, args?.[0])
+        if (event) this.emit(event, ...(Array.isArray(args) ? args : [args]))
       } catch { /* ermmm */ }
     }
 

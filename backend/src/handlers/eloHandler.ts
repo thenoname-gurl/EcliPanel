@@ -350,6 +350,7 @@ export async function eloRoutes(app: any, prefix = '') {
           lastActiveAt: new Date(),
         });
         await eloProjectRepo().save(eloProject);
+        await syncEloResources(eloProject);
 
         await createActivityLog({
           userId: user.id,
@@ -1021,6 +1022,7 @@ export async function eloRoutes(app: any, prefix = '') {
 
       return {
         projects: enriched,
+        isHackClub: ctx.user?.studentVerified || false,
         eloServerLimit: eloLimit,
         currentEloSlots: eloLimit,
         votesCast,

@@ -164,7 +164,7 @@ export function Footer() {
       >
         <div className="flex flex-col gap-1">
           <p className="text-xs sm:text-sm">
-            {t("footer.copyright", { year: new Date().getFullYear() })}
+            <span suppressHydrationWarning>{t("footer.copyright", { year: new Date().getFullYear() })}</span>
           </p>
           <p className="text-white/30 text-xs sm:text-sm">
             {t("footer.byline")}

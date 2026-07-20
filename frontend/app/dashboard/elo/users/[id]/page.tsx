@@ -1,5 +1,6 @@
 "use client"
 
+import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
 import { PanelHeader } from "@/components/panel/header"
@@ -44,15 +45,6 @@ function EloBadge({ score }: { score: number }) {
   )
 }
 
-function calculateEloResources(eloScore: number, isHackClub = false) {
-  const bonus = isHackClub ? 1.2 : 1.0;
-  const multiplier = Math.max(0.2, Math.min(12, eloScore / 1000)) * bonus;
-  return {
-    memory: Math.max(256, Math.min(24576, Math.round(2048 * multiplier))),
-    disk: Math.max(2048, Math.min(512000, Math.round(40960 * multiplier))),
-    cpu: Math.max(20, Math.min(1200, Math.round(100 * multiplier))),
-  };
-}
 
 export default function DashboardEloUserProfile() {
   const params = useParams()

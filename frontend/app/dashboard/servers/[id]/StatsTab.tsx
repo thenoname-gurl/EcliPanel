@@ -469,10 +469,10 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
     for (let i = 1; i < nodeHistory.length; i++) {
       const curRx = readCounter(nodeHistory[i], "rx")
       const curTx = readCounter(nodeHistory[i], "tx")
-      const drx = curRx - prevRx
-      const dtx = curTx - prevTx
-      if (drx > 0) rxTotal += drx
-      if (dtx > 0) txTotal += dtx
+      const drx = curRx >= prevRx ? curRx - prevRx : curRx
+      const dtx = curTx >= prevTx ? curTx - prevTx : curTx
+      rxTotal += drx
+      txTotal += dtx
       prevRx = curRx
       prevTx = curTx
     }
@@ -561,8 +561,8 @@ function NodeInfoPanel({ nodeInfo, nodeHistory = [], recharts }: NodeInfoProps) 
     const lastRx = getNodeValue(last, ["network.rx_bytes", "network.rx", "network.received"])
     const lastTx = getNodeValue(last, ["network.tx_bytes", "network.tx", "network.sent"])
 
-    const rxBps = Math.max(0, lastRx - prevRx) / deltaSeconds
-    const txBps = Math.max(0, lastTx - prevTx) / deltaSeconds
+    const rxBps = (lastRx >= prevRx ? lastRx - prevRx : lastRx) / deltaSeconds
+    const txBps = (lastTx >= prevTx ? lastTx - prevTx : lastTx) / deltaSeconds
 
     return {
       rx: (rxBps * 8) / 1_000_000,
@@ -683,6 +683,8 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("1h")
   const [localPoints, setLocalPoints] = useState<ChartDataPoint[]>([])
   const [liveHistory, setLiveHistory] = useState<ChartDataPoint[]>([])
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
   const [recharts, setRecharts] = useState<any>(null)
   const [activeChart, setActiveChart] = useState<"cpu" | "memory" | "disk" | "network">("cpu")
 
@@ -972,8 +974,10 @@ export function StatsTab({ serverId, server: serverProp }: StatsTabProps) {
     { value: "network" as const, label: t("charts.network"), icon: Network },
   ]
 
+  if (!mounted) return <div className="p-4 sm:p-6"><ChartCardSkeleton /></div>
+
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6" suppressHydrationWarning>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <SectionHeader title={t("sections.resourceUsage")} icon={Activity} />
         

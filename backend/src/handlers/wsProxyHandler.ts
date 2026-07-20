@@ -377,6 +377,7 @@ class WingsProxySession {
     const serverUuid = this.normalizeUuid(this.serverId);
     const jti = this.normalizeUuid(crypto.randomUUID());
 
+    const userName = this.user?.displayName || this.user?.firstName || this.user?.email || 'unknown';
     const payload = {
       iss: process.env.APP_URL || 'eclipanel',
       sub: userUuid,
@@ -386,6 +387,8 @@ class WingsProxySession {
       exp: now + 600,
       jti,
       user_uuid: userUuid,
+      user_name: userName,
+      user_avatar: this.user?.avatarUrl || null,
       server_uuid: serverUuid,
       permissions: ['*'],
       scope: 'websocket',

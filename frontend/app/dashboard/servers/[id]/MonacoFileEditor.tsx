@@ -8,6 +8,8 @@ import { DEFAULT_EDITOR_SETTINGS, type EditorSettings } from "@/lib/editor-setti
 import { useAuth } from "@/hooks/useAuth"
 import { isByoaiConfigured, type ByoaiConfig } from "@/lib/byoai-config"
 import { cn } from "@/lib/utils"
+import { Users } from "lucide-react"
+import useFileCollab from "./useFileCollab"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import {
@@ -35,6 +37,7 @@ import {
 } from "lucide-react"
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react").then((m) => ({ default: m.default })))
+const MonacoDiffEditor = lazy(() => import("@monaco-editor/react").then((m) => ({ default: m.DiffEditor })))
 
 // ---------------------------------------------------------------------------
 // Inject VSCode-style diff decoration CSS once
@@ -93,6 +96,16 @@ interface MonacoFileEditorProps {
   editorSettings?: EditorSettings
   filePath?: string
   fileName?: string
+  diffOriginal?: string
+  diffOriginalLabel?: string
+  diffModifiedLabel?: string
+  collab?: {
+    filePath: string
+    serverId: string
+    userName?: string
+    onSaved?: () => void
+    onError?: (msg: string) => void
+  }
 }
 
 interface CursorPosition {
@@ -126,6 +139,8 @@ interface EditorToolbarProps {
   onSearch: () => void
   onCopy: () => void
   copied: boolean
+  collabActive?: boolean
+  collabCount?: number
 }
 
 function EditorToolbar({
@@ -145,11 +160,19 @@ function EditorToolbar({
   onSearch,
   onCopy,
   copied,
+  collabActive,
+  collabCount,
 }: EditorToolbarProps) {
   const t = useTranslations("serverMonacoEditor")
   return (
     <div className="flex items-center justify-between border-b border-border bg-secondary/30 px-2 py-1.5 sm:px-3 overflow-x-auto shrink-0">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        {collabActive && (collabCount ?? 0) > 1 && (
+          <div className="flex items-center gap-1 text-xs text-green-500" title={`${collabCount} active editors`}>
+            <Users className="h-3 w-3" />
+            <span>{collabCount}</span>
+          </div>
+        )}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <FileCode className="h-3.5 w-3.5 flex-shrink-0" />
           <span className="font-mono uppercase">{language}</span>
@@ -771,7 +794,7 @@ function AIChatPanel({
 // ---------------------------------------------------------------------------
 // Main editor
 // ---------------------------------------------------------------------------
-export function MonacoFileEditor({ value, onChange, language, editorSettings, filePath, fileName }: MonacoFileEditorProps) {
+export function MonacoFileEditor({ value, onChange, language, editorSettings, filePath, fileName, diffOriginal, diffOriginalLabel, diffModifiedLabel, collab }: MonacoFileEditorProps) {
   const settings = { ...DEFAULT_EDITOR_SETTINGS, ...(editorSettings || {}) }
   const { user } = useAuth()
   const byoaiConfig = user?.settings?.byoai as ByoaiConfig | undefined
@@ -787,98 +810,23 @@ export function MonacoFileEditor({ value, onChange, language, editorSettings, fi
   const [fontSize, setFontSize] = useState<number>(settings.fontSize ?? DEFAULT_EDITOR_SETTINGS.fontSize ?? 14)
   const [copied, setCopied] = useState(false)
   const [aiChatOpen, setAiChatOpen] = useState(false)
-  const [previewMode, setPreviewMode] = useState(false)
-  const [previewContent, setPreviewContent] = useState<string | null>(null)
-  const previewDecorationsRef = useRef<string[]>([])
+  const [aiDiffOriginal, setAiDiffOriginal] = useState<string | undefined>(undefined)
+  const [aiDiffLabel, setAiDiffLabel] = useState('')
+  const fileCollab = useFileCollab({
+    enabled: !!collab,
+    filePath: collab?.filePath || '',
+    serverId: collab?.serverId || '',
+    userName: collab?.userName || user?.email || user?.displayName || 'unknown',
+    userAvatar: user?.avatarUrl ?? null,
+    onActivated: () => {},
+    onSaved: () => collab?.onSaved?.(),
+    onError: (msg) => collab?.onError?.(msg),
+  })
 
   // Inject diff CSS on mount
   useEffect(() => { injectDiffStyles() }, [])
 
-  // ------------------------------------------------------------------
-  // VSCode-style diff decorations using Monaco decoration API
-  // ------------------------------------------------------------------
-  const applyDiffDecorations = useCallback((original: string, modified: string) => {
-    const editor = editorRef.current
-    const monaco = monacoRef.current
-    if (!editor || !monaco) return
-
-    const origLines = original.split("\n")
-    const modLines = modified.split("\n")
-    const decorations: any[] = []
-
-    const maxLen = Math.max(origLines.length, modLines.length)
-
-    // Simple line-by-line comparison to highlight changed lines
-    // The editor shows `modified` content, so we decorate based on modLines positions
-    for (let i = 0; i < modLines.length; i++) {
-      const modLine = modLines[i]
-      const origLine = origLines[i]
-
-      if (origLine === undefined) {
-        // Line was added
-        decorations.push({
-          range: new monaco.Range(i + 1, 1, i + 1, 1),
-          options: {
-            isWholeLine: true,
-            className: "monaco-diff-added-line",
-            glyphMarginClassName: "monaco-diff-added-line-glyph",
-            overviewRuler: { color: "rgba(40,167,69,0.7)", position: monaco.editor.OverviewRulerLane.Full },
-            minimap: { color: "rgba(40,167,69,0.6)", position: 1 },
-            linesDecorationsClassName: "border-l-2 border-green-500",
-          },
-        })
-      } else if (modLine !== origLine) {
-        // Line was modified
-        decorations.push({
-          range: new monaco.Range(i + 1, 1, i + 1, 1),
-          options: {
-            isWholeLine: true,
-            className: "monaco-diff-modified-line",
-            glyphMarginClassName: "monaco-diff-modified-line-glyph",
-            overviewRuler: { color: "rgba(255,193,7,0.7)", position: monaco.editor.OverviewRulerLane.Full },
-            minimap: { color: "rgba(255,193,7,0.6)", position: 1 },
-          },
-        })
-      }
-    }
-
-    // Mark lines that were removed (can't show in the editor directly since they don't exist,
-    // but we mark the line before where they were removed with a special decoration)
-    for (let i = modLines.length; i < origLines.length; i++) {
-      const markAt = Math.max(1, modLines.length)
-      const exists = decorations.find(d => d.range.startLineNumber === markAt && d.options.afterContentClassName)
-      if (!exists) {
-        decorations.push({
-          range: new monaco.Range(markAt, 1, markAt, 1),
-          options: {
-            isWholeLine: false,
-            afterContentClassName: "monaco-diff-deleted-marker",
-            overviewRuler: { color: "rgba(220,53,69,0.7)", position: monaco.editor.OverviewRulerLane.Full },
-          },
-        })
-      }
-    }
-
-    previewDecorationsRef.current = editor.deltaDecorations(previewDecorationsRef.current, decorations)
-  }, [])
-
-  const clearPreviewDecorations = useCallback(() => {
-    if (editorRef.current) {
-      previewDecorationsRef.current = editorRef.current.deltaDecorations(previewDecorationsRef.current, [])
-    }
-  }, [])
-
   useEffect(() => { setLineCount(value.split("\n").length) }, [value])
-
-  useEffect(() => {
-    if (previewMode && previewContent !== null) {
-      // Small delay to let Monaco re-render with the new content first
-      const t = setTimeout(() => applyDiffDecorations(value, previewContent), 50)
-      return () => clearTimeout(t)
-    } else {
-      clearPreviewDecorations()
-    }
-  }, [previewMode, previewContent, value, applyDiffDecorations, clearPreviewDecorations])
 
   const handleWordWrapToggle = useCallback(() => {
     setWordWrap((p) => { const n = !p; editorRef.current?.updateOptions({ wordWrap: n ? "on" : "off" }); return n })
@@ -901,21 +849,26 @@ export function MonacoFileEditor({ value, onChange, language, editorSettings, fi
   }, [value])
 
   const handlePreview = useCallback((content: string) => {
-    setPreviewContent(content); setPreviewMode(true)
-  }, [])
+    setAiDiffOriginal(value)
+    setAiDiffLabel('AI suggestion')
+    onChange(content)
+  }, [value, onChange])
 
   const handleApplyPreview = useCallback(() => {
-    if (previewContent !== null) onChange(previewContent)
-    clearPreviewDecorations(); setPreviewMode(false); setPreviewContent(null)
-  }, [previewContent, onChange, clearPreviewDecorations])
+    setAiDiffOriginal(undefined)
+    setAiDiffLabel('')
+  }, [])
 
   const handleRevertPreview = useCallback(() => {
-    clearPreviewDecorations(); setPreviewMode(false); setPreviewContent(null)
-  }, [clearPreviewDecorations])
+    setAiDiffOriginal(undefined)
+    setAiDiffLabel('')
+    onChange(value)
+  }, [value, onChange])
 
   const handleEditorMount = useCallback((editor: any, monaco: any) => {
     editorRef.current = editor
     monacoRef.current = monaco
+    if (collab) fileCollab.attachEditor(editor)
     editor.onDidChangeCursorPosition((e: any) => {
       setCursorPosition({ line: e.position.lineNumber, column: e.position.column })
     })
@@ -923,7 +876,11 @@ export function MonacoFileEditor({ value, onChange, language, editorSettings, fi
       setLineCount(editor.getModel()?.getLineCount() || 1)
     })
     if (typeof window !== "undefined" && window.innerWidth >= 640) editor.focus()
-  }, [])
+  }, [collab, fileCollab])
+
+  const activeDiffOriginal = diffOriginal ?? aiDiffOriginal
+  const activeDiffOriginalLabel = diffOriginal ? diffOriginalLabel : aiDiffLabel
+  const activeDiffModifiedLabel = diffOriginal ? diffModifiedLabel : 'Current'
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 640
 
@@ -946,43 +903,69 @@ export function MonacoFileEditor({ value, onChange, language, editorSettings, fi
         onSearch={handleSearch}
         onCopy={handleCopy}
         copied={copied}
+        collabActive={fileCollab.active}
+        collabCount={fileCollab.participants.length}
       />
 
-      {previewMode && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-amber-500/10 border-b border-amber-500/30 shrink-0">
-          <span className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
-            <GitCompare className="h-3 w-3" /> Previewing AI changes — highlighted lines show modifications
+      {activeDiffOriginal !== undefined && (
+        <div className="flex items-center justify-between px-3 py-1.5 bg-blue-500/10 border-b border-blue-500/30 shrink-0">
+          <span className="text-xs text-blue-400 font-medium flex items-center gap-1.5">
+            <GitCompare className="h-3 w-3" />
+            {activeDiffOriginalLabel || 'Original'} → {activeDiffModifiedLabel || 'Modified'}
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={handleRevertPreview} className="text-xs px-2 py-1 rounded text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary transition-colors" data-telemetry="servers:revertpreview">
-              Revert
-            </button>
-            <button onClick={handleApplyPreview} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors" data-telemetry="servers:applypreview">
-              Apply Changes
+            {aiDiffOriginal !== undefined && (
+              <>
+                <button onClick={handleRevertPreview} className="text-xs px-2 py-1 rounded text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary transition-colors">
+                  Revert
+                </button>
+                <button onClick={handleApplyPreview} className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
+                  Apply
+                </button>
+              </>
+            )}
+            <button onClick={() => { setAiDiffOriginal(undefined); onChange(value); }} className="text-xs px-2 py-1 rounded text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary transition-colors">
+              Exit diff
             </button>
           </div>
         </div>
       )}
 
-      {/*
-        THE KEY FIX:
-        - `flex-1 min-h-0` lets this row fill remaining space without overflowing the parent column
-        - `overflow-hidden` hard-clips anything that tries to escape (AI panel content, etc.)
-        - Monaco gets `height="100%"` — no JS measurement needed, pure CSS sizing
-        - AIChatPanel gets `h-full` so it matches the row exactly
-      */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* Monaco wrapper — flex-1 so it takes remaining width, overflow-hidden to clip */}
         <div className="flex-1 min-w-0 overflow-hidden">
+          {activeDiffOriginal !== undefined ? (
+            <Suspense fallback={<EditorLoadingFallback />}>
+              <MonacoDiffEditor
+                height="100%"
+                language={language}
+                original={activeDiffOriginal}
+                modified={value}
+                theme="vs-dark"
+                loading={<EditorLoadingFallback />}
+                options={{
+                  readOnly: true,
+                  minimap: { enabled: !isMobile && !!settings.minimap },
+                  fontSize,
+                  fontFamily: settings.fontFamily,
+                  scrollBeyondLastLine: false,
+                  wordWrap: wordWrap ? "on" : "off",
+                  lineNumbers: "on",
+                  renderWhitespace: "selection",
+                  tabSize: settings.tabSize,
+                  padding: { top: 12, bottom: 12 },
+                  renderSideBySide: true,
+                  enableSplitViewResizing: false,
+                }}
+              />
+            </Suspense>
+          ) : (
           <Suspense fallback={<EditorLoadingFallback />}>
             <MonacoEditor
               height="100%"
               language={language}
-              value={previewMode ? (previewContent ?? value) : value}
-              onChange={(v) => {
-                if (previewMode) { setPreviewMode(false); setPreviewContent(null) }
-                onChange(v)
-              }}
+              value={value}
+              onChange={onChange}
               theme="vs-dark"
               onMount={handleEditorMount}
               loading={<EditorLoadingFallback />}
@@ -1021,6 +1004,7 @@ export function MonacoFileEditor({ value, onChange, language, editorSettings, fi
               }}
             />
           </Suspense>
+          )}
         </div>
 
         <AIChatPanel
