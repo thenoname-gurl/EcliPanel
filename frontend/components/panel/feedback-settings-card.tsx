@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
 import { useRollout } from "@/hooks/use-rollout"
 import { apiFetch } from "@/lib/api-client"
@@ -14,6 +15,7 @@ function countWords(text: string): number {
 }
 
 export function FeedbackSettingsCard() {
+  const t = useTranslations("settingsPage")
   const { user } = useAuth()
   const { inRollout } = useRollout("feedback_prompt")
   const [loading, setLoading] = useState(true)
@@ -44,7 +46,7 @@ export function FeedbackSettingsCard() {
   if (loading) return null
 
   const handleSubmit = async () => {
-    if (rating === 0) { setError("Please select a rating"); return }
+    if (rating === 0) { setError(t("feedback.selectRating")); return }
     setSubmitting(true)
     setError("")
     try {
@@ -55,14 +57,14 @@ export function FeedbackSettingsCard() {
       setHasExisting(true)
       setSaved(true)
     } catch (e: any) {
-      setError(e?.message || "Failed to save feedback")
+      setError(e?.message || t("feedback.saveError"))
     } finally {
       setSubmitting(false)
     }
   }
 
   const wordCount = message ? countWords(message) : 0
-  const starLabels = ["", "Very Poor", "Poor", "Okay", "Good", "Excellent"]
+  const starLabels = ["", t("feedback.veryPoor"), t("feedback.poor"), t("feedback.okay"), t("feedback.good"), t("feedback.excellent")]
 
   return (
     <div className="border border-border bg-card/50 backdrop-blur-sm p-4 md:p-6 min-w-0 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -73,33 +75,24 @@ export function FeedbackSettingsCard() {
         <div className="min-w-0 flex-1">
           {saved ? (
             <>
-              <p className="text-sm font-semibold text-foreground">Feedback saved!</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Thank you — your input helps us make EcliPanel better.
-              </p>
+              <p className="text-sm font-semibold text-foreground">{t("feedback.saved")}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t("feedback.thankYou")}</p>
               <div className="mt-3 flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <Star key={star} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                 ))}
               </div>
-              <Button
-                className="mt-3"
-                size="sm"
-                variant="outline"
-                onClick={() => setSaved(false)}
-              >
-                Update my feedback
+              <Button className="mt-3" size="sm" variant="outline" onClick={() => setSaved(false)}>
+                {t("feedback.updateButton")}
               </Button>
             </>
           ) : (
             <>
               <p className="text-sm font-semibold text-foreground">
-                {hasExisting ? "Your feedback" : "Are you enjoying EcliPanel?"}
+                {hasExisting ? t("feedback.yourFeedback") : t("feedback.enjoyingPrompt")}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {hasExisting
-                  ? "Update your rating and thoughts below."
-                  : "We&apos;d love to hear your thoughts. Rate your experience below."}
+                {hasExisting ? t("feedback.updatePrompt") : t("feedback.newPrompt")}
               </p>
 
               <div className="flex items-center gap-1.5 mt-4">
@@ -129,7 +122,7 @@ export function FeedbackSettingsCard() {
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                placeholder="Tell us more (optional, up to 250 words)..."
+                placeholder={t("feedback.placeholder")}
                 rows={3}
                 className="mt-3 w-full resize-none border border-border bg-background/80 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
               />
@@ -150,7 +143,7 @@ export function FeedbackSettingsCard() {
                 onClick={handleSubmit}
                 disabled={rating === 0 || submitting || wordCount > WORD_LIMIT}
               >
-                {submitting ? "Saving..." : hasExisting ? "Update feedback" : "Submit feedback"}
+                {submitting ? t("feedback.saving") : hasExisting ? t("feedback.updateAction") : t("feedback.submitAction")}
               </Button>
             </>
           )}

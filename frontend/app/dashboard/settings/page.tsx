@@ -1659,8 +1659,7 @@ export default function SettingsPage() {
                   <div className="flex items-start gap-2">
                     <AlertCircle className="mt-0.5 h-4 w-4" />
                     <div>
-                      Please enter your date of birth below to complete age verification and
-                      continue using server management.
+                      {t('verification.ageVerificationNotice')}
                     </div>
                   </div>
                 </div>
@@ -1851,15 +1850,15 @@ export default function SettingsPage() {
                     const dobLocked = hasDob && Boolean(user?.idVerified);
                     return (
                       <FormInput
-                        label="Date of Birth"
+                        label={t('verification.dateOfBirth')}
                         type="date"
                         icon={Calendar}
                         value={form.dateOfBirth}
                         onChange={(v) => setForm({ ...form, dateOfBirth: v })}
                         hint={
                           dobLocked
-                          ? "Your date of birth is locked after identity verification and can only be changed by support."
-                          : "Enter your birth date to verify eligibility before managing servers."
+                          ? t('verification.dateOfBirthLocked')
+                          : t('verification.dateOfBirthHint')
                         }
                         disabled={dobLocked}
                       />

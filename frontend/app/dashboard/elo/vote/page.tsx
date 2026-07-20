@@ -17,6 +17,7 @@ import { RolloutGuard } from "@/components/panel/rollout-guard"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { toast } from "@/hooks/use-toast"
+import { useTranslations } from "next-intl"
 import {
   Trophy,
   Loader2,
@@ -75,6 +76,8 @@ function ScreenshotGallery({ urls }: { urls?: string[] | null }) {
 }
 
 export default function EloVotePage() {
+  const t = useTranslations("eloPage")
+
   const [pair, setPair] = useState<{ projectA: any; projectB: any } | null>(null)
   const [loading, setLoading] = useState(true)
   const [voting, setVoting] = useState(false)
@@ -105,16 +108,16 @@ export default function EloVotePage() {
       if (data?.projectA && data?.projectB) {
         setPair(data)
       } else {
-        setError("Not enough projects to vote on yet.")
+        setError(t("eloPage.vote.notEnoughProjects"))
         setPair(null)
       }
     } catch (e: any) {
-      setError(e.message || "Failed to load voting pair")
+      setError(e.message || t("eloPage.vote.failedToLoadPair"))
       setPair(null)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchPair()
@@ -124,12 +127,12 @@ export default function EloVotePage() {
     if (!pair || voting) return
     const fb = feedbackText.trim()
     if (!fb) {
-      toast({ title: "Error", description: "Please write your feedback before voting.", variant: "destructive" })
+      toast({ title: t("eloPage.common.error"), description: t("eloPage.vote.feedbackRequired"), variant: "destructive" })
       return
     }
     const words = fb.split(/\s+/).length
     if (words < 20) {
-      toast({ title: "Error", description: `Feedback must be at least 20 words (got ${words}).`, variant: "destructive" })
+      toast({ title: t("eloPage.common.error"), description: t("eloPage.vote.feedbackWordCount", { count: words }), variant: "destructive" })
       return
     }
     setVoting(true)
@@ -148,14 +151,14 @@ export default function EloVotePage() {
       const deltaStr = delta != null
         ? (delta > 0 ? `+${delta}` : `${delta}`)
         : ''
-      const hackClubBonus = res?.weightedByHackClub ? ' (+10% Hack Club bonus)' : ''
+      const hackClubBonus = res?.weightedByHackClub ? t("eloPage.vote.hackClubBonus") : ''
       toast({
-        title: "Vote submitted!",
-        description: `ELO change: ${deltaStr}${hackClubBonus}`,
+        title: t("eloPage.vote.voteSubmitted"),
+        description: t("eloPage.vote.eloChange", { delta: deltaStr }) + hackClubBonus,
       })
     } catch (e: any) {
       toast({
-        title: "Vote failed",
+        title: t("eloPage.vote.voteFailed"),
         description: e.message,
         variant: "destructive",
       })
@@ -169,8 +172,8 @@ export default function EloVotePage() {
     setSkipCount(newCount)
     if (newCount >= 5) {
       toast({
-        title: "Heads up",
-        description: "You've skipped several pairs. Try to vote on the next one!",
+        title: t("eloPage.vote.headsUp"),
+        description: t("eloPage.vote.skippedSeveral"),
         variant: "destructive",
       })
     }
@@ -184,7 +187,7 @@ export default function EloVotePage() {
 
   const handleReport = async () => {
     if (!reportTarget || reportReason.trim().length < 10) {
-      toast({ title: "Error", description: "Reason must be at least 10 characters.", variant: "destructive" })
+      toast({ title: t("eloPage.common.error"), description: t("eloPage.report.reasonMinChars"), variant: "destructive" })
       return
     }
     setReporting(true)
@@ -197,11 +200,11 @@ export default function EloVotePage() {
           reason: reportReason.trim(),
         }),
       })
-      toast({ title: "Report submitted", description: "An admin will review your report." })
+      toast({ title: t("eloPage.report.reportSubmitted"), description: t("eloPage.report.adminReview") })
       setReportTarget(null)
       setReportReason("")
     } catch (e: any) {
-      toast({ title: "Failed to submit report", description: e.message, variant: "destructive" })
+      toast({ title: t("eloPage.report.reportFailed"), description: e.message, variant: "destructive" })
     } finally {
       setReporting(false)
     }
@@ -212,16 +215,16 @@ export default function EloVotePage() {
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center max-w-md">
           <Vote className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">Voting — Coming Soon</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-2">{t("eloPage.rollout.title")}</h2>
           <p className="text-sm text-muted-foreground">
-            Community voting is being rolled out gradually.
+            {t("eloPage.rollout.description")}
           </p>
         </div>
       </div>
     }>
       <PanelHeader
-        title="ELO Voting"
-        description="Compare two projects and vote for the better one"
+        title={t("eloPage.title")}
+        description={t("eloPage.description")}
       />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
@@ -230,7 +233,7 @@ export default function EloVotePage() {
             className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-3 w-3" />
-            Back to ELO Dashboard
+            {t("eloPage.navigation.backToDashboard")}
           </Link>
 
           {loading ? (
@@ -245,15 +248,15 @@ export default function EloVotePage() {
                 onClick={fetchPair}
                 className="inline-flex items-center justify-center gap-2 bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 transition-all"
                data-telemetry="elo:fetchpair">
-                Try Again
+                {t("eloPage.common.tryAgain")}
               </button>
             </section>
           ) : pair && !voted ? (
             <div className="space-y-6">
               <div className="text-center">
-                <h3 className="text-sm font-semibold text-foreground mb-1">Which project is better?</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-1">{t("eloPage.vote.whichIsBetter")}</h3>
                 <p className="text-xs text-muted-foreground">
-                  Review each project below, then pick the winner
+                  {t("eloPage.vote.reviewAndPick")}
                 </p>
               </div>
 
@@ -288,7 +291,7 @@ export default function EloVotePage() {
                                 <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
                                   <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
                                 </svg>
-                                GitHub
+                                {t("github")}
                               </a>
                             )}
                             {project.demoUrl && (
@@ -301,11 +304,11 @@ export default function EloVotePage() {
                                   onClick={(e) => e.stopPropagation()}
                                  data-telemetry="link:external">
                                   <ExternalLink className="h-3 w-3" />
-                                  Demo
+                                  {t("eloPage.project.demo")}
                                 </a>
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
-                                  Server IP: {project.demoUrl}
+                                  {t("eloPage.project.serverIp")}: {project.demoUrl}
                                 </span>
                               )
                             )}
@@ -332,7 +335,7 @@ export default function EloVotePage() {
                             ) : (
                               <ChevronDown className="h-3 w-3" />
                             )}
-                            README
+                            {t("eloPage.project.readme")}
                           </button>
                           {expandedReadme === project.id && (
                             <div className="mt-2 max-h-48 overflow-y-auto border border-border/30 bg-secondary/20 p-3">
@@ -355,7 +358,7 @@ export default function EloVotePage() {
                             ) : (
                               <ChevronDown className="h-3 w-3" />
                             )}
-                            Devlogs ({project.devlogs.length})
+                            {t("eloPage.project.devlogs")} ({project.devlogs.length})
                           </button>
                           {expandedProjectDevlogs === project.id && (
                             <div className="mt-2 space-y-2">
@@ -398,7 +401,7 @@ export default function EloVotePage() {
 
                       <div className="border-t border-border/30 pt-3 mt-auto">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-muted-foreground">Owner</span>
+                          <span className="text-muted-foreground">{t("eloPage.project.owner")}</span>
                           <Link
                             href={`/dashboard/elo/users/${project.userId}`}
                             className="font-medium text-foreground hover:text-primary transition-colors"
@@ -408,9 +411,9 @@ export default function EloVotePage() {
                         </div>
                         {project.eloScore >= 1150 && (
                           <div className="flex gap-1.5 mt-2 flex-wrap justify-center">
-                            <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-400">High Ranked</Badge>
+                            <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-400">{t("eloPage.badges.highRanked")}</Badge>
                             {project.totalVotes >= 10 && (
-                              <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-400">Veteran</Badge>
+                              <Badge variant="outline" className="text-[10px] border-blue-500/30 text-blue-400">{t("eloPage.badges.veteran")}</Badge>
                             )}
                           </div>
                         )}
@@ -428,14 +431,14 @@ export default function EloVotePage() {
                         ) : (
                           <Check className="h-4 w-4" />
                         )}
-                        Pick This Project
+                        {t("eloPage.vote.pickThisProject")}
                       </Button>
                       <button
                         onClick={() => setReportTarget({ id: project.id, name: project.title })}
                         className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                       >
                         <Flag className="h-3 w-3" />
-                        Report this project
+                        {t("eloPage.vote.reportThisProject")}
                       </button>
                     </div>
                   </div>
@@ -444,30 +447,32 @@ export default function EloVotePage() {
 
               <div className="max-w-xl mx-auto w-full space-y-2">
                 <label className="text-xs text-muted-foreground text-center block">
-                  Your feedback <span className="text-destructive">*</span> (at least 20 words)
+                  {t("eloPage.vote.yourFeedback")} <span className="text-destructive">*</span> {t("eloPage.vote.atLeast20Words")}
                 </label>
                 <Textarea
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="What do you think about these projects? Compare them, mention what's good or what could be improved..."
+                  placeholder={t("eloPage.vote.feedbackPlaceholder")}
                   className="min-h-[80px] text-sm"
                 />
                 <p className="text-[10px] text-muted-foreground text-right">
-                  {feedbackText.trim() ? `${feedbackText.trim().split(/\s+/).length} words` : "0 words"}
+                  {feedbackText.trim()
+                    ? t("eloPage.vote.wordCount", { count: feedbackText.trim().split(/\s+/).length })
+                    : t("eloPage.vote.zeroWords")}
                 </p>
               </div>
 
               <div className="border border-border/50 bg-secondary/20 px-4 py-3 text-xs text-muted-foreground text-center flex flex-col sm:flex-row items-center justify-center gap-3">
-                <p className="flex-1">Beating a higher-ranked project gives a bigger ELO boost. Max 20 votes/day.</p>
+                <p className="flex-1">{t("eloPage.vote.eloExplanation")}</p>
                 <button
                   onClick={handleSkip}
                   className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors text-[11px] font-medium"
-                  title="Get a different pair"
+                  title={t("eloPage.vote.getDifferentPair")}
                  data-telemetry="elo:skip">
                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                   </svg>
-                  Skip this pair
+                  {t("eloPage.vote.skipThisPair")}
                 </button>
               </div>
             </div>
@@ -478,19 +483,19 @@ export default function EloVotePage() {
                   <Check className="h-7 w-7 text-emerald-500" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-foreground">Vote Submitted!</h3>
-                  <p className="text-sm text-muted-foreground mt-1">ELO ratings have been updated.</p>
+                  <h3 className="text-lg font-semibold text-foreground">{t("eloPage.vote.voteSubmittedTitle")}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">{t("eloPage.vote.eloUpdated")}</p>
                 </div>
               </div>
               <div className="flex items-center justify-center gap-3 mt-6">
                 <Button onClick={fetchPair} data-telemetry="elo:fetchpair">
-                  Next Pair
+                  {t("eloPage.vote.nextPair")}
                 </Button>
                 <Link
                   href="/dashboard/elo"
                   className="inline-flex items-center justify-center gap-2 border border-border/50 bg-secondary/50 px-5 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-all active:scale-95"
                 >
-                  Back to Dashboard
+                  {t("eloPage.navigation.backToDashboard")}
                 </Link>
               </div>
             </section>
@@ -503,30 +508,30 @@ export default function EloVotePage() {
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Flag className="h-4 w-4 text-destructive" />
-              Report Project
+              {t("eloPage.report.reportProject")}
             </DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-3">
             <p className="text-sm text-muted-foreground">
-              Reporting <strong className="text-foreground">{reportTarget?.name}</strong>. Describe why this project violates the rules.
+              {t("eloPage.report.reportingPrefix")} <strong className="text-foreground">{reportTarget?.name}</strong>. {t("eloPage.report.reportingSuffix")}
             </p>
             <Textarea
               value={reportReason}
               onChange={(e) => setReportReason(e.target.value)}
-              placeholder="Explain why this project should be reviewed... (min. 10 characters)"
+              placeholder={t("eloPage.report.reportPlaceholder")}
               className="min-h-[100px]"
             />
-            <p className="text-[10px] text-muted-foreground">{reportReason.length}/10 characters minimum</p>
+            <p className="text-[10px] text-muted-foreground">{t("eloPage.report.charCount", { current: reportReason.length, min: 10 })}</p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setReportTarget(null); setReportReason("") }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setReportTarget(null); setReportReason("") }}>{t("eloPage.common.cancel")}</Button>
             <Button
               variant="destructive"
               onClick={handleReport}
               disabled={reporting || reportReason.trim().length < 10}
              data-telemetry="elo:report">
               {reporting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Submit Report
+              {t("eloPage.report.submitReport")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -537,45 +542,55 @@ export default function EloVotePage() {
           <DialogHeader>
             <DialogTitle className="text-foreground flex items-center gap-2">
               <Vote className="h-5 w-5 text-primary" />
-              How ELO Voting Works
+              {t("eloPage.guide.title")}
             </DialogTitle>
           </DialogHeader>
           <div className="py-3 space-y-4 text-sm">
             <div className="space-y-2">
-              <p className="text-foreground font-medium">Review & Compare</p>
+              <p className="text-foreground font-medium">{t("eloPage.guide.reviewAndCompare")}</p>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Each round shows two projects side by side. Look at their screenshots, read their descriptions and READMEs, and check out their GitHub repos and demo links before deciding.
+                {t("eloPage.guide.reviewAndCompareDesc")}
               </p>
             </div>
             <div className="space-y-2">
-              <p className="text-foreground font-medium">Pick the Winner</p>
+              <p className="text-foreground font-medium">{t("eloPage.guide.pickTheWinner")}</p>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Click <strong>"Pick This Project"</strong> on the one you believe is better. The winner gains ELO points; the loser loses some. Beating a higher-ranked project gives a bigger boost.
+                {t.rich("eloPage.guide.pickTheWinnerDesc", {
+                  strong: (chunks) => <strong>{chunks}</strong>
+                })}
               </p>
             </div>
             <div className="space-y-2">
-              <p className="text-foreground font-medium">Skip if Unsure</p>
+              <p className="text-foreground font-medium">{t("eloPage.guide.skipIfUnsure")}</p>
               <p className="text-muted-foreground text-xs leading-relaxed">
-                Can't decide? Use the <strong>"Skip this pair"</strong> button to get a fresh matchup with no penalty.
+                {t.rich("eloPage.guide.skipIfUnsureDesc", {
+                  strong: (chunks) => <strong>{chunks}</strong>
+                })}
               </p>
             </div>
             <div className="space-y-2">
-              <p className="text-foreground font-medium">Rules</p>
+              <p className="text-foreground font-medium">{t("eloPage.guide.rules")}</p>
               <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
-                <li><strong>20 votes/day</strong> — daily limit resets at midnight UTC</li>
-                <li>Account must be at least <strong>7 days old</strong> to vote</li>
-                <li>You cannot vote on your <strong>own project</strong></li>
-                <li>Be fair and review projects thoroughly before voting</li>
+                <li>{t.rich("eloPage.guide.ruleVotesPerDay", {
+                  strong: (chunks) => <strong>{chunks}</strong>
+                })}</li>
+                <li>{t.rich("eloPage.guide.ruleAccountAge", {
+                  strong: (chunks) => <strong>{chunks}</strong>
+                })}</li>
+                <li>{t.rich("eloPage.guide.ruleOwnProject", {
+                  strong: (chunks) => <strong>{chunks}</strong>
+                })}</li>
+                <li>{t("eloPage.guide.ruleBeFair")}</li>
               </ul>
             </div>
             <div className="bg-secondary/30 border border-border/30 p-3 text-xs text-muted-foreground">
-              <p className="font-medium text-foreground mb-1">Tip</p>
-              <p>Voting frequently helps the community surface the best projects. The more votes you cast, the more accurate the rankings become!</p>
+              <p className="font-medium text-foreground mb-1">{t("eloPage.guide.tip")}</p>
+              <p>{t("eloPage.guide.tipText")}</p>
             </div>
           </div>
           <DialogFooter>
             <Button onClick={handleDismissGuide} className="w-full" data-telemetry="elo:dismissguide">
-              Got it — let's vote!
+              {t("eloPage.guide.dismissButton")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -3,6 +3,7 @@
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api-client"
@@ -64,6 +65,7 @@ function StatBox({ icon: Icon, label, value }: { icon: any; label: string; value
 
 
 export default function PublicEloProjectProfile() {
+  const t = useTranslations("eloPage")
   const params = useParams()
   const id = params?.id as string
   const [project, setProject] = useState<any | null>(null)
@@ -108,10 +110,10 @@ export default function PublicEloProjectProfile() {
         ) : !project ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
             <Star className="h-12 w-12 text-zinc-600" />
-            <p className="text-lg font-semibold text-zinc-300">Project not found</p>
-            <p className="text-sm text-zinc-500">This ELO project doesn't exist or has been removed.</p>
+            <p className="text-lg font-semibold text-zinc-300">{t("states.projectNotFound")}</p>
+            <p className="text-sm text-zinc-500">{t("states.projectNotFoundMessage")}</p>
             <Link href="/">
-              <Button variant="outline" className="border-zinc-700 text-zinc-300">Back to Home</Button>
+              <Button variant="outline" className="border-zinc-700 text-zinc-300">{t("actions.backToHome")}</Button>
             </Link>
           </div>
         ) : (
@@ -148,7 +150,7 @@ export default function PublicEloProjectProfile() {
                     <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
                       <Button size="sm" variant="outline" className="border-zinc-700 text-zinc-300">
                         <GitBranch className="h-4 w-4 mr-1.5" />
-                        GitHub
+                        {t("header.github")}
                       </Button>
                     </a>
                   )}
@@ -157,7 +159,7 @@ export default function PublicEloProjectProfile() {
                       <a href={project.demoUrl} target="_blank" rel="noopener noreferrer">
                         <Button size="sm" className="bg-violet-600 hover:bg-violet-500 text-white">
                           <Globe className="h-4 w-4 mr-1.5" />
-                          Live Demo
+                          {t("header.liveDemo")}
                         </Button>
                       </a>
                     ) : (
@@ -176,7 +178,7 @@ export default function PublicEloProjectProfile() {
             {/* Description */}
             {project.description && (
               <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
-                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">About</h2>
+                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">{t("sections.about")}</h2>
                 <div className="text-sm text-zinc-400 leading-relaxed prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.description}</ReactMarkdown>
                 </div>
@@ -185,27 +187,27 @@ export default function PublicEloProjectProfile() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <StatBox icon={Trophy} label="ELO Score" value={project.eloScore} />
-              <StatBox icon={TrendingUp} label="Wins" value={project.wins} />
-              <StatBox icon={TrendingDown} label="Losses" value={project.losses} />
-              <StatBox icon={MessageCircle} label="Total Votes" value={project.totalVotes} />
+              <StatBox icon={Trophy} label={t("stats.eloScore")} value={project.eloScore} />
+              <StatBox icon={TrendingUp} label={t("stats.wins")} value={project.wins} />
+              <StatBox icon={TrendingDown} label={t("stats.losses")} value={project.losses} />
+              <StatBox icon={MessageCircle} label={t("stats.totalVotes")} value={project.totalVotes} />
             </div>
 
             {/* Resources */}
             {resources && (
               <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
-                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">Allocated Resources</h2>
+                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">{t("sections.allocatedResources")}</h2>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="border border-white/5 bg-white/[0.02] p-3 text-center">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Memory</p>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{t("resources.memory")}</p>
                     <p className="text-lg font-bold text-white mt-1">{(resources.memory / 1024).toFixed(1)} GB</p>
                   </div>
                   <div className="border border-white/5 bg-white/[0.02] p-3 text-center">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">Disk</p>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{t("resources.disk")}</p>
                     <p className="text-lg font-bold text-white mt-1">{(resources.disk / 1024).toFixed(0)} GB</p>
                   </div>
                   <div className="border border-white/5 bg-white/[0.02] p-3 text-center">
-                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">CPU</p>
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{t("resources.cpu")}</p>
                     <p className="text-lg font-bold text-white mt-1">{resources.cpu}%</p>
                   </div>
                 </div>
@@ -215,11 +217,11 @@ export default function PublicEloProjectProfile() {
             {/* Screenshots */}
             {project.screenshots?.length > 0 && (
               <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
-                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">Screenshots</h2>
+                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">{t("sections.screenshots")}</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {project.screenshots.map((url: string, i: number) => (
                     <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block border border-white/10 bg-white/[0.05] overflow-hidden hover:border-violet-500/30 transition-colors">
-                      <img src={url} alt={`Screenshot ${i + 1}`} className="w-full h-40 object-cover" loading="lazy" />
+                      <img src={url} alt={t("sections.screenshotAlt", { n: i + 1 })} className="w-full h-40 object-cover" loading="lazy" />
                     </a>
                   ))}
                 </div>
@@ -229,7 +231,7 @@ export default function PublicEloProjectProfile() {
             {/* README */}
             {project.readme && (
               <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
-                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">README</h2>
+                <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">{t("sections.readme")}</h2>
                 <div className="max-h-96 overflow-y-auto">
                   <div className="text-sm text-zinc-500 prose prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-zinc-200 prose-a:text-violet-400 prose-code:text-zinc-400 prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/10">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.readme}</ReactMarkdown>
@@ -242,7 +244,7 @@ export default function PublicEloProjectProfile() {
             {project.devlogs?.length > 0 && (
               <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
                 <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
-                  Devlogs ({project.devlogs.length})
+                  {t("sections.devlogs", { count: project.devlogs.length })}
                 </h2>
                 <div className="space-y-2">
                   {project.devlogs.map((dl: any) => (
@@ -286,14 +288,14 @@ export default function PublicEloProjectProfile() {
             {/* Vote History */}
             <div className="border border-white/10 bg-white/[0.03] p-6 mb-6">
               <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
-                Vote History ({project.totalVotes})
+                {t("sections.voteHistory", { count: project.totalVotes })}
               </h2>
               {votesLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
                 </div>
               ) : votes.length === 0 ? (
-                <p className="text-sm text-zinc-500 py-4 text-center">No votes yet.</p>
+                <p className="text-sm text-zinc-500 py-4 text-center">{t("states.noVotes")}</p>
               ) : (
                 <div className="space-y-1.5">
                   {votes.map((v: any) => (
@@ -304,13 +306,13 @@ export default function PublicEloProjectProfile() {
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div className={`h-2 w-2 shrink-0 ${v.won ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
                           <span className="text-sm text-zinc-300 truncate">
-                            vs.{' '}
+                            {t("votes.vs")}{" "}
                             <Link href={`/elo/projects/${v.opponentId}`} className="text-zinc-500 hover:text-violet-400 transition-colors">
                               {v.opponentTitle}
                             </Link>
                           </span>
                           <span className="text-[11px] text-zinc-500">
-                            by {v.voterName}
+                            {t("votes.byVoter", { name: v.voterName })}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
@@ -338,15 +340,15 @@ export default function PublicEloProjectProfile() {
                     onClick={() => setVotesPage(p => Math.max(1, p - 1))}
                     className="text-xs px-3 py-1.5 border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 transition-colors disabled:opacity-40"
                   >
-                    Previous
+                    {t("actions.previous")}
                   </button>
-                  <span className="text-[10px] text-zinc-600">Page {votesPage} of {votesTotalPages}</span>
+                  <span className="text-[10px] text-zinc-600">{t("votes.pagination", { page: votesPage, total: votesTotalPages })}</span>
                   <button
                     disabled={votesPage >= votesTotalPages}
                     onClick={() => setVotesPage(p => p + 1)}
                     className="text-xs px-3 py-1.5 border border-white/10 text-zinc-400 hover:text-white hover:border-white/20 transition-colors disabled:opacity-40"
                   >
-                    Next
+                    {t("actions.next")}
                   </button>
                 </div>
               )}
@@ -355,7 +357,7 @@ export default function PublicEloProjectProfile() {
             {/* Back link */}
             <div className="flex justify-center pb-4">
               <Link href="/">
-                <Button variant="outline" className="border-zinc-700 text-zinc-300">Back to Home</Button>
+                <Button variant="outline" className="border-zinc-700 text-zinc-300">{t("actions.backToHome")}</Button>
               </Link>
             </div>
           </>

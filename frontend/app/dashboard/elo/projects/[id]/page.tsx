@@ -3,6 +3,7 @@
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import { useTranslations } from "next-intl"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -69,6 +70,7 @@ function StatCard({ icon: Icon, label, children }: { icon: any; label: string; c
 }
 
 export default function EloProjectProfile() {
+  const t = useTranslations("eloPage")
   const params = useParams()
   const id = params?.id as string
   const [project, setProject] = useState<any | null>(null)
@@ -106,8 +108,8 @@ export default function EloProjectProfile() {
   return (
     <RolloutGuard rolloutKey="elo_rating" fallback={null}>
       <PanelHeader
-        title={project?.title || "ELO Project"}
-        description={project ? `by ${project.ownerName}` : "Loading..."}
+        title={project?.title || t("titleFallback")}
+        description={project ? t("byOwner", { name: project.ownerName }) : t("loading")}
       />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto w-full min-w-0 box-border">
@@ -120,10 +122,10 @@ export default function EloProjectProfile() {
               <div className="h-16 w-16 bg-secondary/50 flex items-center justify-center">
                 <Star className="h-8 w-8 text-muted-foreground/40" />
               </div>
-              <p className="text-base font-semibold text-foreground">Project not found</p>
-              <p className="text-sm text-muted-foreground">This ELO project doesn't exist or has been removed.</p>
+              <p className="text-base font-semibold text-foreground">{t("projectNotFound")}</p>
+              <p className="text-sm text-muted-foreground">{t("projectNotFoundDesc")}</p>
               <Link href="/dashboard/elo">
-                <Button variant="outline">Back to ELO Dashboard</Button>
+                <Button variant="outline">{t("backToDashboard")}</Button>
               </Link>
             </div>
           ) : (
@@ -169,7 +171,7 @@ export default function EloProjectProfile() {
                     <a href={project.githubUrl} target="_blank" rel="noopener noreferrer" data-telemetry="link:external">
                       <Button size="sm" variant="outline">
                         <GitBranch className="h-4 w-4 mr-1.5" />
-                        GitHub
+                        {t("github")}
                       </Button>
                     </a>
                   )}
@@ -178,7 +180,7 @@ export default function EloProjectProfile() {
                       <a href={project.demoUrl} target="_blank" rel="noopener noreferrer" data-telemetry="link:external">
                         <Button size="sm">
                           <Globe className="h-4 w-4 mr-1.5" />
-                          Live Demo
+                          {t("liveDemo")}
                         </Button>
                       </a>
                     ) : (
@@ -194,7 +196,7 @@ export default function EloProjectProfile() {
               {/* Description */}
               {project.description && (
                 <div className="border border-border/50 bg-card p-6">
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">About</h2>
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">{t("about")}</h2>
                   <div className="text-sm text-muted-foreground leading-relaxed prose max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{project.description}</ReactMarkdown>
                   </div>
@@ -203,27 +205,27 @@ export default function EloProjectProfile() {
 
               {/* Stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatCard icon={Trophy} label="ELO Score">{project.eloScore}</StatCard>
-                <StatCard icon={TrendingUp} label="Wins">{project.wins}</StatCard>
-                <StatCard icon={TrendingDown} label="Losses">{project.losses}</StatCard>
-                <StatCard icon={MessageCircle} label="Total Votes">{project.totalVotes}</StatCard>
+                <StatCard icon={Trophy} label={t("eloScore")}>{project.eloScore}</StatCard>
+                <StatCard icon={TrendingUp} label={t("wins")}>{project.wins}</StatCard>
+                <StatCard icon={TrendingDown} label={t("losses")}>{project.losses}</StatCard>
+                <StatCard icon={MessageCircle} label={t("totalVotes")}>{project.totalVotes}</StatCard>
               </div>
 
               {/* Resources */}
               {resources && (
                 <div className="border border-border/50 bg-card p-6">
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">Allocated Resources</h2>
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">{t("allocatedResources")}</h2>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="border border-border/30 bg-secondary/20 p-3 text-center">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Memory</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("memory")}</p>
                       <p className="text-lg font-bold text-foreground mt-1">{(resources.memory / 1024).toFixed(1)} GB</p>
                     </div>
                     <div className="border border-border/30 bg-secondary/20 p-3 text-center">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Disk</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("disk")}</p>
                       <p className="text-lg font-bold text-foreground mt-1">{(resources.disk / 1024).toFixed(0)} GB</p>
                     </div>
                     <div className="border border-border/30 bg-secondary/20 p-3 text-center">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">CPU</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t("cpu")}</p>
                       <p className="text-lg font-bold text-foreground mt-1">{resources.cpu}%</p>
                     </div>
                   </div>
@@ -233,13 +235,13 @@ export default function EloProjectProfile() {
               {/* Screenshots */}
               {project.screenshots?.length > 0 && (
                 <div className="border border-border/50 bg-card p-6">
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">Screenshots</h2>
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">{t("screenshots")}</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {project.screenshots.map((url: string, i: number) => (
                       <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="block border border-border/50 bg-secondary/20 overflow-hidden hover:border-primary/30 transition-colors" data-telemetry="link:external">
                         <img
                           src={url}
-                          alt={`Screenshot ${i + 1}`}
+                          alt={t("screenshotAlt", { number: i + 1 })}
                           className="w-full h-40 object-cover"
                           loading="lazy"
                         />
@@ -253,7 +255,7 @@ export default function EloProjectProfile() {
               {project.readme && (
                 <div className="border border-border/50 bg-card p-6">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">README</h2>
+                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">{t("readme")}</h2>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
                     <div className="text-sm text-muted-foreground prose max-w-none prose-p:my-1 prose-headings:my-2 prose-headings:text-foreground prose-a:text-primary prose-code:text-muted-foreground prose-pre:bg-black/40">
@@ -267,7 +269,7 @@ export default function EloProjectProfile() {
               {project.devlogs?.length > 0 && (
                 <div className="border border-border/50 bg-card p-6">
                   <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">
-                    Devlogs ({project.devlogs.length})
+                    {t("devlogs", { count: project.devlogs.length })}
                   </h2>
                   <div className="space-y-2">
                     {project.devlogs.map((dl: any) => (
@@ -311,14 +313,14 @@ export default function EloProjectProfile() {
               {/* Vote History */}
               <div className="border border-border/50 bg-card p-6">
                 <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide mb-3">
-                  Vote History ({project.totalVotes})
+                  {t("voteHistory", { count: project.totalVotes })}
                 </h2>
                 {votesLoading ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="h-5 w-5 animate-spin text-primary" />
                   </div>
                 ) : votes.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">No votes yet.</p>
+                  <p className="text-sm text-muted-foreground py-4 text-center">{t("noVotes")}</p>
                 ) : (
                   <div className="space-y-1.5">
                   {votes.map((v: any) => (
@@ -329,13 +331,13 @@ export default function EloProjectProfile() {
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <div className={`h-2 w-2 shrink-0 ${v.won ? 'bg-emerald-500' : 'bg-muted-foreground/40'}`} />
                           <span className="text-sm text-foreground truncate">
-                            vs.{' '}
+                            {t("vs")}{' '}
                             <Link href={`/dashboard/elo/projects/${v.opponentId}`} className="text-muted-foreground hover:text-primary transition-colors">
                               {v.opponentTitle}
                             </Link>
                           </span>
                           <span className="text-[11px] text-muted-foreground">
-                            by {v.voterName}
+                            {t("byVoter", { name: v.voterName })}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
@@ -363,15 +365,15 @@ export default function EloProjectProfile() {
                       onClick={() => setVotesPage(p => Math.max(1, p - 1))}
                       className="text-xs px-3 py-1.5 border border-border/50 text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors disabled:opacity-40"
                     >
-                      Previous
+                      {t("previous")}
                     </button>
-                    <span className="text-[10px] text-muted-foreground/50">Page {votesPage} of {votesTotalPages}</span>
+                    <span className="text-[10px] text-muted-foreground/50">{t("pageOf", { current: votesPage, total: votesTotalPages })}</span>
                     <button
                       disabled={votesPage >= votesTotalPages}
                       onClick={() => setVotesPage(p => p + 1)}
                       className="text-xs px-3 py-1.5 border border-border/50 text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-colors disabled:opacity-40"
                     >
-                      Next
+                      {t("next")}
                     </button>
                   </div>
                 )}
@@ -380,7 +382,7 @@ export default function EloProjectProfile() {
               {/* Back link */}
               <div className="flex justify-center pb-4">
                 <Link href="/dashboard/elo">
-                  <Button variant="outline">Back to ELO Dashboard</Button>
+                  <Button variant="outline">{t("backToDashboard")}</Button>
                 </Link>
               </div>
             </>

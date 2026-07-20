@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useSearchParams } from "next/navigation"
@@ -81,6 +82,7 @@ function StatCard({ icon: Icon, label, children }: { icon: any; label: string; c
 
 
 function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number; isHackClub?: boolean; averageElo?: number }) {
+  const t = useTranslations("eloPage")
   const current = calculateEloResources(eloScore, isHackClub);
   const atPlus100 = calculateEloResources(eloScore + 100, isHackClub);
   const atPlus250 = calculateEloResources(eloScore + 250, isHackClub);
@@ -97,7 +99,7 @@ function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number
       <div className="flex items-end justify-between gap-2">
         <div className="flex-1">
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
-            ELO Progression
+            {t("eloPage.dashboard.eloProgression")}
           </p>
           <div className="relative h-3 bg-secondary/30 border border-border/50 overflow-hidden">
             <div
@@ -108,7 +110,7 @@ function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number
               <div
                 className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/40 z-20"
                 style={{ left: `calc(${avgPct}% - 0.5px)` }}
-                title={`Average: ${averageElo} ELO`}
+                title={t("eloPage.dashboard.averageEloTooltip", { elo: averageElo })}
               >
                 <div className="absolute -top-1 left-1/2 -translate-x-1/2 flex flex-col items-center">
                   <div className="w-0 h-0 border-l-[4px] border-r-[4px] border-t-[6px] border-l-transparent border-r-transparent border-t-muted-foreground/40" />
@@ -123,22 +125,22 @@ function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number
             </div>
           </div>
           <div className="relative mt-1 h-4">
-            <span className="absolute left-0 text-[10px] text-muted-foreground">200 ELO</span>
+            <span className="absolute left-0 text-[10px] text-muted-foreground">{t("eloPage.dashboard.progressionMin")}</span>
             {averageElo && (
               <span
                 className="absolute text-[9px] text-muted-foreground/60 -translate-x-1/2"
                 style={{ left: `${avgPct}%` }}
               >
-                avg
+                {t("eloPage.dashboard.progressionAvg")}
               </span>
             )}
             <span
               className="absolute text-[10px] font-semibold text-foreground -translate-x-1/2"
               style={{ left: `${pct}%` }}
             >
-              {eloScore} ELO
+              {eloScore} ELO {/* ELO is a proper noun, kept as-is */}
             </span>
-            <span className="absolute right-0 text-[10px] text-muted-foreground">12,000 ELO</span>
+            <span className="absolute right-0 text-[10px] text-muted-foreground">{t("eloPage.dashboard.progressionMax")}</span>
           </div>
         </div>
       </div>
@@ -147,18 +149,18 @@ function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number
         <div className="border border-border/50 bg-secondary/20 p-3">
           <p className="text-xs font-medium text-foreground mb-2 flex items-center gap-1.5">
             <Zap className="h-3.5 w-3.5 text-primary" />
-            Current Resources
+            {t("eloPage.dashboard.currentResources")}
           </p>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <Cpu className="h-3 w-3" /> CPU
+                <Cpu className="h-3 w-3" /> {t("eloPage.resources.cpu")}
               </p>
               <p className="text-sm font-semibold text-foreground">{current.cpu}%</p>
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <MemoryStick className="h-3 w-3" /> RAM
+                <MemoryStick className="h-3 w-3" /> {t("eloPage.resources.memory")}
               </p>
               <p className="text-sm font-semibold text-foreground">
                 {current.memory >= 1024
@@ -168,7 +170,7 @@ function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number
             </div>
             <div>
               <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-                <HardDrive className="h-3 w-3" /> Disk
+                <HardDrive className="h-3 w-3" /> {t("eloPage.resources.disk")}
               </p>
               <p className="text-sm font-semibold text-foreground">
                 {current.disk >= 1024
@@ -180,22 +182,22 @@ function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number
         </div>
 
         <div className="border border-border/50 bg-secondary/20 p-3">
-          <p className="text-xs font-medium text-foreground mb-2">Preview at higher ELO</p>
+          <p className="text-xs font-medium text-foreground mb-2">{t("eloPage.dashboard.previewHigherElo")}</p>
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div className="text-center p-2 border border-border/30">
-              <p className="text-muted-foreground">+100 ELO</p>
+              <p className="text-muted-foreground">{t("eloPage.dashboard.plus100Elo")}</p>
               <p className="font-semibold text-foreground mt-0.5">
                 {(atPlus100.memory / 1024).toFixed(1)} GB &middot; {(atPlus100.disk / 1024).toFixed(0)} GB
               </p>
             </div>
             <div className="text-center p-2 border border-border/30">
-              <p className="text-muted-foreground">+250 ELO</p>
+              <p className="text-muted-foreground">{t("eloPage.dashboard.plus250Elo")}</p>
               <p className="font-semibold text-foreground mt-0.5">
                 {(atPlus250.memory / 1024).toFixed(1)} GB &middot; {(atPlus250.disk / 1024).toFixed(0)} GB
               </p>
             </div>
             <div className="text-center p-2 border border-border/30">
-              <p className="text-muted-foreground">+500 ELO</p>
+              <p className="text-muted-foreground">{t("eloPage.dashboard.plus500Elo")}</p>
               <p className="font-semibold text-foreground mt-0.5">
                 {(atPlus500.memory / 1024).toFixed(1)} GB &middot; {(atPlus500.disk / 1024).toFixed(0)} GB
               </p>
@@ -208,6 +210,7 @@ function EloProgression({ eloScore, isHackClub, averageElo }: { eloScore: number
 }
 
 export default function EloDashboard() {
+  const t = useTranslations("eloPage")
   const searchParams = useSearchParams()
   const [myProjects, setMyProjects] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -322,16 +325,16 @@ export default function EloDashboard() {
       <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center max-w-md">
           <Star className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">ELO Rating — Coming Soon</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-2">{t("eloPage.rollout.title")}</h2>
           <p className="text-sm text-muted-foreground">
-            Community-driven server rankings are being rolled out gradually. Check back soon!
+            {t("eloPage.rollout.description")}
           </p>
         </div>
       </div>
     }>
       <PanelHeader
-        title="ELO Dashboard"
-        description="Community-driven server rankings with resource scaling"
+        title={t("eloPage.title")}
+        description={t("eloPage.description")}
       />
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-[100vw] w-full min-w-0 box-border">
@@ -345,23 +348,23 @@ export default function EloDashboard() {
                 <div className="border border-border/50 bg-card px-4 py-2.5 flex items-center gap-3">
                   <Star className="h-4 w-4 text-primary" />
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Projects</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{t("eloPage.dashboard.projectsLabel")}</p>
                     <p className="text-sm font-bold text-foreground">{myProjects?.totalProjects ?? 0}/{myProjects?.currentEloSlots ?? 1}</p>
                   </div>
                 </div>
                 <div className="border border-border/50 bg-card px-4 py-2.5 flex items-center gap-3">
                   <Vote className="h-4 w-4 text-primary" />
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Votes Cast</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{t("eloPage.dashboard.votesCastLabel")}</p>
                     <p className="text-sm font-bold text-foreground">{myProjects?.votesCast ?? 0}</p>
                   </div>
                 </div>
                 <div className="border border-border/50 bg-card px-4 py-2.5 flex items-center gap-3">
                   <Trophy className="h-4 w-4 text-primary" />
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Next Slot</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">{t("eloPage.dashboard.nextSlotLabel")}</p>
                     <p className="text-sm font-bold text-foreground">
-                      {myProjects?.votesForNextSlot > 0 ? `${myProjects.votesForNextSlot} votes` : 'Unlocked!'}
+                      {myProjects?.votesForNextSlot > 0 ? t("eloPage.dashboard.votesNeeded", { count: myProjects.votesForNextSlot }) : t("eloPage.dashboard.unlocked")}
                     </p>
                   </div>
                 </div>
@@ -371,14 +374,14 @@ export default function EloDashboard() {
                     className="flex items-center gap-2 bg-primary px-4 py-2.5 text-xs font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 transition-all"
                   >
                     <Vote className="h-3.5 w-3.5" />
-                    Vote Now
+                    {t("eloPage.dashboard.voteNow")}
                   </Link>
                   <Link
                     href="/dashboard/elo/leaderboard"
                     className="flex items-center gap-2 border border-border/50 bg-secondary/50 px-4 py-2.5 text-xs font-semibold text-foreground hover:bg-secondary transition-all active:scale-95"
                   >
                     <Trophy className="h-3.5 w-3.5" />
-                    Rankings
+                    {t("eloPage.dashboard.rankings")}
                   </Link>
                 </div>
               </div>
@@ -389,9 +392,9 @@ export default function EloDashboard() {
                     <Star className="h-8 w-8 text-muted-foreground/40" />
                   </div>
                   <div>
-                    <p className="text-base font-semibold text-foreground">No ELO projects yet</p>
+                    <p className="text-base font-semibold text-foreground">{t("eloPage.dashboard.noProjects")}</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Create your first ELO-enabled server to get started.
+                      {t("eloPage.dashboard.noProjectsDesc")}
                     </p>
                   </div>
                   <Link
@@ -399,7 +402,7 @@ export default function EloDashboard() {
                     className="inline-flex items-center gap-2 bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-md shadow-primary/20 hover:bg-primary/90 hover:shadow-primary/30 active:scale-95 transition-all"
                   >
                     <Plus className="h-4 w-4" />
-                    Create Your First ELO Server
+                    {t("eloPage.dashboard.createFirstServer")}
                   </Link>
                 </div>
               ) : (
@@ -414,7 +417,7 @@ export default function EloDashboard() {
                                 href={`/dashboard/servers/${project.serverId}`}
                                 className="text-base font-semibold text-foreground hover:text-primary truncate"
                               >
-                                {project.title || project.serverName || `Project #${project.id}`}
+                                {project.title || project.serverName || t("eloPage.dashboard.projectFallback", { id: project.id })}
                               </Link>
                               {project.githubUrl && (
                                 <a
@@ -422,7 +425,7 @@ export default function EloDashboard() {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-muted-foreground hover:text-foreground transition-colors"
-                                  title="GitHub repository"
+                                  title={t("eloPage.leaderboard.githubRepo")}
                                  data-telemetry="link:external">
                                   <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
@@ -446,25 +449,25 @@ export default function EloDashboard() {
                                 />
                               )}
                               <span className="text-[11px] text-muted-foreground">
-                                {project.ownerName || 'Unknown'}
+                                {project.ownerName || t("eloPage.dashboard.unknownOwner")}
                               </span>
                             </div>
                             <div className="flex items-center gap-4 mt-1.5 text-xs text-muted-foreground">
-                              <span>{project.totalVotes} votes</span>
+                              <span>{t("eloPage.dashboard.votesCount", { count: project.totalVotes })}</span>
                               <span className="flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3 text-emerald-500" />
-                                {project.wins}W
+                                {t("eloPage.dashboard.winsShort", { count: project.wins })}
                               </span>
                               <span className="flex items-center gap-1">
                                 <TrendingDown className="h-3 w-3 text-red-500" />
-                                {project.losses}L
+                                {t("eloPage.dashboard.lossesShort", { count: project.losses })}
                               </span>
-                              <span>{'\u23ED'} {project.skipTokensRemaining}/{project.maxSkipTokens} skips</span>
+                              <span>{'⏭'} {t("eloPage.dashboard.skipsCount", { current: project.skipTokensRemaining, max: project.maxSkipTokens })}</span>
                             </div>
                             <div className="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
-                              <span>{project.resources?.cpu ?? '-'}% CPU</span>
-                              <span>{project.resources?.memory ?? '-'}MB RAM</span>
-                              <span>{project.resources?.disk ? (project.resources.disk / 1024).toFixed(1) : '-'}GB</span>
+                              <span>{project.resources?.cpu !== undefined ? t("eloPage.dashboard.cpuPercent", { cpu: project.resources.cpu }) : '-'}</span>
+                              <span>{project.resources?.memory !== undefined ? t("eloPage.dashboard.ramMb", { memory: project.resources.memory }) : '-'}</span>
+                              <span>{project.resources?.disk ? t("eloPage.dashboard.diskGb", { disk: (project.resources.disk / 1024).toFixed(1) }) : '-'}</span>
                             </div>
                             {project.readme && (
                               <>
@@ -477,7 +480,7 @@ export default function EloDashboard() {
                                   ) : (
                                     <ChevronDown className="h-3 w-3" />
                                   )}
-                                  {expandedReadme === project.id ? "Hide README" : "View README"}
+                                  {expandedReadme === project.id ? t("eloPage.dashboard.hideReadme") : t("eloPage.dashboard.viewReadme")}
                                 </button>
                                 {expandedReadme === project.id && (
                                   <div className="mt-2 p-3 border border-border/50 bg-secondary/10 max-h-48 overflow-y-auto">
@@ -495,20 +498,20 @@ export default function EloDashboard() {
                               className="border border-primary/30 bg-primary/10 text-primary px-4 py-2 text-xs font-semibold hover:bg-primary/20 transition-all active:scale-95 whitespace-nowrap text-center flex items-center justify-center gap-1.5"
                             >
                               <Trophy className="h-3.5 w-3.5" />
-                              Profile
+                              {t("eloPage.dashboard.profile")}
                             </Link>
                             <Link
                               href={`/dashboard/servers/${project.serverId}`}
                               className="border border-border/50 bg-background text-foreground px-4 py-2 text-xs font-semibold hover:bg-muted/60 transition-all active:scale-95 whitespace-nowrap text-center"
                             >
-                              Manage Server
+                              {t("eloPage.dashboard.manageServer")}
                             </Link>
                             <button
                               onClick={() => openEdit(project)}
                               className="border border-border/50 bg-secondary/30 px-4 py-2 text-xs font-semibold text-foreground hover:bg-secondary/60 transition-all active:scale-95 flex items-center justify-center gap-1.5"
                             >
                               <Edit className="h-3.5 w-3.5" />
-                              Edit
+                              {t("eloPage.dashboard.edit")}
                             </button>
                           </div>
                         </div>
@@ -521,9 +524,9 @@ export default function EloDashboard() {
               {myProjects?.projects && myProjects.projects.length > 0 && (
                 <div className="border border-border/50 bg-card overflow-hidden">
                   <div className="p-4 sm:p-5 border-b border-border/50">
-                    <h2 className="text-sm font-semibold text-foreground">Resource Scaling</h2>
+                    <h2 className="text-sm font-semibold text-foreground">{t("eloPage.dashboard.resourceScaling")}</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Resources scale linearly with your project's ELO rating
+                      {t("eloPage.dashboard.resourceScalingDesc")}
                     </p>
                   </div>
                   <div className="p-4 sm:p-5">
@@ -533,7 +536,7 @@ export default function EloDashboard() {
                       averageElo={eloStats?.averageElo}
                     />
                     <p className="text-[10px] text-muted-foreground mt-3">
-                      Hack Club users get +20% bonus resources. Every 20 votes cast unlocks an additional ELO server slot.
+                      {t("eloPage.dashboard.resourceFootnote")}
                     </p>
                   </div>
                 </div>
@@ -547,31 +550,31 @@ export default function EloDashboard() {
       <Dialog open={editingProject !== null} onOpenChange={(open) => { if (!open) setEditingProject(null) }}>
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-lg overflow-hidden max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Edit Project Details</DialogTitle>
+            <DialogTitle className="text-foreground">{t("eloPage.editProject.title")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Title</Label>
+              <Label className="text-xs text-muted-foreground">{t("eloPage.editProject.titleLabel")}</Label>
               <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Description</Label>
+              <Label className="text-xs text-muted-foreground">{t("eloPage.editProject.descriptionLabel")}</Label>
               <Textarea value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="mt-1" rows={2} />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">GitHub URL</Label>
-              <Input value={editGitHub} onChange={(e) => setEditGitHub(e.target.value)} placeholder="https://github.com/user/repo" className="mt-1" />
+              <Label className="text-xs text-muted-foreground">{t("eloPage.editProject.githubUrlLabel")}</Label>
+              <Input value={editGitHub} onChange={(e) => setEditGitHub(e.target.value)} placeholder={t("eloPage.editProject.githubUrlPlaceholder")} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Demo URL / Server IP</Label>
-              <Input value={editDemoUrl} onChange={(e) => setEditDemoUrl(e.target.value)} placeholder="https://... or play.example.com" className="mt-1" />
+              <Label className="text-xs text-muted-foreground">{t("eloPage.editProject.demoUrlLabel")}</Label>
+              <Input value={editDemoUrl} onChange={(e) => setEditDemoUrl(e.target.value)} placeholder={t("eloPage.editProject.demoUrlPlaceholder")} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Screenshots</Label>
+              <Label className="text-xs text-muted-foreground">{t("eloPage.editProject.screenshotsLabel")}</Label>
               <div className="mt-1 flex flex-wrap gap-2">
                 {editingProject?.screenshots?.length > 0 && editingProject.screenshots.map((url: string, i: number) => (
                   <div key={i} className="relative group">
-                    <img src={url} alt={`Screenshot ${i + 1}`} className="h-20 w-auto border border-border/50 object-cover" />
+                    <img src={url} alt={t("eloPage.sections.screenshotAlt", { n: i + 1 })} className="h-20 w-auto border border-border/50 object-cover" />
                     <button
                       type="button"
                       onClick={() => {
@@ -611,15 +614,15 @@ export default function EloDashboard() {
               </div>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">README (markdown)</Label>
-              <Textarea value={editReadme} onChange={(e) => setEditReadme(e.target.value)} className="mt-1 font-mono text-xs" rows={8} placeholder="# My Project&#10;&#10;Describe your project here..." />
+              <Label className="text-xs text-muted-foreground">{t("eloPage.editProject.readmeLabel")}</Label>
+              <Textarea value={editReadme} onChange={(e) => setEditReadme(e.target.value)} className="mt-1 font-mono text-xs" rows={8} placeholder={t("eloPage.editProject.readmePlaceholder")} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingProject(null)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setEditingProject(null)}>{t("eloPage.editProject.cancel")}</Button>
             <Button onClick={saveEdit} disabled={editSaving} data-telemetry="elo:saveedit">
               {editSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Save
+              {t("eloPage.editProject.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -629,28 +632,28 @@ export default function EloDashboard() {
       <Dialog open={devlogProjectId !== null} onOpenChange={(open) => { if (!open) { setDevlogProjectId(null); setDevlogTitle(""); setDevlogContent(""); setDevlogImages([]) } }}>
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-lg overflow-hidden">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Write a Devlog</DialogTitle>
+            <DialogTitle className="text-foreground">{t("eloPage.devlog.title")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-3">
             <div>
-              <Label className="text-xs text-muted-foreground">Title</Label>
-              <Input value={devlogTitle} onChange={(e) => setDevlogTitle(e.target.value)} placeholder="What's new?" className="mt-1" />
+              <Label className="text-xs text-muted-foreground">{t("eloPage.editProject.titleLabel")}</Label>
+              <Input value={devlogTitle} onChange={(e) => setDevlogTitle(e.target.value)} placeholder={t("eloPage.devlog.titlePlaceholder")} className="mt-1" />
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Content (markdown)</Label>
+              <Label className="text-xs text-muted-foreground">{t("eloPage.devlog.contentLabel")}</Label>
               <div className="flex flex-wrap gap-1 mt-1 mb-1 border border-border bg-secondary/20 p-1">
                 {[
-                  { label: "B", cmd: "**", hint: "bold" },
-                  { label: "I", cmd: "*", hint: "italic" },
-                  { label: "H", cmd: "## ", hint: "heading" },
-                  { label: "<code>", cmd: "`", hint: "code" },
-                  { label: "Link", cmd: "[text](url)", hint: "link" },
-                  { label: "Img", cmd: "![alt](url)", hint: "image" },
-                  { label: "•", cmd: "- ", hint: "bullet list" },
-                  { label: "1.", cmd: "1. ", hint: "numbered list" },
+                  { label: "B", cmd: "**", hint: t("eloPage.devlog.toolbar.bold") },
+                  { label: "I", cmd: "*", hint: t("eloPage.devlog.toolbar.italic") },
+                  { label: "H", cmd: "## ", hint: t("eloPage.devlog.toolbar.heading") },
+                  { label: "<code>", cmd: "`", hint: t("eloPage.devlog.toolbar.code") },
+                  { label: "Link", cmd: "[text](url)", hint: t("eloPage.devlog.toolbar.link") },
+                  { label: "Img", cmd: "![alt](url)", hint: t("eloPage.devlog.toolbar.image") },
+                  { label: "•", cmd: "- ", hint: t("eloPage.devlog.toolbar.bulletList") },
+                  { label: "1.", cmd: "1. ", hint: t("eloPage.devlog.toolbar.numberedList") },
                 ].map((btn) => (
                   <button
-                    key={btn.hint}
+                    key={btn.cmd}
                     type="button"
                     onClick={() => {
                       const ta = document.getElementById("devlog-content") as HTMLTextAreaElement
@@ -687,11 +690,11 @@ export default function EloDashboard() {
                 onChange={(e) => setDevlogContent(e.target.value)}
                 className="mt-1 w-full border border-border bg-input px-3 py-2.5 text-sm font-mono text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-y min-h-[200px]"
                 rows={10}
-                placeholder="Describe what you've been working on..."
+                placeholder={t("eloPage.devlog.contentPlaceholder")}
                data-telemetry="elo:devlog-content"/>
             </div>
             <div>
-              <Label className="text-xs text-muted-foreground">Images (up to 3)</Label>
+              <Label className="text-xs text-muted-foreground">{t("eloPage.devlog.imagesLabel")}</Label>
               <div className="mt-1 flex flex-wrap gap-2">
                 {devlogImages.map((url, i) => (
                   <div key={i} className="relative group">
@@ -712,7 +715,7 @@ export default function EloDashboard() {
                     ) : (
                       <Plus className="h-3 w-3" />
                     )}
-                    Add Image
+                    {t("eloPage.devlog.addImage")}
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp,image/gif"
@@ -740,10 +743,10 @@ export default function EloDashboard() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDevlogProjectId(null); setDevlogTitle(""); setDevlogContent(""); setDevlogImages([]) }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setDevlogProjectId(null); setDevlogTitle(""); setDevlogContent(""); setDevlogImages([]) }}>{t("eloPage.devlog.cancel")}</Button>
             <Button onClick={publishDevlog} disabled={devlogSaving || !devlogTitle.trim() || !devlogContent.trim()} data-telemetry="elo:publishdevlog">
               {devlogSaving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Publish
+              {t("eloPage.devlog.publish")}
             </Button>
           </DialogFooter>
         </DialogContent>
