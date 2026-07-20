@@ -18,20 +18,24 @@ function b64dec(d: string) { const b=atob(d), u=new Uint8Array(b.length); for(le
 function normPath(p: string) { return p.replace(/^\/+/,''); }
 function clr(seed: number) { return COLORS[Math.abs(seed) % COLORS.length]; }
 
+function escCSS(s: string): string {
+  return s.replace(/[\\"'(){};:\n\r]/g, c => '\\' + c.charCodeAt(0).toString(16).padStart(4, '0') + ' ')
+}
+
 function cursorStyles(el: HTMLStyleElement, a: Awareness) {
   const r: string[] = [];
   a.getStates().forEach((st, id) => {
     if (id === a.clientID) return;
     const u = st.user as { name?: string; color?: string; avatar?: string | null } | undefined;
     const c = u?.color ?? clr(id);
-    const n = (u?.name ?? '').replace(/["\\]/g,'');
+    const n = escCSS(u?.name ?? '');
     const av = u?.avatar;
 
     if (av) {
       r.push(
         `.yRemoteSelection-${id}{background-color:${c}44}`,
         `.yRemoteSelectionHead-${id}{position:absolute;border-left:2px solid ${c};height:100%}`,
-        `.yRemoteSelectionHead-${id}::after{content:"${n}";position:absolute;top:-1.2em;left:-2px;background-color:${c};color:#fff;font-size:10px;line-height:16px;padding:0 6px 0 18px;border-radius:0 2px 2px 0;white-space:nowrap;pointer-events:none;background-image:url('${av.replace(/'/g,"\\'")}');background-size:14px 14px;background-repeat:no-repeat;background-position:2px center}`,
+        `.yRemoteSelectionHead-${id}::after{content:"${n}";position:absolute;top:-1.2em;left:-2px;background-color:${c};color:#fff;font-size:10px;line-height:16px;padding:0 6px 0 18px;border-radius:0 2px 2px 0;white-space:nowrap;pointer-events:none;background-image:url('${escCSS(av)}');background-size:14px 14px;background-repeat:no-repeat;background-position:2px center}`,
       );
     } else {
       r.push(
