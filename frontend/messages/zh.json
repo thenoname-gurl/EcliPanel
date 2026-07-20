@@ -1,0 +1,6132 @@
+{
+  "layout": {
+    "title": "Eclipse Systems - 新一代主机服务提供商",
+    "description": "秒级部署，内置指标监控、多区域支持、零冷启动，轻松扩展。"
+  },
+  "locale": {
+    "label": "语言",
+    "english": "英语",
+    "russian": "俄语",
+    "chinese": "中文",
+    "japanese": "日语",
+    "hindi": "印地语"
+  },
+  "panelNav": {
+    "sections": {
+      "overview": "概览",
+      "infrastructure": "基础设施",
+      "ai": "AI",
+      "support": "支持",
+      "account": "账户",
+      "productivity": "效率工具",
+      "administration": "管理"
+    },
+    "items": {
+      "socDashboard": "SOC 仪表盘",
+      "accountActivity": "账户活动",
+      "organisations": "组织",
+      "servers": "服务器",
+      "nodes": "节点",
+      "aiStudio": "AI 工作室",
+      "aiChat": "AI 对话",
+      "tickets": "工单",
+      "applications": "申请",
+      "identity": "身份认证",
+      "calendar": "日历",
+      "visualEditor": "可视化编辑器",
+      "chat": "聊天",
+      "organisationInvites": "组织邀请",
+      "billing": "账单",
+      "settings": "设置",
+      "family": "家庭",
+      "subuserInvites": "子用户邀请",
+      "mailbox": "邮箱",
+      "adminPanel": "员工门户",
+      "tunnels": "隧道"
+    },
+    "badges": {
+      "new": "新建",
+      "beta": "测试版",
+      "staff": "员工"
+    }
+  },
+  "organisationInvitesPage": {
+    "title": "组织邀请",
+    "description": "查看并接受或拒绝待处理的组织邀请。",
+    "actions": {
+      "backToOrganisations": "返回组织",
+      "accept": "接受",
+      "reject": "拒绝"
+    },
+    "loading": "加载邀请中...",
+    "emptyTitle": "没有待处理的组织邀请",
+    "emptyDescription": "您目前没有任何组织邀请。",
+    "status": {
+      "pending": "待处理"
+    },
+    "errors": {
+      "failedToLoad": "加载邀请失败。",
+      "failedAction": "处理邀请操作失败。"
+    },
+    "unknownOrganisation": "未知组织"
+  },
+  "mailboxPage": {
+    "title": "邮箱",
+    "description": "管理待处理的邀请、通知和收件箱项目。",
+    "sections": {
+      "inbox": "收件箱",
+      "inboxDescription": "在这里您可以找到所有与 EcliPanel 相关的重要信息。",
+      "organisations": "组织邀请",
+      "organisationsDescription": "接受或拒绝加入组织的邀请。",
+      "organisationInviteFallback": "Organisation invite",
+      "noOrganisationInvites": "没有待处理的组织邀请。",
+      "serverSubusers": "服务器子用户邀请",
+      "serverSubusersDescription": "接受或拒绝成为服务器子用户的邀请。",
+      "noSubuserInvites": "没有待处理的服务器子用户邀请。",
+      "notifications": "通知",
+      "notificationsDescription": "系统通知和警报将显示在这里。",
+      "notificationsEmpty": "暂无通知。",
+      "email": "邮箱",
+      "emailDescription": "传入的邮件将投递到您仅用于接收的 EcliPanel 邮箱。",
+      "emailEmpty": "暂无邮件。"
+    },
+    "list": {
+      "empty": "您的收件箱为空。",
+      "emptyDescription": "没有匹配您筛选条件的消息。"
+    },
+    "actions": {
+      "accept": "接受",
+      "reject": "拒绝",
+      "markRead": "标记已读",
+      "markUnread": "标记未读",
+      "assignCategory": "分配分类",
+      "delete": "删除"
+    },
+    "details": {
+      "sender": "发件人",
+      "received": "接收时间",
+      "body": "消息",
+      "actions": "操作",
+      "selectItem": "选择一条消息以查看详情。",
+      "selectItemDescription": "选择左侧的一个收件箱项目来阅读和回复。"
+    },
+    "detail": {
+      "organisationBody": "您已被邀请加入 {organisation}。邀请已发送至 {email}。请查看邀请并选择接受或拒绝。",
+      "subuserBody": "您已被邀请成为 {server} 的服务器子用户。邀请已发送至 {email}。请查看访问请求并选择接受或拒绝。",
+      "unknownServer": "未知服务器",
+      "unknownSender": "未知发件人",
+      "displayMetadata": "显示元数据",
+      "hideMetadata": "隐藏元数据",
+      "chooseView": "选择查看此邮件的方式：",
+      "plainText": "纯文本",
+      "htmlView": "HTML 视图",
+      "raw": "原始数据",
+      "noPlainTextContent": "没有纯文本内容",
+      "metadataTitle": "消息元数据",
+      "metadataHint": "显示所有消息元数据字段。为便于阅读，正文 HTML 和纯文本预览已隐藏。",
+      "virusDetected": "检测到病毒",
+      "spamDetected": "检测到垃圾邮件",
+      "emailFallback": "邮件消息"
+    },
+    "confirm": {
+      "deleteEmail": "删除此邮件？此操作无法撤销。"
+    },
+    "errors": {
+      "failedAction": "执行操作失败。"
+    }
+  },
+  "panelHeader": {
+    "search": "搜索...",
+    "searchPages": "搜索页面...",
+    "noPagesFound": "未找到页面",
+    "notifications": "通知",
+    "markAllRead": "全部标记已读",
+    "noRecentActivity": "没有最近活动",
+    "accountEvent": "账户事件",
+    "markRead": "标记已读",
+    "viewAllActivity": "查看所有活动 →",
+    "actionLabels": {
+      "startedServer": "启动了服务器",
+      "stoppedServer": "停止了服务器",
+      "restartedServer": "重启了服务器",
+      "killedServer": "强制停止了服务器",
+      "ranConsoleCommand": "运行了服务器控制台命令",
+      "modifiedFile": "修改了文件",
+      "deletedFiles": "删除了文件",
+      "reinstalledServer": "重装了服务器",
+      "addedSubuser": "添加了服务器子用户",
+      "acceptedSubuserInvite": "接受了服务器子用户邀请",
+      "removedSubuser": "移除了服务器子用户访问权限",
+      "rejectedSubuserInvite": "拒绝了服务器子用户邀请",
+      "serverSuspend": "暂停了服务器",
+      "serverUnsuspend": "恢复了服务器",
+      "updatedProfile": "更新了个人资料设置"
+    }
+  },
+  "panelSidebar": {
+    "close": "关闭",
+    "requiresUpgrade": "{feature} 需要升级",
+    "featureAvailableOn": "此功能在 {tier} 套餐及以上版本中可用。请联系我们的销售团队为您的账户解锁。",
+    "contactSales": "联系销售",
+    "maybeLater": "稍后再说",
+    "requiresPlan": "需要 {tier} 套餐",
+    "accountSettings": "账户设置",
+    "logout": "退出登录",
+    "loggingOut": "退出登录中...",
+    "userFallback": "用户",
+    "dashboardFallback": "仪表盘",
+    "expandSidebar": "展开侧边栏",
+    "collapseSidebar": "收起侧边栏",
+    "navigationMenu": "导航菜单",
+    "closeMenu": "关闭菜单"
+  },
+  "otpMethodSelector": {
+    "authenticatorApp": "身份验证器应用",
+    "backupCode": "备用代码",
+    "emailCode": "邮件验证码"
+  },
+  "panelShared": {
+    "status": {
+      "online": "在线",
+      "running": "运行中",
+      "open": "开启",
+      "opened": "已开启",
+      "replied": "已回复",
+      "awaitingStaff": "等待员工",
+      "starting": "启动中",
+      "pending": "待处理",
+      "medium": "中等",
+      "offline": "离线",
+      "stopped": "已停止",
+      "closed": "已关闭",
+      "urgent": "紧急",
+      "high": "高",
+      "low": "低"
+    }
+  },
+  "enforcementBanner": {
+    "title": "账户要求未完成",
+    "description": "您必须验证邮箱并设置双重认证或通行密钥才能使用此面板。",
+    "emailVerified": "邮箱已验证",
+    "emailNotVerified": "邮箱未验证",
+    "sendVerificationEmail": "发送验证邮件",
+    "sending": "发送中…",
+    "resend": "重新发送",
+    "resendShort": "重新发送",
+    "codePlaceholder": "6位验证码",
+    "verify": "验证",
+    "invalidCode": "无效验证码",
+    "securityMethodEnabled": "安全要求已满足（已启用 2FA 或通行密钥）",
+    "securityMethodMissing": "启用 2FA 或注册通行密钥",
+    "goToSecurity": "前往 设置 → 安全",
+    "requiresHttpsPrefix": "需要 HTTPS — 请通过以下方式访问面板",
+    "requiresHttpsSuffix": "来注册通行密钥。"
+  },
+  "kycBanner": {
+    "title": "需要身份验证",
+    "description": "为了遵守地区法规，您必须在使用面板前验证身份。这是一次性流程 — 上传您的身份证件和自拍照以完成验证。",
+    "verify": "验证身份",
+    "checkStatus": "我已在其他地方验证 — 检查状态",
+    "adminContact": "如果您认为这是个错误，请联系我们的支持团队 hi@ecli.app。"
+  },
+  "footer": {
+    "legalDocuments": "法律文件",
+    "docs": "文档",
+    "imprint": "版权声明",
+    "copyrightShort": "© {year} EclipseSystems",
+    "copyrightLong": "© {year} EclipseSystems (Misiu LLC 旗下)"
+  },
+  "landing": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "features": "功能",
+      "pricing": "定价",
+      "network": "网络",
+      "faq": "常见问题",
+      "signIn": "登录",
+      "getStarted": "开始使用",
+      "openDashboard": "打开仪表盘"
+    },
+    "statusPill": {
+      "connecting": "连接中...",
+      "nodesLive": "{count} 个节点在线"
+    },
+    "hero": {
+      "titleLine1": "精湛构建",
+      "titleLine2": "卓越交付",
+      "subtitle": " Eclipse Systems 是面向开发者的主机平台。秒级部署，内置指标监控、多区域支持、零冷启动，轻松扩展。",
+      "cta": "免费开始",
+      "note": "无需信用卡 - 永久免费套餐 - 随时取消"
+    },
+    "stats": {
+      "dailyNodeTraffic": "今日节点流量 (24小时)",
+      "monthlyRequests": "API 调用",
+      "heading": "真实用户",
+      "totalUsers": "总用户数",
+      "totalLabel": "总计"
+    },
+    "feedback": {
+      "eyebrow": "反馈",
+      "heading": "来自运行真实服务器的用户的平均评分。",
+      "description": "受到主机团队和游戏服务器运营者的信赖，EcliPanel 以快速部署和可靠控制获得最高评价。",
+      "averageLabel": "平均评分",
+      "reviewCount": "{count}+ 条评价",
+      "quoteLabel": "用户评价",
+      "quote": "稳定主机、快速部署、好用界面。",
+      "quoteSource": "受到全球服务器运营者的信赖。",
+      "panelCardTitle": "安心托管",
+      "panelCardHeadline": "专为游戏服务器和分布式工作负载打造。",
+      "panelCardDescription": "通过一个面板的指标监控、自动扩展和安全访问，让您的团队掌控一切。",
+      "panelStat1": "95% 正常运行时间就绪架构",
+      "panelStat2": "来自生产环境用户的实时反馈",
+      "loadingReviews": "加载评价中..."
+    },
+    "features": {
+      "eyebrow": "功能",
+      "title": "功能齐全。",
+      "titleMuted": "无需配置。",
+      "items": {
+        "deploy": {
+          "title": "秒级部署",
+          "body": "选择模板，上传代码，配置您的应用。"
+        },
+        "edge": {
+          "title": "多地点部署",
+          "body": "跨独立地点运行，从最近的可用节点提供服务。"
+        },
+        "uptime": {
+          "title": "95% 正常运行时间 SLA",
+          "body": "跨多个区域的冗余节点。"
+        },
+        "isolation": {
+          "title": "隔离环境",
+          "body": "每个工作负载都在命名空间内隔离运行。由您掌控资源限制。"
+        },
+        "metrics": {
+          "title": "实时指标",
+          "body": "CPU、内存、带宽和追踪数据 - 实时显示在您的仪表盘中。"
+        },
+        "coldStarts": {
+          "title": "零冷启动",
+          "body": "保活基础设施确保您的应用在第一个字节到达之前就已就绪。"
+        }
+      }
+    },
+    "pricing": {
+      "eyebrow": "定价",
+      "title": "简单、诚实的定价。",
+      "subtitle": "无隐藏费用。无按人头陷阱。随时扩展。",
+      "taxNote": "* 税费可能根据您的账单地址适用。",
+      "monthly": "每月",
+      "annual": "按年",
+      "annualBadge": "-20%",
+      "priceFree": "免费",
+      "priceCustom": "自定义",
+      "perMonth": "/月",
+      "plans": {
+        "free": {
+          "name": "免费门户 (ELO)",
+          "price": "0.00 美元/月",
+          "desc": "ELO 服务器，支持社区投票。赚取投票，扩展资源，攀登排行榜！",
+          "cta": "免费开始",
+          "features": [
+            "1 个 ELO 服务器",
+            "每个服务器 1 个端口",
+            "1 个 vCore",
+            "1028 MB 内存",
+            "10240 MB 存储",
+            "每天 3 封邮件（发送）",
+            "3 封邮件队列（发送）",
+            "无 SLA"
+          ]
+        },
+        "educational": {
+          "name": "教育门户",
+          "price": "0.00 美元/月",
+          "desc": "非常适合学生及其小型项目！",
+          "cta": "连接 Hack Club",
+          "features": [
+            "3 个服务器",
+            "每个服务器 3 个端口",
+            "6 个 vCore",
+            "4096 MB 内存",
+            "51200 MB 存储",
+            "Debian 13 虚拟机",
+            "每天 10 封邮件（发送）",
+            "10 封邮件队列（发送）",
+            "适用 95% SLA"
+          ]
+        },
+        "paid": {
+          "name": "付费门户",
+          "price": "12.00 美元/月",
+          "desc": "非常适合中小型项目！",
+          "cta": "联系销售",
+          "features": [
+            "10 个服务器",
+            "每个服务器 3 个端口",
+            "6 个 vCore",
+            "16028 MB 内存",
+            "50240 MB 存储",
+            "基础支持",
+            "AI 访问",
+            "每天 50 封邮件（发送）",
+            "25 封邮件队列（发送）",
+            "适用 95% SLA"
+          ]
+        },
+        "enterprise": {
+          "name": "企业门户",
+          "price": "价格面议",
+          "desc": "非常适合中大型项目！",
+          "cta": "联系销售",
+          "features": [
+            "不限量服务器",
+            "整节点 CPU",
+            "整节点内存（16GB 起）",
+            "整节点存储",
+            "10倍 数据库限制",
+            "10倍 备份限制",
+            "每节点 1个 IPv4",
+            "每节点 1个 IPv6（可选）",
+            "高级支持",
+            "AI 访问",
+            "每天 100 封邮件（发送）",
+            "50 封邮件队列（发送）",
+            "适用 95% SLA"
+          ]
+        }
+      }
+    },
+    "network": {
+      "eyebrow": "网络",
+      "title": "无单点故障。",
+      "titleMuted": "永不。",
+      "body": "全球分布式独立节点。在您希望工作负载运行的位置部署，并保持对区域放置的控制。无维护窗口，无状态页面的暗箱操作。",
+      "stats": {
+        "totalNodes": "节点总数",
+        "online": "在线",
+        "degraded": "降级",
+        "offline": "离线",
+        "tunnels": "隧道总数",
+        "tunnelsActive": "活跃隧道",
+        "tunnelsInactive": "非活跃隧道"
+      }
+    },
+    "ddos": {
+      "title": "企业级 DDoS 防护。",
+      "subtitle": "每个节点都受行业领先的多层 DDoS 缓解系统保护。",
+      "description": "我们所有节点都受 Pletx 和 OVHcloud 的高级 DDoS 缓解系统保护。对于需要自定义保护配置的企业客户，可提供不同的缓解方案。"
+    },
+    "faq": {
+      "eyebrow": "常见问题",
+      "title": "常见问题。",
+      "q1": "账单如何运作？",
+      "a1": "在每个计费周期开始时扣费。超额警报在您达到限制之前触发 - 不会有意外账单。",
+      "q2": "Pro 版有免费试用吗？",
+      "a2": "可通过支持申请 Pro 试用，最长 3 天。",
+      "q3": "节点离线时会发生什么？",
+      "a3": "流量可以快速重新路由到健康的节点（如果可用）。Pro 和企业版部署还可以使用跨区域复制。",
+      "q4": "我可以自托管吗？",
+      "a4": "可以。EcliPanel 有开源核心。支持自托管；请查看 https://ecli.app/license 上的许可详情。"
+    },
+    "finalCta": {
+      "titleLine1": "您的应用值得",
+      "titleLine2": "更好的基础设施。",
+      "subtitle": "加入已经使用 ecli 的开发者。永久免费。无需信用卡。",
+      "cta": "创建您的免费账户",
+      "note": "免费套餐 - 无需信用卡 - 随时取消"
+    },
+    "footer": {
+      "tagline": "为注重可靠性的开发者打造的分布式主机服务。",
+      "contact": "contact@ecli.app",
+      "columns": {
+        "product": "产品",
+        "developers": "开发者",
+        "legal": "法律"
+      },
+      "links": {
+        "features": "功能",
+        "pricing": "定价",
+        "network": "网络",
+        "status": "状态",
+        "docs": "文档",
+        "api": "API",
+        "github": "GitHub",
+        "contributors": "贡献者",
+        "changelog": "更新日志",
+        "terms": "条款",
+        "privacy": "隐私",
+        "cookies": "Cookie 政策",
+        "acceptable": "可接受使用政策",
+        "imprint": "版权声明"
+      },
+      "copyright": "© {year} EclipseSystems. 保留所有权利。",
+      "byline": "由开发者打造，为开发者服务。"
+    }
+  },
+  "contributorsPage": {
+    "hero": {
+      "titleLine1": "由社区",
+      "titleLine2": "共同构建",
+      "joinCta": "加入成为贡献者",
+      "repoCta": "查看仓库"
+    },
+    "stats": {
+      "contributors": "{count} 位贡献者",
+      "contributions": "贡献",
+      "pullRequests": "拉取请求",
+      "mergedPullRequests": "已合并 PR",
+      "trackedCommits": "已追踪 {count} 个提交",
+      "trackedPullRequests": "已追踪 {count} 个 PR",
+      "lastSynced": "同步于 {date}"
+    },
+    "loading": "加载中...",
+    "loadError": "加载贡献者失败。",
+    "loadingContributors": "加载贡献者中...",
+    "loadingCommitHistory": "加载提交历史中...",
+    "loadingPullRequests": "加载拉取请求中...",
+    "loadingMergeStats": "加载合并统计中...",
+    "loadingSyncing": "同步中...",
+    "noContributorsYet": "暂无贡献者。",
+    "lastCommitAt": "最后提交",
+    "noCommitsTrackedYet": "暂无追踪的提交",
+    "activityTitle": "活动",
+    "recentActivityTitle": "最近活动",
+    "activityChartLabel": "活动",
+    "activityChartAriaLabel": "贡献者活动折线图"
+  },
+  "changelogsPage": {
+    "title": "更新日志",
+    "subtitle": "追踪项目中的每次提交和拉取请求。",
+    "repoCta": "查看仓库",
+    "filterAll": "所有活动",
+    "filterCommits": "提交",
+    "filterPullRequests": "拉取请求",
+    "stats": {
+      "commits": "提交",
+      "pullRequests": "拉取请求",
+      "contributors": "贡献者",
+      "stars": "星标"
+    },
+    "loading": "加载更新日志中...",
+    "error": "加载更新日志失败。",
+    "noEntries": "暂无活动。"
+  },
+  "notFound": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[首页]",
+      "features": "[功能]",
+      "pricing": "[定价]",
+      "contact": "[联系]"
+    },
+    "hero": {
+      "errorLabel": "错误：",
+      "title": "页面未找到",
+      "subtitle": "请求的资源已消失在虚空中。"
+    },
+    "terminal": {
+      "error404": "错误 404：",
+      "notFoundDimension": "在任何已知维度中未找到资源。",
+      "path": "路径：",
+      "lookup": "查找：",
+      "failed": "失败",
+      "suggestion": "建议：",
+      "returnCoordinates": "返回已知坐标"
+    },
+    "details": {
+      "title": "# 发生了什么？",
+      "causesTitle": "# 可能的原因",
+      "causesSubtitle": "Blåhaj 吃掉了页面，也可能是：",
+      "cause1": "→ 页面已被移动或删除",
+      "cause2": "→ URL 输入错误",
+      "cause3": "→ 您点击的链接已过时",
+      "cause4": "→ 猫咪踩了键盘",
+      "quickNavTitle": "# 快速导航",
+      "quickNavSubtitle": "以下是您可能想去的地方：",
+      "homePage": "→ 首页",
+      "dashboard": "→ 仪表盘",
+      "login": "→ 登录",
+      "register": "→ 注册"
+    },
+    "recovery": {
+      "warn": "警告：",
+      "noRoute": "未找到恢复路由。",
+      "scanning": "扫描中：",
+      "sitemap": "站点地图... 0 个匹配",
+      "fallback": "回退：",
+      "redirect": "重定向 → /",
+      "recommendation": "# 建议：回家，部署些酷东西吧。"
+    },
+    "cta": {
+      "title": "# 让我们帮您回到正轨",
+      "subtitle": "此页面不存在，但您的下一次部署可以存在。",
+      "home": "./navigate --home",
+      "dashboard": "go_to_dashboard()"
+    },
+    "footer": {
+      "lost": "迷路了？发送邮件至",
+      "orReturn": "或返回",
+      "home": "首页"
+    }
+  },
+  "errorPage": {
+    "brand": "Eclipse Systems",
+    "terminal": {
+      "title": "终端 — 错误",
+      "panic": "严重错误：",
+      "unrecoverable": "检测到不可恢复的运行时异常。",
+      "error": "错误：",
+      "digest": "摘要：",
+      "exitCode": "退出代码：",
+      "terminated": "进程已终止。"
+    },
+    "crash": {
+      "report": "崩溃报告",
+      "runtime": "Eclipse Systems 运行时",
+      "timestamp": "Timestamp:",
+      "pid": "进程ID：",
+      "memory": "内存：",
+      "digest": "摘要：",
+      "signal": "信号：",
+      "signalValue": "SIGSEGV (段错误)",
+      "exception": "异常：",
+      "message": "消息：",
+      "defaultErrorName": "错误",
+      "defaultErrorMessage": "发生了意外错误"
+    },
+    "header": {
+      "fault": "故障",
+      "home": "[首页]",
+      "dashboard": "[仪表盘]"
+    },
+    "hero": {
+      "fatal": "致命：",
+      "title": "出了些问题",
+      "subtitle": "一个未处理的异常导致此进程崩溃。",
+      "retryAttempts": "重试次数：{count}"
+    },
+    "sections": {
+      "crashReport": "崩溃报告",
+      "diagnostics": "诊断",
+      "possibleCauses": "可能的原因",
+      "causesSubtitle": "Blåhaj 吃掉了 pixelcat，也可能是：",
+      "cause1": "→ 服务端渲染失败",
+      "cause2": "→ 未处理的 Promise 拒绝",
+      "cause3": "→ 无效的状态变更",
+      "cause4": "→ 猫咪咬断了网线",
+      "recoveryOptions": "# 恢复选项",
+      "recoverySubtitle": "尝试以下恢复步骤之一："
+    },
+    "actions": {
+      "retrying": "重试中...",
+      "retryThisPage": "→ 重试此页面",
+      "returnHome": "→ 返回首页",
+      "goDashboard": "→ 前往仪表盘",
+      "hardReload": "→ 强制刷新页面"
+    },
+    "recovery": {
+      "warn": "警告：",
+      "autoUnavailable": "自动恢复不可用。",
+      "scanning": "扫描中：进程状态...",
+      "corrupted": "已损坏",
+      "heap": "堆内存：",
+      "heapUnavailable": "快照不可用",
+      "stack": "栈：",
+      "stackLost": "帧丢失",
+      "suggestion": "建议：",
+      "manualRequired": "需要手动干预。",
+      "tryReset": "# 尝试：reset() 或导航到已知路由。"
+    },
+    "status": {
+      "runtime": "运行时",
+      "memory": "内存",
+      "network": "网络",
+      "recovery": "恢复",
+      "fault": "故障",
+      "ok": "正常",
+      "pending": "待处理",
+      "unknown": "未知"
+    },
+    "cta": {
+      "title": "# 需要帮助？",
+      "subtitle": "如果此错误持续存在，请联系我们的支持团队。我们将帮助您调试。",
+      "retrying": "./retrying...",
+      "retryForce": "./retry --force",
+      "escapeHome": "escape_to_home()"
+    },
+    "footer": {
+      "persistentErrors": "持续出现错误？发送邮件至",
+      "orReturn": "或返回",
+      "home": "首页",
+      "reference": "引用："
+    }
+  },
+  "login": {
+    "welcomeBack": "欢迎回来",
+    "subtitle": "登录您的 Eclipse Panel 账户",
+    "verifyDomain": "验证此域名",
+    "domainWarning": "此面板应从 <domain>ecli.app</domain> 提供服务。如果您的 URL 不同，请导航至 <link>https://ecli.app</link>。",
+    "somethingWentWrong": "出了些问题",
+    "twoFactorTitle": "双重认证",
+    "twoFactorSubtitle": "选择您的验证方式并输入验证码",
+    "methodAuthenticator": "身份验证器应用",
+    "methodAuthenticatorDesc": "使用您的 TOTP 身份验证器应用",
+    "methodEmail": "邮件验证码",
+    "methodEmailDesc": "通过邮件接收验证码",
+    "methodBackup": "备用代码",
+    "methodBackupDesc": "使用您的其中一个备用代码",
+    "authenticatorCode": "身份验证器验证码",
+    "authenticatorCodePlaceholder": "输入6位验证码",
+    "backupCode": "备用代码",
+    "backupCodePlaceholder": "输入备用验证码",
+    "emailCode": "邮件验证码",
+    "emailCodePlaceholder": "输入邮件验证码",
+    "send": "发送",
+    "verifying": "验证中...",
+    "verify": "验证",
+    "cancel": "取消",
+    "credentials": "登录凭据",
+    "emailAddress": "邮箱地址",
+    "emailPlaceholder": "you@example.com",
+    "password": "密码",
+    "passwordPlaceholder": "••••••••",
+    "hidePassword": "隐藏密码",
+    "showPassword": "显示密码",
+    "forgotPassword": "忘记密码？",
+    "resend": "重新发送",
+    "emailCodeSent": "邮件验证码已发送。请查看您的收件箱。",
+    "signingIn": "登录中...",
+    "signIn": "登录",
+    "orContinueWith": "或使用以下方式继续",
+    "waitingPasskey": "等待通行密钥...",
+    "signInWithPasskey": "使用通行密钥登录",
+    "termsNotice": "登录即表示您同意 <legal>/legal</legal> 下的所有政策。",
+    "noAccount": "还没有账户？",
+    "createAccount": "创建账户",
+    "securityNote": "受后量子加密保护",
+    "enterCodeSelectedMethod": "请为所选方法输入验证码。",
+    "invalidServerResponse": "服务器响应无效",
+    "verificationFailed": "验证失败",
+    "enterEmailBeforePasskey": "请先输入您的邮箱地址，然后点击使用通行密钥登录。",
+    "passkeyCancelled": "通行密钥认证已取消。",
+    "passkeyFailed": "通行密钥认证失败。",
+    "retry": "重试",
+    "backendUnavailableTitle": "后端不可用",
+    "backendUnavailableMessage": "面板后端当前无法访问。请稍后再试。",
+    "loginFailed": "登录失败",
+    "missingTemporarySession": "缺少临时会话",
+    "failedToSendEmailCode": "发送邮件验证码失败",
+    "back": "返回"
+  },
+  "register": {
+    "steps": {
+      "account": "账户",
+      "address": "地址",
+      "verify": "验证"
+    },
+    "title": "创建您的账户",
+    "subtitle": "只需几个步骤即可开始使用您的服务器",
+    "verifyDomain": "验证此域名",
+    "domainWarning": "此面板应从 <domain>ecli.app</domain> 提供服务。如果您的 URL 不同，请导航至 <link>https://ecli.app</link>。",
+    "registrationUnavailable": "注册不可用",
+    "backendUnavailableTitle": "后端不可用",
+    "backendUnavailableMessage": "面板后端当前无法访问。请稍后再试。",
+    "retry": "重试",
+    "somethingWentWrong": "出了些问题",
+    "registrationNotAvailable": "当前无法注册。",
+    "signInInstead": "改为登录",
+    "personalInfo": "个人信息",
+    "firstName": "名",
+    "firstNamePlaceholder": "张三",
+    "lastName": "姓",
+    "lastNamePlaceholder": "李四",
+    "titleField": "标题",
+    "selectTitle": "选择称谓…",
+    "gender": "性别",
+    "selectGender": "不愿透露",
+    "genderFemale": "女性",
+    "genderMale": "男性",
+    "genderNonBinary": "非二元性别",
+    "genderPreferNotToSay": "不愿透露",
+    "genderOther": "其他",
+    "emailAddress": "邮箱地址",
+    "emailPlaceholder": "you@example.com",
+    "password": "密码",
+    "passwordPlaceholder": "Create a strong password",
+    "hidePassword": "隐藏密码",
+    "showPassword": "显示密码",
+    "phoneNumber": "电话号码",
+    "phonePlaceholder": "+86 138 0000 0000",
+    "dateOfBirth": "出生日期",
+    "dateOfBirthPlaceholder": "YYYY-MM-DD",
+    "billingAddress": "账单地址",
+    "companyOptional": "公司（可选）",
+    "companyPlaceholder": "公司名称",
+    "streetAddress": "街道地址",
+    "streetAddressPlaceholder": "主街 123 号",
+    "addressLine2Optional": "地址第二行（可选）",
+    "addressLine2Placeholder": "公寓、套房、单元等",
+    "city": "城市",
+    "cityPlaceholder": "城市",
+    "stateProvince": "州 / 省",
+    "stateProvincePlaceholder": "州 / 省",
+    "zipPostal": "邮政编码",
+    "zipPostalPlaceholder": "12345",
+    "country": "国家",
+    "selectCountry": "选择国家…",
+    "reviewTitle": "核对您的信息",
+    "name": "名称",
+    "email": "邮箱",
+    "phone": "电话",
+    "location": "地址",
+    "securityCheck": "安全检查",
+    "captchaLoadFailed": "无法加载验证码",
+    "playing": "播放中…",
+    "listenAudioCaptcha": "收听音频验证码",
+    "audioPlayFailed": "无法播放音频。请尝试刷新。",
+    "yourAnswer": "您的答案",
+    "yourAnswerPlaceholder": "输入答案",
+    "refreshCaptchaAria": "刷新验证码",
+    "newCaptchaTitle": "新验证码",
+    "termsNotice": "创建账户即表示您同意 <legal>/legal</legal> 下的所有政策。",
+    "back": "返回",
+    "continue": "继续",
+    "creatingAccount": "创建账户中…",
+    "createAccount": "创建账户",
+    "alreadyHaveAccount": "已有账户？",
+    "signIn": "登录",
+    "securityNote": "受后量子加密保护",
+    "requiredFieldsStep0": "请填写所有必填字段，并确保密码强度至少为中等。",
+    "requiredFieldsStep1": "请填写所有必填地址字段。",
+    "parentInviteHint": "如果您使用父级邀请注册，账单和电话信息如果留空，可以从父级账户继承。",
+    "captchaChallengeOrWait": "请完成验证码挑战，或稍等片刻让隐形验证码激活。",
+    "captchaExpired": "验证码未加载或已过期。请刷新验证码后重试。",
+    "invisibleCaptchaMissing": "隐形验证码令牌缺失。请尝试刷新页面。",
+    "registrationFailed": "注册失败"
+  },
+  "license": {
+    "translationNote": "这是许可证的原始法律约束版本。",
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[首页]",
+      "dashboard": "[仪表盘]"
+    },
+    "hero": {
+      "title": "社区许可协议",
+      "line1Prefix": "开源用于",
+      "line1Highlight": "非商业",
+      "line1Suffix": "用途。",
+      "line2Prefix": "商业权利保留给",
+      "line2Highlight": "EclipseSystems"
+    },
+    "terminal": {
+      "windowTitle": "终端",
+      "licenseLabel": "许可证：",
+      "licenseValue": "EclipseSystems 社区许可协议 v1.1",
+      "copyrightLabel": "版权：",
+      "copyrightValue": "© 2026 EclipseSystems (Misiu LLC)",
+      "stewardLabel": "管理者：",
+      "stewardValue": "Maksym Huzun (noname@ecli.app)",
+      "allowed": "允许非商业使用",
+      "forbidden": "商业使用保留"
+    },
+    "quick": {
+      "title": "快速参考",
+      "permittedTitle": "允许",
+      "permitted1": "查看、阅读和检查源代码",
+      "permitted2": "用于个人/教育项目",
+      "permitted3": "为非商业目的修改",
+      "permitted4": "研究和学术用途",
+      "permitted5": "创建非商业衍生作品",
+      "permitted6": "分享未修改的副本（非商业）",
+      "prohibitedTitle": "禁止",
+      "prohibited1": "商业托管或 SaaS 部署",
+      "prohibited2": "产生收入的服务",
+      "prohibited3": "生产环境业务部署",
+      "prohibited4": "使用该软件进行付费咨询",
+      "prohibited5": "为商业目的重新分发",
+      "prohibited6": "删除归属或许可声明",
+      "attributionTitle": "需要归属",
+      "attributionPrefix": "任何部署都必须包含对以下方的可见归属",
+      "attributionName1": "EclipseSystems",
+      "attributionAnd": "和",
+      "attributionName2": "Maksym Huzun",
+      "attributionSuffix": "并附带指向官方仓库的链接。这适用于前端和后端界面。"
+    },
+    "full": {
+      "title": "完整许可协议文本",
+      "docTitle": "EclipseSystems 社区许可协议 v1.1",
+      "docLine1": "Copyright (c) 2026 EclipseSystems",
+      "docLine2": "Misiu LLC 旗下项目",
+      "docLine3": "授权管理者：Maksym Huzun (noname@ecli.app)",
+      "sections": {
+        "definitions": {
+          "title": "1. 定义",
+          "body": "\"Software\" means the source code, documentation, and other materials\nprovided in this repository.\n\n\"User\" means any individual or organization accessing the Software.\n\n\"Non-Commercial Purpose\" means any use that is not intended for or\ndirected toward commercial advantage, monetary compensation, or\nrevenue-generating activity.\n\n\"Commercial Purpose\" means any use of the Software in a manner that\ngenerates revenue, provides paid services, is used in a business\ncontext, or is deployed in production environments.\n\n\"Authorized Stewards\" means EclipseSystems under Misiu LLC and\nindividuals explicitly designated by Maksym Huzun."
+        },
+        "grant": {
+          "title": "2. 权利授予",
+          "body": "Subject to the terms of this license, Users are granted a worldwide,\nnon-exclusive, royalty-free license to:\n\n  (a) view, read, and inspect the Software;\n  (b) use the Software for any Non-Commercial Purpose;\n  (c) modify the Software for Non-Commercial Purposes; and\n  (d) create and share Non-Commercial Derivative Works."
+        },
+        "nonCommercial": {
+          "title": "3. 非商业使用",
+          "body": "Non-profit organizations, educational institutions, researchers, and\nindividuals may use, modify, and run the Software for Non-Commercial\nPurposes without restriction."
+        },
+        "commercialReserved": {
+          "title": "4. 商业使用保留",
+          "body": "All rights to use, modify, host, deploy, sublicense, integrate, or\ndistribute the Software for Commercial Purposes are exclusively\nreserved to:\n\n  - EclipseSystems (a project under Misiu LLC), and\n  - Maksym Huzun (noname@ecli.app)\n\nNo other User is granted any commercial rights under any circumstances."
+        },
+        "redistribution": {
+          "title": "5. 重新分发",
+          "body": "Users may redistribute unmodified copies of the Software for\nNon-Commercial Purposes only, provided that:\n\n  (a) this license is included in full, and\n  (b) no fee is charged beyond reasonable distribution costs.\n\nRedistribution for Commercial Purposes is prohibited."
+        },
+        "derivative": {
+          "title": "6. 衍生作品",
+          "body": "Users may create, modify, and share Derivative Works for\nNon-Commercial Purposes only. Any Derivative Work must:\n\n  (a) include this license in full,\n  (b) clearly state that it is a derivative of the original Software,\n  (c) preserve all attribution notices required by Section 9."
+        },
+        "hosting": {
+          "title": "7. 托管和部署限制",
+          "body": "Users may not deploy, host, or make the Software (or any Derivative\nWork) publicly accessible as a service, cloud offering, or production\nsystem, except for Non-Commercial educational, research, or testing\ndemonstrations.\n\nAll commercial hosting and SaaS rights are exclusively reserved to\nEclipseSystems and Maksym Huzun."
+        },
+        "preservation": {
+          "title": "8. 许可协议保留",
+          "body": "This license and all copyright notices must be preserved in all copies,\nforks, or Derivative Works, except where explicitly exempted for\nAuthorized Stewards."
+        },
+        "attribution": {
+          "title": "9. 归属要求",
+          "body": "Any User deploying, running, or distributing the Software or any\nNon-Commercial Derivative Work must preserve and display a visible\ncopyright and license notice that:\n\n  (a) identifies EclipseSystems and/or Maksym Huzun as the copyright\n      holders,\n  (b) includes a reference or hyperlink directing back to the official\n      EclipseSystems project repository, and\n  (c) is reasonably accessible to end users in either the frontend\n      user interface, backend administrative interface, or both.\n\nThis attribution requirement does not apply to EclipseSystems under\nMisiu LLC or to Authorized Stewards designated by Maksym Huzun."
+        },
+        "termination": {
+          "title": "10. 终止",
+          "body": "Any violation of this license immediately and permanently terminates\nall rights granted herein. Upon termination, the User must cease all\nuse and destroy all copies of the Software."
+        },
+        "noWarranty": {
+          "title": "11. 无担保",
+          "body": "The Software is provided \"as is,\" without warranty of any kind,\nexpress or implied. In no event shall the copyright holders or\nAuthorized Stewards be liable for any claim, damages, or other\nliability arising from the use of the Software."
+        }
+      }
+    },
+    "faq": {
+      "title": "许可协议常见问题",
+      "q1": "我可以在学校项目中使用这个吗？",
+      "a1": "可以！教育及学术用途在本许可协议下完全允许。",
+      "q2": "我可以为个人学习修改代码吗？",
+      "a2": "当然可以。您可以为非商业目的查看、修改和实验代码。",
+      "q3": "我可以将其作为付费服务托管吗？",
+      "a3": "不可以。商业托管、SaaS 部署和产生收入的服务专属于 EclipseSystems 和 Maksym Huzun。",
+      "q4": "开源贡献呢？",
+      "a4": "我们欢迎贡献！请查看我们在 GitHub 上的贡献指南了解如何参与。",
+      "q5": "我可以在我的创业/业务中使用这个吗？",
+      "a5": "未经明确许可不可以。所有商业使用权均被保留。请联系 noname@ecli.app 咨询商业许可。",
+      "q6": "如果我违反了许可协议会怎样？",
+      "a6": "任何违反行为将立即终止您的许可。您必须停止所有使用并销毁本软件的所有副本。"
+    },
+    "contact": {
+      "title": "有疑问？",
+      "heading": "需要商业访问？",
+      "body": "有兴趣将 EcliPanel 或其资产用于您的业务？我们提供商业许可和企业支持。联系我们讨论您的需求以及我们如何帮助您将 EcliPanel 用于您的商业项目。",
+      "contactCommercial": "contact_commercial()",
+      "viewSource": "view_source()"
+    }
+  },
+  "forgotPasswordPage": {
+    "title": "重置密码",
+    "subtitle": "Enter your email and we’ll send a reset link.",
+    "emailPlaceholder": "邮箱",
+    "sending": "发送中…",
+    "sendResetEmail": "发送重置邮件",
+    "backToSignIn": "返回登录",
+    "messages": {
+      "sent": "如果该邮箱存在，您将很快收到密码重置说明。"
+    },
+    "errors": {
+      "enterEmail": "请输入您的邮箱地址",
+      "requestFailed": "请求密码重置失败"
+    }
+  },
+  "restoreEmailPage": {
+    "title": "正在恢复您之前的邮箱",
+    "redirecting": "请稍候 - 您很快将被重定向。",
+    "notRedirectedPrefix": "如果您没有被重定向，",
+    "clickHere": "点击此处",
+    "loading": "加载中…",
+    "errors": {
+      "missingToken": "缺少恢复令牌。"
+    }
+  },
+  "verifyEmailPage": {
+    "title": "正在验证您的邮箱",
+    "redirecting": "请稍候 - 您很快将被重定向。",
+    "notRedirectedPrefix": "如果您没有被重定向，",
+    "clickHere": "点击此处",
+    "loading": "加载中…",
+    "errors": {
+      "missingToken": "缺少验证令牌。"
+    }
+  },
+  "organisationAcceptPage": {
+    "title": "接受组织邀请",
+    "actions": {
+      "acceptInvite": "接受邀请"
+    },
+    "messages": {
+      "accepted": "邀请已接受。正在重定向...",
+      "failed": "接受邀请失败"
+    }
+  },
+  "publicFormPage": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "首页",
+      "dashboard": "仪表盘",
+      "login": "登录"
+    },
+    "badges": {
+      "active": "活跃",
+      "closed": "已关闭",
+      "archived": "已归档",
+      "publicAnonymous": "公开",
+      "publicUsers": "用户",
+      "privateInvite": "仅限邀请"
+    },
+    "loading": {
+      "title": "加载表单中...",
+      "subtitle": "从服务器获取表单数据..."
+    },
+    "errorState": {
+      "title": "表单未找到",
+      "subtitle": "无法找到请求的表单。它可能已被移除或链接不正确。",
+      "returnHome": "返回首页",
+      "goDashboard": "前往仪表盘"
+    },
+    "success": {
+      "title": "提交于",
+      "value": "您的提交已收到并排队等待审核。",
+      "submitAgain": "再次提交",
+      "navigateHome": "返回首页"
+    },
+    "warnings": {
+      "authRequired": "此表单需要面板账户。",
+      "login": "登录以继续",
+      "anonymousInfo": "匿名提交每个 IP 每小时限制一次。请在下方提供您的邮箱以接收后续通知。",
+      "formClosed": "表单已关闭",
+      "formClosedDetail": "此表单不再接受提交。"
+    },
+    "contactEmail": {
+      "label": "联系邮箱（可选）",
+      "placeholder": "you@example.com",
+      "help": "提供邮箱以接收有关您提交的更新。"
+    },
+    "progress": {
+      "label": "完成度"
+    },
+    "questions": {
+      "none": "此表单未配置问题。"
+    },
+    "actions": {
+      "transmitting": "提交中...",
+      "submit": "提交",
+      "navigateHome": "返回首页",
+      "loginRequired": "需要登录才能提交"
+    },
+    "messages": {
+      "transmitted": "提交已成功传输。"
+    },
+    "errors": {
+      "formUnavailable": "表单未找到或不可访问",
+      "questionRequired": "问题 \"{question}\" 为必填项",
+      "submitFailed": "提交失败",
+      "validationTitle": "验证错误"
+    },
+    "footer": {
+      "questions": "有疑问？发送邮件至",
+      "orReturn": "或返回",
+      "home": "首页"
+    }
+  },
+  "resetPasswordPage": {
+    "title": "设置您的新密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认密码",
+    "resetting": "重置中...",
+    "resetPassword": "重置密码",
+    "backToSignIn": "返回登录",
+    "messages": {
+      "updated": "密码更新成功。正在重定向到登录..."
+    },
+    "errors": {
+      "fillBoth": "请填写两个密码字段",
+      "noMatch": "密码不匹配",
+      "failed": "重置密码失败"
+    }
+  },
+  "dashboardPage": {
+    "authInProgress": "认证进行中...",
+    "header": {
+      "title": "SOC 仪表盘",
+      "description": "安全运营中心概览"
+    },
+    "stats": {
+      "yourServersOnline": "您的在线服务器",
+      "others": "其他 {online}/{total}",
+      "totalServersOnline": "在线服务器总数",
+      "threatLevel": "威胁等级",
+      "elevated": "升高",
+      "low": "低",
+      "alertsDetected": "检测到 {count} 个警报",
+      "noThreats": "未检测到活跃威胁",
+      "uptime": "正常运行时间",
+      "totalUptime": "总计：{value}%",
+      "noServers": "无服务器"
+    },
+    "serverHealth": {
+      "title": "服务器健康状态",
+      "description": "实时资源利用率",
+      "noServersOnline": "没有在线服务器",
+      "yourServers": "您的服务器",
+      "otherServers": "其他服务器"
+    },
+    "resourceSummary": {
+      "title": "资源摘要",
+      "avgCpu": "平均 CPU",
+      "totalRam": "总内存",
+      "totalDisk": "总磁盘",
+      "serversOnline": "在线服务器"
+    },
+    "recentActivity": {
+      "title": "最近活动",
+      "empty": "没有可用的最近活动。"
+    },
+    "securityAlerts": {
+      "title": "安全警报",
+      "description": "最近的安全事件和通知",
+      "noneTitle": "无安全警报",
+      "noneSubtitle": "所有系统运行正常",
+      "eventDetected": "检测到安全事件",
+      "server": "服务器",
+      "unknown": "未知"
+    },
+    "warnings": {
+      "nodeIssueTitle": "{node} 当前遇到问题",
+      "nodesIssueTitle": "部分节点当前遇到问题",
+      "nodeIssueDescription": "此节点上的服务器可能不可用或无响应。",
+      "nodesIssueDescription": "以下节点上的服务器可能不可用或无响应：{nodes}。",
+      "learnMore": "在 /status 了解更多"
+    },
+    "securityFindings": {
+      "title": "安全发现",
+      "description": "自动化漏洞和安全态势扫描结果",
+      "scan": "运行扫描",
+      "scanning": "扫描中...",
+      "empty": "未检测到安全发现",
+      "emptyDescription": "所有系统通过安全检查",
+      "totalOpen": "{count} 个未解决",
+      "severity": {
+        "critical": "严重",
+        "high": "高",
+        "medium": "中等",
+        "low": "低",
+        "info": "信息"
+      },
+      "categories": {
+        "login_anomaly": "登录异常",
+        "server_posture": "服务器安全态势",
+        "access_control": "访问控制",
+        "resource_anomaly": "资源异常",
+        "node_security": "节点安全",
+        "image_security": "镜像安全",
+        "intrusion_detection": "入侵检测",
+        "malware": "恶意软件",
+        "policy_violation": "策略违规",
+        "configuration": "配置",
+        "other": "其他"
+      },
+      "actions": {
+        "acknowledge": "确认",
+        "resolve": "解决",
+        "falsePositive": "误报"
+      },
+      "source": {
+        "internal": "内部扫描",
+        "external": "外部代理"
+      }
+    }
+  },
+  "adminPage": {
+    "header": {
+      "title": "员工门户",
+      "description": "系统管理与维护"
+    },
+    "actions": {
+      "cancel": "取消",
+      "confirm": "确认",
+      "working": "工作中…",
+      "confirmReveal": "确认以显示",
+      "rehidePrivateData": "隐藏私密数据",
+      "open": "开启"
+    },
+    "privacy": {
+      "sensitiveDataPrefix": "敏感数据当前",
+      "hidden": "已隐藏",
+      "visible": "已显示",
+      "confirmationTitle": "隐私确认",
+      "confirmationDescription": "This admin panel contains private user data (names, emails, IDs), which is prohibited from being shared with third parties (see NDA).\nTo proceed, please confirm that you are not recording your screen or sharing it.",
+      "continueWithRedaction": "保持私密数据隐藏",
+      "notRecording": "显示私密数据",
+      "keepPrivateDataHidden": "保持私密数据隐藏",
+      "revealPrivateData": "显示私密数据"
+    },
+    "globalSearch": {
+      "title": "全局搜索",
+      "placeholder": "按 ID/名称/邮箱搜索用户、组织、服务器、订单...",
+      "clearSearch": "清除搜索",
+      "searching": "搜索中...",
+      "hint": "输入查询以跨用户、组织、服务器和订单进行搜索。",
+      "noMatches": "未找到匹配项",
+      "users": "用户 ({count})",
+      "organisations": "组织 ({count})",
+      "servers": "服务器 ({count})",
+      "orders": "订单 ({count})",
+      "orderFallback": "排序",
+      "forUser": "用户 #{id}"
+    },
+    "tabs": {
+      "overview": "概览",
+      "users": "用户",
+      "metrics": "指标",
+      "exportJobs": "导出任务",
+      "organisations": "组织",
+      "servers": "服务器",
+      "tickets": "工单",
+      "applications": "申请",
+      "kyc": "KYC",
+      "deletions": "删除请求",
+      "nodes": "节点",
+      "eggs": "模板",
+      "aiModels": "AI 模型",
+      "announcements": "公告",
+      "outboundEmails": "外发邮件",
+      "antiabuse": "反滥用",
+      "fraud": "欺诈",
+      "roles": "角色",
+      "shortUrls": "短链接",
+      "logs": "日志",
+      "oauth": "OAuth",
+      "databases": "数据库",
+      "plans": "套餐",
+      "orders": "订单",
+      "payments": "支付方式",
+      "coupons": "优惠券",
+      "settings": "设置",
+      "tunnels": "隧道",
+      "rollouts": "发布",
+      "audit": "审计",
+      "feedback": "反馈",
+      "chat": "聊天"
+    },
+    "shortUrls": {
+      "overview": {
+        "title": "短链接",
+        "description": "创建和管理 ecli.app 和 ecli.app/a/ 的短重定向代码。",
+        "count": "{count} 总计",
+        "activeCount": "{count} 个活跃"
+      },
+      "editor": {
+        "editTitle": "编辑短链接",
+        "createTitle": "创建新短链接",
+        "description": "短重定向可以指向内部或外部目标。"
+      },
+      "list": {
+        "title": "活跃的短链接",
+        "description": "点击条目以编辑或删除。",
+        "loading": "加载短链接中...",
+        "empty": "尚未创建任何短链接。",
+        "active": "活跃",
+        "inactive": "非活跃"
+      },
+      "fields": {
+        "code": "短代码",
+        "codePlaceholder": "输入类似 'launch' 的代码",
+        "codeHint": "代码支持字母、数字、短横线和下划线。",
+        "prefix": "短链接前缀",
+        "optionA": "前缀为 /a/",
+        "optionRoot": "根路径",
+        "targetUrl": "目标 URL",
+        "targetPlaceholder": "https://example.com/page",
+        "targetHint": "使用绝对 URL 或根相对路径。"
+      },
+      "actions": {
+        "create": "创建短链接",
+        "update": "更新短链接",
+        "cancel": "取消",
+        "confirmDelete": "删除此短链接？"
+      },
+      "errors": {
+        "failedLoad": "加载短链接失败。",
+        "failedSave": "保存短链接失败。",
+        "failedDelete": "删除短链接失败。",
+        "missingFields": "代码和目标 URL 为必填项。"
+      }
+    },
+    "tunnelsTab": {
+      "header": {
+        "title": "隧道",
+        "description": "管理隧道设备和公共分配"
+      },
+      "sections": {
+        "devices": "设备",
+        "devicesDescription": "查看并批准待处理的隧道代理。",
+        "allocations": "分配",
+        "allocationsDescription": "监控活跃隧道端点并关闭分配。"
+      },
+      "labels": {
+        "deviceCode": "设备代码",
+        "userCode": "用户代码",
+        "name": "名称",
+        "kind": "类型",
+        "serverType": "服务器类型",
+        "organisation": "组织",
+        "approved": "已批准",
+        "lastSeen": "最后在线",
+        "created": "创建时间",
+        "actions": "操作",
+        "id": "ID",
+        "publicEndpoint": "公共端点",
+        "localTarget": "本地目标",
+        "status": "状态",
+        "clientDevice": "客户端设备",
+        "serverDevice": "服务器设备",
+        "updated": "更新时间"
+      },
+      "serverTypes": {
+        "free": "免费",
+        "paid": "已付款",
+        "freeAndPaid": "免费与付费",
+        "enterprise": "企业"
+      },
+      "serverOrg": {
+        "noOrg": "无组织"
+      },
+      "actions": {
+        "refresh": "刷新",
+        "approve": "批准",
+        "close": "关闭"
+      },
+      "states": {
+        "yes": "是",
+        "no": "否",
+        "approved": "已批准",
+        "closed": "已关闭",
+        "loading": "加载中…",
+        "noDevices": "未找到隧道设备。",
+        "noAllocations": "未找到分配。",
+        "devices": "设备",
+        "allocations": "分配",
+        "failedToLoad": "加载隧道数据失败。",
+        "failedToApprove": "无法批准设备。",
+        "failedToClose": "无法关闭分配。"
+      }
+    },
+    "adminOutboundEmails": {
+      "searchPlaceholder": "按收件人、主题或正文搜索...",
+      "userFilterPlaceholder": "按用户筛选...",
+      "statusAll": "所有状态",
+      "statusQueued": "已排队",
+      "statusSent": "已发送",
+      "statusFailed": "失败",
+      "searchButton": "搜索",
+      "columnId": "ID",
+      "columnUser": "用户",
+      "columnFrom": "发件人",
+      "columnTo": "To",
+      "columnSubject": "主题",
+      "columnStatus": "状态",
+      "columnSentAt": "Sent At",
+      "columnActions": "操作",
+      "viewButton": "查看",
+      "viewTitle": "外发邮件 #{id}",
+      "viewFrom": "发件人：",
+      "viewTo": "收件人：",
+      "viewSubject": "主题：",
+      "viewFailure": "失败原因：",
+      "messageId": "消息 ID：",
+      "createdAt": "创建时间：",
+      "close": "关闭",
+      "loading": "加载中...",
+      "noResults": "未找到外发邮件。",
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "editDialog": {
+      "fields": {
+        "environmentVariables": "环境变量",
+        "resetEnvironment": "重置",
+        "addVariable": "添加变量",
+        "variableName": "变量名",
+        "variableValue": "变量值",
+        "readOnly": "只读",
+        "noEnvironmentVariables": "未定义环境变量。"
+      }
+    }
+  },
+  "adminAntiAbuseTab": {
+    "header": {
+      "title": "反滥用事件",
+      "subtitle": "最近的检测结果及 AI 风险分类"
+    },
+    "search": {
+      "placeholder": "按服务器、节点、IP、检测类型搜索..."
+    },
+    "summary": {
+      "total": "事件总数",
+      "highRisk": "高风险 (80+)",
+      "suspended": "已暂停",
+      "liveFeed": "来自反滥用守护进程的实时数据",
+      "activeAgents": "活跃代理"
+    },
+    "agents": {
+      "title": "运行中的反滥用代理",
+      "none": "未检测到活跃的反滥用代理",
+      "lastSeenAgo": "{seconds}秒前在线",
+      "justNow": "刚刚",
+      "secondsAgo": "{count}秒前",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前"
+    },
+    "table": {
+      "server": "服务器",
+      "detection": "检测",
+      "risk": "风险",
+      "status": "状态",
+      "time": "时间",
+      "actions": "操作"
+    },
+    "filters": {
+      "sort": "排序方式",
+      "sortRisk": "AI 风险",
+      "sortCreated": "创建时间",
+      "order": "排序",
+      "desc": "降序",
+      "asc": "升序",
+      "minRisk": "最低风险"
+    },
+    "labels": {
+      "risk": "风险",
+      "detection": "检测",
+      "action": "操作",
+      "strikes": "警告次数",
+      "time": "时间",
+      "source": "来源",
+      "target": "目标",
+      "suspend": "已暂停",
+      "suspended": "已暂停",
+      "aiAction": "AI 操作",
+      "status": "状态",
+      "attachedCandidates": "关联的候选服务器",
+      "id": "ID"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "apply": "应用",
+      "markSolved": "标记已解决",
+      "details": "详情",
+      "dismiss": "忽略",
+      "delete": "删除",
+      "selectAllVisible": "选择可见",
+      "clearSelection": "清除选择",
+      "bulkResolve": "解决 ({count})",
+      "bulkDismiss": "拒绝 ({count})",
+      "bulkArchive": "归档 ({count})",
+      "bulkDelete": "删除 ({count})"
+    },
+    "confirm": {
+      "deleteOne": "删除此事件？此操作不可撤销。",
+      "bulkDelete": "删除 {count} 个选定事件？此操作不可撤销。"
+    },
+    "states": {
+      "loading": "加载事件中…",
+      "empty": "当前筛选条件下未找到事件",
+      "saving": "保存中..."
+    },
+    "bulk": {
+      "selected": "已选择"
+    },
+    "riskLevels": {
+      "critical": "严重",
+      "high": "高",
+      "medium": "中等",
+      "low": "低",
+      "none": "N/A"
+    },
+    "status": {
+      "pending": "待处理",
+      "resolved": "已解决",
+      "dismissed": "已忽略",
+      "archived": "已归档"
+    },
+    "pagination": {
+      "page": "页",
+      "of": "/",
+      "total": "{count} 总计",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "common": {
+      "unknownServer": "未知服务器",
+      "noReason": "未提供原因",
+      "yes": "是",
+      "no": "否",
+      "pending": "待处理",
+      "na": "N/A"
+    }
+  },
+  "adminExportJobsTab": {
+    "title": "导出任务队列",
+    "common": {
+      "na": "N/A"
+    },
+    "meta": {
+      "runner": "运行器",
+      "nextRun": "下次运行",
+      "lastRun": "上次运行",
+      "expiresAt": "过期时间"
+    },
+    "table": {
+      "user": "用户",
+      "status": "状态",
+      "progress": "进度",
+      "created": "创建时间",
+      "updated": "更新时间",
+      "actions": "操作"
+    },
+    "states": {
+      "empty": "暂无导出任务。"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "download": "下载",
+      "generating": "生成中…",
+      "createShareLink": "创建分享链接",
+      "copyShareLink": "复制分享链接",
+      "copy": "复制"
+    }
+  },
+  "adminUsersTab": {
+    "common": {
+      "user": "用户",
+      "avatar": "头像"
+    },
+    "search": {
+      "placeholder": "按姓名或邮箱搜索用户…",
+      "moreResults": "更多结果",
+      "totalUsers": "{count} 个用户"
+    },
+    "table": {
+      "user": "用户",
+      "role": "角色",
+      "tier": "等级",
+      "verification": "验证",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "verification": {
+      "email": "邮箱",
+      "student": "学生",
+      "id": "ID"
+    },
+    "status": {
+      "active": "活跃",
+      "suspended": "已暂停",
+      "supportBanned": "支持封禁",
+      "banned": "已封禁"
+    },
+    "states": {
+      "loading": "加载用户中…",
+      "noMatch": "没有匹配您搜索的用户"
+    },
+    "pagination": {
+      "page": "页",
+      "of": "/",
+      "total": "{count} 总计"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "viewProfile": "查看资料",
+      "editUser": "编辑用户",
+      "view": "查看",
+      "edit": "编辑",
+      "suspend": "暂停",
+      "unsuspend": "恢复",
+      "startExportJob": "开始导出任务",
+      "download": "下载",
+      "deassignStudent": "取消学生身份",
+      "requireReverify": "要求重新验证",
+      "deleteAccount": "删除账户",
+      "previous": "上一页",
+      "next": "下一页"
+    }
+  },
+  "adminTicketsTab": {
+    "common": {
+      "dash": "—"
+    },
+    "filters": {
+      "all": "全部",
+      "open": "开启",
+      "awaitingReply": "等待回复",
+      "replied": "已回复",
+      "closed": "已关闭",
+      "archived": "已归档",
+      "aiHandled": "AI 处理"
+    },
+    "search": {
+      "placeholder": "按用户 ID 或邮箱搜索…"
+    },
+    "priority": {
+      "label": "优先级",
+      "any": "任意优先级",
+      "urgent": "紧急",
+      "high": "高",
+      "medium": "中等",
+      "low": "低"
+    },
+    "selection": {
+      "selected": "已选择 {count}",
+      "selectAll": "全选",
+      "totalTickets": "{count} 个工单",
+      "confirmArchive": "归档 {count} 个工单？",
+      "confirmUnarchive": "取消归档 {count} 个工单？"
+    },
+    "table": {
+      "ticket": "工单",
+      "user": "用户",
+      "department": "部门",
+      "assigned": "已分配",
+      "priority": "优先级",
+      "status": "状态",
+      "created": "创建时间",
+      "actions": "操作"
+    },
+    "states": {
+      "loading": "加载工单中…",
+      "noMatch": "没有匹配您筛选条件的工单"
+    },
+    "status": {
+      "opened": "已开启",
+      "awaitingStaffReply": "等待员工回复",
+      "replied": "已回复",
+      "closed": "已关闭",
+      "archived": "已归档"
+    },
+    "pagination": {
+      "page": "页",
+      "of": "/",
+      "total": "{count} 总计"
+    },
+    "dialog": {
+      "replyTitle": "Reply — #{id}",
+      "conversation": "对话",
+      "supportTeam": "支持团队",
+      "userId": "用户 #{id}",
+      "noMessages": "无消息",
+      "yourReply": "您的回复",
+      "typeReply": "输入您的回复…",
+      "replyAs": "回复身份",
+      "staff": "员工",
+      "user": "用户",
+      "assignedStaff": "已分配员工",
+      "searchStaff": "按姓名、邮箱或 ID 搜索员工",
+      "setStatus": "设置状态"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "reset": "重置",
+      "archive": "归档",
+      "unarchive": "取消归档",
+      "reply": "回复",
+      "open": "开启",
+      "openInNewTab": "在新标签页中打开",
+      "previous": "上一页",
+      "next": "下一页",
+      "cancel": "取消",
+      "sending": "发送中…",
+      "sendReply": "发送回复"
+    }
+  },
+  "adminOrdersTab": {
+    "header": {
+      "title": "订单",
+      "subtitle": "管理套餐和资源包",
+      "orderCount": "{count} 个订单"
+    },
+    "common": {
+      "orderId": "订单 #{id}",
+      "userId": "用户 #{id}",
+      "planId": "套餐 #{id}",
+      "dash": "—",
+      "none": "— 无 —",
+      "infinity": "∞",
+      "lifetime": "永久"
+    },
+    "search": {
+      "placeholder": "按用户 ID 或邮箱搜索…"
+    },
+    "table": {
+      "order": "排序",
+      "user": "用户",
+      "amount": "金额",
+      "status": "状态",
+      "dates": "Dates",
+      "created": "创建时间",
+      "expires": "过期于 {date}",
+      "expiresShort": "过期时间",
+      "actions": "操作"
+    },
+    "status": {
+      "active": "active",
+      "pending": "待处理",
+      "cancelled": "cancelled",
+      "expired": "expired",
+      "awaitingPayment": "awaiting payment",
+      "paymentSent": "payment sent"
+    },
+    "states": {
+      "loading": "加载订单中…",
+      "emptyTitle": "暂无订单",
+      "emptySubtitle": "发放订单以为用户分配套餐或资源包。"
+    },
+    "pagination": {
+      "page": "页",
+      "of": "/",
+      "total": "{count} 总计"
+    },
+    "issueDialog": {
+      "title": "发放订单",
+      "userRequired": "用户 *",
+      "searchUser": "按姓名或邮箱搜索",
+      "description": "描述",
+      "descriptionPlaceholder": "e.g. Monthly hosting plan",
+      "planOptional": "套餐（可选）",
+      "amount": "金额 ({currency})",
+      "issueStatus": "发放状态：",
+      "pendingUnpaid": "待处理（未支付）",
+      "taxPreview": "税费预览",
+      "expiresOptional": "过期时间（可选）",
+      "notes": "备注",
+      "notesPlaceholder": "内部备注",
+      "lifetime": "永久（一次付费，无需续费）"
+    },
+    "applyPlanDialog": {
+      "title": "为用户 #{id} 应用套餐",
+      "planRequired": "套餐 *",
+      "selectPlan": "— 选择套餐 —",
+      "servers": "servers",
+      "expiresOptional": "过期时间（可选）",
+      "assignOrgOptional": "分配给组织 ID（可选）",
+      "assignOrgPlaceholder": "留空则仅用户",
+      "assignOrgHint": "如果设置，组织的等级也将升级为企业版。",
+      "notesInternal": "备注（内部）",
+      "notesPlaceholder": "例如：试用期",
+      "lifetime": "永久（一次付费，无需续费）"
+    },
+    "editDialog": {
+      "editOrder": "编辑订单",
+      "editOrderId": "编辑订单 #{id}",
+      "description": "修改订单详情或更改状态。",
+      "fields": {
+        "description": "描述",
+        "amount": "金额 ({currency})",
+        "planId": "套餐 ID",
+        "notes": "备注",
+        "expiresAt": "过期时间",
+        "status": "状态"
+      }
+    },
+    "actions": {
+      "refresh": "刷新",
+      "issueOrder": "发放订单",
+      "issue": "发放",
+      "editOrder": "编辑订单",
+      "cancelOrder": "取消订单",
+      "deleteOrder": "删除订单",
+      "confirmPayment": "确认付款",
+      "rejectPayment": "拒绝付款",
+      "confirm": "确认",
+      "reject": "拒绝",
+      "suspendUser": "暂停用户",
+      "edit": "编辑",
+      "cancel": "取消",
+      "previous": "上一页",
+      "next": "下一页",
+      "issuing": "发放中…",
+      "applying": "应用中…",
+      "saving": "保存中…",
+      "applyPlan": "应用套餐",
+      "saveChanges": "保存更改",
+      "downloadInvoice": "下载发票",
+      "invoice": "发票"
+    }
+  },
+  "adminVerificationsTab": {
+    "common": {
+      "user": "用户",
+      "avatar": "头像"
+    },
+    "header": {
+      "title": "身份验证",
+      "subtitle": "审核提交的 KYC 文件",
+      "pendingCount": "{count} 个待处理"
+    },
+    "filters": {
+      "all": "全部",
+      "pending": "待处理",
+      "verified": "已验证",
+      "failed": "失败"
+    },
+    "table": {
+      "user": "用户",
+      "status": "状态",
+      "documents": "文件",
+      "actions": "操作"
+    },
+    "documents": {
+      "idDoc": "身份证件",
+      "idDocument": "身份证件",
+      "selfie": "自拍",
+      "none": "无文件",
+      "tapToPreview": "点击预览",
+      "noneUploaded": "未上传文件"
+    },
+    "status": {
+      "pending": "待处理",
+      "pendingReview": "待审核",
+      "verified": "已验证",
+      "failed": "失败"
+    },
+    "states": {
+      "noneFound": "未找到验证请求",
+      "noMatch": "没有匹配此筛选条件的验证"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "approve": "批准",
+      "reject": "拒绝",
+      "revoke": "撤销",
+      "revokeVerification": "撤销验证",
+      "delete": "删除",
+      "deleteRecord": "删除记录和文件"
+    }
+  },
+  "adminAnnouncementsTab": {
+    "header": {
+      "title": "公告",
+      "subtitle": "发送产品更新和平台公告"
+    },
+    "compose": {
+      "title": "撰写",
+      "subject": "主题",
+      "subjectPlaceholder": "例如：平台维护通知",
+      "message": "消息",
+      "markdownSupported": "支持 Markdown",
+      "messagePlaceholder": "撰写您的公告…",
+      "characters": "{count} 个字符",
+      "minRead": "约 {minutes} 分钟阅读",
+      "forceTitle": "强制发送给所有人",
+      "forceSubtitle": "覆盖用户邮件偏好设置",
+      "forceWarning": "这将向所有用户发送邮件，无论他们的通知偏好如何。",
+      "excludeSuspendedTitle": "不发送给已暂停用户",
+      "excludeSuspendedSubtitle": "跳过账户已暂停的用户"
+    },
+    "preview": {
+      "title": "邮件预览",
+      "live": "实时预览",
+      "subjectFallback": "公告主题",
+      "from": "发件人：Eclipse Systems",
+      "justNow": "刚刚",
+      "badge": "预览",
+      "note": "这是一个近似预览。最终渲染可能因邮件客户端而异。"
+    },
+    "alerts": {
+      "required": "主题和消息为必填项",
+      "testRequired": "测试发送需要主题和消息",
+      "testSent": "测试已发送 — {recipients} 个收件人",
+      "testFailed": "测试发送失败",
+      "testFailedWithReason": "测试发送失败：{reason}",
+      "confirmBroadcast": "将此公告发送给所有用户？这将根据强制选项遵守或覆盖偏好设置。",
+      "broadcastSent": "广播已发送 — {recipients} 个收件人",
+      "broadcastQueued": "广播已排队 — 正在后台发送。",
+      "broadcastFailed": "广播失败",
+      "broadcastFailedWithReason": "广播失败：{reason}"
+    },
+    "actions": {
+      "showPreview": "显示预览",
+      "hidePreview": "隐藏预览",
+      "sendTest": "发送测试",
+      "test": "测试",
+      "sendBroadcast": "发送广播",
+      "broadcast": "广播",
+      "tapToPreview": "点击预览邮件"
+    }
+  },
+  "adminFraudTab": {
+    "common": {
+      "dash": "—",
+      "error": "error"
+    },
+    "header": {
+      "title": "AI 欺诈检测",
+      "subtitle": "AI 扫描用户账单信息以发现可疑模式"
+    },
+    "filters": {
+      "hideSuspended": "隐藏已暂停",
+      "showSuspended": "显示已暂停/已处理的欺诈警报"
+    },
+    "states": {
+      "empty": "无欺诈警报 — 所有用户看起来正常",
+      "reasonRedacted": "敏感欺诈原因已隐藏"
+    },
+    "status": {
+      "suspended": "已暂停"
+    },
+    "fields": {
+      "address": "地址：",
+      "city": "城市：",
+      "country": "国家：",
+      "company": "公司：",
+      "phone": "电话：",
+      "detected": "已检测"
+    },
+    "alerts": {
+      "scanStarted": "全局欺诈扫描已启动 — 结果将很快可用。刷新标签页以查看更新。",
+      "scanComplete": "扫描完成 — {count} 个用户被标记",
+      "scanFailed": "扫描失败：{reason}",
+      "confirmDismissSelected": "忽略 {count} 个选定的欺诈警报？",
+      "dismissFailed": "忽略失败：{reason}",
+      "failed": "失败：{reason}",
+      "confirmSuspend": "暂停用户 {name}？",
+      "suspendReasonPrompt": "输入暂停原因（可选）：",
+      "rescanFailed": "重新扫描失败：{reason}"
+    },
+    "actions": {
+      "scanAllUsers": "扫描所有用户",
+      "scanningAll": "扫描所有…",
+      "selectAll": "全选",
+      "unselectAll": "取消全选",
+      "dismissSelected": "忽略选定 ({count})",
+      "dismissing": "忽略中…",
+      "dismiss": "忽略",
+      "suspend": "暂停",
+      "rescan": "重新扫描"
+    }
+  },
+  "adminDeletionsTab": {
+    "header": {
+      "title": "删除请求",
+      "subtitle": "审核并处理账户删除请求",
+      "pendingCount": "{count} 个待处理"
+    },
+    "filters": {
+      "all": "全部",
+      "pending": "待处理",
+      "pendingDeletion": "待删除",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "cancelled": "已取消",
+      "deleted": "已删除"
+    },
+    "table": {
+      "user": "用户",
+      "requested": "已请求",
+      "status": "状态",
+      "actions": "操作",
+      "timeElapsed": "已过时间"
+    },
+    "time": {
+      "today": "今天",
+      "yesterday": "昨天",
+      "daysAgo": "{count} 天前"
+    },
+    "states": {
+      "noneFound": "未找到删除请求",
+      "noMatch": "没有匹配此筛选条件的请求"
+    },
+    "status": {
+      "pending": "待处理",
+      "pendingReview": "待审核",
+      "pendingDeletion": "待删除",
+      "approved": "已批准",
+      "rejected": "已拒绝",
+      "cancelled": "已取消",
+      "deleted": "已删除",
+      "processed": "已处理",
+      "deletionProcessed": "删除已处理"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "approveDeletion": "批准删除",
+      "approveDelete": "批准删除",
+      "keepAccountTitle": "保留账户（拒绝删除）",
+      "keepAccount": "保留账户",
+      "deleteUserNow": "立即删除用户",
+      "deleteNow": "立即删除",
+      "dontDeleteUser": "不删除用户",
+      "dontDelete": "Don’t Delete",
+      "reconsiderTitle": "重新考虑 — 批准删除",
+      "reconsider": "重新考虑",
+      "reconsiderApprove": "重新考虑并批准"
+    }
+  },
+  "adminMetricsTab": {
+    "common": {
+      "dash": "—"
+    },
+    "header": {
+      "title": "全局指标",
+      "lastDays": "最近 {days} 天"
+    },
+    "errors": {
+      "loadFailed": "加载指标失败",
+      "clearFailed": "清除指标失败"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "clearCollectedMetrics": "清除收集的指标",
+      "clearing": "清除中…",
+      "confirmClear": "删除所有收集的指标数据？此操作不可撤销。"
+    },
+    "cards": {
+      "users": {
+        "title": "用户",
+        "new": "新增 {count}"
+      },
+      "registrationGrowth": {
+        "title": "注册增长",
+        "vsPrevious": "与前 {days} 天相比"
+      },
+      "organisations": {
+        "title": "组织",
+        "new": "新增 {count}"
+      },
+      "supportOrders": {
+        "title": "支持与订单",
+        "subtitle": "窗口内的工单/订单"
+      },
+      "servers": {
+        "title": "服务器",
+        "subtitle": "{online} 在线 · {moving} 迁移中 · {offline} 离线"
+      }
+    },
+    "serverStatus": {
+      "online": "在线",
+      "transitioning": "启动/停止中",
+      "offline": "离线"
+    },
+    "charts": {
+      "loading": "加载图表中…",
+      "userRegistrations": "用户注册",
+      "platformActivity": "平台活动",
+      "serverStatusLive": "服务器状态（实时）",
+      "legend": {
+        "registrations": "注册",
+        "organisations": "组织",
+        "tickets": "工单",
+        "orders": "订单"
+      }
+    }
+  },
+  "adminPlansTab": {
+    "header": {
+      "title": "套餐",
+      "subtitle": "为用户定义资源等级和定价。",
+      "planCount": "已配置 {count} 个套餐"
+    },
+    "common": {
+      "infinity": "∞",
+      "perMonth": "/月"
+    },
+    "resources": {
+      "ram": "RAM",
+      "disk": "磁盘",
+      "cpu": "CPU",
+      "servers": "服务器",
+      "dbs": "数据库",
+      "backups": "备份",
+      "tunnelPorts": "隧道端口数"
+    },
+    "types": {
+      "free": "免费",
+      "paid": "已付款",
+      "educational": "教育",
+      "enterprise": "企业"
+    },
+    "badges": {
+      "default": "默认",
+      "hiddenInBilling": "在账单中隐藏"
+    },
+    "states": {
+      "noPlans": "未配置套餐",
+      "noPlansSubtitle": "创建您的第一个套餐以为用户定义资源等级。"
+    },
+    "dialog": {
+      "newTitle": "新建套餐",
+      "editTitle": "Edit Plan",
+      "resourceLimits": "Resource Limits (leave blank for unlimited)",
+      "fields": {
+        "planName": "套餐名称 *",
+        "planNamePlaceholder": "例如：入门版",
+        "type": "类型",
+        "price": "价格 ({currency}/月)",
+        "description": "描述",
+        "descriptionPlaceholder": "套餐的简要描述",
+        "memoryMb": "内存 (MB)",
+        "memoryPlaceholder": "例如 2048",
+        "diskMb": "磁盘 (MB)",
+        "diskPlaceholder": "例如 10240",
+        "cpuPercent": "CPU (%)",
+        "cpuPlaceholder": "例如 100",
+        "serverLimit": "服务器限制",
+        "serverLimitPlaceholder": "例如 3",
+        "databases": "数据库",
+        "databasesPlaceholder": "例如 10",
+        "backups": "备份",
+        "backupsPlaceholder": "例如 20",
+        "portsPerServer": "Ports per Server",
+        "tunnelPortCount": "隧道端口数",
+        "accountDatabasesLimit": "账户数据库限制",
+        "accountBackupsLimit": "账户备份限制",
+        "setAsDefaultPlan": "设为默认套餐",
+        "hideFromBillingShowcases": "从账单展示中隐藏",
+        "billingPageFeatures": "账单页面功能（每行一个）",
+        "billingPageFeaturesPlaceholder": "e.g.\n3 Servers\n2048 MB RAM\n10 GB SSD\nPriority Support",
+        "billingPageFeaturesHint": "这些行将在用户的账单页面上显示为功能列表。"
+      }
+    },
+    "actions": {
+      "syncPortal": "同步门户",
+      "newPlan": "新建套餐",
+      "createFirstPlan": "创建第一个套餐",
+      "reapply": "重新应用",
+      "force": "强制",
+      "editPlan": "编辑套餐",
+      "deletePlan": "删除套餐",
+      "cancel": "取消",
+      "saving": "保存中…",
+      "saveChanges": "保存更改",
+      "createPlan": "创建套餐"
+    }
+  },
+  "adminOauthTab": {
+    "stats": {
+      "endpoints": "端点",
+      "scopes": "范围",
+      "grantTypes": "授权类型",
+      "pkce": "PKCE"
+    },
+    "sections": {
+      "discovery": "RFC 8414 Discovery",
+      "discoverySubtitle": "Services discover the server metadata automatically via this well-known URL:",
+      "endpointReference": "Endpoint Reference",
+      "scopeReference": "Scope Reference",
+      "authCodeFlow": "Authorization Code Flow (+ PKCE)",
+      "clientCredentialsFlow": "Client Credentials Flow (service-to-service)",
+      "tokenIntrospection": "Token Introspection (RFC 7662)",
+      "tokenLifetimes": "Token Lifetimes"
+    },
+    "table": {
+      "method": "Method",
+      "path": "路径",
+      "auth": "Auth",
+      "description": "描述"
+    },
+    "registeredApps": {
+      "title": "已注册的应用",
+      "registered": "注册于 {date}"
+    },
+    "states": {
+      "noApps": "暂无注册的 OAuth 应用。"
+    },
+    "createDialog": {
+      "title": "注册 OAuth 应用",
+      "appName": "应用名称 *",
+      "appNamePlaceholder": "我的 Eclipse 服务",
+      "description": "描述",
+      "descriptionPlaceholder": "可选描述",
+      "redirectUris": "重定向 URI",
+      "allowedScopes": "允许的范围",
+      "grantTypes": "授权类型"
+    },
+    "newSecretDialog": {
+      "title": "应用已创建 — 保存您的密钥",
+      "appName": "App Name",
+      "clientId": "客户端 ID",
+      "clientSecret": "客户端密钥",
+      "saved": "I’ve saved the secret"
+    },
+    "editDialog": {
+      "title": "编辑 OAuth 应用 — {name}",
+      "redirectUris": "重定向 URI",
+      "allowedScopes": "允许的范围",
+      "grantTypes": "授权类型"
+    },
+    "rotateDialog": {
+      "title": "轮换客户端密钥？"
+    },
+    "actions": {
+      "copy": "复制",
+      "newApp": "新建应用",
+      "deleteApp": "删除应用",
+      "edit": "编辑",
+      "rotateSecret": "轮换密钥",
+      "addUri": "添加 URI",
+      "cancel": "取消",
+      "creating": "创建中…",
+      "createApp": "创建应用",
+      "saving": "保存中…",
+      "saveChanges": "保存更改",
+      "rotating": "轮换中…"
+    }
+  },
+  "adminEggsTab": {
+    "header": {
+      "title": "服务器模板",
+      "eggCount": "已配置 {count} 个模板"
+    },
+    "table": {
+      "egg": "模板",
+      "dockerImage": "Docker 镜像",
+      "visibility": "可见性",
+      "actions": "操作"
+    },
+    "visibility": {
+      "visible": "可见",
+      "hidden": "已隐藏"
+    },
+    "states": {
+      "noEggs": "未配置模板",
+      "noEggsSubtitle": "创建新模板或导入模板以开始使用。"
+    },
+    "tabs": {
+      "basic": "基础",
+      "variables": "变量",
+      "processConfig": "进程配置",
+      "installScript": "安装脚本"
+    },
+    "fields": {
+      "name": "Name *",
+      "author": "作者",
+      "description": "描述",
+      "primaryDockerImage": "主 Docker 镜像 *",
+      "startupCommand": "启动命令 *",
+      "visibleToUsers": "对用户可见",
+      "launchRootless": "以无根模式启动",
+      "requiresKvm": "需要 KVM（为此模板启用 KVM 虚拟化）",
+      "stopCommand": "停止命令",
+      "installContainer": "安装容器",
+      "entrypoint": "入口点",
+      "installScript": "安装脚本",
+      "allowedPortals": "允许的门户",
+      "allowedPortalsHint": "为空时，此模板对所有门户可用。"
+    },
+    "importDialog": {
+      "title": "导入 Pterodactyl 模板",
+      "importedSuccessfully": "模板导入成功！",
+      "modes": {
+        "pasteJson": "粘贴 JSON",
+        "fetchFromUrl": "从 URL 获取"
+      },
+      "eggJson": "模板 JSON (PTDL_v1 或 PTDL_v2)",
+      "pasteHint": "粘贴从 Pterodactyl / Pelican 导出的完整模板 JSON。",
+      "rawJsonUrl": "原始 JSON URL",
+      "urlHint": "面板将在服务端获取此 URL。对于社区模板，请使用原始 GitHub URL。",
+      "preview": {
+        "image": "镜像",
+        "envVars": "环境变量",
+        "installIncluded": "包含安装脚本",
+        "processIncluded": "包含进程配置"
+      }
+    },
+    "dialog": {
+      "newTitle": "新建模板",
+      "editTitle": "编辑模板 — {name}"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "importEgg": "导入模板",
+      "import": "导入",
+      "newEgg": "新建模板",
+      "new": "新建",
+      "deleteAll": "全部删除",
+      "clear": "清除",
+      "editEgg": "编辑模板",
+      "syncToWings": "同步到 Wings",
+      "deleteEgg": "删除模板",
+      "copyImageName": "复制镜像名称",
+      "edit": "编辑",
+      "sync": "同步",
+      "done": "完成",
+      "cancel": "取消",
+      "importing": "导入中…",
+      "saving": "保存中…",
+      "createEgg": "创建模板",
+      "saveChanges": "保存更改"
+    }
+  },
+  "adminSettingsTab": {
+    "header": {
+      "title": "面板设置",
+      "subtitle": "配置注册、服务和访问限制"
+    },
+    "alerts": {
+      "failedToSaveSettings": "保存设置失败"
+    },
+    "sections": {
+      "quickToggles": "快速切换",
+      "featureFlags": "功能开关"
+    },
+    "toggles": {
+      "registration": {
+        "label": "注册",
+        "enabled": "新用户可以注册账户",
+        "disabled": "注册已阻止（返回 HTTP 503）"
+      },
+      "tempEmailFilter": {
+        "label": "临时邮箱过滤器",
+        "enabled": "一次性邮箱地址被阻止",
+        "disabled": "注册时允许一次性邮箱"
+      },
+      "classicCaptcha": {
+        "label": "经典验证码",
+        "enabled": "注册需要图片验证码",
+        "disabled": "经典验证码已禁用"
+      },
+      "invisibleCaptcha": {
+        "label": "隐形验证码",
+        "enabled": "基于行为的机器人检测已激活",
+        "disabled": "隐形验证码已禁用"
+      },
+      "gamblingMode": {
+        "label": "赌博模式",
+        "enabled": "基于主题的赌博行为已启用",
+        "disabled": "赌博功能已全局禁用"
+      }
+    },
+    "featureFlags": {
+      "ai": {
+        "label": "AI 服务",
+        "note": "AI 控制面和 LLM 模型"
+      },
+      "billing": {
+        "label": "账单系统",
+        "note": "订单与订阅管理"
+      },
+      "dns": {
+        "label": "DNS 管理",
+        "note": "组织 DNS 区域控制"
+      },
+      "ticketing": {
+        "label": "支持工单",
+        "note": "帮助台和聊天日志"
+      },
+      "applications": {
+        "label": "申请",
+        "note": "员工申请和滥用举报表单"
+      },
+      "oauth": {
+        "label": "OAuth 服务器",
+        "note": "OAuth 客户端和令牌服务"
+      },
+      "tunnels": {
+        "label": "隧道",
+        "note": "公共隧道仪表盘和转发控制"
+      },
+      "dedicatedIps": {
+        "label": "专用 IP",
+        "note": "为 KVM 服务器分配专用公共 IP"
+      },
+      "captcha": {
+        "label": "经典验证码",
+        "note": "基于图像的机器人防护"
+      },
+      "captchaInvisible": {
+        "label": "隐形验证码",
+        "note": "行为挑战系统"
+      },
+      "elo": {
+        "label": "ELO 排名",
+        "note": "社区投票和项目排名系统"
+      }
+    },
+    "gambling": {
+      "title": "赌博概率",
+      "info": "取值范围 0 到 1（例如 0.5 = 50% 几率）。更改会影响所有启用了赌博主题的用户。",
+      "luckyRollChance": "幸运掷骰几率",
+      "luckyRollHint": "奖励资源分配概率",
+      "powerDenyChance": "电源拒绝几率",
+      "powerDenyHint": "服务器电源操作失败率"
+    },
+    "registration": {
+      "titleEnabled": "注册通知",
+      "titleDisabled": "注册禁用消息",
+      "placeholderEnabled": "例如：这是开发版本。数据可能未经通知被重置。",
+      "placeholderDisabled": "例如：注册因系统维护暂时关闭。",
+      "hintEnabled": "在登录/注册页面上显示的可选信息横幅。",
+      "hintDisabled": "向尝试访问注册页面的用户显示。",
+      "unavailableTitle": "注册当前不可用"
+    },
+    "billing": {
+      "title": "账单货币和税务规则",
+      "currencyLabel": "货币 (ISO 代码)",
+      "currencyExamples": "示例：USD、EUR、GBP、JPY",
+      "quickExamples": "快速示例",
+      "taxRulesLabel": "税务规则（国家/组:百分比）",
+      "ageRulesLabel": "最低年龄规则",
+      "ageRulesHint": "使用国家代码、国家名称、EU、UK 或 default。每行一条规则。"
+    },
+    "geoRules": {
+      "title": "地理阻止规则",
+      "ruleCount": "{count} 条规则",
+      "noRules": "无规则",
+      "restrictionLevels": "限制级别",
+      "addRule": "添加规则",
+      "updateExisting": "这将更新 {country} 的现有规则",
+      "noMatchingCountries": "没有匹配的国家",
+      "blockedCount": "{count} 个国家被阻止",
+      "confirmRemoveAll": "删除所有 {count} 条地理阻止规则？",
+      "clearAll": "全部清除",
+      "noneConfigured": "未配置地理阻止规则",
+      "noneConfiguredHint": "在上方添加国家代码以限制访问",
+      "rawConfig": "原始配置值"
+    },
+    "geoMetrics": {
+      "title": "地理阻止影响和指标",
+      "loading": "加载指标中…",
+      "failedToLoad": "加载指标失败",
+      "levelGte1": "级别 ≥ 1",
+      "levelGte2": "级别 ≥ 2",
+      "levelGte3": "级别 ≥ 3",
+      "levelGte5": "级别 ≥ 5",
+      "level4": "级别 4",
+      "cards": {
+        "totalUsers": "总用户数",
+        "regBlocked": "注册阻止",
+        "idBlocked": "身份阻止",
+        "freeBlocked": "免费阻止",
+        "eduBlocked": "教育阻止",
+        "subuserOnly": "仅子用户"
+      },
+      "noMetrics": "无可用指标",
+      "noMetricsHint": "保存设置以生成影响指标"
+    },
+    "common": {
+      "advanced": "高级",
+      "required": "必填"
+    },
+    "actions": {
+      "saving": "保存中…",
+      "saveSettings": "保存设置",
+      "save": "保存"
+    },
+    "states": {
+      "changesSaved": "更改已保存",
+      "saved": "已保存"
+    }
+  },
+  "adminApplicationsTab": {
+    "states": {
+      "loadingApplicationForms": "加载申请表单中..."
+    },
+    "common": {
+      "error": "错误",
+      "dash": "—"
+    },
+    "errors": {
+      "loadApplicationsData": "加载申请数据失败",
+      "formTitleRequired": "表单标题为必填项",
+      "saveForm": "保存表单失败",
+      "deleteForm": "删除表单失败",
+      "createInvite": "创建邀请失败",
+      "revokeInvite": "撤销邀请失败",
+      "updateSubmission": "更新提交失败",
+      "deleteSubmission": "删除提交失败"
+    },
+    "confirm": {
+      "deleteFormWithSubmissions": "删除此表单及其所有提交？",
+      "deleteSubmission": "删除此提交？此操作不可撤销。",
+      "bulkDeleteSubmissions": "删除 {count} 个选定提交？此操作不可撤销。"
+    },
+    "forms": {
+      "title": "表单",
+      "searchPlaceholder": "按标题、描述、标识搜索表单...",
+      "noFormsYet": "暂无表单",
+      "noFormsMatch": "没有匹配您搜索的表单",
+      "tryDifferentSearch": "尝试不同的搜索词",
+      "createFirstForm": "创建您的第一个表单以开始使用",
+      "pendingCount": "{count} 个待处理",
+      "formsCount": "表单",
+      "formFallback": "表单 {id}"
+    },
+    "visibilityLabels": {
+      "publicAnonymous": "匿名",
+      "publicUsers": "用户",
+      "privateInvite": "仅限邀请"
+    },
+    "statusBadge": {
+      "active": "活跃",
+      "closed": "已关闭",
+      "archived": "已归档",
+      "pending": "待处理",
+      "accepted": "已接受",
+      "rejected": "已拒绝"
+    },
+    "status": {
+      "active": "活跃",
+      "closedViewOnly": "Closed (view-only)",
+      "archived": "已归档"
+    },
+    "questionTypes": {
+      "shortText": "短文本",
+      "longText": "长文本",
+      "email": "邮箱",
+      "number": "数字",
+      "singleSelect": "单选",
+      "multiSelect": "多选",
+      "checkbox": "复选框",
+      "date": "日期",
+      "url": "URL"
+    },
+    "questions": {
+      "title": "问题",
+      "questionFallback": "问题 {index}",
+      "shortLabel": "问"
+    },
+    "builder": {
+      "createForm": "创建表单",
+      "editForm": "编辑表单",
+      "titleRequired": "表单标题为必填项",
+      "types": {
+        "staffApplication": "员工申请",
+        "abuseReport": "滥用举报"
+      },
+      "visibility": {
+        "publicAnonymous": "公开（匿名）",
+        "publicUsers": "公开（用户）",
+        "privateInvite": "私有（仅限邀请）"
+      },
+      "fields": {
+        "formTitle": "表单标题",
+        "formTitlePlaceholder": "例如：版主申请",
+        "customSlug": "自定义标识",
+        "customSlugHint": "留空则从标题自动生成",
+        "customSlugPlaceholder": "例如：moderator-application",
+        "formType": "表单类型",
+        "visibility": "可见性",
+        "status": "状态",
+        "description": "描述",
+        "descriptionPlaceholder": "显示在表单顶部的可选介绍文本"
+      },
+      "questionFields": {
+        "label": "标签",
+        "labelPlaceholder": "Question {index} label",
+        "type": "类型",
+        "placeholder": "占位符",
+        "placeholderHint": "可选提示文本...",
+        "required": "必填",
+        "options": "选项",
+        "noOptionsYet": "暂无选项 — 在下方添加",
+        "optionInputPlaceholder": "输入选项并按回车..."
+      }
+    },
+    "invites": {
+      "title": "邀请链接",
+      "createNewInvite": "创建新邀请",
+      "noInviteLinks": "暂无邀请链接",
+      "inviteFallback": "邀请 #{id}",
+      "never": "从不",
+      "usageCount": "{used}/{max} 次使用",
+      "usageCountUnlimited": "{used} 次使用",
+      "fields": {
+        "label": "标签",
+        "emailOptional": "邮箱（可选）",
+        "maxUses": "最大使用次数",
+        "maxUsesHint": "留空则无限制",
+        "expiresHours": "过期时间（小时）",
+        "expiresHoursHint": "留空则不过期"
+      },
+      "placeholders": {
+        "label": "例如：张三的邀请",
+        "email": "user@example.com",
+        "maxUses": "例如 1",
+        "expiresHours": "例如 24"
+      }
+    },
+    "submissions": {
+      "title": "提交",
+      "searchAll": "搜索所有提交",
+      "searchIn": "搜索范围",
+      "noSubmissions": "无提交",
+      "noFiltered": "无 {status} 提交",
+      "willAppear": "提交将显示在此处",
+      "anonymous": "匿名",
+      "filters": {
+        "all": "全部",
+        "pending": "待处理",
+        "accepted": "已接受",
+        "rejected": "已拒绝",
+        "archived": "已归档"
+      }
+    },
+    "table": {
+      "form": "表单",
+      "type": "类型",
+      "visibility": "可见性",
+      "status": "状态",
+      "submissions": "提交",
+      "submitter": "提交者",
+      "submitted": "提交于",
+      "link": "链接",
+      "id": "ID",
+      "actions": "操作"
+    },
+    "labels": {
+      "pending": "待处理"
+    },
+    "pagination": {
+      "page": "页",
+      "of": "/",
+      "total": "总计：{count}",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "bulk": {
+      "selected": "已选择"
+    },
+    "actions": {
+      "newForm": "新建表单",
+      "copyLink": "复制链接",
+      "edit": "编辑",
+      "view": "查看",
+      "viewSubmissions": "查看提交",
+      "template": "模板",
+      "deleteForm": "删除表单",
+      "addQuestion": "添加问题",
+      "add": "添加",
+      "saving": "保存中...",
+      "updateForm": "更新表单",
+      "createForm": "创建表单",
+      "cancel": "取消",
+      "createInviteLink": "创建邀请链接",
+      "revoke": "撤销",
+      "copied": "已复制",
+      "copy": "复制",
+      "refresh": "刷新",
+      "accept": "接受",
+      "reject": "拒绝",
+      "archive": "归档",
+      "reset": "重置",
+      "delete": "删除",
+      "selectVisible": "选择可见",
+      "clearSelection": "清除选择",
+      "bulkDeleteSubmissions": "删除选定 ({count})"
+    }
+  },
+  "adminDatabaseHostsPanel": {
+    "header": {
+      "title": "数据库主机"
+    },
+    "errors": {
+      "passwordRequired": "Password is required",
+      "failedToSave": "保存失败",
+      "failedToDelete": "删除失败"
+    },
+    "states": {
+      "loading": "加载中...",
+      "connectionSuccessful": "连接成功",
+      "connectionFailed": "连接失败",
+      "emptyHosts": "未配置数据库主机。添加一个以允许服务器创建数据库。"
+    },
+    "form": {
+      "newTitle": "新建数据库主机",
+      "editTitle": "编辑数据库主机",
+      "fields": {
+        "name": "Name *",
+        "host": "主机 *",
+        "port": "端口",
+        "username": "用户名 *",
+        "password": "密码 *",
+        "passwordKeep": "密码（留空则保持不变）",
+        "linkedNodeId": "关联节点 ID（可选）",
+        "maxDatabases": "最大数据库数（0 = 无限制）"
+      },
+      "placeholders": {
+        "name": "生产环境 MySQL",
+        "host": "192.168.1.10",
+        "username": "panel_admin",
+        "linkedNodeId": "留空则适用于任何节点"
+      }
+    },
+    "row": {
+      "userPrefix": "用户：",
+      "nodePrefix": "节点",
+      "limitPrefix": "限制：",
+      "allNodes": "所有节点",
+      "unlimited": "无限制"
+    },
+    "actions": {
+      "addHost": "添加主机",
+      "saving": "保存中...",
+      "saveChanges": "保存更改",
+      "createHost": "创建主机",
+      "test": "测试",
+      "confirm": "确认",
+      "cancel": "取消"
+    }
+  },
+  "adminAiTab": {
+    "header": {
+      "title": "AI 模型",
+      "modelCount": "已配置 {count} 个模型"
+    },
+    "table": {
+      "model": "模型",
+      "type": "类型",
+      "status": "状态",
+      "tags": "标签",
+      "endpoints": "端点",
+      "actions": "操作"
+    },
+    "status": {
+      "active": "活跃",
+      "beta": "测试版",
+      "disabled": "已禁用"
+    },
+    "states": {
+      "noModels": "未配置 AI 模型",
+      "noModelsSubtitle": "添加模型以在整个面板中启用 AI 功能。"
+    },
+    "endpoints": {
+      "configured": "已配置 {count}",
+      "notSet": "未设置",
+      "endpointCount": "{count} 个端点",
+      "noEndpoints": "无端点"
+    },
+    "cooldowns": {
+      "title": "限流冷却",
+      "subtitle": "过去 24 小时内的 AI 端点限流事件",
+      "empty": "过去 24 小时内无限流冷却事件",
+      "wait": "等待 {seconds} 秒"
+    },
+    "assignDialog": {
+      "title": "Assign “{name}” to User",
+      "selectUser": "选择用户",
+      "searchPlaceholder": "输入姓名、邮箱或 ID 进行搜索",
+      "limitsHint": "限制（可选 — 留空则无限制）",
+      "tokenLimit": "令牌限制",
+      "tokenPlaceholder": "例如 100000",
+      "requestLimit": "请求限制",
+      "requestPlaceholder": "例如 500"
+    },
+    "modelDialog": {
+      "newTitle": "新建 AI 模型",
+      "editTitle": "编辑模型 — {name}",
+      "fields": {
+        "name": "名称",
+        "namePlaceholder": "gpt-4o",
+        "type": "类型",
+        "status": "状态",
+        "maxTokens": "最大令牌数",
+        "maxTokensPlaceholder": "4096",
+        "description": "描述",
+        "descriptionPlaceholder": "向用户显示的可选描述",
+        "tags": "标签",
+        "tagsPlaceholder": "逗号分隔的标签（例如 core, experimental）",
+        "tagsHint": "标签可用于为特殊用途标记模型。",
+        "endpointUrl": "端点 URL",
+        "endpointPlaceholder": "https://api.openai.com",
+        "apiKey": "API 密钥",
+        "apiKeyPlaceholder": "sk-...",
+        "fallbackEndpoints": "备用端点",
+        "fallbackEndpointPlaceholder": "https://api.groq.com",
+        "fallbackApiKeyPlaceholder": "API 密钥",
+        "fallbackIdPlaceholder": "ID（可选）",
+        "fallbackHint": "备用端点将在失败/限流时按顺序尝试。"
+      }
+    },
+    "common": {
+      "none": "无",
+      "dash": "—",
+      "unknown": "未知"
+    },
+    "actions": {
+      "newModel": "新建模型",
+      "new": "新建",
+      "refresh": "刷新",
+      "assignToUsers": "分配给用户",
+      "editModel": "编辑模型",
+      "deleteModel": "删除模型",
+      "assign": "分配",
+      "edit": "编辑",
+      "delete": "删除",
+      "cancel": "取消",
+      "assigning": "分配中…",
+      "assignAccess": "分配访问权限",
+      "remove": "移除",
+      "addEndpoint": "添加端点",
+      "saving": "保存中…",
+      "createModel": "创建模型",
+      "saveChanges": "保存更改"
+    }
+  },
+  "adminNodesTab": {
+    "header": {
+      "nodeCount": "已注册 {count} 个节点"
+    },
+    "types": {
+      "free": "免费",
+      "paid": "已付款",
+      "freeAndPaid": "免费 + 付费",
+      "enterprise": "企业"
+    },
+    "fields": {
+      "org": "组织",
+      "responseTimeLast120": "响应时间 · 最近 120 次 ping"
+    },
+    "states": {
+      "noNodes": "未注册节点",
+      "noNodesSubtitle": "添加 Wings 节点以开始托管服务器。",
+      "loading": "加载中…"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "syncToWings": "同步到 Wings",
+      "addNode": "添加节点",
+      "classify": "分类",
+      "viewWingsConfig": "查看 Wings config.yml",
+      "fullHistory": "完整历史 →",
+      "generate": "生成",
+      "copy": "复制",
+      "cancel": "取消",
+      "creating": "创建中…",
+      "generateTokenFirst": "首先生成令牌",
+      "createNode": "创建节点",
+      "done": "完成",
+      "saving": "保存中…",
+      "save": "保存",
+      "close": "关闭"
+    },
+    "addDialog": {
+      "title": "添加节点",
+      "configTitle": "Wings 配置",
+      "fields": {
+        "nodeName": "节点名称",
+        "nodeNamePlaceholder": "EU-1",
+        "nodeType": "节点类型",
+        "fqdn": "FQDN（域名或 IP）",
+        "fqdnPlaceholder": "wings.example.com",
+        "wingsPort": "Wings 端口",
+        "wingsPortPlaceholder": "8080",
+        "sftpPort": "SFTP 端口",
+        "sftpPortPlaceholder": "2022",
+        "ssl": "SSL",
+        "wingsDataDirectory": "Wings 数据目录",
+        "authToken": "认证令牌",
+        "authTokenPlaceholder": "点击生成或粘贴您自己的"
+      },
+      "configReady": "节点 {name} 已注册。将以下配置复制到",
+      "afterSaving": "保存配置后，使用以下命令重启 Wings"
+    },
+    "editDialog": {
+      "title": "编辑节点 — {name}",
+      "fields": {
+        "nodeType": "节点类型",
+        "portRangeStart": "端口范围起始",
+        "portRangeStartPlaceholder": "e.g. 25500",
+        "portRangeEnd": "端口范围结束",
+        "portRangeEndPlaceholder": "e.g. 25600",
+        "defaultBindIp": "默认绑定 IP（可选）",
+        "defaultBindIpHint": "用于自动分配端口的 IP。留空则为 0.0.0.0。"
+      }
+    },
+    "heartbeatDialog": {
+      "title": "心跳历史 — {name}",
+      "last24Hours": "最近 24 小时",
+      "last7Days": "最近 7 天",
+      "cards": {
+        "uptime": "正常运行时间",
+        "avgResponse": "平均响应",
+        "checks": "检查次数"
+      },
+      "legend": {
+        "timeout": "超时",
+        "error": "错误"
+      },
+      "noData": "此时间窗口内无心跳数据。"
+    },
+    "configDialog": {
+      "title": "Wings 配置 — {name}",
+      "loadingToken": "加载令牌中…",
+      "failedToken": "加载此节点的令牌失败。"
+    }
+  },
+  "adminOrganisationsTab": {
+    "search": {
+      "placeholder": "按名称或标识搜索组织…"
+    },
+    "header": {
+      "orgCount": "{count} 个组织"
+    },
+    "common": {
+      "logo": "标志"
+    },
+    "table": {
+      "organisation": "组织",
+      "handle": "标识",
+      "owner": "所有者",
+      "tier": "等级",
+      "members": "成员",
+      "actions": "操作",
+      "id": "ID"
+    },
+    "states": {
+      "loading": "加载组织中…",
+      "noMatch": "没有匹配您搜索的组织"
+    },
+    "pagination": {
+      "page": "页",
+      "of": "/",
+      "total": "{count} 总计"
+    },
+    "editDialog": {
+      "title": "编辑组织",
+      "fields": {
+        "name": "名称",
+        "handle": "标识",
+        "tier": "等级",
+        "ownerUserId": "所有者用户 ID",
+        "userIdPlaceholder": "用户 ID",
+        "staffOrganisation": "员工组织",
+        "staffOrgHint": "将此组织标记为员工拥有",
+        "addMemberByUserId": "通过用户 ID 添加成员"
+      }
+    },
+    "alerts": {
+      "failed": "失败：{reason}"
+    },
+    "actions": {
+      "showFullDetails": "显示完整详情",
+      "redactDetails": "隐藏详情",
+      "refresh": "刷新",
+      "editOrganisation": "编辑组织",
+      "deleteOrganisation": "删除组织",
+      "edit": "编辑",
+      "delete": "删除",
+      "previous": "上一页",
+      "next": "下一页",
+      "add": "添加",
+      "adding": "添加中…",
+      "cancel": "取消",
+      "saving": "保存中…",
+      "saveChanges": "保存更改"
+    }
+  },
+  "adminServersTab": {
+    "search": {
+      "placeholder": "按名称、UUID 或节点搜索服务器…"
+    },
+    "header": {
+      "serverCount": "{count} 个服务器"
+    },
+    "common": {
+      "unknown": "未知",
+      "unknownLower": "未知",
+      "default": "默认"
+    },
+    "table": {
+      "server": "服务器",
+      "uuid": "UUID",
+      "node": "节点",
+      "status": "状态",
+      "actions": "操作"
+    },
+    "states": {
+      "loading": "加载服务器中…",
+      "noMatch": "没有匹配您搜索的服务器",
+      "unnamedServer": "未命名服务器"
+    },
+    "pagination": {
+      "page": "页",
+      "of": "/",
+      "total": "{count} 总计"
+    },
+    "editDialog": {
+      "title": "编辑服务器",
+      "fields": {
+        "name": "名称",
+        "description": "描述",
+        "ownerUserId": "所有者用户 ID",
+        "memoryMb": "内存 (MB)",
+        "diskMb": "磁盘 (MB)",
+        "cpuPercent": "CPU (%)",
+        "swapMb": "Swap (MB)",
+        "dockerImage": "Docker 镜像",
+        "startupCommand": "启动命令",
+        "eggTemplate": "模板",
+        "noTemplate": "无模板",
+        "networkAllocations": "网络分配",
+        "noAllocations": "未配置分配",
+        "bindIp": "绑定 IP",
+        "port": "端口",
+        "displayFqdn": "显示 FQDN"
+      }
+    },
+    "createDialog": {
+      "title": "创建服务器",
+      "fields": {
+        "serverNameOptional": "服务器名称（可选）",
+        "serverNamePlaceholder": "我的新服务器",
+        "nodeRequired": "节点 *",
+        "selectNode": "选择节点",
+        "eggOptional": "模板（可选）",
+        "defaultNodeJs": "默认 Node.js",
+        "ownerUserIdOptional": "所有者用户 ID（可选）",
+        "userIdPlaceholder": "用户 ID",
+        "resources": "资源",
+        "memoryMb": "内存 (MB)",
+        "diskMb": "磁盘 (MB)",
+        "cpuPercent": "CPU (%)",
+        "enableKvmPassthrough": "启用 KVM 直通"
+      }
+    },
+    "actions": {
+      "showFullDetails": "显示完整详情",
+      "redactDetails": "隐藏详情",
+      "refresh": "刷新",
+      "syncFromWings": "从 Wings 同步",
+      "sync": "同步",
+      "createServer": "创建服务器",
+      "create": "创建",
+      "copyUuid": "复制 UUID",
+      "start": "开始",
+      "restart": "重启",
+      "stop": "停止",
+      "unsuspend": "恢复",
+      "suspend": "暂停",
+      "editServer": "编辑服务器",
+      "deleteServer": "删除服务器",
+      "edit": "编辑",
+      "delete": "删除",
+      "previous": "上一页",
+      "next": "下一页",
+      "saveFqdn": "保存 FQDN",
+      "cancel": "取消",
+      "editFqdn": "编辑 FQDN",
+      "setAsDefault": "设为默认",
+      "remove": "移除",
+      "add": "添加",
+      "reinstall": "重装",
+      "saving": "保存中…",
+      "saveChanges": "保存更改",
+      "creating": "创建中…"
+    }
+  },
+  "adminLogsTab": {
+    "types": {
+      "audit": "审计",
+      "apiRequests": "API 请求",
+      "slowQueries": "慢查询",
+      "serverErrors": "服务器错误"
+    },
+    "header": {
+      "entries": "{count} 条记录",
+      "subtitle": "浏览和检查系统日志"
+    },
+    "table": {
+      "time": "时间",
+      "user": "用户",
+      "action": "操作",
+      "error": "错误",
+      "manage": "管理",
+      "endpoint": "端点",
+      "count": "计数",
+      "duration": "持续时间",
+      "query": "查询",
+      "stack": "堆栈跟踪"
+    },
+    "states": {
+      "noLogs": "未找到日志",
+      "noDetails": "无详情"
+    },
+    "common": {
+      "system": "系统",
+      "dash": "—"
+    },
+    "pagination": {
+      "showingSlow": "显示 {count} 条慢查询记录",
+      "page": "页",
+      "of": "/"
+    },
+    "actions": {
+      "clear": "清除",
+      "refresh": "刷新",
+      "previous": "上一页",
+      "next": "下一页"
+    }
+  },
+  "adminAuditLogs": {
+    "searchPlaceholder": "输入服务器 UUID 以查看所有关联活动...",
+    "search": "搜索",
+    "entriesFound": "条记录已找到",
+    "noResults": "未找到此 UUID 的活动日志。服务器可能在记录任何活动之前已被删除。"
+  },
+  "adminRolesTab": {
+    "header": {
+      "title": "角色管理",
+      "roleCount": "{count} 个角色"
+    },
+    "roles": {
+      "title": "角色",
+      "emptyTitle": "暂无角色",
+      "emptySubtitle": "创建角色以开始分配权限。",
+      "full": "完整",
+      "permissionCount": "{count} 个权限"
+    },
+    "permissions": {
+      "title": "权限",
+      "noRoleSelected": "未选择角色",
+      "selectRoleHint": "选择角色以管理权限。",
+      "createRoleFirst": "先创建角色以管理权限。",
+      "addPermission": "添加权限",
+      "selectPermission": "选择权限",
+      "noneAssigned": "未分配权限。",
+      "fullAccessWarning": "此角色拥有所有权限的完全访问权限。"
+    },
+    "alerts": {
+      "confirmDeleteRole": "删除角色 {name}？"
+    },
+    "actions": {
+      "newRole": "新建角色",
+      "new": "新建",
+      "refresh": "刷新",
+      "createRole": "创建角色",
+      "add": "添加"
+    }
+  },
+  "settingsPage": {
+    "header": {
+      "title": "设置",
+      "description": "管理您的账户和偏好设置"
+    },
+    "tabs": {
+      "profile": "个人资料",
+      "security": "安全",
+      "alerts": "警报",
+      "documents": "文件",
+      "api": "API",
+      "theme": "主题",
+      "editor": "编辑器",
+      "ai": "AI",
+      "calendar": "日历"
+    },
+    "calendar": {
+      "title": "日历设置",
+      "description": "配置您的工作时间和工作日以便自动排程。",
+      "workHours": "工作时间",
+      "workDays": "工作日",
+      "workHoursHint": "Auto-schedule finds free slots within these hours and places tasks before their deadline. Tasks marked \"Free Time\" use break slots.",
+      "workStart": "开始",
+      "workEnd": "结束",
+      "breaks": "休息时间（此时段不安排任务）"
+    },
+    "documents": {
+      "title": "文件",
+      "subtitle": "查看您已接受的协议和分配给您账户的文件。",
+      "agreementsTitle": "已接受的协议",
+      "agreementsDescription": "您已接受的条款、隐私政策和其他注册协议。",
+      "noAgreements": "未找到已同意的文件。",
+      "agreement": "协议",
+      "version": "版本",
+      "acceptedOn": "接受于",
+      "acceptedImplicit": "通过使用服务即表示接受",
+      "acceptedUnknown": "接受日期不可用",
+      "adminTitle": "管理文件",
+      "adminDescription": "管理员为您账户上传的 PDF 文件。",
+      "noAdminDocuments": "未上传管理文件。",
+      "uploadedOn": "上传于",
+      "uploadedUnknown": "上传日期不可用",
+      "view": "查看",
+      "download": "下载"
+    },
+    "messages": {
+      "failed": "失败",
+      "failedToSave": "保存失败",
+      "failedToSaveSettings": "保存设置失败",
+      "requiredFields": "Please update required fields: {fields}.",
+      "enterDateOfBirthSelfie": "Please enter your date of birth before verifying with a selfie.",
+      "takeSelfieBeforeVerify": "Please take a selfie before verifying.",
+      "selfieVerificationFailed": "Selfie verification failed: {error}.",
+      "unknown": "未知"
+    },
+    "actions": {
+      "cancel": "取消",
+      "saving": "保存中...",
+      "saveChanges": "保存更改",
+      "updating": "更新中...",
+      "uploading": "上传中..."
+    },
+    "portal": {
+      "free": "Free Portal",
+      "paid": "付费门户",
+      "enterprise": "企业门户"
+    },
+    "profile": {
+      "userFallback": "用户",
+      "badges": "徽章",
+      "basicInformation": "基本信息",
+      "displayName": "显示名称",
+      "displayNamePlaceholder": "您的显示方式",
+      "displayNameHint": "这是其他用户看到您的名称",
+      "emailAddress": "邮箱地址",
+      "emailHint": "用于登录和通知",
+      "legalName": "法定姓名",
+      "legalNameHint": "用于账单和验证目的",
+      "firstName": "名",
+      "middleName": "中间名",
+      "lastName": "姓",
+      "title": "标题",
+      "gender": "性别代词",
+      "selectTitle": "选择称谓…",
+      "selectGender": "不愿透露",
+      "genderFemale": "女性",
+      "genderMale": "男性",
+      "genderNonBinary": "非二元性别",
+      "genderPreferNotToSay": "不愿透露",
+      "genderOther": "其他",
+      "optional": "可选",
+      "billingInformation": "账单信息",
+      "billingInformationHint": "用于发票和支付处理",
+      "streetAddress": "街道地址",
+      "addressLine2": "地址第二行",
+      "addressLine2Placeholder": "公寓、套房（可选）",
+      "company": "公司",
+      "phone": "电话",
+      "city": "城市",
+      "stateProvince": "州 / 省",
+      "zipPostal": "邮政编码",
+      "country": "国家",
+      "selectCountry": "选择国家",
+      "taxRateFor": "适用税率",
+      "selectedCountry": "所选国家",
+      "updated": "个人资料更新成功！",
+      "uploadFailed": "上传失败",
+      "guideHelp": "重播设置向导以探索所有功能和特性。",
+      "showGuideAgain": "再次显示向导"
+    },
+    "security": {
+      "changePassword": "更改密码",
+      "currentPassword": "当前密码",
+      "currentPasswordPlaceholder": "输入当前密码",
+      "newPassword": "新密码",
+      "newPasswordPlaceholder": "新密码",
+      "newPasswordHint": "至少 8 个字符",
+      "confirmPassword": "确认密码",
+      "confirmPasswordPlaceholder": "确认密码",
+      "updatePassword": "更新密码",
+      "passkeys": "通行密钥",
+      "passkeysHint": "使用生物识别或硬件密钥保护您的账户",
+      "twoFactor": "双重认证",
+      "twoFactorHint": "使用身份验证器应用增强安全性",
+      "sshKeys": "SSH 密钥",
+      "sshKeysHint": "免密码 SFTP/SSH 访问您的服务器",
+      "activeSessions": "活跃会话",
+      "activeSessionsHint": "管理您的登录设备和位置",
+      "passwordUpdated": "密码更新成功。",
+      "confirmLogoutElsewhere": "这将使您退出除当前设备外的所有设备。继续？",
+      "passwordUpgrade": {
+        "title": "升级您的密码安全性",
+        "description": "您的账户仍在使用旧的 bcrypt 密码哈希。更新密码以迁移到新的 Argon2id 哈希！",
+        "action": "更新密码",
+        "dismiss": "忽略"
+      },
+      "loggedOutElsewhere": "已成功退出所有会话",
+      "confirmDeletion": "⚠️ 请求删除账户？此操作不可撤销，您的所有数据将被永久删除。",
+      "deletionSubmitted": "删除请求已提交。我们的团队将在 30 天内处理您的请求。",
+      "logoutElsewhere": "退出所有其他设备",
+      "requestDeletion": "请求删除账户",
+      "errors": {
+        "enterCurrentPassword": "请输入您当前的密码",
+        "enterNewPassword": "请输入新密码",
+        "passwordMinLength": "新密码必须至少 8 个字符",
+        "passwordsDoNotMatch": "密码不匹配",
+        "failedUpdatePassword": "更新密码失败"
+      }
+    },
+    "notifications": {
+      "title": "通知偏好",
+      "subtitle": "选择您想要接收的通知",
+      "items": {
+        "serverAlerts": {
+          "label": "服务器警报",
+          "desc": "服务器离线时的通知"
+        },
+        "serverLifecycle": {
+          "label": "服务器事件",
+          "desc": "创建、停止、启动、删除事件"
+        },
+        "serverErrors": {
+          "label": "服务器错误",
+          "desc": "崩溃和故障"
+        },
+        "serverActivity": {
+          "label": "详细活动",
+          "desc": "详细的生命周期事件"
+        },
+        "billing": {
+          "label": "账单",
+          "desc": "发票和付款"
+        },
+        "security": {
+          "label": "安全",
+          "desc": "登录尝试和警报"
+        },
+        "productUpdates": {
+          "label": "产品更新",
+          "desc": "新功能和公告"
+        },
+        "tickets": {
+          "label": "工单",
+          "desc": "支持工单回复"
+        },
+        "aiUsage": {
+          "label": "AI 使用量",
+          "desc": "每周 AI 额度摘要"
+        }
+      }
+    },
+    "passkeys": {
+      "confirmRemove": "移除此通行密钥？",
+      "loading": "加载通行密钥中...",
+      "emptyTitle": "未注册通行密钥",
+      "emptyDescription": "添加通行密钥以使用生物识别或硬件认证保护您的账户。",
+      "fallbackName": "通行密钥",
+      "waitingForDevice": "等待设备...",
+      "registerNew": "注册新通行密钥",
+      "errors": {
+        "httpsRequired": "通行密钥注册需要安全连接 (HTTPS)。",
+        "httpsRequiredShort": "通行密钥注册需要安全连接。",
+        "registrationCancelled": "注册已取消",
+        "failedRegister": "注册通行密钥失败"
+      }
+    },
+    "ssh": {
+      "confirmRemove": "从您的账户中移除此 SSH 密钥？",
+      "loading": "加载密钥中...",
+      "emptyTitle": "无 SSH 密钥",
+      "emptyDescription": "添加 SSH 密钥以通过 SFTP 免密码访问您的服务器。",
+      "label": "标签",
+      "labelPlaceholder": "例如：MacBook Pro",
+      "publicKey": "公钥",
+      "publicKeyPlaceholder": "ssh-ed25519 AAAA... 或 ssh-rsa AAAA...",
+      "addKey": "添加密钥",
+      "addSshKey": "添加 SSH 密钥",
+      "errors": {
+        "failedAdd": "添加密钥失败",
+        "failedRemove": "移除密钥失败"
+      }
+    },
+    "twoFactor": {
+      "enabledAlert": "双重认证已启用 - 请立即保存您的恢复码。",
+      "disabledAlert": "双重认证已禁用",
+      "confirmDisable": "禁用双重认证？",
+      "notEnabledDescription": "为您的账户添加额外的安全保护层。",
+      "loading": "加载中...",
+      "enable": "启用 2FA",
+      "scanTitle": "使用您的身份验证器扫描",
+      "scanDescription": "使用 Google Authenticator、Authy 或任何兼容 TOTP 的应用",
+      "enterCodeManually": "或手动输入此代码：",
+      "copyToClipboard": "复制到剪贴板",
+      "verificationCode": "验证码",
+      "enterSixDigit": "输入6位验证码",
+      "verificationHint": "输入您身份验证器应用中的验证码",
+      "verifying": "验证中...",
+      "verifyEnable": "验证并启用",
+      "enabledDescription": "您的账户已通过 2FA 保护。",
+      "enterCodeToDisable": "输入验证码以禁用",
+      "sixDigit": "6位验证码",
+      "disableHint": "这将移除您账户的 2FA 保护",
+      "disabling": "禁用中...",
+      "disable": "禁用 2FA",
+      "recoveryCodes": "恢复码",
+      "recoveryCodesHint": "请安全保存这些代码。如果失去对身份验证器的访问权限，每个代码可使用一次。",
+      "recoveryCopied": "恢复码已复制到剪贴板",
+      "copyAllCodes": "复制所有代码",
+      "errors": {
+        "failedStartSetup": "启动设置失败",
+        "missingSecret": "缺少密钥",
+        "failedVerify": "验证失败",
+        "failedDisable": "禁用失败"
+      }
+    },
+    "sessions": {
+      "loading": "加载会话中...",
+      "session": "会话",
+      "current": "当前",
+      "revoke": "撤销"
+    },
+    "api": {
+      "apiKeys": "API 密钥",
+      "apiKeysHint": "管理对您账户的编程访问",
+      "newKey": "新建密钥",
+      "new": "新建",
+      "keyCreated": "密钥已创建",
+      "confirmRevoke": "撤销此 API 密钥？",
+      "keyName": "密钥名称",
+      "keyNamePlaceholder": "例如：生产环境 API",
+      "keyNameHint": "选择一个描述性名称",
+      "keyType": "密钥类型",
+      "client": "客户端",
+      "admin": "管理员",
+      "permissions": "权限",
+      "fullAccess": "完全访问",
+      "createKey": "创建密钥",
+      "loadingKeys": "加载密钥中...",
+      "emptyTitle": "无 API 密钥",
+      "emptyDescription": "创建密钥以编程方式访问 Eclipse API。",
+      "revoke": "撤销",
+      "documentation": "API 文档",
+      "documentationHint": "探索端点、模式和示例",
+      "viewDocs": "查看文档"
+    },
+    "appearance": {
+      "theme": "主题",
+      "themeHint": "自定义您仪表盘的外观和风格",
+      "language": "语言",
+      "languageHint": "设置您偏好的界面语言。",
+      "english": "英语",
+      "russian": "俄语",
+      "chinese": "中文",
+      "japanese": "日语",
+      "hindi": "印地语",
+      "luckMode": "⚠ 幸运模式已激活"
+    },
+    "editor": {
+      "title": "编辑器设置",
+      "subtitle": "配置代码编辑器的行为和外观",
+      "resetDefaults": "重置为默认值",
+      "aiAssistant": "AI 助手",
+      "aiAssistantHint": "内联代码补全和建议（测试版）",
+      "autoIndent": "自动缩进",
+      "autoIndentHint": "自动缩进新行",
+      "showMinimap": "显示缩略图",
+      "showMinimapHint": "显示代码缩略图以便导航",
+      "formatOnPaste": "粘贴时格式化",
+      "formatOnPasteHint": "自动格式化粘贴的代码",
+      "formatOnType": "输入时格式化",
+      "formatOnTypeHint": "输入时自动格式化",
+      "fontSize": "字体大小",
+      "fontSizeHint": "编辑器字体大小（像素）",
+      "tabSize": "Tab 大小",
+      "tabSizeHint": "每个 Tab 的空格数",
+      "fontFamily": "字体族",
+      "fontFamilyHint": "选择等宽字体以提高代码可读性"
+    },
+    "ai": {
+      "title": "自带 AI",
+      "subtitle": "使用您自己的 AI 提供商和兼容 OpenAI 的 API 端点。OpenCode Go 作为预设包含在内。",
+      "enableLabel": "启用 BYOAI",
+      "enableHint": "使用您自己的 API 密钥和端点，而非面板管理的模型",
+      "provider": {
+        "title": "提供商",
+        "presetLabel": "预设",
+        "presetHint": "选择预配置的提供商或输入自定义设置",
+        "custom": "自定义"
+      },
+      "connection": {
+        "title": "连接",
+        "endpointLabel": "API 端点",
+        "endpointHint": "兼容 OpenAI 的 API 基础 URL（例如 https://opencode.ai/zen/go）",
+        "apiKeyLabel": "API 密钥",
+        "apiKeyHint": "您的提供商 API 密钥安全存储在您的账户设置中",
+        "getApiKey": "没有 API 密钥？从 OpenCode Go 获取一个"
+      },
+      "model": {
+        "title": "模型",
+        "modelLabel": "模型",
+        "modelHint": "选择用于补全的模型",
+        "customModelLabel": "模型 ID",
+        "customModelHint": "输入模型标识符（例如 gpt-4、claude-3-opus、deepseek-v4-pro）"
+      },
+      "status": {
+        "title": "状态",
+        "configured": "您的 AI 提供商已配置并准备就绪",
+        "incomplete": "填写所有必填字段以启用您的 AI 提供商",
+        "active": "活跃"
+      }
+    }
+  },
+  "identityPage": {
+    "header": {
+      "title": "身份验证",
+      "description": "身份验证是可选的 - 完成必要步骤以解锁增强功能"
+    },
+    "dialog": {
+      "unavailableTitle": "身份验证不可用",
+      "unavailableDescription": "由于当地法规，欧盟居民的身份验证目前已禁用。如果您认为您仍应有访问权限，请联系支持。"
+    },
+    "actions": {
+      "gotIt": "知道了",
+      "uploading": "上传中...",
+      "submitForVerification": "提交验证",
+      "verifySelfieAge": "验证自拍年龄",
+      "connectHackClub": "连接 Hack Club",
+      "connectGithub": "连接 GitHub"
+    },
+    "messages": {
+      "submittedForReview": "验证已提交 - 您的文件正在审核中。"
+    },
+    "errors": {
+      "selectBothFiles": "请选择两个文件",
+      "failed": "失败",
+      "failedHackClubFlow": "启动 Hack Club 流程失败",
+      "failedGithubFlow": "启动 GitHub 流程失败"
+    },
+    "banner": {
+      "completeTitle": "验证完成",
+      "partialTitle": "验证部分完成",
+      "completeDescription": "所有必要步骤已验证。企业功能和更高的资源限制已解锁。",
+      "partialDescription": "完成必要步骤以解锁企业功能和更高的资源限制。",
+      "required": "必填"
+    },
+    "start": {
+      "title": "开始验证",
+      "description": "提交您的身份信息（可选）",
+      "idDocumentLabel": "政府签发的身份证件",
+      "idDocumentHint": "接受格式：JPEG、PNG、PDF（最大 10MB）",
+      "selfieLabel": "自拍照片",
+      "selfieHint": "拍摄或上传清晰的面部照片（JPEG、PNG）",
+      "selected": "已选择",
+      "selfieOptionalTitle": "自拍验证",
+      "selfieOptionalDescription": "使用自拍验证您的年龄，无需提交身份证件。",
+      "selfieDateOfBirthRequired": "请在使用自拍验证前在设置中设置您的出生日期。",
+      "selfieVerified": "自拍年龄验证成功。"
+    },
+    "steps": {
+      "common": {
+        "notApplicableEu": "不适用于欧盟居民"
+      },
+      "email": {
+        "title": "邮箱验证",
+        "verified": "您的邮箱已验证",
+        "verifyToContinue": "验证您的邮箱地址以继续"
+      },
+      "security": {
+        "title": "安全验证",
+        "description": "注册通行密钥或启用双重认证"
+      },
+      "student": {
+        "title": "学生验证",
+        "verified": "学生身份已确认",
+        "connectHackClub": "连接 Hack Club 以验证教育身份",
+        "connectGithub": "连接 GitHub 以验证教育身份",
+        "comingSoon": "学生验证即将推出"
+      },
+      "identityDocument": {
+        "title": "身份证件",
+        "description": "上传政府签发的身份证件（可选）"
+      },
+      "selfie": {
+        "title": "自拍验证",
+        "description": "拍摄照片以匹配您的证件（可选）"
+      }
+    },
+    "profileMissing": {
+      "title": "需要个人资料信息",
+      "description": "在提交身份证件进行验证之前，请填写以下必填字段：",
+      "goToSettings": "前往设置"
+    },
+    "stepsSection": {
+      "title": "验证步骤",
+      "description": "完成每一步以验证您的身份"
+    },
+    "status": {
+      "verified": "已验证",
+      "pending": "待处理",
+      "notApplicable": "不适用",
+      "failedResubmit": "失败 - 重新提交",
+      "uploadAbove": "在上方上传",
+      "comingSoon": "即将推出",
+      "locked": "已锁定",
+      "lockedTitle": "请先完成上一步"
+    },
+    "verified": {
+      "title": "已验证信息",
+      "description": "您已验证的账户详情",
+      "fullName": "全名",
+      "email": "邮箱",
+      "accountId": "账户 ID",
+      "idDocument": "身份证件",
+      "idStatus": {
+        "verifiedNotApplicableEu": "已验证 | 不适用于欧盟居民",
+        "notApplicableEu": "不适用于欧盟居民",
+        "verified": "已验证",
+        "underReview": "审核中",
+        "failedResubmit": "失败 — 请重新提交",
+        "notUploaded": "尚未上传"
+      }
+    }
+  },
+  "activityPage": {
+    "header": {
+      "title": "账户活动",
+      "description": "安全审计跟踪和账户事件"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前",
+      "daysAgo": "{count} 天前"
+    },
+    "stats": {
+      "currentPage": "当前页",
+      "today": "今天",
+      "logins": "登录",
+      "serverEvents": "服务器事件",
+      "onThisPage": "此页面",
+      "page": "第 {page} 页"
+    },
+    "filters": {
+      "title": "筛选事件",
+      "clear": "清除",
+      "all": "全部",
+      "server": "服务器",
+      "login": "登录",
+      "logout": "退出登录",
+      "billing": "账单",
+      "security": "安全",
+      "support": "支持"
+    },
+    "log": {
+      "title": "活动日志",
+      "shown": "显示 {count} 条",
+      "unknownAction": "未知操作",
+      "unknown": "未知"
+    },
+    "states": {
+      "loadingActivity": "加载活动中...",
+      "noActivityTitle": "未找到活动",
+      "noActivityMessage": "您的账户尚未记录任何活动。",
+      "noActivityForFilter": "尚未记录 {filter} 事件。"
+    },
+    "details": {
+      "eventDetails": "事件详情",
+      "action": "操作",
+      "targetType": "目标类型",
+      "targetId": "目标 ID",
+      "timestamp": "时间戳",
+      "ipAddress": "IP 地址",
+      "userId": "用户 ID",
+      "metadata": "元数据",
+      "allProperties": "所有属性",
+      "rawJson": "原始 JSON"
+    },
+    "footer": {
+      "pageEvents": "第 {page} 页 • {count} 个事件"
+    },
+    "actions": {
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "actionLabels": {
+      "startedServer": "启动了服务器",
+      "stoppedServer": "停止了服务器",
+      "restartedServer": "重启了服务器",
+      "killedServer": "强制停止了服务器",
+      "ranConsoleCommand": "运行了服务器控制台命令",
+      "modifiedFile": "修改了文件",
+      "deletedFiles": "删除了文件",
+      "reinstalledServer": "重装了服务器",
+      "addedSubuser": "添加了服务器子用户",
+      "acceptedSubuserInvite": "接受了服务器子用户邀请",
+      "removedSubuser": "移除了服务器子用户访问权限",
+      "rejectedSubuserInvite": "拒绝了服务器子用户邀请",
+      "serverSuspend": "暂停了服务器",
+      "serverUnsuspend": "恢复了服务器",
+      "updatedProfile": "更新了个人资料设置",
+      "fraudScanStarted": "欺诈扫描已启动",
+      "fraudScanCompleted": "欺诈扫描已完成",
+      "fraudScanError": "欺诈扫描失败"
+    }
+  },
+  "serversPage": {
+    "header": {
+      "title": "服务器",
+      "description": "管理您的游戏服务器"
+    },
+    "status": {
+      "online": "在线",
+      "starting": "启动中",
+      "stopping": "停止中",
+      "offline": "离线",
+      "installing": "安装中",
+      "hibernated": "已休眠",
+      "dmca": "DMCA",
+      "unknown": "未知",
+      "unavailable": "不可用"
+    },
+    "resources": {
+      "cpu": "CPU",
+      "ram": "RAM",
+      "disk": "磁盘"
+    },
+    "actions": {
+      "start": "开始",
+      "stop": "停止",
+      "restart": "重启",
+      "console": "控制台",
+      "newServer": "新建服务器",
+      "deployServer": "部署服务器"
+    },
+    "stats": {
+      "total": "总计",
+      "online": "在线",
+      "offline": "离线"
+    },
+    "sections": {
+      "favorites": "收藏",
+      "code": "代码",
+      "yourServers": "您的服务器",
+      "sharedWithYou": "与您共享"
+    },
+    "warnings": {
+      "legalInfoTitle": "完成所需的法律信息",
+      "legalInfoDescription": "您的账户缺少所需的法律个人资料信息或年龄验证，因此您无法查看项目或部署新服务器。请在设置中更新您的法定姓名、电话、账单地址和出生日期。",
+      "nodeIssueTitle": "{node} 当前遇到问题",
+      "nodesIssueTitle": "部分节点当前遇到问题",
+      "nodeIssueDescription": "此节点上的服务器可能不可用或无响应。",
+      "nodesIssueDescription": "以下节点上的服务器可能不可用或无响应：{nodes}。",
+      "learnMore": "在 /status 了解更多"
+    },
+    "search": {
+      "placeholder": "搜索服务器..."
+    },
+    "states": {
+      "loadingServers": "加载服务器中…",
+      "noServersFound": "未找到服务器",
+      "noServersYet": "暂无服务器",
+      "tryDifferentSearch": "尝试不同的搜索词或清除筛选条件。",
+      "deployFirst": "部署您的第一个服务器，开始构建精彩内容。"
+    },
+    "serverCard": {
+      "favorite": "收藏服务器",
+      "unfavorite": "取消收藏服务器"
+    },
+    "toasts": {
+      "diceDeniedTitle": "骰子拒绝",
+      "powerDenied": "电源操作被骰子掷出拒绝。",
+      "actionSentTitle": "操作已发送",
+      "actionRequested": "{action} 请求成功。",
+      "powerFailedTitle": "电源操作失败",
+      "unknownError": "未知错误",
+      "diceEventTitle": "骰子事件",
+      "diceShutdown": "嘿，我决定关闭你的服务器，呜呜",
+      "diceBlocked": "骰子试图关闭它但被阻止了。",
+      "diceFailed": "骰子想要混乱，但这次关机失败了。"
+    },
+    "errors": {
+      "favoriteSaveFailed": "保存收藏状态失败：{reason}"
+    },
+    "newServerModal": {
+      "header": {
+        "title": "新建服务器",
+        "subtitle": "配置和部署"
+      },
+      "alerts": {
+        "verifyEmail": "创建服务器前请验证您的邮箱。",
+        "securityRequirement": "创建服务器前请在 身份认证 > 安全 下启用 2FA 或注册通行密钥。"
+      },
+      "fields": {
+        "serverName": {
+          "label": "服务器名称",
+          "placeholder": "我的 Minecraft 服务器"
+        },
+        "template": "模板",
+        "node": "节点",
+        "startup": {
+          "label": "启动命令",
+          "placeholder": "使用模板默认启动命令",
+          "hint": "这是所选模板的默认启动命令。"
+        },
+        "env": {
+          "title": "环境变量",
+          "add": "添加变量",
+          "empty": "未配置环境变量。添加一个以覆盖默认值或定义新值。",
+          "keyPlaceholder": "键",
+          "valuePlaceholder": "value"
+        },
+        "searchTemplates": "搜索模板...",
+        "searchNodes": "搜索节点...",
+        "legalConfirmLabel": "我已阅读并同意",
+        "termsLink": "服务条款",
+        "aupLink": "可接受使用政策",
+        "sunsetLink": "停用政策",
+        "freePlanWarning": "免费服务器在不活动或等级变更后可能会被停用。请保留备份并考虑升级以实现长期保留。",
+        "freePlanEloOnly": "免费套餐用户只能创建 ELO 服务器。ELO 服务器使用社区投票进行资源扩展，并有单独的数量限制。",
+        "freePlanUpgradeLink": "升级您的套餐",
+        "planWarning": "部署前请查看我们的政策。",
+        "nodeTypes": {
+          "freeAndPaid": "公共节点",
+          "enterprise": "企业节点",
+          "paid": "付费节点",
+          "free": "免费节点",
+          "unknown": "{value}"
+        }
+      },
+      "states": {
+        "loading": "加载中…",
+        "noTemplates": "无可用模板。",
+        "noNodes": "无可用节点。",
+        "noTemplatesMatch": "没有匹配您搜索的模板。",
+        "noNodesMatch": "没有匹配您搜索的节点。"
+      },
+      "resources": {
+        "title": "资源",
+        "gamblingActive": "赌博模式通过您选择的主题已激活。资源选择器已锁定，您的二十一点手牌现在决定您账户范围内的 CPU、内存和磁盘。",
+        "blackjackTable": "二十一点牌桌",
+        "dealer": "庄家",
+        "you": "您",
+        "autoDraw": "自动抽牌直到停牌目标",
+        "higherHands": "更高的胜出手牌会将您的最终资源推向最大限制。",
+        "standTarget": "二十一点停牌目标",
+        "standAt": "停在 {value}",
+        "standHint": "您决定何时停止抽牌。",
+        "memory": "内存",
+        "disk": "磁盘",
+        "cpu": "CPU",
+        "planOption": "套餐 · {value}{unit}",
+        "nodeOption": "节点 · {value}{unit}",
+        "resourcePoolSelection": "资源池选择",
+        "noLimitsPlan": "您的 <strong>{planName}</strong> 套餐没有配置限制。请联系管理员。",
+        "noPlanAssigned": "未分配套餐。资源使用默认值。",
+        "notice": "此节点上的资源与其他用户共享。为您的应用分配足够的内存、磁盘和 CPU，但避免过度分配以便其他人也能享受该服务。"
+      },
+      "kvm": {
+        "required": "KVM 虚拟化（必填）",
+        "enable": "启用 KVM 虚拟化",
+        "portHint": "端口将从节点的分配池中自动分配。"
+      },
+      "minecraftNotice": {
+        "title": "检测到 Minecraft 模板",
+        "description": "此模板暴露了 Minecraft 特定的支持标志。部署前请查看以下设置。",
+        "items": {
+          "eula": "需要接受 Minecraft EULA。",
+          "javaVersion": "支持所选模板的 Java 版本配置。",
+          "pidLimit": "可能使用 PID/进程限制设置以获得更好的稳定性。"
+        },
+        "acceptEula": "我接受 Minecraft EULA。"
+      },
+      "messages": {
+        "serverCreated": "服务器创建成功。",
+        "createdMessage": "服务器 \"{name}\" 创建成功。"
+      },
+      "errors": {
+        "serverNameRequired": "服务器名称为必填项。",
+        "selectServerType": "请选择服务器类型。",
+        "failedCreate": "创建服务器失败。",
+        "eulaAcceptRequired": "创建此服务器前请接受 Minecraft EULA。",
+        "legalAcceptRequired": "创建此服务器前请确认您已阅读并同意服务条款、可接受使用政策和停用政策。"
+      },
+      "actions": {
+        "cancel": "取消",
+        "deploying": "部署中…",
+        "deploy": "部署服务器",
+        "close": "好的。关闭"
+      },
+      "result": {
+        "blackjackTitle": "🃏 Blackjack Server Creation Result",
+        "createdTitle": "✅ Server Created",
+        "serverId": "Server ID: {id}",
+        "creationNotice": "Creation Notice",
+        "handVsDealer": "Your hand {player} vs dealer {dealer} {outcome}.",
+        "serverGot": "Server got RAM {memory} MB · Disk {disk} MB · CPU {cpu}%.",
+        "assignedResources": "Assigned resources",
+        "luckyRoll": "Lucky roll",
+        "luckyTriggered": "777 好运！幸运触发！！！",
+        "luckyMissed": "Nuh uh… no lucky trigger this time.",
+        "blackjackRound": "Blackjack round",
+        "roundSummary": "You {playerScore} ({playerCards}) · Dealer {dealerScore} ({dealerCards})",
+        "standTarget": "Your stand target: {value}",
+        "confirmTitle": "Before you deploy",
+        "confirmDescription": "Your server launch must follow our Terms of Service and Acceptable Use Policy. Please review the rules before deploying.",
+        "termsLink": "服务条款",
+        "aupLink": "可接受使用政策",
+        "sunsetLink": "Free plan sunset policy",
+        "sunsetNotice": "Sunset policy details are available in our docs for all server types.",
+        "freeSunsetNotice": "免费服务器在不活动或等级变更后可能会被停用。请保留备份并考虑升级以实现长期保留。",
+        "bonusTitle": "24小时加成 (+{percent}% 上限)",
+        "bonusActivated": "Activated until {until}",
+        "bonusAlreadyActive": "Already active until {until}",
+        "notActive": "Not active",
+        "untilTomorrow": "tomorrow",
+        "untilSoon": "soon",
+        "outcomes": {
+          "won": "won",
+          "lost": "lost",
+          "pushed": "pushed"
+        },
+        "outcomeMessage": {
+          "player": "You beat the dealer.",
+          "dealer": "Dealer wins this hand.",
+          "push": "Push - hand tied."
+        }
+      }
+    }
+  },
+  "serverConsoleTab": {
+    "status": {
+      "connected": "已连接",
+      "stopping": "停止中",
+      "disconnected": "已断开",
+      "installing": "安装中"
+    },
+    "history": {
+      "empty": "无命令历史",
+      "recent": "最近命令"
+    },
+    "toolbar": {
+      "console": "控制台",
+      "copyOutput": "复制控制台输出",
+      "clearConsole": "清除控制台",
+      "reinstall": "重装"
+    },
+    "input": {
+      "placeholder": "输入命令..."
+    },
+    "states": {
+      "loadingConsole": "加载控制台中...",
+      "frozenTitle": "控制台已冻结",
+      "frozenDescription": "点击恢复"
+    },
+    "footer": {
+      "typeCommandsAbove": "在上方控制台中直接输入命令"
+    },
+    "actions": {
+      "close": "关闭",
+      "copy": "复制",
+      "copied": "已复制",
+      "clear": "清除",
+      "cancel": "取消",
+      "reconnect": "重新连接",
+      "fullscreen": "全屏",
+      "exitFullscreen": "退出全屏"
+    },
+    "terminal": {
+      "errorTag": "ERROR",
+      "consoleCleared": "控制台已清除。",
+      "connectingToConsole": "正在连接到服务器控制台...",
+      "maxReconnect": "已达到最大重连次数。点击重新连接以重试。",
+      "serverOfflineRetry": "服务器似乎离线。{delaySec}秒后重试... (第 {attempt}/{maxRetries} 次)",
+      "reconnectingIn": "{delaySec}秒后重新连接... (第 {attempt}/{maxRetries} 次)",
+      "failedWsCredentials": "获取 WebSocket 凭据失败。",
+      "websocketError": "WebSocket 错误：{reason}",
+      "connectionTimedOut": "连接超时。",
+      "connected": "已连接",
+      "typeCommands": "直接输入命令。",
+      "sessionExpired": "会话已过期。正在重新连接...",
+      "websocketErrorOccurred": "发生 WebSocket 错误",
+      "authFailed": "认证失败 ({code})。点击重新连接以重试。",
+      "disconnected": "已断开 ({code}{reason})",
+      "serverOffline": "服务器似乎离线：{reason}",
+      "connectionFailed": "连接失败：{reason}",
+      "manuallyReconnecting": "手动重新连接中...",
+      "tryingDirectConnection": "尝试直接连接...",
+      "directConnected": "直接连接已建立",
+      "fallingBackToProxy": "直接连接失败，回退到代理...",
+      "reinstallStarted": "重装已启动。等待安装输出...",
+      "confirmReinstall": "重装此服务器？所有文件将被清除。",
+      "tags": {
+        "install": "安装",
+        "status": "状态",
+        "daemon": "守护进程",
+        "error": "错误",
+        "authError": "认证错误"
+      },
+      "statusValues": {
+        "offline": "离线",
+        "starting": "启动中",
+        "running": "运行中",
+        "stopping": "停止中",
+        "stopped": "已停止",
+        "connecting": "连接中",
+        "connecting_dots": "连接中...",
+        "connected": "已连接",
+        "disconnected": "已断开",
+        "installing": "安装中"
+      },
+      "daemonMessages": {
+        "crashedState": "检测到服务器进程处于崩溃状态！",
+        "exitCode": "退出代码：{code}",
+        "outOfMemory": "内存不足：{value}",
+        "updatingConfig": "正在更新进程配置文件...",
+        "settingPermissions": "正在确保文件权限设置正确，这可能需要几秒钟...",
+        "pullingImage": "正在拉取 Docker 容器镜像，这可能需要几分钟...",
+        "finishedPulling": "Docker 容器镜像拉取完成",
+        "diskLimit": "服务器超出分配的磁盘空间限制，正在停止进程。",
+        "throttling": "服务器输出控制台数据过快 -- 正在限流...",
+        "crashDisabled": "自动重启已中止，此实例的崩溃检测已禁用。",
+        "crashTooFrequent": "自动重启已中止，上次崩溃发生在 {timeout} 秒以内。"
+      },
+      "installMessages": {
+        "pullingFrom": "从 {image} 拉取中",
+        "digest": "摘要：{digest}",
+        "status": "状态：{status}",
+        "finishedPulling": "Docker 容器镜像拉取完成"
+      }
+    }
+  },
+  "serverTabShared": {
+    "loading": "加载中...",
+    "error": {
+      "title": "出了些问题",
+      "tryAgain": "重试"
+    }
+  },
+  "serverMonacoEditor": {
+    "position": {
+      "lineCol": "Ln {line}, Col {col}",
+      "lines": "{count} lines"
+    },
+    "ai": {
+      "label": "AI",
+      "thinking": "思考中...",
+      "suggestion": "AI 建议",
+      "generatedBy": "Generated by AI"
+    },
+    "actions": {
+      "undo": "Undo",
+      "redo": "Redo",
+      "decreaseFont": "Decrease font size",
+      "increaseFont": "Increase font size",
+      "disableWrap": "Disable word wrap",
+      "enableWrap": "Enable word wrap",
+      "search": "Search (Ctrl+F)",
+      "copyAll": "Copy all"
+    },
+    "states": {
+      "loadingEditor": "Loading editor..."
+    }
+  },
+  "serverStatsTab": {
+    "timeWindow": {
+      "live": "实时",
+      "5m": "5分钟",
+      "10m": "10分钟",
+      "1h": "1小时",
+      "6h": "6小时",
+      "24h": "24小时",
+      "7d": "7天"
+    },
+    "sections": {
+      "resourceUsage": "资源使用"
+    },
+    "charts": {
+      "cpu": "CPU",
+      "memory": "内存",
+      "disk": "磁盘",
+      "network": "网络",
+      "download": "下载",
+      "upload": "上传",
+      "cpuUsage": "CPU 使用率",
+      "memoryUsage": "内存使用率",
+      "diskUsage": "磁盘使用率",
+      "networkTraffic": "网络流量"
+    },
+    "labels": {
+      "netUp": "网络 ↑",
+      "netDown": "网络 ↓",
+      "downloadTraffic7d": "7天下载流量",
+      "uploadTraffic7d": "7天上传流量"
+    },
+    "states": {
+      "loadingStatistics": "加载统计数据中...",
+      "noDataTitle": "无可用数据",
+      "noDataMessage": "统计数据在服务器运行时收集。请几分钟后再查看。"
+    },
+    "node": {
+      "system": "节点系统",
+      "cpu": "节点 CPU",
+      "memory": "节点内存",
+      "disk": "节点磁盘",
+      "version": "版本",
+      "architecture": "架构",
+      "cpuAvg24h": "节点 CPU 平均值 (24小时)",
+      "net24h": "节点网络 24小时 (↓ / ↑)",
+      "currentNet": "当前网络 (↓ / ↑)",
+      "usage24h": "节点使用量 (24小时)"
+    }
+  },
+  "serverFilesTab": {
+    "actions": {
+      "connect": "连接",
+      "create": "创建",
+      "cancel": "取消",
+      "save": "保存",
+      "copy": "复制",
+      "upload": "上传",
+      "newFile": "新建文件",
+      "newFolder": "新建文件夹",
+      "archive": "归档",
+      "extract": "解压",
+      "move": "移动",
+      "chmod": "权限",
+      "delete": "删除",
+      "download": "下载",
+      "rename": "重命名",
+      "changePermissions": "更改权限",
+      "viewImage": "查看图片",
+      "edit": "编辑",
+      "openSftp": "通过 SFTP 打开",
+      "openQemuFolder": "打开 QEMU 文件夹",
+      "hide": "隐藏",
+      "details": "详情"
+    },
+    "table": {
+      "name": "名称",
+      "size": "大小",
+      "modified": "修改时间",
+      "actions": "操作"
+    },
+    "bulk": {
+      "selected": "已选择 {count}",
+      "recursive": "递归"
+    },
+    "inputs": {
+      "fileNamePlaceholder": "文件名.txt",
+      "folderNamePlaceholder": "文件夹名称",
+      "sftpPassword": "SFTP 密码"
+    },
+    "preview": {
+      "zoomOut": "缩小",
+      "zoomIn": "放大",
+      "resetView": "重置视图",
+      "toggleFullscreen": "切换全屏"
+    },
+    "states": {
+      "dropToUpload": "拖放文件以上传",
+      "loadingFiles": "加载文件中...",
+      "emptyDirectory": "空目录",
+      "openingSftp": "正在打开 SFTP 客户端… 如果没有任何反应，请复制上方的命令并使用您的终端或 SFTP 应用。",
+      "sftpConnected": "已通过 SFTP 连接",
+      "sftpNotConnected": "SFTP — 未连接",
+      "sftpAutoConnected": "已自动通过 SFTP 连接",
+      "fileSaved": "文件已保存",
+      "archiveCreated": "归档已创建",
+      "archiveExtracted": "归档已解压",
+      "commandCopied": "命令已复制到剪贴板",
+      "revisionRestored": "版本已恢复"
+    },
+    "kvmNotes": {
+      "title": "KVM 访问说明",
+      "usePrimary": "使用主分配进行 SSH/SFTP。",
+      "default": "默认：",
+      "defaultCredentials": "默认凭据：",
+      "filesystemManaged": "文件系统由 cloud-init 管理。",
+      "panelFilesGuest": "面板文件可能不反映客户机状态。"
+    },
+    "labels": {
+      "na": "—",
+      "proxied": "已代理",
+      "yesterday": "昨天",
+      "host": "主机",
+      "port": "端口",
+      "username": "用户名",
+      "qemuHostFolder": "QEMU 主机文件夹",
+      "vmFilesystemViaSftp": "通过 SFTP 访问虚拟机文件系统",
+      "sftpModeDescription": "使用直接 SFTP 访问客户机文件系统。",
+      "sftpCommand": "SFTP 命令",
+      "sftpPassword": "SFTP 密码"
+    },
+    "confirm": {
+      "openUnknownType": "此文件类型可能无法正确显示。仍然打开？",
+      "openUnknownFileTitle": "打开未知文件类型",
+      "openUnknownFileDescription": "\"{name}\" 可能不是文本文件。仍然打开？",
+      "openAnyway": "仍然打开",
+      "deleteFile": "删除 \"{name}\"？",
+      "fileExistsOpen": "\"{name}\" 已存在。是否改为打开它？",
+      "applyRecursive": "递归应用？",
+      "deleteSelected": "删除 {count} 个项目？"
+    },
+    "prompts": {
+      "renameTo": "重命名为：",
+      "chmodSingle": "设置权限（八进制，例如 0644 或 0755）：",
+      "chmodBulk": "设置权限（八进制）：",
+      "moveToFolder": "移动到文件夹（相对路径）："
+    },
+    "errors": {
+      "uploadFailed": "上传失败：{reason}",
+      "imagePreviewFailed": "图片预览失败：{reason}",
+      "binaryNotEditable": "此文件类型无法编辑。请下载它。",
+      "openFailed": "打开文件失败：{reason}",
+      "saveFailed": "保存失败：{reason}",
+      "deleteFailed": "删除失败：{reason}",
+      "sftpAuthRequired": "输入 SFTP 密码以继续。",
+      "sftpAuthFailed": "SFTP 授权失败。请检查您的密码并重试。",
+      "sftpAutoAuthFailed": "从 ROOT_PASSWORD 自动 SFTP 登录失败：{reason}。请手动输入密码。",
+      "folderExists": "名为 \"{name}\" 的文件夹已存在。",
+      "itemExists": "无法创建：名为 \"{name}\" 的项目已存在。",
+      "actionFailed": "失败：{reason}",
+      "renameFailed": "重命名失败：{reason}",
+      "downloadFailed": "下载失败：{reason}",
+      "invalidMode": "无效模式。请使用八进制格式（例如 0644、0755）",
+      "invalidModeShort": "无效模式",
+      "permissionUpdateFailed": "权限更新失败：{reason}",
+      "archiveFailed": "归档失败：{reason}",
+      "extractFailed": "解压失败：{reason}",
+      "moveFailed": "移动失败：{reason}",
+      "bulkChmodFailed": "批量权限修改失败：{reason}",
+      "bulkDeleteFailed": "批量删除失败：{reason}",
+      "sftpDetailsUnavailable": "SFTP 连接详情不可用。",
+      "revisionRestoreFailed": "恢复版本失败"
+    },
+    "shareModal": {
+      "title": "共享文件",
+      "file": "文件",
+      "linkExpiration": "链接过期时间",
+      "duration1h": "1 小时",
+      "duration1d": "1 天",
+      "duration1w": "1 周",
+      "duration1m": "1 个月",
+      "duration1y": "1 年",
+      "durationPermanent": "永久",
+      "cancel": "取消",
+      "createShareLink": "创建分享链接",
+      "shareLinkDescription": "分享链接（任何人拥有此链接均可查看/下载）",
+      "copied": "已复制！",
+      "copy": "复制",
+      "close": "关闭",
+      "shareAnother": "分享另一个",
+      "toastCreated": "分享链接已创建！",
+      "toastFailed": "创建分享链接失败",
+      "toastCopyFailed": "Failed to copy link"
+    }
+  },
+  "serverDetailPage": {
+    "header": {
+      "serverFallback": "服务器",
+      "unnamedServer": "未命名服务器"
+    },
+    "tabs": {
+      "console": "控制台",
+      "statistics": "统计",
+      "statsShort": "统计",
+      "files": "文件",
+      "shares": "分享",
+      "startup": "启动",
+      "databases": "数据库",
+      "dbShort": "数据库",
+      "schedules": "计划任务",
+      "network": "网络",
+      "firewall": "防火墙",
+      "netShort": "网络",
+      "backups": "备份",
+      "activity": "活动",
+      "subusers": "子用户",
+      "mounts": "挂载",
+      "settings": "设置"
+    },
+    "stats": {
+      "cpu": "CPU",
+      "memory": "内存",
+      "disk": "磁盘",
+      "net": "网络 ↑↓",
+      "currentPage": "当前页",
+      "today": "今天",
+      "logins": "登录",
+      "serverEvents": "服务器事件",
+      "onThisPage": "此页面",
+      "page": "第 {page} 页"
+    },
+    "firewall": {
+      "description": "使用 VM_PORTS 管理 KVM 虚拟机的额外转发端口。",
+      "helpText": "使用此标签页配置 KVM 模板的额外主机到客户机端口转发。默认 SSH 端口受保护，无法在此修改。",
+      "defaultSshPortLabel": "默认 SSH 端口",
+      "defaultSshPortHint": "此端口保留用于 SSH，无法使用 VM_PORTS 更新。",
+      "sshConflict": "端口 {{hostPort}} 保留用于 SSH。",
+      "noVmPortsDefined": "此服务器未定义 VM_PORTS 变量。请在 启动 → 环境变量 中添加它以使用此标签页。",
+      "extraPortsTitle": "额外转发端口",
+      "extraPortsDescription": "每个条目通过 VM_PORTS 成为一个额外的主机到客户机转发。",
+      "addPortRule": "添加端口规则",
+      "portPlaceholder": "25038 或 8080:80 或 9999/udp",
+      "removePortRule": "移除",
+      "noPortRules": "未配置额外端口。",
+      "portRuleHint": "有效条目：port、host:guest、port/tcp、port/udp。不要使用默认 SSH 端口或客户机端口 22。",
+      "hostBindAddress": "主机绑定地址",
+      "hostBindHelp": "转发的可选主机地址，例如 0.0.0.0。",
+      "bindAll": "绑定到所有 IP（IPv4 + IPv6）",
+      "bindIpv4": "仅绑定 IPv4（0.0.0.0）",
+      "bindIpv6": "仅绑定 IPv6",
+      "bindCustom": "自定义绑定地址",
+      "bindAllHelp": "将转发应用到所有可用 IP。IPv6 转发将自动显示在网络标签页上。",
+      "bindIpv4Help": "转发仅绑定到 IPv4。不会创建 IPv6 转发。",
+      "bindIpv6Help": "转发绑定到分配的 IPv6 地址。",
+      "bindCustomHelp": "提供特定的主机地址以绑定这些转发。",
+      "hostBindNeedsIpv6": "选择仅 IPv6 绑定前请先分配 IPv6 地址。",
+      "save": "保存",
+      "saved": "已保存。",
+      "saving": "保存中…",
+      "loadFailedTitle": "加载防火墙设置失败",
+      "loadFailed": "无法加载防火墙设置。请稍后再试。",
+      "portMustBeValid": "端口必须是 1 到 65535 之间的有效数字。",
+      "fixErrors": "修复错误",
+      "validLabel": "有效",
+      "protocolLabel": "协议",
+      "protocolTcp": "TCP",
+      "protocolUdp": "UDP",
+      "protocolBoth": "两者",
+      "portRule": "端口规则",
+      "vmPortLabel": "虚拟机端口",
+      "vmPortHelp": "虚拟机内部端口",
+      "vmPortPlaceholder": "25045",
+      "globalPortLabel": "全局端口",
+      "globalPortHelp": "在主机上暴露的端口",
+      "globalPortPlaceholder": "25045",
+      "rulesCount": "{count} 条规则",
+      "validCount": "{count} 个有效",
+      "errorsCount": "{count} 个错误",
+      "noRulesDescription": "添加端口转发规则以暴露虚拟机中的服务。",
+      "addFirstRule": "添加您的第一条规则",
+      "fixErrorsBeforeSaving": "保存前请修复验证错误。",
+      "outputLabel": "输出：",
+      "howItWorksTitle": "工作原理",
+      "trafficFlow": "流量流向",
+      "internet": "互联网",
+      "globalPortTag": "全局端口",
+      "vmPortTag": "虚拟机端口",
+      "vmPortDesc": "您的服务在虚拟机内部监听的端口（内部）。",
+      "globalTag": "全局",
+      "globalDesc": "在主机/互联网上暴露的端口（外部）。",
+      "protocolsTitle": "协议",
+      "protocolTcpDesc": "Web、SSH、数据库",
+      "protocolUdpDesc": "游戏服务器、DNS、VPN",
+      "protocolBothDesc": "为每个创建一条规则",
+      "hostBindNote": "主机绑定地址是可选的，适用于所有转发端口。",
+      "saveFailed": "保存失败：{reason}",
+      "invalidPortEntries": "一个或多个端口条目无效。",
+      "invalidPorts": "保存前请修复无效的端口条目。",
+      "sshPortConflict": "有规则与默认 SSH 端口冲突；请在保存前移除。",
+      "examplesTitle": "示例",
+      "exampleSingle": "25038",
+      "exampleHostGuest": "8080:80",
+      "exampleUdp": "9999/udp"
+    },
+    "states": {
+      "loadingServer": "加载服务器中…",
+      "serverNotFoundTitle": "未找到服务器",
+      "serverNotFoundDescription": "您正在寻找的服务器不存在或不可用。",
+      "loadingConsole": "加载控制台中…",
+      "loadingStatistics": "加载统计数据中…",
+      "loadingFiles": "加载文件中…",
+      "loadingFirewall": "加载防火墙设置中…",
+      "loadingSchedules": "加载计划任务中…",
+      "loadingBackups": "加载备份中…",
+      "enabled": "已启用",
+      "disabled": "已禁用",
+      "unknown": "未知",
+      "accessRevokedTitle": "访问已撤销",
+      "accessRevokedDescription": "您对此服务器的访问权限已被移除。重新加载将更新您的权限。",
+      "loadingActivity": "加载活动中…",
+      "noActivityTitle": "未找到活动",
+      "noActivityMessage": "此服务器尚未记录任何活动。",
+      "noActivityForFilter": "尚未记录 {filter} 事件。"
+    },
+    "actions": {
+      "start": "开始",
+      "stop": "停止",
+      "restart": "重启",
+      "kill": "强制终止",
+      "transfer": "转移",
+      "enableKvm": "启用 KVM",
+      "disableKvm": "禁用 KVM",
+      "markStarted": "标记为已启动",
+      "morePowerOptions": "更多电源选项",
+      "adminMode": "管理员模式",
+      "refreshServer": "刷新服务器",
+      "backToServers": "返回服务器",
+      "cancel": "取消",
+      "confirm": "确认"
+    },
+    "toasts": {
+      "diceDeniedTitle": "骰子拒绝",
+      "powerDenied": "电源操作被骰子掷出拒绝。",
+      "actionSentTitle": "操作已发送",
+      "actionRequested": "{action} 请求成功。",
+      "powerFailedTitle": "电源操作失败",
+      "unknownError": "未知错误"
+    },
+    "alerts": {
+      "kvmToggled": "KVM {state}。",
+      "kvmToggleFailed": "KVM 切换失败：{reason}",
+      "deleteFailed": "删除失败：{reason}",
+      "transferInitiated": "转移已启动。这可能需要几分钟。",
+      "markedStarted": "服务器已标记为启动。",
+      "markStartedFailed": "标记启动失败：{reason}"
+    },
+    "errors": {
+      "selectTargetNode": "请选择目标节点",
+      "transferFailed": "转移失败"
+    },
+    "confirm": {
+      "deleteServer": "您确定要永久删除此服务器吗？此操作不可撤销。"
+    },
+    "dialogs": {
+      "power": {
+        "confirmPrefix": "确认",
+        "confirmMessage": "您确定要 {action} 服务器吗？",
+        "killWarning": "强制终止服务器会强制结束其进程。可能导致数据丢失。"
+      },
+      "transfer": {
+        "title": "转移服务器",
+        "description": "选择要将此服务器转移到的目标节点。",
+        "destinationNode": "目标节点",
+        "selectNode": "选择节点…",
+        "notice": "这可能需要几分钟。两个节点都必须在线。",
+        "forceTransfer": "强制转移（删除源节点上的所有数据）",
+        "forceTransferButton": "强制转移",
+        "forceTransferWarning": "警告：这将删除源节点上的所有服务器数据，并在目标节点上使用新的端口分配重新创建服务器。服务器上存储的所有文件、数据库和配置将永久丢失。"
+      }
+    },
+    "kvm": {
+      "bannerTitle": "KVM 虚拟化已激活",
+      "bannerDescription": "此服务器作为完整虚拟机运行。文件管理和控制台可能与基于容器的服务器行为不同。",
+      "filesNotice": "KVM 文件系统由 cloud-init 管理。此处显示的文件可能不反映客户机虚拟机的实际文件系统。请使用 SSH/SFTP 直接访问虚拟机。",
+      "killWarning": "强制终止 KVM 虚拟机相当于拔掉电源插头。客户机操作系统不会正常关机。",
+      "transferNotice": "转移 KVM 服务器要求两个节点都支持 KVM 直通。虚拟机磁盘镜像将被迁移。"
+    },
+    "network": {
+      "title": "网络分配",
+      "requestPort": "请求端口",
+      "add": "添加",
+      "empty": "未找到网络分配。",
+      "primary": "主色",
+      "secondary": "辅助",
+      "removeAllocation": "移除分配",
+      "requestFailed": "请求失败",
+      "failed": "失败"
+    },
+    "startup": {
+      "selectDockerBeforeSave": "保存前请选择 Docker 镜像。",
+      "saved": "已保存。",
+      "saveFailed": "保存失败：{reason}",
+      "loadFailed": "加载启动配置失败。",
+      "serverConfiguration": "服务器配置",
+      "egg": "模板",
+      "dockerImage": "Docker 镜像",
+      "selectDockerImage": "选择 Docker 镜像",
+      "selectImage": "选择镜像…",
+      "noAlternateDocker": "此模板未配置备选 docker 镜像。",
+      "startupCommand": "启动命令",
+      "detectionTitle": "启动检测",
+      "detectionDescription": "匹配控制台输出的模式，用于检测启动完成。",
+      "patternPlaceholder": "例如：Server started",
+      "removePattern": "移除模式",
+      "addPattern": "添加模式",
+      "environmentVariables": "环境变量",
+      "resetDefaults": "重置为默认值",
+      "addVariable": "添加变量",
+      "variableName": "变量名",
+      "variableValue": "变量值",
+      "removeVariable": "移除变量",
+      "save": "保存",
+      "readOnly": "只读",
+      "noEnvironmentVariables": "未定义环境变量。"
+    },
+    "mounts": {
+      "title": "挂载",
+      "kvmNotice": "KVM 文件系统由 cloud-init 管理，可能在此面板中无法正确显示。",
+      "description": "挂载将主机目录绑定到您的服务器容器中。",
+      "empty": "未配置挂载。挂载由管理员管理。",
+      "readOnly": "只读",
+      "source": "来源",
+      "target": "目标",
+      "attach": "附加挂载",
+      "detach": "分离",
+      "available": "可用挂载",
+      "selectPlaceholder": "选择要附加的挂载",
+      "loading": "加载挂载中...",
+      "attachSuccess": "挂载附加成功。",
+      "attachFailed": "附加挂载失败：{reason}",
+      "detachSuccess": "挂载分离成功。",
+      "detachFailed": "分离挂载失败：{reason}"
+    },
+    "databases": {
+      "title": "数据库",
+      "newDatabase": "新建数据库",
+      "new": "新建",
+      "labelOptional": "标签（可选）",
+      "labelPlaceholder": "例如：主数据库",
+      "create": "创建",
+      "empty": "未配置数据库。",
+      "user": "用户",
+      "hide": "隐藏",
+      "show": "显示",
+      "deleteDatabase": "删除数据库",
+      "copy": "复制 {field}",
+      "createFailed": "创建数据库失败",
+      "confirmDelete": "删除此数据库？这将永久 DROP 该数据库。",
+      "credentials": {
+        "host": "主机",
+        "db": "数据库",
+        "user": "用户",
+        "pass": "密码",
+        "jdbc": "JDBC"
+      }
+    },
+    "schedules": {
+      "title": "计划任务",
+      "newSchedule": "新建计划任务",
+      "new": "新建",
+      "name": "名称",
+      "namePlaceholder": "每日重启",
+      "cronExpression": "Cron 表达式",
+      "customCron": "自定义",
+      "create": "创建计划任务",
+      "save": "保存更改",
+      "empty": "未配置计划任务。",
+      "unnamed": "未命名",
+      "active": "活跃",
+      "inactive": "非活跃",
+      "last": "上次",
+      "never": "从不",
+      "deleteSchedule": "删除计划任务",
+      "confirmDelete": "删除此计划任务？此操作不可撤销。",
+      "failed": "失败：{reason}",
+      "triggerNow": "立即触发",
+      "abort": "中止",
+      "edit": "编辑",
+      "triggerType": "触发器",
+      "triggerCron": "Cron 计划",
+      "triggerPresets": {
+        "everyHour": "每小时",
+        "every6Hours": "每 6 小时",
+        "every12Hours": "每 12 小时",
+        "daily": "每天午夜",
+        "daily3am": "每天凌晨 3 点",
+        "weekly": "每周（周一午夜）",
+        "custom": "自定义 cron"
+      },
+      "actions": "操作",
+      "noActions": "未配置操作。请在下方添加至少一个操作。",
+      "addAction": "添加操作",
+      "actionType": "操作类型",
+      "actionSendCommand": "发送命令",
+      "actionPowerStart": "启动服务器",
+      "actionPowerStop": "停止服务器",
+      "actionPowerRestart": "重启服务器",
+      "actionPowerKill": "强制终止服务器",
+      "actionCreateBackup": "创建备份",
+      "commandPlaceholder": "say 服务器将在 1 分钟后重启！",
+      "backupNamePlaceholder": "自动备份",
+      "ignoreFailure": "失败时继续",
+      "ignoredFiles": "忽略的文件（每行一个）",
+      "lastRun": "上次运行",
+      "runSuccessful": "成功完成",
+      "runFailed": "完成但有错误",
+      "runs": "次运行",
+      "triggerHint": "UTC 时间的 Cron 计划。使用预设选择常见间隔或编写自定义表达式。"
+    },
+    "backups": {
+      "title": "备份",
+      "createBackup": "创建备份",
+      "create": "创建",
+      "empty": "未找到备份。创建一个以开始使用。",
+      "backupFallback": "备份",
+      "backupFailed": "备份失败",
+      "progress": "已完成 {value}%",
+      "restore": "恢复",
+      "unlockBackup": "解锁备份",
+      "lockBackup": "锁定备份",
+      "deleteBackup": "删除备份",
+      "confirmRestore": "恢复此备份？当前数据可能被覆盖。",
+      "restoreInitiated": "恢复已启动。",
+      "confirmDelete": "永久删除此备份？",
+      "failed": "失败：{reason}",
+      "newGroup": "新建分组",
+      "editGroup": "编辑分组",
+      "createGroup": "创建备份分组",
+      "groupName": "分组名称",
+      "groupDescription": "描述（可选）",
+      "compressionType": "压缩",
+      "defaultCompression": "默认压缩",
+      "moveToGroup": "移动到分组…",
+      "removeFromGroup": "从分组移除",
+      "noBackupsInGroup": "此分组中暂无备份。",
+      "ungrouped": "未分组备份",
+      "confirmDeleteGroup": "删除此备份分组？备份不会被删除。",
+      "cancel": "取消",
+      "save": "保存",
+      "delete": "删除",
+      "edit": "编辑",
+      "history": "历史记录",
+      "fileHistory": "文件历史",
+      "noRevisions": "未找到版本",
+      "view": "查看",
+      "diff": "差异",
+      "restoreRevision": "恢复此版本",
+      "restored": "文件已恢复到选定版本",
+      "exitDiff": "退出差异视图",
+      "snapshot": "快照"
+    },
+    "activity": {
+      "title": "活动日志",
+      "empty": "尚未记录活动。",
+      "user": "用户 #{id}",
+      "actions": {
+        "startedServer": "启动了服务器",
+        "stoppedServer": "停止了服务器",
+        "restartedServer": "重启了服务器",
+        "killedServer": "强制停止了服务器",
+        "ranCommand": "运行了命令",
+        "ranConsoleCommand": "运行了服务器控制台命令",
+        "enabledKvm": "启用了 KVM",
+        "disabledKvm": "禁用了 KVM",
+        "modifiedFile": "修改了文件",
+        "deletedFiles": "删除了文件",
+        "reinstalledServer": "重装了服务器",
+        "addedSubuser": "添加了服务器子用户",
+        "acceptedSubuserInvite": "接受了服务器子用户邀请",
+        "removedSubuser": "移除了服务器子用户访问权限",
+        "rejectedSubuserInvite": "拒绝了服务器子用户邀请",
+        "serverSuspend": "暂停了服务器",
+        "serverUnsuspend": "恢复了服务器",
+        "updatedProfile": "更新了个人资料设置"
+      }
+    },
+    "filters": {
+      "title": "筛选事件",
+      "clear": "清除",
+      "all": "全部",
+      "power": "Power",
+      "console": "控制台",
+      "file": "文件",
+      "subuser": "Subuser",
+      "settings": "设置",
+      "server": "服务器",
+      "login": "登录",
+      "logout": "退出登录",
+      "billing": "账单",
+      "security": "安全",
+      "support": "支持"
+    },
+    "log": {
+      "title": "活动日志",
+      "shown": "显示 {count} 条",
+      "unknownAction": "未知操作",
+      "unknown": "未知"
+    },
+    "details": {
+      "eventDetails": "事件详情",
+      "action": "操作",
+      "targetType": "目标类型",
+      "targetId": "目标 ID",
+      "timestamp": "时间戳",
+      "ipAddress": "IP 地址",
+      "userId": "用户 ID",
+      "metadata": "元数据",
+      "allProperties": "所有属性",
+      "rawJson": "原始 JSON"
+    },
+    "footer": {
+      "pageEvents": "第 {page} 页 • {count} 个事件"
+    },
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前",
+      "daysAgo": "{count} 天前"
+    },
+    "subusers": {
+      "title": "子用户",
+      "addSubuser": "添加子用户",
+      "add": "添加",
+      "email": "邮箱",
+      "permissions": "权限",
+      "empty": "尚未添加子用户。",
+      "userFallback": "用户 #{id}",
+      "pending": "待处理",
+      "pendingInvites": "待处理的邀请",
+      "pendingInvitesTitle": "待处理的子用户邀请",
+      "pendingInvitesDescription": "查看待处理的服务器访问邀请并接受或拒绝。",
+      "invitesPendingTitle": "待处理的邀请",
+      "invitesPendingDescription": "这些邀请正在等待您的批准。",
+      "invitesLoading": "加载待处理的邀请中...",
+      "noInvitesTitle": "没有待处理的邀请",
+      "invite": "邀请",
+      "invites": "邀请",
+      "serverUnavailable": "服务器不可用",
+      "acceptInvite": "接受",
+      "rejectInvite": "拒绝",
+      "viewServer": "查看服务器",
+      "unableToLoadInvites": "无法加载待处理的邀请。",
+      "failedAcceptInvite": "接受邀请失败。",
+      "failedRejectInvite": "拒绝邀请失败。",
+      "inviteServerName": "服务器：{name}",
+      "inviteServerMissing": "服务器已不存在",
+      "invitesEmpty": "您没有待处理的子用户邀请。",
+      "locked": "已锁定",
+      "unlockSubuser": "解锁子用户",
+      "lockSubuser": "锁定子用户",
+      "removeSubuser": "移除子用户",
+      "failed": "失败",
+      "failedWithReason": "失败：{reason}",
+      "failedUpdateLock": "更新锁定失败：{reason}",
+      "confirmRemove": "移除此子用户？",
+      "editSubuser": "编辑子用户",
+      "editPermissions": "编辑权限",
+      "savePermissions": "保存",
+      "failedUpdatePerms": "更新权限失败：{reason}"
+    },
+    "settings": {
+      "confirmReinstall": "重装此服务器？所有文件将被清除。",
+      "reinstallDialog": {
+        "title": "重装服务器",
+        "description": "选择是否在重装前清除服务器文件。",
+        "wipeTitle": "清除所有文件",
+        "wipeDescription": "从模板重装前清除服务器目录。",
+        "keepTitle": "保留文件",
+        "keepDescription": "保留文件，仅重新运行安装脚本。",
+        "wingsNote": "Wings 支持在重装期间可选的文件截断。根据您是否想要全新开始进行选择。"
+      },
+      "reinstallInitiated": "重装已启动。",
+      "failedWithReason": "失败：{reason}",
+      "sshDetailsUnavailable": "SSH 连接详情不可用。",
+      "sftpDetailsUnavailable": "SFTP 连接详情不可用。",
+      "openingSsh": "正在打开 SSH 客户端… 如果没有任何反应，请复制上方的命令并使用您的终端。",
+      "openingSftp": "正在打开 SFTP 客户端… 如果没有任何反应，请复制上方的命令并使用您的终端或 SFTP 应用。",
+      "serverInformation": "服务器信息",
+      "uuid": "UUID",
+      "name": "名称",
+      "status": "状态",
+      "node": "节点",
+      "dockerImage": "Docker 镜像",
+      "virtualization": "虚拟化",
+      "virtualizationKvm": "KVM（完整虚拟机）",
+      "virtualizationDocker": "Docker",
+      "externalAccess": "外部访问",
+      "host": "主机",
+      "port": "端口",
+      "username": "用户名",
+      "launchSsh": "启动 SSH",
+      "launchSftp": "启动 SFTP",
+      "sshCommand": "SSH 命令",
+      "sftpCommand": "SFTP 命令",
+      "copySshCommand": "复制 SSH 命令",
+      "copySftpCommand": "复制 SFTP 命令",
+      "authNote": "使用您的面板密码或 SSH 密钥进行认证。",
+      "resourceLimits": "资源限制",
+      "ioWeight": "IO 权重",
+      "swap": "Swap",
+      "kvmPassthrough": "KVM 直通",
+      "saveResources": "保存资源",
+      "resourcesSaved": "资源限制更新成功。",
+      "saveFailed": "保存失败：{reason}",
+      "dangerZone": "危险区域",
+      "dangerDescription": "这些操作不可逆。请谨慎操作。",
+      "reinstall": "重装",
+      "deleteServer": "删除服务器",
+      "kvmNotes": {
+        "title": "KVM 访问说明",
+        "usePrimary": "使用主分配进行 SSH/SFTP",
+        "default": "默认",
+        "filesystemManaged": "文件系统由 cloud-init 管理",
+        "panelFilesGuest": "面板文件可能不反映客户机状态"
+      }
+    },
+    "warnings": {
+      "nodeIssueTitle": "{node} 当前遇到问题",
+      "nodesIssueTitle": "部分节点当前遇到问题",
+      "nodeIssueDescription": "此节点上的服务器可能不可用或无响应。",
+      "nodesIssueDescription": "以下节点上的服务器可能不可用或无响应：{nodes}。",
+      "learnMore": "在 /status 了解更多"
+    }
+  },
+  "tunnelsPage": {
+    "header": {
+      "title": "隧道",
+      "description": "创建公共隧道分配并批准远程代理。"
+    },
+    "sections": {
+      "devices": "设备",
+      "allocations": "分配",
+      "createAllocation": "创建分配",
+      "createAllocationDescription": "将公共流量转发到本地服务"
+    },
+    "labels": {
+      "localHost": "本地主机",
+      "localPort": "本地端口",
+      "protocol": "协议",
+      "protocolTcp": "TCP",
+      "protocolUdp": "UDP",
+      "clientDevice": "客户端设备",
+      "serverDevice": "服务器设备",
+      "deviceCode": "设备代码",
+      "name": "名称",
+      "type": "类型",
+      "userCode": "用户代码",
+      "approved": "已批准",
+      "lastSeen": "最后在线",
+      "publicEndpoint": "公共端点",
+      "localTarget": "本地目标",
+      "status": "状态",
+      "created": "创建时间",
+      "connection": "连接"
+    },
+    "placeholders": {
+      "selectClientDevice": "选择客户端设备"
+    },
+    "search": {
+      "devices": "搜索设备..."
+    },
+    "actions": {
+      "createAllocation": "创建分配",
+      "approve": "批准",
+      "close": "关闭",
+      "manage": "管理",
+      "copy": "复制",
+      "regenerateToken": "重新生成令牌",
+      "deleteDevice": "删除设备"
+    },
+    "prompts": {
+      "nameForDevice": "设备名称",
+      "defaultDeviceName": "代理",
+      "deleteDeviceWithAllocations": "删除此隧道设备及其所有分配？"
+    },
+    "downloads": {
+      "title": "隧道二进制文件",
+      "description": "下载最新的隧道二进制文件或使用 curl 命令在您的服务器上设置。",
+      "client": "客户端二进制文件",
+      "clientBadge": "客户端",
+      "server": "服务器端二进制文件",
+      "serverBadge": "服务器",
+      "downloadClient": "下载客户端",
+      "downloadServer": "下载服务器",
+      "curlClient": "通过 curl 设置客户端",
+      "curlServer": "通过 curl 设置服务器",
+      "curlCopy": "复制 curl 命令",
+      "curlCopied": "已复制！",
+      "clientCurlDesc": "在您的设备上安装隧道客户端：",
+      "serverCurlDesc": "在您的服务器上安装隧道服务端：",
+      "deployOneLiner": "快速设置（一行命令）",
+      "deployOneLinerDesc": "自动安装并运行隧道代理：",
+      "deployOneLinerOpen": "立即暴露本地端口：",
+      "deployOneLinerRun": "运行持久隧道代理：",
+      "quickSetup": "快速设置",
+      "quickSetupDescription": "生成一条可直接粘贴的一行命令，在任何机器上运行隧道代理。",
+      "generateOneLiner": "生成一行命令"
+    },
+    "rollout": {
+      "title": "隧道功能正在逐步推出",
+      "description": "隧道功能正在逐步发布。请稍后再查看，或联系支持以获取早期访问权限。"
+    },
+    "states": {
+      "yes": "是",
+      "no": "否",
+      "loading": "加载中…",
+      "noApprovedClients": "尚无批准的客户端 — 请先在下方批准设备。",
+      "noDevicesMatchSearch": "没有匹配您搜索的设备",
+      "noDevicesConnected": "未连接设备",
+      "tryDifferentSearchTerm": "尝试不同的搜索词。",
+      "downloadAgentToGetStarted": "下载并运行隧道代理以开始使用。",
+      "unnamedDevice": "未命名设备",
+      "never": "从不",
+      "noDate": "—",
+      "selectClientFirst": "请先选择客户端设备。",
+      "devicesRegistered": "已注册 {count}",
+      "pending": "待处理",
+      "tunnelsAllocated": "已分配 {count} 个隧道",
+      "noAllocationsYet": "暂无分配",
+      "createAllocationHint": "在上方创建隧道分配以开始转发流量。",
+      "closed": "已关闭",
+      "active": "活跃",
+      "approved": "已批准"
+    }
+  },
+  "infrastructureNodesPage": {
+    "header": {
+      "title": "Infrastructure Nodes",
+      "description": "Manage Wings nodes and networking configuration."
+    },
+    "states": {
+      "nodesRegistered": "已注册 {count} 个节点",
+      "loadingNodes": "Loading nodes...",
+      "noNodesTitle": "No nodes yet",
+      "noNodesDescription": "Add your first node to start hosting workloads."
+    },
+    "actions": {
+      "refresh": "刷新",
+      "addNode": "添加节点",
+      "edit": "编辑",
+      "generate": "生成",
+      "cancel": "取消",
+      "saving": "保存中...",
+      "saveChanges": "保存更改"
+    },
+    "alerts": {},
+    "confirm": {
+      "deleteNode": "Delete node \"{name}\"?"
+    },
+    "nodeTypes": {
+      "free": "免费",
+      "paid": "已付款",
+      "freeAndPaid": "免费 + 付费",
+      "enterprise": "企业"
+    },
+    "nodeTypeOptions": {
+      "free": "免费",
+      "paid": "已付款",
+      "freeAndPaid": "免费 + 付费",
+      "enterprise": "企业"
+    },
+    "labels": {
+      "fqdn": "FQDN",
+      "ssl": "SSL",
+      "noSslProxied": "No SSL (proxied)",
+      "org": "组织"
+    },
+    "dialog": {
+      "addTitle": "添加节点",
+      "editTitle": "Edit Node: {name}"
+    },
+    "sections": {
+      "sftp": "SFTP",
+      "resourceLimits": "资源限制",
+      "network": "网络"
+    },
+    "form": {
+      "name": "名称",
+      "namePlaceholder": "My Node",
+      "nodeId": "Node ID",
+      "nodeIdPlaceholder": "uuid",
+      "nodeIdHint": "Unique identifier used by Wings and API routes.",
+      "fqdnOptional": "FQDN (optional)",
+      "fqdnHint": "Optional hostname used for display and network routing.",
+      "fqdnPlaceholder": "node.example.com",
+      "wingsUrl": "Wings URL",
+      "wingsUrlPlaceholder": "https://node.example.com:8080",
+      "backendWingsUrlOptional": "Backend Wings URL (optional)",
+      "backendWingsUrlHint": "Internal backend-to-node URL. Use this when public and private endpoints differ.",
+      "backendWingsUrlPlaceholder": "http://10.0.0.5:8080",
+      "authToken": "认证令牌",
+      "authTokenPlaceholder": "Paste token or generate one",
+      "nodeType": "节点类型",
+      "linkedOrganisation": "Linked Organisation",
+      "noneOption": "无",
+      "sslHttps": "SSL / HTTPS",
+      "sslHint": "Disable if the Wings node uses HTTP. WebSockets will be proxied through the backend.",
+      "allowedOrigin": "Allowed Origin (WS Proxy)",
+      "allowedOriginPlaceholder": "e.g. https://ecli.app (must match Wings allowed_origins)",
+      "allowedOriginHint": "The panel origin to send when proxying WebSockets to this node. Must match an entry in the Wings daemon config. Defaults to FRONTEND_URL.",
+      "sftpPort": "SFTP 端口",
+      "sftpPortPlaceholder": "2022",
+      "sftpProxyPort": "SFTP Proxy Port",
+      "sftpProxyPortPlaceholder": "e.g. 12022",
+      "sftpProxyPortHint": "Backend TCP proxy port for clients that can't reach the node directly.",
+      "memoryMb": "内存 (MB)",
+      "memoryMbPlaceholder": "e.g. 8192",
+      "diskMb": "磁盘 (MB)",
+      "diskMbPlaceholder": "e.g. 51200",
+      "cpuPercent": "CPU (%)",
+      "cpuPercentPlaceholder": "e.g. 400",
+      "serverLimit": "服务器限制",
+      "serverLimitPlaceholder": "例如 20",
+      "defaultIp": "Default IP",
+      "portRangeStart": "端口范围起始",
+      "portRangeEnd": "端口范围结束",
+      "monthlyCost": "Monthly Cost ($)"
+    }
+  },
+  "ticketsPage": {
+    "common": {
+      "na": "N/A"
+    },
+    "header": {
+      "title": "支持工单",
+      "description": "Manage your support requests"
+    },
+    "banned": {
+      "message": "You are banned from creating or interacting with support tickets. Reason: {reason}. Contact contact@ecli.app to appeal.",
+      "noReason": "未提供原因"
+    },
+    "stats": {
+      "openTickets": "Open Tickets",
+      "pendingReply": "Pending Reply",
+      "totalTickets": "Total Tickets",
+      "avgResponse30d": "Avg Response (30d)",
+      "samples": "Based on {count} samples",
+      "noSamples30d": "No samples in 30d"
+    },
+    "filters": {
+      "searchPlaceholder": "Search tickets...",
+      "status": {
+        "all": "All Status",
+        "open": "开启",
+        "awaitingStaff": "等待员工",
+        "replied": "已回复",
+        "closed": "已关闭",
+        "archived": "已归档"
+      },
+      "priority": {
+        "all": "All Priority",
+        "urgent": "紧急",
+        "high": "高",
+        "medium": "中等",
+        "low": "低"
+      },
+      "department": {
+        "all": "All Departments",
+        "technicalSupport": "技术支持",
+        "billing": "账单",
+        "sales": "销售",
+        "security": "安全"
+      }
+    },
+    "actions": {
+      "newTicket": "新建工单"
+    },
+    "states": {
+      "loading": "Loading tickets...",
+      "noMatch": "No tickets match your search.",
+      "noneYet": "You have no support tickets yet."
+    },
+    "labels": {
+      "dept": "Dept: {value}",
+      "assigned": "Assigned: #{value}",
+      "created": "Created: {value}",
+      "lastReply": "Last reply: {value}",
+      "updated": "Updated: {value}"
+    },
+    "pagination": {
+      "page": "页"
+    }
+  },
+  "ticketsNewPage": {
+    "header": {
+      "title": "新建工单",
+      "description": "Submit a support request"
+    },
+    "hero": {
+      "title": "Open a Support Ticket",
+      "description": "Describe your issue in detail and our team will respond as soon as possible."
+    },
+    "banned": {
+      "message": "You are banned from creating support tickets. Reason: {reason}. Contact contact@ecli.app to appeal.",
+      "noReason": "未提供原因"
+    },
+    "fields": {
+      "subject": {
+        "label": "主题",
+        "placeholder": "Brief summary of your issue"
+      },
+      "priority": {
+        "label": "优先级",
+        "low": "Low - general question / non-urgent",
+        "medium": "Medium - something is not working as expected",
+        "high": "High - service significantly impacted",
+        "urgent": "Urgent - complete outage / critical issue"
+      },
+      "department": {
+        "label": "部门",
+        "select": "Select department",
+        "support": "支持",
+        "billing": "账单",
+        "technical": "技术",
+        "sales": "销售",
+        "other": "其他"
+      },
+      "message": {
+        "label": "消息",
+        "placeholder": "Describe your issue in as much detail as possible. Include any error messages, steps to reproduce, and what you expected to happen.",
+        "characters": "{count} 个字符"
+      },
+      "screenshots": {
+        "label": "截图",
+        "choose": "Choose screenshots…",
+        "selected": "{count} screenshot(s) selected"
+      }
+    },
+    "actions": {
+      "backToTickets": "Back to Tickets",
+      "cancel": "取消",
+      "submitting": "提交中...",
+      "submitTicket": "Submit Ticket"
+    },
+    "errors": {
+      "requiredFields": "Subject and message are required.",
+      "submitFailed": "Failed to submit ticket. Please try again."
+    }
+  },
+  "ticketDetailPage": {
+    "common": {
+      "you": "您",
+      "supportTeam": "支持团队",
+      "information": "信息",
+      "unset": "unset",
+      "unknown": "未知",
+      "unknownWrapped": "(未知)",
+      "user": "用户",
+      "yes": "是",
+      "no": "否",
+      "staff": "员工",
+      "ai": "AI"
+    },
+    "header": {
+      "ticket": "工单"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前",
+      "daysAgo": "{count} 天前"
+    },
+    "states": {
+      "loadingTicket": "Loading ticket…",
+      "ticketNotFound": "Ticket not found",
+      "ticketClosed": "Ticket closed"
+    },
+    "labels": {
+      "ticketDetails": "工单详情",
+      "status": "状态",
+      "priority": "优先级",
+      "created": "创建时间",
+      "messages": "Messages",
+      "department": "部门",
+      "assigned": "已分配",
+      "updated": "更新时间",
+      "quickActions": "Quick Actions"
+    },
+    "status": {
+      "open": "开启",
+      "awaitingStaff": "等待员工",
+      "replied": "已回复",
+      "closed": "已关闭"
+    },
+    "priority": {
+      "low": "低",
+      "medium": "中等",
+      "high": "高",
+      "urgent": "紧急"
+    },
+    "department": {
+      "none": "(无)",
+      "technicalSupport": "技术支持",
+      "billing": "账单",
+      "sales": "销售",
+      "security": "安全"
+    },
+    "owner": {
+      "ticketOwner": "工单所有者",
+      "viewFullProfile": "View full profile",
+      "name": "名称",
+      "title": "标题",
+      "gender": "性别",
+      "email": "邮箱",
+      "role": "角色",
+      "portal": "Portal"
+    },
+    "admin": {
+      "admin": "管理员",
+      "adminSettings": "Admin Settings",
+      "aiSettings": "AI 设置",
+      "aiResponses": "AI 回复",
+      "disabled": "已禁用",
+      "enabled": "已启用",
+      "aiTouched": "AI 已处理",
+      "dangerZone": "危险区域"
+    },
+    "composer": {
+      "staffPlaceholder": "Write your staff reply…",
+      "userPlaceholder": "Add more information…",
+      "sendHint": "⌘+Enter to send",
+      "screenshots": "截图"
+    },
+    "actions": {
+      "backToTickets": "Back to tickets",
+      "close": "关闭",
+      "reopen": "Reopen",
+      "closeTicket": "关闭工单",
+      "reopenTicket": "Reopen Ticket",
+      "saveChanges": "保存更改",
+      "saving": "保存中…",
+      "ban": "封禁",
+      "unban": "解封",
+      "deleteTicket": "Delete Ticket",
+      "deleting": "删除中…",
+      "reply": "回复",
+      "send": "发送"
+    },
+    "confirm": {
+      "deleteTicket": "Delete this ticket permanently?",
+      "banUser": "Ban this user from support?",
+      "unbanUser": "Unban this user from support?"
+    },
+    "prompt": {
+      "banReason": "Reason for ban (optional):"
+    },
+    "alerts": {
+      "failed": "失败：{reason}",
+      "failedSend": "Failed to send: {reason}",
+      "failedLoadTicket": "加载工单失败",
+      "failedSaveAdmin": "Failed to save admin settings: {reason}",
+      "failedDelete": "Failed to delete: {reason}",
+      "userBanned": "User banned from support",
+      "failedBan": "Failed to ban: {reason}",
+      "userUnbanned": "User unbanned",
+      "failedUnban": "Failed to unban: {reason}"
+    },
+    "errors": {
+      "failedLoadTicket": "加载工单失败"
+    },
+    "notifications": {
+      "priorityChanged": "Priority changed to {value}",
+      "departmentChanged": "Department changed to {value}",
+      "markedSpam": "Ticket was marked as spam",
+      "closedByAi": "Ticket was closed by AI",
+      "statusChanged": "Status changed to {value}",
+      "adminUpdated": "Admin ticket settings updated"
+    }
+  },
+  "organisationsPage": {
+    "header": {
+      "title": "组织",
+      "description": "管理您的组织"
+    },
+    "actions": {
+      "newOrganisation": "新建组织"
+    },
+    "states": {
+      "loading": "加载中...",
+      "none": "您不是任何组织的成员。"
+    },
+    "labels": {
+      "role": "角色：{value}",
+      "tier": "等级：{value}"
+    }
+  },
+  "organisationsCreatePage": {
+    "header": {
+      "title": "新建组织",
+      "description": "创建新组织"
+    },
+    "fields": {
+      "namePlaceholder": "组织名称",
+      "handlePlaceholder": "标识（例如 acme.ecli.app）"
+    },
+    "tiers": {
+      "free": "免费",
+      "paid": "已付款",
+      "enterprise": "企业"
+    },
+    "actions": {
+      "creating": "创建中...",
+      "create": "创建"
+    },
+    "errors": {
+      "failedCreate": "创建组织失败"
+    }
+  },
+  "organisationsDetailPage": {
+    "header": {
+      "fallbackTitle": "组织"
+    },
+    "common": {
+      "dash": "—"
+    },
+    "labels": {
+      "orgLogoAlt": "org logo",
+      "cpu": "CPU",
+      "ram": "RAM",
+      "disk": "磁盘"
+    },
+    "tiers": {
+      "free": "免费",
+      "pro": "专业版",
+      "enterprise": "企业"
+    },
+    "tabs": {
+      "members": "成员",
+      "orders": "订单",
+      "servers": "服务器",
+      "nodes": "节点",
+      "dns": "DNS",
+      "activity": "活动"
+    },
+    "roles": {
+      "member": "成员",
+      "admin": "管理员",
+      "owner": "所有者"
+    },
+    "states": {
+      "invalidOrganisation": "无效的组织。",
+      "loading": "加载中...",
+      "organisationNotFound": "未找到组织。",
+      "loadingActivity": "加载活动中…",
+      "noActivityTitle": "未找到活动",
+      "noActivityMessage": "No activity recorded for this organisation yet.",
+      "noActivityForFilter": "尚未记录 {filter} 事件。"
+    },
+    "members": {
+      "count": "{count} 个成员",
+      "none": "此组织中无成员。",
+      "unknownUser": "未知用户",
+      "userIdLabel": "用户 #{id}",
+      "pendingInvitations": "待处理的邀请",
+      "accepted": "已接受",
+      "pending": "待处理",
+      "addExistingUser": "添加现有用户（管理员）",
+      "userIdOptional": "用户 ID（可选）",
+      "orEmail": "或 email@example.com",
+      "inviteUser": "邀请用户",
+      "userEmail": "user@example.com"
+    },
+    "orders": {
+      "title": "组织订单",
+      "none": "此组织无订单。",
+      "columns": {
+        "id": "ID",
+        "description": "描述",
+        "amount": "金额",
+        "status": "状态",
+        "date": "日期"
+      }
+    },
+    "servers": {
+      "title": "组织服务器",
+      "loading": "加载服务器中…",
+      "none": "未找到此组织的服务器。"
+    },
+    "nodes": {
+      "title": "组织节点",
+      "loading": "加载节点中…",
+      "none": "未为此组织分配节点。",
+      "memoryLimit": "内存限制",
+      "diskLimit": "磁盘限制",
+      "cpuLimit": "CPU 限制",
+      "serverLimit": "服务器限制",
+      "monthlyCost": "月度费用",
+      "portRange": "端口范围"
+    },
+    "dns": {
+      "title": "组织 DNS",
+      "subdomainPlaceholder": "子域名 例如 app.example.com",
+      "loadingSubdomains": "加载子域名中…",
+      "noSubdomains": "未找到子域名。在上方添加一个或在基础设施 DNS 页面创建根区域。",
+      "zone": "区域：{name}",
+      "id": "ID：{id}",
+      "loadingRecords": "加载记录中…",
+      "noRecords": "未找到此区域的记录。",
+      "ttl": "TTL {ttl}",
+      "ttlShort": "TTL",
+      "proxied": "已代理",
+      "dns": "DNS",
+      "editRecord": "编辑 DNS 记录",
+      "name": "名称",
+      "content": "内容",
+      "autoTtl": "自动 TTL",
+      "addRecordTitle": "添加 DNS 记录（根 = @）",
+      "nameExample": "名称（例如 @、www、api）"
+    },
+    "activity": {
+      "title": "组织活动",
+      "loading": "加载活动中…",
+      "none": "此组织尚未记录活动。",
+      "actions": {
+        "orgCreate": "创建了组织",
+        "orgAddUser": "添加了成员",
+        "orgRemoveMember": "移除了成员",
+        "orgChangeRole": "更改了成员角色",
+        "orgInvite": "发送了邀请",
+        "orgResendInvite": "重新发送了邀请",
+        "orgRevokeInvite": "撤销了邀请",
+        "orgAcceptInvite": "接受了邀请",
+        "serverCreate": "创建了服务器",
+        "serverDelete": "删除了服务器",
+        "serverUpdate": "更新了服务器",
+        "serverSuspend": "暂停了服务器",
+        "serverUnsuspend": "恢复了服务器"
+      }
+    },
+    "stats": {
+      "currentPage": "当前页",
+      "today": "今天",
+      "logins": "登录",
+      "serverEvents": "服务器事件",
+      "onThisPage": "此页面",
+      "page": "第 {page} 页"
+    },
+    "filters": {
+      "title": "筛选事件",
+      "clear": "清除",
+      "all": "全部",
+      "member": "成员",
+      "server": "服务器",
+      "billing": "账单",
+      "security": "安全",
+      "support": "支持"
+    },
+    "log": {
+      "title": "活动日志",
+      "shown": "显示 {count} 条",
+      "unknownAction": "未知操作",
+      "unknown": "未知"
+    },
+    "details": {
+      "eventDetails": "事件详情",
+      "action": "操作",
+      "targetType": "目标类型",
+      "targetId": "目标 ID",
+      "timestamp": "时间戳",
+      "ipAddress": "IP 地址",
+      "userId": "用户 ID",
+      "metadata": "元数据",
+      "allProperties": "所有属性",
+      "rawJson": "原始 JSON"
+    },
+    "footer": {
+      "pageEvents": "第 {page} 页 • {count} 个事件"
+    },
+    "pagination": {
+      "prev": "上一页",
+      "next": "下一页"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前",
+      "daysAgo": "{count} 天前"
+    },
+    "actions": {
+      "uploading": "上传中…",
+      "uploadLogo": "上传标志",
+      "leaveOrg": "离开组织",
+      "refresh": "刷新",
+      "resend": "重新发送",
+      "revoke": "撤销",
+      "addUser": "添加用户",
+      "invite": "邀请",
+      "edit": "编辑",
+      "delete": "删除",
+      "create": "创建",
+      "save": "保存",
+      "cancel": "取消",
+      "addRecord": "添加记录"
+    },
+    "confirm": {
+      "leaveOrg": "离开组织？这将移除您的访问权限和相关子用户链接。",
+      "deleteRecord": "删除此记录？",
+      "revokeInvite": "撤销此邀请？",
+      "removeSubdomain": "从组织中移除子域名 {name}？"
+    },
+    "alerts": {
+      "leftOrg": "您已离开组织",
+      "failed": "失败：{reason}",
+      "failedUpdate": "更新失败：{reason}",
+      "failedDelete": "删除失败：{reason}",
+      "failedUpdateTier": "更新等级失败：{reason}",
+      "uploadFailed": "上传失败：{reason}",
+      "subdomainNameRequired": "子域名名称为必填项",
+      "orgHandleNotSet": "组织标识未设置",
+      "onlyHandleZone": "只能创建组织标识区域",
+      "invitationSent": "邀请已发送",
+      "cannotInviteYourself": "您不能邀请自己。",
+      "userAdded": "用户已添加到组织",
+      "inviteResent": "邀请已重新发送",
+      "inviteRevoked": "邀请已撤销",
+      "failedDeleteSubdomain": "删除子域名失败：{reason}",
+      "failedChangeRole": "更改角色失败"
+    }
+  },
+  "aiChatPage": {
+    "initialMessage": "Hey there! 👋 I'm your Eclipse AI assistant. I can help you manage servers, debug issues, and optimize your infrastructure. What would you like to work on today?",
+    "header": {
+      "title": "AI 对话",
+      "description": "Chat with your AI assistant",
+      "assistantName": "Eclipse AI",
+      "typing": "输入中...",
+      "online": "在线",
+      "noModels": "No models available",
+      "selectModel": "Select Model"
+    },
+    "suggestions": {
+      "optimize": "Optimize my server",
+      "debug": "Debug an issue",
+      "configure": "Configure settings",
+      "bestPractices": "Best practices"
+    },
+    "actions": {
+      "clearChat": "Clear chat"
+    },
+    "states": {
+      "thinking": "思考中..."
+    },
+    "quickActions": {
+      "title": "Quick actions"
+    },
+    "composer": {
+      "placeholder": "Ask me anything...",
+      "sendHint": "send",
+      "newLineHint": "new line"
+    },
+    "messageActions": {
+      "title": "Message actions",
+      "copy": "复制",
+      "good": "Good",
+      "bad": "Bad",
+      "retry": "重试"
+    },
+    "errors": {
+      "noModelAvailable": "No AI model available. Please contact your administrator to configure one.",
+      "chatResponse": "错误：{reason}",
+      "failedGetResponse": "获取响应失败"
+    }
+  },
+  "aiStudioPage": {
+    "header": {
+      "title": "AI 工作室",
+      "description": "AI 驱动的服务器管理工具"
+    },
+    "sections": {
+      "aiToolsTitle": "AI 工具",
+      "aiToolsDescription": "Specialized AI tools for your workflow"
+    },
+    "tools": {
+      "comingSoon": "即将推出",
+      "codeAssistant": {
+        "name": "Code Assistant",
+        "description": "Generate, debug, and optimize server configurations",
+        "systemPrompt": "You are a Code Assistant for the EcliPanel game server management platform. Help users generate, debug, and optimize server configuration files (server.properties, spigot.yml, paper.yml, bukkit.yml, startup scripts, Docker compose files, .env files, nginx configs, etc). When providing code, always include the full file path as a comment at the top. Explain what each setting does. Suggest security hardening where applicable. Output complete, ready-to-use config blocks. Consider the user's game server type (Minecraft, Valheim, CS2, etc) and adapt configs accordingly.",
+        "placeholder": "Describe what you need — e.g. 'Optimize my paper.yml for 50 players'"
+      },
+      "logAnalyzer": {
+        "name": "Log Analyzer",
+        "description": "Analyze server logs and identify issues automatically",
+        "systemPrompt": "You are a Log Analyzer for game servers on EcliPanel. The user will paste server logs. Systematically identify: errors (crash logs, stack traces), warnings (deprecated API calls, mod conflicts), performance issues (TPS drops, GC pauses, tick lag), plugin/mod conflicts, and security concerns. For each issue found: 1) Quote the relevant log line, 2) Explain what it means, 3) Provide a specific fix with exact config values or commands. Prioritize critical issues first. If the log contains a full crash report, analyze the stack trace and identify the root cause mod/plugin.",
+        "placeholder": "Paste your server log or describe the error…"
+      },
+      "imageGenerator": {
+        "name": "Image Generator",
+        "description": "Generate server icons and banners with AI"
+      },
+      "configWizard": {
+        "name": "Config Wizard",
+        "description": "Auto-generate optimal server configurations",
+        "systemPrompt": "You are a Config Wizard for game servers on EcliPanel. Based on the user's requirements (player count, server type, mods/plugins, hardware specs like RAM and CPU), generate complete, optimized configuration files. For each config: 1) State the file path, 2) Explain key decisions made, 3) Output the full ready-to-use config. Adapt JVM flags, garbage collection settings, and startup parameters to the specified hardware. Consider server type specific optimizations (Paper/Airplane/Pufferfish for performance, Forge/Fabric for modded). Include comments explaining each significant setting.",
+        "placeholder": "e.g. 'Generate optimized JVM flags for 8GB RAM, Paper 1.21, 100 players'"
+      },
+      "performanceAdvisor": {
+        "name": "Performance Advisor",
+        "description": "AI 驱动的性能优化建议",
+        "systemPrompt": "You are a Performance Advisor for game servers on EcliPanel. Analyze the user's described setup and provide specific optimization suggestions across all layers: JVM/startup flags (GC tuning, memory allocation), server config (view-distance, simulation-distance, entity-activation-range, tick-rates), plugin optimization (identify laggy plugins, suggest alternatives), database tuning (if MySQL/Redis involved), and OS-level tuning where applicable. Be specific with exact config values and file paths. Explain the performance impact of each change. Prioritize by impact — highest gain changes first.",
+        "placeholder": "Describe your server setup and performance issues…"
+      },
+      "analyticsAi": {
+        "name": "Analytics AI",
+        "description": "Predictive analytics for server resource planning",
+        "systemPrompt": "You are an Analytics AI for server resource planning on EcliPanel. Help users predict resource needs, plan scaling, estimate costs, and analyze usage patterns. Provide data-driven recommendations for: CPU cores needed per player count, RAM allocation guidelines per server type, storage growth estimates, network bandwidth requirements, and node capacity planning. When estimating costs, consider EcliPanel's node-based infrastructure model. Help users understand when to scale vertically (bigger node) vs horizontally (more nodes). Include formulas where applicable so users can adapt to their specific case.",
+        "placeholder": "e.g. 'I expect 200 concurrent players, what resources do I need?'"
+      }
+    },
+    "chat": {
+      "startUsing": "Send a message to start using {tool}",
+      "thinking": "Thinking…",
+      "typeMessage": "Type your message..."
+    },
+    "models": {
+      "myModelsTitle": "My AI Models",
+      "myModelsDescription": "Models your administrator has granted you access to",
+      "loading": "Loading models...",
+      "noModelsAssignedTitle": "No models assigned",
+      "noModelsAssignedDescription": "Contact your administrator to get access to AI models.",
+      "allModelsTitle": "All Models",
+      "allModelsDescription": "Full catalogue of available AI models"
+    },
+    "badges": {
+      "beta": "测试版"
+    },
+    "modelStatus": {
+      "accessGranted": "已授予访问权限",
+      "assigned": "已分配",
+      "notAssigned": "Not assigned"
+    },
+    "errors": {
+      "chatResponse": "错误：{reason}",
+      "failedGetResponse": "获取响应失败"
+    }
+  },
+  "billingPage": {
+    "header": {
+      "title": "账单",
+      "description": "Manage your subscription and payment methods"
+    },
+    "portal": {
+      "free": "免费门户 (ELO)",
+      "paid": "付费门户",
+      "educational": "教育门户",
+      "enterprise": "企业门户"
+    },
+    "common": {
+      "na": "N/A",
+      "unlimited": "无限制",
+      "perMonth": "/月"
+    },
+    "pricing": {
+      "priceVaries": "价格面议",
+      "custom": "自定义",
+      "customPlan": "自定义套餐",
+      "inclTax": "含 {taxRate}% 税"
+    },
+    "stats": {
+      "currentPlan": "当前套餐",
+      "monthlyCost": "月度费用",
+      "priceFromOrder": "价格来自订单或联系销售",
+      "includesTax": "包含 {country} 的 {taxRate}% 税",
+      "yourBillingCountry": "您的账单国家",
+      "totalInvoices": "发票总数",
+      "planExpires": "套餐过期",
+      "managedViaSales": "通过销售管理"
+    },
+    "tax": {
+      "title": "税务信息",
+      "description": "根据您的账单国家和面板税务规则计算",
+      "billingCountry": "账单国家",
+      "notSet": "未设置",
+      "taxRate": "税率",
+      "preTaxMonthly": "税前月费",
+      "taxAmount": "税额"
+    },
+    "activeSubscription": {
+      "title": "活跃订阅",
+      "descriptionFallback": "您当前的套餐详情",
+      "manage": "管理",
+      "configuredLimits": "您配置的限制",
+      "memory": "内存",
+      "disk": "磁盘",
+      "cpu": "CPU",
+      "serverLimit": "服务器限制",
+      "ports": "每个服务器端口数",
+      "tunnelPorts": "隧道端口",
+      "emailDailyLimit": "邮件发送限制",
+      "emailQueueLimit": "邮件队列限制",
+      "databases": "数据库",
+      "backups": "备份",
+      "renews": "续费",
+      "cancelRenewal": "取消续费",
+      "cancelConfirmTitle": "取消套餐续费",
+      "cancelConfirmDescription": "这将取消您的套餐续费。您当前的套餐将在账单周期结束前保持活跃。之后，您的账户将恢复为免费等级。",
+      "currentExpires": "当前套餐过期时间",
+      "confirmCancel": "是的，取消续费",
+      "keepPlan": "保留我的套餐",
+      "cancelled": "套餐续费已取消",
+      "cancelFailed": "取消套餐失败",
+      "activeBadge": "活跃",
+      "created": "创建时间"
+    },
+    "currentSubscription": {
+      "title": "当前订阅",
+      "description": "您活跃的套餐和功能。如需升级或更改，请联系您的管理员。",
+      "requestChange": "请求更改",
+      "active": "活跃",
+      "connect": "连接",
+      "buyNow": "立即购买",
+      "contactSales": "联系销售",
+      "cancelFirst": "购买新套餐前请先取消当前套餐",
+      "noPlansVisible": "账单展示中当前没有可见的套餐。",
+      "switchTitle": "切换订阅",
+      "switchDescription": "您当前拥有 {current}。是否要切换到 {target}？",
+      "renewCurrent": "续费当前订阅",
+      "upgradeNow": "立即升级",
+      "downgradeNow": "立即降级",
+      "switchNow": "立即切换",
+      "goBack": "返回",
+      "switchTo": "切换到",
+      "confirmSwitch": "确认切换",
+      "currentPlan": "当前套餐",
+      "switched": "已切换到",
+      "queued": "已排队等待续费",
+      "activateNow": "立即激活（替换当前套餐）",
+      "activateOnRenewal": "排队等待下次续费"
+    },
+    "invoices": {
+      "title": "发票历史",
+      "descriptionBase": "过往付款和发票",
+      "taxRate": "税率 {taxRate}%（{country}）",
+      "billingCountry": "账单国家",
+      "columns": {
+        "invoice": "发票",
+        "description": "描述",
+        "date": "日期",
+        "amountTaxIncl": "金额（含税）",
+        "status": "状态",
+        "actions": "操作"
+      },
+      "loading": "加载订单中...",
+      "empty": "未找到订单。",
+      "tax": "税",
+      "paid": "已付款",
+      "pending": "待处理",
+      "awaitingPayment": "等待付款",
+      "paymentSent": "付款已发送",
+      "cancelled": "已取消",
+      "pay": "付款"
+    },
+    "errors": {
+      "failedStudentVerification": "Failed to start student verification flow",
+      "failedFetchInvoice": "Failed to fetch invoice",
+      "unableDownloadInvoice": "Unable to download invoice",
+      "orderCreateFailed": "Failed to create order"
+    }
+  },
+  "checkoutPage": {
+    "title": "结账",
+    "description": "完成您的付款",
+    "backToBilling": "返回账单",
+    "orderSummary": "订单摘要",
+    "orderDescription": "描述",
+    "orderAmount": "金额",
+    "orderCreated": "创建时间",
+    "orderExpiresAt": "过期时间",
+    "orderStarts": "Starts",
+    "planSpecs": "套餐规格",
+    "planType": "套餐类型",
+    "coupon": {
+      "placeholder": "优惠券代码",
+      "apply": "应用",
+      "applied": "优惠券已应用"
+    },
+    "selectMethod": {
+      "title": "选择支付方式",
+      "description": "选择您偏好的支付方式",
+      "continue": "继续付款",
+      "cancelOrder": "取消订单",
+      "activationTitle": "激活",
+      "activateNow": "立即激活（替换当前套餐）",
+      "activateOnRenewal": "排队等待下次续费"
+    },
+    "instructions": {
+      "title": "付款说明",
+      "description": "使用以下详情发送付款。管理员确认收款后将激活您的套餐。",
+      "amountToSend": "发送金额",
+      "walletAddress": "钱包地址",
+      "payTo": "付款至",
+      "markSent": "我已付款",
+      "later": "我稍后再做",
+      "cancelOrder": "取消订单",
+      "sentTitle": "付款已标记为已发送",
+      "sentDescription": "您的付款已标记为已发送。管理员将很快审核并确认您的付款。",
+      "backToBilling": "返回账单",
+      "processingTime": "管理员确认后处理可能需要长达 24 小时。",
+      "fraudWarning": "仅发送显示的准确金额。不要从延迟提现的交易所发送。"
+    },
+    "error": {
+      "loadFailed": "无法加载结账信息。",
+      "missingOrder": "未指定订单。请返回重试。",
+      "invalidStatus": "此订单现在无法付款。它可能已经激活或取消。",
+      "noPaymentMethods": "当前没有可用的支付方式。请联系支持。",
+      "backToBilling": "返回账单",
+      "cancelFailed": "取消订单失败"
+    }
+  },
+  "serverSharesTab": {
+    "title": "共享文件",
+    "description": "Manage public share links for server files",
+    "refresh": "刷新",
+    "loading": "Loading shared files...",
+    "retry": "重试",
+    "emptyTitle": "No shares yet",
+    "emptyDescription": "Share a file from the Files tab to create a link",
+    "neverExpires": "Never expires",
+    "expires": "Expires {duration}",
+    "downloads": "{count, plural, one {# 次下载} other {# 次下载}}",
+    "statusActive": "活跃",
+    "statusExpired": "已过期",
+    "statusDisabled": "已禁用",
+    "copyLink": "复制链接",
+    "openSharePage": "Open share page",
+    "deleteShareLink": "Delete share link",
+    "deleteDialogTitle": "Delete Share Link",
+    "deleteDialogDescription": "This will permanently disable the share link. Anyone with the link will no longer be able to access the file.",
+    "cancel": "取消",
+    "deleteLink": "删除链接",
+    "errorLoad": "Failed to load shares",
+    "errorDelete": "Failed to delete share link"
+  },
+  "shareFileClient": {
+    "loading": "Loading shared file...",
+    "sharedFile": "Shared File",
+    "expired": "已过期",
+    "expires": "过期于 {date}",
+    "downloads": "{count, plural, one {# 次下载} other {# 次下载}}",
+    "download": "下载",
+    "linkExpired": "This share link has expired",
+    "noPreview": "No preview available for this file type",
+    "clickDownload": "Click download to get the file",
+    "linkExpiredTitle": "Link Expired",
+    "fileDeletedTitle": "File Deleted",
+    "notFoundTitle": "Not Found",
+    "errorNotFound": "Share link not found",
+    "errorNotValid": "This share link is no longer valid",
+    "errorTimeout": "Request timed out. The server may be offline.",
+    "errorLoadInfo": "Failed to load share info",
+    "errorLoadLink": "Failed to load share link"
+  },
+  "adminPaymentMethodsTab": {
+    "header": {
+      "title": "支付方式",
+      "subtitle": "Configure payment methods available to users"
+    },
+    "form": {
+      "label": "标签",
+      "labelPlaceholder": "e.g. Bitcoin Wallet",
+      "type": "类型",
+      "currency": "货币",
+      "network": "网络",
+      "address": "Address / Wallet / Email",
+      "addressPlaceholder": "Enter address or PayPal email",
+      "addressPlaceholderCrypto": "Enter wallet address",
+      "addressPlaceholderPaypal": "Enter PayPal email",
+      "instructions": "Instructions",
+      "instructionsPlaceholder": "Optional instructions for the user",
+      "optional": "optional",
+      "enabled": "活跃",
+      "disabled": "已禁用",
+      "selectNetwork": "Select network"
+    },
+    "actions": {
+      "addMethod": "Add Method",
+      "saveAll": "Save All",
+      "save": "保存",
+      "cancel": "取消",
+      "refresh": "刷新"
+    },
+    "footer": {
+      "changesCount": "{count} method(s) configured"
+    },
+    "states": {
+      "emptyTitle": "No Payment Methods",
+      "emptySubtitle": "Add a payment method so users can pay for orders."
+    },
+    "toasts": {
+      "saved": "Payment methods saved successfully",
+      "saveFailed": "Failed to save payment methods"
+    }
+  },
+  "serverMinecraftTab": {
+    "tabs": {
+      "online": "在线",
+      "whitelist": "白名单",
+      "bans": "封禁",
+      "ops": "管理员",
+      "versions": "版本",
+      "plugins": "插件",
+      "settings": "设置"
+    },
+    "players": {
+      "onlineCount": "{online} / {max} 名玩家在线",
+      "offline": "服务器离线或不可达",
+      "searchPlaceholder": "搜索玩家...",
+      "whitelistLabel": "白名单",
+      "addPlayerPlaceholder": "玩家名称...",
+      "opPlayerPlaceholder": "要设为管理员的玩家名称...",
+      "add": "添加",
+      "op": "设为管理员",
+      "save": "保存",
+      "empty": {
+        "online": "没有在线玩家",
+        "whitelist": "没有白名单玩家",
+        "bans": "没有被封禁的玩家",
+        "ops": "没有管理员玩家"
+      },
+      "size": "{size} KB"
+    },
+    "versions": {
+      "paper": "Paper",
+      "vanilla": "Vanilla",
+      "currentConfig": "当前配置",
+      "minecraftVersion": "Minecraft 版本",
+      "buildNumber": "构建编号",
+      "build": "构建",
+      "version": "版本",
+      "latest": "最新",
+      "autoUpdate": "自动更新",
+      "latestRelease": "最新发布",
+      "auto": "自动",
+      "current": "当前",
+      "apply": "应用 {type} 版本",
+      "cannotModify": "安装中无法修改",
+      "serverInstalling": "服务器安装中",
+      "serverInstallingDesc": "此服务器正在安装中。您可以在下方更改版本并重装，但更改将在下次安装尝试时生效。",
+      "serverSuspended": "服务器状态：{status}",
+      "serverSuspendedDesc": "此服务器在 {status} 状态下无法修改。",
+      "reinstallKeep": "重装（保留文件）",
+      "reinstallKeepDesc": "重装同时保留现有服务器文件和数据。",
+      "reinstallWipe": "重装并清除所有文件",
+      "reinstallWipeDesc": "完全重装服务器 – 所有现有文件将被删除。",
+      "later": "稍后",
+      "reinstallNow": "立即重装",
+      "versionApplied": "版本已应用",
+      "changesEffectNextInstall": "此服务器正在安装中。您可以在下方更改版本并重装，但更改将在下次安装尝试时生效。",
+      "loadingPaper": "加载 Paper 版本中...",
+      "loadingVanilla": "加载 Vanilla 版本中...",
+      "loadingBuilds": "加载构建中...",
+      "noBuilds": "{version} 无可用构建。",
+      "serverUsingChannel": "服务器正在使用 <strong>{channel}</strong> 通道。在下方选择特定版本以固定到稳定构建。",
+      "autoUpdateDesc": "自动使用最新的稳定 Paper 构建。需要重装以更新。",
+      "vanillaLatestDesc": "自动使用最新的稳定 Minecraft 发布版。需要重装以更新。",
+      "vanillaSpecificDesc": "服务器 jar 将从 Mojang 官方启动器元数据下载。",
+      "changes": "{count} 项更改",
+      "changes_plural": "{count} 项更改",
+      "hideNotes": "隐藏备注",
+      "versionAppliedDescPaper": "Paper {version} 已应用。是否要立即重装以完成更新？",
+      "versionAppliedDescVanilla": "Vanilla {version} 已应用。是否要立即重装以完成更新？"
+    },
+    "plugins": {
+      "searchPlaceholder": "搜索 Modrinth 插件...",
+      "search": "搜索",
+      "installed": "已安装 ({count})",
+      "noPlugins": "尚未安装插件。",
+      "noResults": "未找到 \"{query}\" 的插件",
+      "noResultsHint": "尝试不同的搜索词。",
+      "viewDetails": "查看详情 / 更新",
+      "delete": "删除插件",
+      "installedBadge": "已安装",
+      "downloads": "{count} 次下载",
+      "notFound": "不在 Modrinth 上",
+      "notFoundDesc": "\"{name}\" 未在 Modrinth 上找到。它可能是自定义或私有插件 — 请通过 SFTP/文件管理。",
+      "close": "关闭",
+      "installSelected": "安装选定版本",
+      "installing": "安装中...",
+      "versions": "版本",
+      "noVersions": "无可用版本。",
+      "deleteTitle": "删除插件",
+      "deleteConfirm": "从服务器删除 \"{name}\"？",
+      "byAuthor": "作者：{author}",
+      "onModrinth": "Modrinth"
+    },
+    "dialogs": {
+      "cancel": "取消",
+      "confirm": "确认",
+      "addToWhitelist": "添加至白名单",
+      "removeFromWhitelist": "从白名单移除",
+      "deop": "取消管理员",
+      "pardon": "解封",
+      "ban": "封禁",
+      "kick": "踢出",
+      "op": "设为管理员",
+      "whitelistConfirm": "将 \"{player}\" 添加至白名单？",
+      "unwhitelistConfirm": "将 \"{player}\" 从白名单移除？",
+      "banConfirm": "封禁 \"{player}\"？",
+      "pardonConfirm": "解封 \"{player}\"？",
+      "kickConfirm": "将 \"{player}\" 踢出服务器？",
+      "opConfirm": "将 \"{player}\" 设为管理员？",
+      "deopConfirm": "取消 \"{player}\" 的管理员权限？",
+      "reasonPlaceholder": "原因（可选）"
+    },
+    "errors": {
+      "loadPlayers": "加载玩家失败",
+      "loadPaperVersions": "加载 Paper 版本失败",
+      "loadBuilds": "加载构建失败",
+      "loadVanillaVersions": "加载 Vanilla 版本失败",
+      "actionFailed": "操作失败",
+      "applyFailed": "应用版本失败",
+      "reinstallFailed": "启动重装失败：{message}",
+      "unknownError": "未知错误",
+      "searchPlugins": "搜索插件失败",
+      "installPlugin": "安装插件失败",
+      "toggleWhitelist": "切换白名单失败",
+      "saveSettings": "保存设置失败",
+      "reinstallInitiated": "重装已启动 – 服务器将使用新版本重装。"
+    },
+    "startup": {
+      "startupCommand": "启动命令",
+      "startupDesc": "用于启动 Minecraft 服务器的命令。更改需要重启才能生效。",
+      "presets": "快速预设",
+      "defaultPreset": "默认",
+      "defaultPresetDesc": "标准启动命令，具有优化的内存和终端设置。",
+      "aikarFlags": "Aikar 标志",
+      "aikarFlagsDesc": "Aikar 推荐的 JVM 标志，用于改善 Paper/Purpur 服务器的 GC 性能。",
+      "custom": "自定义",
+      "saveStartup": "保存启动命令",
+      "startupSaved": "启动命令已保存。重启服务器以使更改生效。",
+      "startupSaveFailed": "保存启动命令失败：{message}",
+      "startupLoading": "加载启动配置中..."
+    }
+  },
+  "calendarPage": {
+    "title": "日历与待办",
+    "description": "规划您的一周，管理事件，保持井然有序",
+    "view": {
+      "calendar": "日历",
+      "todo": "待办"
+    },
+    "calendar": {
+      "today": "今天",
+      "upcomingEvents": "即将到来的事件",
+      "noUpcomingEvents": "没有即将到来的事件。点击某天以添加。",
+      "newEvent": "新建事件",
+      "editEvent": "编辑事件",
+      "eventTitle": "事件标题",
+      "description": "描述（可选）",
+      "start": "开始",
+      "end": "结束",
+      "color": "颜色",
+      "repeat": "重复",
+      "doesNotRepeat": "不重复",
+      "daily": "每天",
+      "weekly": "每周",
+      "monthly": "每月",
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "more": "+{count} 更多"
+    },
+    "todo": {
+      "openTasks": "{count} 个待办 {count, plural, one {事项} other {事项}}",
+      "thisWeek": "本周 {count} 个",
+      "quickAdd": "快速添加待办...",
+      "newTask": "新建任务",
+      "editTask": "编辑任务",
+      "aiPlan": "AI 规划",
+      "taskTitle": "任务标题",
+      "description": "描述（可选）",
+      "priority": "优先级",
+      "high": "高",
+      "medium": "中等",
+      "low": "低",
+      "dueDate": "截止日期",
+      "time": "时间",
+      "estimatedMinutes": "预计分钟数",
+      "save": "保存",
+      "cancel": "取消",
+      "delete": "删除",
+      "weekOf": "{date} 周",
+      "noDueDate": "无截止日期",
+      "allTasksHaveDueDate": "所有任务都有截止日期。"
+    },
+    "ai": {
+      "planning": "规划中...",
+      "planningError": "AI 规划器当前不可用。请稍后再试。"
+    }
+  },
+  "blogPage": {
+    "title": "博客",
+    "description": "描述",
+    "noDescription": "暂无描述",
+    "view": "查看",
+    "published": "已发布",
+    "drafts": "草稿",
+    "settings": "设置",
+    "builder": "构建器",
+    "posts": "文章",
+    "newPost": "新建文章",
+    "noPosts": "暂无文章。写您的第一篇文章吧！",
+    "edit": "编辑",
+    "back": "返回博客",
+    "error": "无法加载博客",
+    "slug": "标识",
+    "excerpt": "摘要（可选）",
+    "excerptPlaceholder": "简要摘要...",
+    "postTitle": "标题",
+    "postTitlePlaceholder": "文章标题...",
+    "write": "撰写",
+    "preview": "预览",
+    "contentPlaceholder": "用 Markdown 撰写文章...",
+    "previewEmpty": "暂无预览内容...",
+    "coverImage": "封面图片（可选）",
+    "upload": "上传",
+    "uploading": "上传中...",
+    "tags": "标签（逗号分隔）",
+    "saveDraft": "保存草稿",
+    "publish": "发布",
+    "save": "保存",
+    "saving": "保存中...",
+    "delete": "删除",
+    "confirmDelete": "删除此文章？",
+    "editPost": "编辑文章",
+    "editPostDescription": "编辑您的博客文章",
+    "newPostDescription": "撰写新的博客文章",
+    "settingsDescription": "自定义您的博客外观和设置",
+    "general": "常规",
+    "theme": "主题",
+    "blogInfo": "博客信息",
+    "blogName": "博客名称",
+    "visibility": "可见性",
+    "public": "公开",
+    "members": "成员",
+    "unlisted": "不公开",
+    "themePresets": "主题预设",
+    "themePresetsDescription": "选择一个预设并调整",
+    "colors": "颜色",
+    "primaryColor": "主色",
+    "bgColor": "背景",
+    "fgColor": "文本",
+    "cardColor": "卡片",
+    "typography": "排版",
+    "headingFont": "标题字体",
+    "bodyFont": "正文字体",
+    "sampleTitle": "示例博客标题",
+    "sampleDescription": "这是您的博客描述将呈现的样子。",
+    "samplePost": "示例文章标题",
+    "samplePostDate": "刚刚发布",
+    "membersDescription": "管理谁可以在您的博客上写作",
+    "addMember": "添加成员",
+    "confirmRemoveMember": "移除此成员？",
+    "noMembers": "暂无成员。邀请作者加入您的博客！",
+    "memberEmail": "用户邮箱",
+    "memberRole": "角色",
+    "memberNotFound": "未找到成员",
+    "memberAlreadyExists": "成员已存在",
+    "memberEmailRequired": "邮箱为必填项",
+    "userNotFound": "未找到用户",
+    "invalidRole": "无效角色",
+    "titleRequired": "标题为必填项",
+    "onlyOwnerCanTransfer": "只有博客所有者可以转移所有权",
+    "cannotRemoveOwner": "无法移除博客所有者",
+    "orgMembershipRequired": "您必须是此组织的成员",
+    "subscribe": "订阅",
+    "subscribed": "已订阅",
+    "unsubscribe": "取消订阅",
+    "cannotSubscribeOwn": "无法订阅自己的博客",
+    "alreadySubscribed": "已订阅",
+    "notSubscribed": "未订阅",
+    "subscriberCount": "{count} 位订阅者",
+    "builderDescription": "设计您的博客首页布局",
+    "builderEmpty": "暂无板块。从面板中添加板块来构建您的博客布局。",
+    "createBlog": "创建您的博客",
+    "createBlogDescription": "为您的博客选择一个 URL 标识。这将是您的公开地址。",
+    "blogUrl": "博客 URL",
+    "slugAvailable": "此 URL 可用！",
+    "slugTaken": "此 URL 已被占用。请尝试其他。",
+    "slugInvalid": "无效的标识。请使用字母、数字和连字符（最少 2 个字符）。",
+    "creating": "创建中...",
+    "scriptsHandbook": "博客脚本 SDK 手册",
+    "customCss": "自定义 CSS",
+    "customCssDescription": "添加您自己的 CSS。将注入到您的公开博客页面。",
+    "contentFlags": "内容标志",
+    "mature": "成人内容 (NSFW)",
+    "political": "政治观点",
+    "analytics": "分析",
+    "analyticsDescription": "文章表现和查看统计",
+    "analyticsTotalViews": "总浏览量",
+    "analyticsLastNDays": "最近 {days} 天",
+    "analyticsTopPostsByViews": "按浏览量排序的热门文章",
+    "analyticsNoPublishedPosts": "暂无已发布的文章。",
+    "analyticsAllPosts": "所有文章",
+    "analyticsTableTitle": "标题",
+    "analyticsTableViews": "浏览量",
+    "analyticsTableStatus": "状态",
+    "analyticsTableCreated": "创建时间",
+    "views": "次浏览",
+    "handbook": "手册"
+  }
+}

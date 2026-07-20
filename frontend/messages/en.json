@@ -6,7 +6,10 @@
   "locale": {
     "label": "Language",
     "english": "English",
-    "russian": "Russian"
+    "russian": "Russian",
+    "chinese": "Chinese",
+    "japanese": "Japanese",
+    "hindi": "Hindi"
   },
   "panelNav": {
     "sections": {
@@ -3401,6 +3404,9 @@
       "languageHint": "Set your preferred interface language.",
       "english": "English",
       "russian": "Russian",
+      "chinese": "Chinese",
+      "japanese": "Japanese",
+      "hindi": "Hindi",
       "luckMode": "⚠ Luck mode active"
     },
     "editor": {
@@ -4320,6 +4326,8 @@
       "loadingStatistics": "Loading statistics…",
       "loadingFiles": "Loading files…",
       "loadingFirewall": "Loading firewall settings…",
+      "loadingSchedules": "Loading schedules…",
+      "loadingBackups": "Loading backups…",
       "enabled": "enabled",
       "disabled": "disabled",
       "unknown": "unknown",
@@ -4600,7 +4608,13 @@
       "console": "Console",
       "file": "File",
       "subuser": "Subuser",
-      "settings": "Settings"
+      "settings": "Settings",
+      "server": "Server",
+      "login": "Login",
+      "logout": "Logout",
+      "billing": "Billing",
+      "security": "Security",
+      "support": "Support"
     },
     "log": {
       "title": "Activity Log",

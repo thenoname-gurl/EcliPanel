@@ -2513,6 +2513,9 @@ export default function SettingsPage() {
                     <SelectContent>
                       <SelectItem value="en">{t("appearance.english")}</SelectItem>
                       <SelectItem value="ru">{t("appearance.russian")}</SelectItem>
+                      <SelectItem value="zh">{t("appearance.chinese")}</SelectItem>
+                      <SelectItem value="ja">{t("appearance.japanese")}</SelectItem>
+                      <SelectItem value="hi">{t("appearance.hindi")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

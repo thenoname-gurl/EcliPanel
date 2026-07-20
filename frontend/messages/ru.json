@@ -6,7 +6,10 @@
   "locale": {
     "label": "Язык",
     "english": "Английский",
-    "russian": "Русский"
+    "russian": "Русский",
+    "chinese": "Китайский",
+    "japanese": "Японский",
+    "hindi": "Хинди"
   },
   "panelNav": {
     "sections": {
@@ -3463,6 +3466,9 @@
       "languageHint": "Установите предпочитаемый язык интерфейса.",
       "english": "Английский",
       "russian": "Русский",
+      "chinese": "Китайский",
+      "japanese": "Японский",
+      "hindi": "Хинди",
       "luckMode": "⚠ Режим удачи активен"
     },
     "editor": {
@@ -4374,6 +4380,8 @@
       "loadingStatistics": "Загрузка статистики…",
       "loadingFiles": "Загрузка файлов…",
       "loadingFirewall": "Загрузка настроек брандмауэра…",
+      "loadingSchedules": "Загрузка расписаний…",
+      "loadingBackups": "Загрузка резервных копий…",
       "enabled": "включено",
       "disabled": "отключено",
       "unknown": "неизвестно",
@@ -4594,7 +4602,32 @@
       "confirmRestore": "Восстановить эту резервную копию? Текущие данные могут быть перезаписаны.",
       "restoreInitiated": "Восстановление запущено.",
       "confirmDelete": "Удалить эту резервную копию навсегда?",
-      "failed": "Ошибка: {reason}"
+      "failed": "Ошибка: {reason}",
+      "newGroup": "Новая группа",
+      "editGroup": "Изменить группу",
+      "createGroup": "Создать группу",
+      "groupName": "Название группы",
+      "groupDescription": "Описание (необязательно)",
+      "compressionType": "Сжатие",
+      "defaultCompression": "По умолчанию",
+      "moveToGroup": "Переместить в группу…",
+      "removeFromGroup": "Убрать из группы",
+      "noBackupsInGroup": "В этой группе пока нет резервных копий.",
+      "ungrouped": "Без группы",
+      "confirmDeleteGroup": "Удалить эту группу? Резервные копии не будут удалены.",
+      "cancel": "Отмена",
+      "save": "Сохранить",
+      "delete": "Удалить",
+      "edit": "Изменить",
+      "history": "История",
+      "fileHistory": "История файла",
+      "noRevisions": "Версии не найдены",
+      "view": "Просмотр",
+      "diff": "Сравнить",
+      "restoreRevision": "Восстановить эту версию",
+      "restored": "Файл восстановлен до выбранной версии",
+      "exitDiff": "Выйти из сравнения",
+      "snapshot": "СНИМОК"
     },
     "activity": {
       "title": "Журнал активности",
@@ -4629,7 +4662,13 @@
       "console": "Консоль",
       "file": "Файлы",
       "subuser": "Субпользователи",
-      "settings": "Настройки"
+      "settings": "Настройки",
+      "server": "Сервер",
+      "login": "Вход",
+      "logout": "Выход",
+      "billing": "Биллинг",
+      "security": "Безопасность",
+      "support": "Поддержка"
     },
     "log": {
       "title": "Журнал активности",

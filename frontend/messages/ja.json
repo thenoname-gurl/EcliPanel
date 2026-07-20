@@ -1,0 +1,6132 @@
+{
+  "layout": {
+    "title": "Eclipse Systems - 次世代ホスティングプロバイダー",
+    "description": "数秒でデプロイ、組み込みメトリクス、マルチリージョン、ゼロコールドスタートで簡単にスケール。"
+  },
+  "locale": {
+    "label": "言語",
+    "english": "英語",
+    "russian": "ロシア語",
+    "chinese": "中国語",
+    "japanese": "日本語",
+    "hindi": "ヒンディー語"
+  },
+  "panelNav": {
+    "sections": {
+      "overview": "概要",
+      "infrastructure": "インフラストラクチャ",
+      "ai": "AI",
+      "support": "サポート",
+      "account": "アカウント",
+      "productivity": "生産性",
+      "administration": "管理"
+    },
+    "items": {
+      "socDashboard": "SOC ダッシュボード",
+      "accountActivity": "アカウントアクティビティ",
+      "organisations": "組織",
+      "servers": "サーバー",
+      "nodes": "ノード",
+      "aiStudio": "AI スタジオ",
+      "aiChat": "AI チャット",
+      "tickets": "チケット",
+      "applications": "申請",
+      "identity": "本人確認",
+      "calendar": "カレンダー",
+      "visualEditor": "ビジュアルエディタ",
+      "chat": "チャット",
+      "organisationInvites": "組織への招待",
+      "billing": "請求",
+      "settings": "設定",
+      "family": "ファミリー",
+      "subuserInvites": "サブユーザー招待",
+      "mailbox": "メールボックス",
+      "adminPanel": "スタッフポータル",
+      "tunnels": "トンネル"
+    },
+    "badges": {
+      "new": "新規",
+      "beta": "ベータ",
+      "staff": "スタッフ"
+    }
+  },
+  "organisationInvitesPage": {
+    "title": "組織への招待",
+    "description": "保留中の組織招待を確認して、承認または拒否してください。",
+    "actions": {
+      "backToOrganisations": "組織一覧に戻る",
+      "accept": "承認",
+      "reject": "拒否"
+    },
+    "loading": "招待を読み込み中...",
+    "emptyTitle": "保留中の組織招待はありません",
+    "emptyDescription": "現在、組織への招待はありません。",
+    "status": {
+      "pending": "保留中"
+    },
+    "errors": {
+      "failedToLoad": "招待の読み込みに失敗しました。",
+      "failedAction": "招待アクションの処理に失敗しました。"
+    },
+    "unknownOrganisation": "不明な組織"
+  },
+  "mailboxPage": {
+    "title": "メールボックス",
+    "description": "保留中の招待、通知、受信トレイアイテムを管理します。",
+    "sections": {
+      "inbox": "受信トレイ",
+      "inboxDescription": "EcliPanelに関する重要な情報を見つけることができる場所です。",
+      "organisations": "組織への招待",
+      "organisationsDescription": "組織に参加するための招待を承認または拒否します。",
+      "organisationInviteFallback": "組織への招待",
+      "noOrganisationInvites": "保留中の組織招待はありません。",
+      "serverSubusers": "サーバーサブユーザー招待",
+      "serverSubusersDescription": "サーバーサブユーザーになるための招待を承認または拒否します。",
+      "noSubuserInvites": "保留中のサーバーサブユーザー招待はありません。",
+      "notifications": "通知",
+      "notificationsDescription": "システム通知とアラートがここに表示されます。",
+      "notificationsEmpty": "まだ通知はありません。",
+      "email": "メール",
+      "emailDescription": "受信専用のEcliPanelメールボックスに配信された受信メールです。",
+      "emailEmpty": "まだメールメッセージはありません。"
+    },
+    "list": {
+      "empty": "受信トレイは空です。",
+      "emptyDescription": "フィルターに一致するメッセージはありません。"
+    },
+    "actions": {
+      "accept": "承認",
+      "reject": "拒否",
+      "markRead": "既読にする",
+      "markUnread": "未読にする",
+      "assignCategory": "カテゴリを割り当て",
+      "delete": "削除"
+    },
+    "details": {
+      "sender": "送信者",
+      "received": "受信日時",
+      "body": "メッセージ",
+      "actions": "アクション",
+      "selectItem": "詳細を表示するメッセージを選択してください。",
+      "selectItemDescription": "左側の受信トレイアイテムを選択して、読み取りと返信を行ってください。"
+    },
+    "detail": {
+      "organisationBody": "{organisation}への招待がありました。招待は{email}に送信されました。招待を確認して承認または拒否してください。",
+      "subuserBody": "{server}のサーバーサブユーザーになるよう招待されました。招待は{email}に送信されました。アクセスリクエストを確認して承認または拒否してください。",
+      "unknownServer": "不明なサーバー",
+      "unknownSender": "不明な送信者",
+      "displayMetadata": "メタデータを表示",
+      "hideMetadata": "メタデータを非表示",
+      "chooseView": "このメールの表示方法を選択してください：",
+      "plainText": "プレーンテキスト",
+      "htmlView": "HTML表示",
+      "raw": "Raw",
+      "noPlainTextContent": "プレーンテキストの内容はありません",
+      "metadataTitle": "メッセージメタデータ",
+      "metadataHint": "すべてのメッセージメタデータフィールドを表示しています。本文のHTMLとプレーンテキストのプレビューは読みやすさのために非表示になっています。",
+      "virusDetected": "ウイルス検出",
+      "spamDetected": "スパム検出",
+      "emailFallback": "メールメッセージ"
+    },
+    "confirm": {
+      "deleteEmail": "このメールを削除しますか？この操作は元に戻せません。"
+    },
+    "errors": {
+      "failedAction": "アクションの実行に失敗しました。"
+    }
+  },
+  "panelHeader": {
+    "search": "検索...",
+    "searchPages": "ページを検索...",
+    "noPagesFound": "ページが見つかりません",
+    "notifications": "通知",
+    "markAllRead": "すべて既読にする",
+    "noRecentActivity": "最近のアクティビティはありません",
+    "accountEvent": "アカウントイベント",
+    "markRead": "既読にする",
+    "viewAllActivity": "すべてのアクティビティを表示 →",
+    "actionLabels": {
+      "startedServer": "サーバーを起動しました",
+      "stoppedServer": "サーバーを停止しました",
+      "restartedServer": "サーバーを再起動しました",
+      "killedServer": "サーバーを強制停止しました",
+      "ranConsoleCommand": "サーバーコンソールコマンドを実行しました",
+      "modifiedFile": "ファイルを変更しました",
+      "deletedFiles": "ファイルを削除しました",
+      "reinstalledServer": "サーバーを再インストールしました",
+      "addedSubuser": "サーバーサブユーザーを追加しました",
+      "acceptedSubuserInvite": "サーバーサブユーザー招待を承認しました",
+      "removedSubuser": "サーバーサブユーザーアクセスを削除しました",
+      "rejectedSubuserInvite": "サーバーサブユーザー招待を拒否しました",
+      "serverSuspend": "サーバーを停止しました",
+      "serverUnsuspend": "サーバーの停止を解除しました",
+      "updatedProfile": "プロフィール設定を更新しました"
+    }
+  },
+  "panelSidebar": {
+    "close": "閉じる",
+    "requiresUpgrade": "{feature}にはアップグレードが必要です",
+    "featureAvailableOn": "この機能は{tier}プラン以上で利用可能です。営業チームに連絡してアカウントで利用できるようにしてください。",
+    "contactSales": "営業に連絡",
+    "maybeLater": "後で",
+    "requiresPlan": "{tier}プランが必要です",
+    "accountSettings": "アカウント設定",
+    "logout": "ログアウト",
+    "loggingOut": "ログアウト中...",
+    "userFallback": "ユーザー",
+    "dashboardFallback": "ダッシュボード",
+    "expandSidebar": "サイドバーを展開",
+    "collapseSidebar": "サイドバーを折りたたむ",
+    "navigationMenu": "ナビゲーションメニュー",
+    "closeMenu": "メニューを閉じる"
+  },
+  "otpMethodSelector": {
+    "authenticatorApp": "認証アプリ",
+    "backupCode": "バックアップコード",
+    "emailCode": "メールコード"
+  },
+  "panelShared": {
+    "status": {
+      "online": "オンライン",
+      "running": "実行中",
+      "open": "オープン",
+      "opened": "開封済み",
+      "replied": "返信済み",
+      "awaitingStaff": "スタッフ待ち",
+      "starting": "起動中",
+      "pending": "保留中",
+      "medium": "中",
+      "offline": "オフライン",
+      "stopped": "停止",
+      "closed": "クローズ",
+      "urgent": "緊急",
+      "high": "高",
+      "low": "低"
+    }
+  },
+  "enforcementBanner": {
+    "title": "アカウント要件が未完了",
+    "description": "このパネルを使用するには、メールアドレスの確認と、2FAまたはパスキーの設定が必要です。",
+    "emailVerified": "メール確認済み",
+    "emailNotVerified": "メール未確認",
+    "sendVerificationEmail": "確認メールを送信",
+    "sending": "送信中…",
+    "resend": "再送信",
+    "resendShort": "再送信",
+    "codePlaceholder": "6桁のコード",
+    "verify": "確認",
+    "invalidCode": "無効なコード",
+    "securityMethodEnabled": "セキュリティ要件を満たしています（2FAまたはパスキーが有効）",
+    "securityMethodMissing": "2FAを有効にするかパスキーを登録してください",
+    "goToSecurity": "設定 → セキュリティに移動",
+    "requiresHttpsPrefix": "HTTPSが必要です — 次のURLからパネルにアクセスしてください：",
+    "requiresHttpsSuffix": "パスキーを登録してください。"
+  },
+  "kycBanner": {
+    "title": "本人確認が必要です",
+    "description": "地域の規制に準拠するため、パネルにアクセスする前に本人確認が必要です。これは一度だけのプロセスです。身分証明書と自撮り写真をアップロードして確認を受けてください。",
+    "verify": "本人確認を行う",
+    "checkStatus": "他の場所で確認済みです — ステータスを確認",
+    "adminContact": "これが誤りであると思われる場合は、hi@ecli.app までサポートにご連絡ください。"
+  },
+  "footer": {
+    "legalDocuments": "法的文書",
+    "docs": "ドキュメント",
+    "imprint": "インプリント",
+    "copyrightShort": "© {year} EclipseSystems",
+    "copyrightLong": "© {year} Misiu LLC傘下 EclipseSystems"
+  },
+  "landing": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "features": "機能",
+      "pricing": "料金",
+      "network": "ネットワーク",
+      "faq": "よくある質問",
+      "signIn": "サインイン",
+      "getStarted": "始める",
+      "openDashboard": "ダッシュボードを開く"
+    },
+    "statusPill": {
+      "connecting": "接続中...",
+      "nodesLive": "{count} ノード稼働中"
+    },
+    "hero": {
+      "titleLine1": "良いものを作ろう",
+      "titleLine2": "より良く届けよう",
+      "subtitle": " Eclipse Systemsは開発者のためのホスティングプラットフォームです。数秒でデプロイ、組み込みメトリクス、マルチリージョン、ゼロコールドスタートで簡単にスケール。",
+      "cta": "無料で始める",
+      "note": "クレジットカード不要 - 永久無料枠 - いつでもキャンセル可能"
+    },
+    "stats": {
+      "dailyNodeTraffic": "本日のノードトラフィック（24時間）",
+      "monthlyRequests": "API呼び出し",
+      "heading": "実ユーザー数",
+      "totalUsers": "総ユーザー数",
+      "totalLabel": "合計"
+    },
+    "feedback": {
+      "eyebrow": "フィードバック",
+      "heading": "実際にサーバーを運用しているユーザーからの平均評価。",
+      "description": "ホスティングチームやゲームサーバー運営者から信頼され、EcliPanelは高速なデプロイと信頼性の高い制御で高評価を得ています。",
+      "averageLabel": "平均評価",
+      "reviewCount": "{count}件以上のレビュー",
+      "quoteLabel": "ユーザーの声",
+      "quote": "安定したホスティング、高速なデプロイ、そしてそのまま使えるインターフェース。",
+      "quoteSource": "世界中のサーバー運営者から信頼されています。",
+      "panelCardTitle": "安心してホスト",
+      "panelCardHeadline": "ゲームサーバーと分散ワークロードのために構築。",
+      "panelCardDescription": "メトリクス、オートスケーリング、安全なアクセスを一つのパネルでチームに提供します。",
+      "panelStat1": "95%の稼働率に対応したアーキテクチャ",
+      "panelStat2": "本番ユーザーからのリアルタイムフィードバック",
+      "loadingReviews": "レビューを読み込み中..."
+    },
+    "features": {
+      "eyebrow": "機能",
+      "title": "すべて含まれています。",
+      "titleMuted": "設定は不要です。",
+      "items": {
+        "deploy": {
+          "title": "数秒でデプロイ",
+          "body": "テンプレートを選択し、コードをアップロードして、アプリを設定します。"
+        },
+        "edge": {
+          "title": "マルチロケーションデプロイ",
+          "body": "独立したロケーションで実行し、最も近い利用可能なノードからトラフィックを提供します。"
+        },
+        "uptime": {
+          "title": "95% 稼働率 SLA",
+          "body": "複数リージョンにわたる冗長ノード。"
+        },
+        "isolation": {
+          "title": "分離された環境",
+          "body": "すべてのワークロードが名前空間で分離されて実行されます。リソース制限はあなたが管理します。"
+        },
+        "metrics": {
+          "title": "リアルタイムメトリクス",
+          "body": "CPU、メモリ、帯域幅、トレース - ダッシュボードでライブ表示。"
+        },
+        "coldStarts": {
+          "title": "ゼロコールドスタート",
+          "body": "キープアライブインフラストラクチャにより、最初のバイトが到着する前にアプリの準備が整います。"
+        }
+      }
+    },
+    "pricing": {
+      "eyebrow": "料金",
+      "title": "シンプルで誠実な料金体系。",
+      "subtitle": "隠れた料金はありません。シート単位の罠もありません。いつでもスケール可能です。",
+      "taxNote": "* 請求先住所に基づいて税金が適用される場合があります。",
+      "monthly": "月額",
+      "annual": "年額",
+      "annualBadge": "-20%",
+      "priceFree": "無料",
+      "priceCustom": "カスタム",
+      "perMonth": "/月",
+      "plans": {
+        "free": {
+          "name": "無料ポータル (ELO)",
+          "price": "0,00 $/月",
+          "desc": "コミュニティ投票付きELOサーバー。投票を獲得し、リソースを拡張し、リーダーボードを登りましょう！",
+          "cta": "無料で始める",
+          "features": [
+            "1 ELOサーバー",
+            "サーバーあたり1ポート",
+            "1 vCore",
+            "1028 MB RAM",
+            "10240 MB ストレージ",
+            "1日3通のメール（送信）",
+            "3通のメールキュー（送信）",
+            "SLAなし"
+          ]
+        },
+        "educational": {
+          "name": "教育ポータル",
+          "price": "0,00 $/月",
+          "desc": "学生とその小さなプロジェクトに最適！",
+          "cta": "Hack Clubに接続",
+          "features": [
+            "3サーバー",
+            "サーバーあたり3ポート",
+            "6 vCores",
+            "4096 MB RAM",
+            "51200 MB ストレージ",
+            "Debian 13 VM",
+            "1日10通のメール（送信）",
+            "10通のメールキュー（送信）",
+            "95% SLA適用"
+          ]
+        },
+        "paid": {
+          "name": "有料ポータル",
+          "price": "12,00 $/月",
+          "desc": "小〜中規模プロジェクトに最適！",
+          "cta": "営業に連絡",
+          "features": [
+            "10サーバー",
+            "サーバーあたり3ポート",
+            "6 vCores",
+            "16028 MB RAM",
+            "50240 MB ストレージ",
+            "基本サポート",
+            "AIアクセス",
+            "1日50通のメール（送信）",
+            "25通のメールキュー（送信）",
+            "95% SLA適用"
+          ]
+        },
+        "enterprise": {
+          "name": "エンタープライズポータル",
+          "price": "価格は要相談",
+          "desc": "中〜大規模プロジェクトに最適！",
+          "cta": "営業に連絡",
+          "features": [
+            "無制限サーバー",
+            "ノード全体のCPU",
+            "ノード全体のRAM（16GBから）",
+            "ノード全体のストレージ",
+            "10倍DB制限",
+            "10倍バックアップ制限",
+            "ノードあたり1x IPv4",
+            "ノードあたり1x IPv6（オプション）",
+            "プレミアムサポート",
+            "AIアクセス",
+            "1日100通のメール（送信）",
+            "50通のメールキュー（送信）",
+            "95% SLA適用"
+          ]
+        }
+      }
+    },
+    "network": {
+      "eyebrow": "ネットワーク",
+      "title": "単一障害点はありません。",
+      "titleMuted": "一切ありません。",
+      "body": "世界中の独立したノードに分散。ワークロードを配置したい場所にデプロイし、リージョン配置を管理できます。メンテナンスウィンドウはなく、ステータスページにダークパターンもありません。",
+      "stats": {
+        "totalNodes": "総ノード数",
+        "online": "オンライン",
+        "degraded": "劣化",
+        "offline": "オフライン",
+        "tunnels": "総トンネル数",
+        "tunnelsActive": "アクティブトンネル",
+        "tunnelsInactive": "非アクティブトンネル"
+      }
+    },
+    "ddos": {
+      "title": "エンタープライズグレードのDDoS保護。",
+      "subtitle": "すべてのノードは業界リーダーによる多層DDoS対策で保護されています。",
+      "description": "すべてのノードはPletxとOVHcloudの高度なDDoS対策システムで保護されています。カスタム保護プロファイルを必要とするエンタープライズクライアントには、異なる対策アプローチが利用可能です。"
+    },
+    "faq": {
+      "eyebrow": "よくある質問",
+      "title": "よくある質問。",
+      "q1": "請求はどのように機能しますか？",
+      "a1": "各期間の開始時に請求されます。制限に達する前に超過アラートが発動します - 不意の請求書はありません。",
+      "q2": "Proの無料トライアルはありますか？",
+      "a2": "Proトライアルはサポート経由で最大3日間利用可能です。",
+      "q3": "ノードがオフラインになった場合はどうなりますか？",
+      "a3": "利用可能な場合、トラフィックは迅速に正常なノードに再ルーティングされます。ProおよびEnterpriseのデプロイでは、ゾーン間のレプリケーションも使用できます。",
+      "q4": "セルフホストは可能ですか？",
+      "a4": "はい。EcliPanelにはオープンソースのコアがあります。セルフホスティングがサポートされています。ライセンスの詳細は https://ecli.app/license でご確認ください。"
+    },
+    "finalCta": {
+      "titleLine1": "あなたのアプリには",
+      "titleLine2": "より良いインフラが必要です。",
+      "subtitle": "すでにecliを利用している開発者に参加しましょう。永久無料。カード不要。",
+      "cta": "無料アカウントを作成",
+      "note": "無料枠 - クレジットカード不要 - いつでもキャンセル可能"
+    },
+    "footer": {
+      "tagline": "信頼性を重視する開発者のために構築された分散ホスティング。",
+      "contact": "contact@ecli.app",
+      "columns": {
+        "product": "製品",
+        "developers": "開発者",
+        "legal": "法的情報"
+      },
+      "links": {
+        "features": "機能",
+        "pricing": "料金",
+        "network": "ネットワーク",
+        "status": "ステータス",
+        "docs": "ドキュメント",
+        "api": "API",
+        "github": "GitHub",
+        "contributors": "コントリビューター",
+        "changelog": "変更履歴",
+        "terms": "利用規約",
+        "privacy": "プライバシー",
+        "cookies": "クッキー",
+        "acceptable": "適正利用",
+        "imprint": "インプリント"
+      },
+      "copyright": "© {year} EclipseSystems. All rights reserved.",
+      "byline": "開発者による、開発者のための構築。"
+    }
+  },
+  "contributorsPage": {
+    "hero": {
+      "titleLine1": "作った人",
+      "titleLine2": "コミュニティ",
+      "joinCta": "コントリビューターとして参加",
+      "repoCta": "リポジトリを表示"
+    },
+    "stats": {
+      "contributors": "{count} 人のコントリビューター",
+      "contributions": "コントリビューション",
+      "pullRequests": "プルリクエスト",
+      "mergedPullRequests": "マージ済みPR",
+      "trackedCommits": "{count} コミット追跡",
+      "trackedPullRequests": "{count} PR追跡",
+      "lastSynced": "{date}に同期"
+    },
+    "loading": "読み込み中...",
+    "loadError": "コントリビューターの読み込みに失敗しました。",
+    "loadingContributors": "コントリビューターを読み込み中...",
+    "loadingCommitHistory": "コミット履歴を読み込み中...",
+    "loadingPullRequests": "プルリクエストを読み込み中...",
+    "loadingMergeStats": "マージ統計を読み込み中...",
+    "loadingSyncing": "同期中...",
+    "noContributorsYet": "まだコントリビューターはいません。",
+    "lastCommitAt": "最終コミット",
+    "noCommitsTrackedYet": "まだ追跡されたコミットはありません",
+    "activityTitle": "アクティビティ",
+    "recentActivityTitle": "最近のアクティビティ",
+    "activityChartLabel": "アクティビティ",
+    "activityChartAriaLabel": "コントリビューターアクティビティ折れ線グラフ"
+  },
+  "changelogsPage": {
+    "title": "変更履歴",
+    "subtitle": "プロジェクト全体のすべてのコミットとプルリクエストを追跡します。",
+    "repoCta": "リポジトリを表示",
+    "filterAll": "すべてのアクティビティ",
+    "filterCommits": "コミット",
+    "filterPullRequests": "プルリクエスト",
+    "stats": {
+      "commits": "コミット",
+      "pullRequests": "プルリクエスト",
+      "contributors": "コントリビューター",
+      "stars": "スター"
+    },
+    "loading": "変更履歴を読み込み中...",
+    "error": "変更履歴の読み込みに失敗しました。",
+    "noEntries": "まだアクティビティはありません。"
+  },
+  "notFound": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[home]",
+      "features": "[features]",
+      "pricing": "[pricing]",
+      "contact": "[contact]"
+    },
+    "hero": {
+      "errorLabel": "ERROR:",
+      "title": "ページが見つかりません",
+      "subtitle": "要求されたリソースは虚空に消えました。"
+    },
+    "terminal": {
+      "error404": "ERROR 404:",
+      "notFoundDimension": "既知のどの次元にもリソースは見つかりませんでした。",
+      "path": "PATH:",
+      "lookup": "LOOKUP:",
+      "failed": "FAILED",
+      "suggestion": "SUGGESTION:",
+      "returnCoordinates": "既知の座標に戻る"
+    },
+    "details": {
+      "title": "# 何が起きた？",
+      "causesTitle": "# 考えられる原因",
+      "causesSubtitle": "Blåhajがページを食べたか、あるいは：",
+      "cause1": "→ ページが移動または削除された",
+      "cause2": "→ URLの入力ミス",
+      "cause3": "→ リンクが古い",
+      "cause4": "→ 猫がキーボードの上を歩いた",
+      "quickNavTitle": "# クイックナビゲーション",
+      "quickNavSubtitle": "以下はお探しの可能性のある場所です：",
+      "homePage": "→ ホームページ",
+      "dashboard": "→ ダッシュボード",
+      "login": "→ ログイン",
+      "register": "→ 登録"
+    },
+    "recovery": {
+      "warn": "WARN:",
+      "noRoute": "回復ルートが見つかりません。",
+      "scanning": "SCANNING:",
+      "sitemap": "サイトマップ... 0件一致",
+      "fallback": "FALLBACK:",
+      "redirect": "リダイレクト → /",
+      "recommendation": "# おすすめ：ホームに戻って、代わりに何かクールなものをデプロイしましょう。"
+    },
+    "cta": {
+      "title": "# 元の道に戻りましょう",
+      "subtitle": "このページは存在しませんが、あなたの次のデプロイは可能です。",
+      "home": "./navigate --home",
+      "dashboard": "go_to_dashboard()"
+    },
+    "footer": {
+      "lost": "迷子ですか？メール：",
+      "orReturn": "または戻る：",
+      "home": "ホーム"
+    }
+  },
+  "errorPage": {
+    "brand": "Eclipse Systems",
+    "terminal": {
+      "title": "ターミナル — エラー",
+      "panic": "PANIC:",
+      "unrecoverable": "回復不能なランタイム例外が検出されました。",
+      "error": "ERROR:",
+      "digest": "DIGEST:",
+      "exitCode": "EXIT CODE:",
+      "terminated": "プロセスが終了しました。"
+    },
+    "crash": {
+      "report": "クラッシュレポート",
+      "runtime": "Eclipse Systems ランタイム",
+      "timestamp": "タイムスタンプ：",
+      "pid": "PID：",
+      "memory": "メモリ：",
+      "digest": "ダイジェスト：",
+      "signal": "シグナル：",
+      "signalValue": "SIGSEGV（セグメンテーション違反）",
+      "exception": "例外：",
+      "message": "メッセージ：",
+      "defaultErrorName": "エラー",
+      "defaultErrorMessage": "予期しないエラーが発生しました"
+    },
+    "header": {
+      "fault": "FAULT",
+      "home": "[home]",
+      "dashboard": "[dashboard]"
+    },
+    "hero": {
+      "fatal": "FATAL：",
+      "title": "問題が発生しました",
+      "subtitle": "未処理の例外によりこのプロセスがクラッシュしました。",
+      "retryAttempts": "再試行回数：{count}"
+    },
+    "sections": {
+      "crashReport": "クラッシュレポート",
+      "diagnostics": "診断情報",
+      "possibleCauses": "考えられる原因",
+      "causesSubtitle": "Blåhajがpixelcatを食べたか、あるいは：",
+      "cause1": "→ サーバーサイドレンダリングの失敗",
+      "cause2": "→ 未処理のPromise拒否",
+      "cause3": "→ 無効な状態変更",
+      "cause4": "→ 猫がケーブルをかじった",
+      "recoveryOptions": "# 回復オプション",
+      "recoverySubtitle": "以下の回復手順のいずれかをお試しください："
+    },
+    "actions": {
+      "retrying": "再試行中...",
+      "retryThisPage": "→ このページを再試行",
+      "returnHome": "→ ホームに戻る",
+      "goDashboard": "→ ダッシュボードに移動",
+      "hardReload": "→ ページをハードリロード"
+    },
+    "recovery": {
+      "warn": "WARN:",
+      "autoUnavailable": "自動回復は利用できません。",
+      "scanning": "SCANNING：プロセス状態...",
+      "corrupted": "CORRUPTED",
+      "heap": "HEAP：",
+      "heapUnavailable": "スナップショット利用不可",
+      "stack": "STACK：",
+      "stackLost": "フレーム消失",
+      "suggestion": "SUGGESTION:",
+      "manualRequired": "手動介入が必要です。",
+      "tryReset": "# 試す：reset() または既知のルートに移動。"
+    },
+    "status": {
+      "runtime": "ランタイム",
+      "memory": "メモリ",
+      "network": "ネットワーク",
+      "recovery": "回復",
+      "fault": "FAULT",
+      "ok": "OK",
+      "pending": "PENDING",
+      "unknown": "UNKNOWN"
+    },
+    "cta": {
+      "title": "# ヘルプが必要ですか？",
+      "subtitle": "このエラーが続く場合は、サポートチームにお問い合わせください。デバッグをお手伝いします。",
+      "retrying": "./retrying...",
+      "retryForce": "./retry --force",
+      "escapeHome": "escape_to_home()"
+    },
+    "footer": {
+      "persistentErrors": "継続的なエラー？メール：",
+      "orReturn": "または戻る：",
+      "home": "ホーム",
+      "reference": "参照："
+    }
+  },
+  "login": {
+    "welcomeBack": "おかえりなさい",
+    "subtitle": "Eclipse Panelアカウントにサインイン",
+    "verifyDomain": "このドメインを確認",
+    "domainWarning": "このパネルは<domain>ecli.app</domain>から提供される必要があります。URLが異なる場合は<link>https://ecli.app</link>に移動してください。",
+    "somethingWentWrong": "問題が発生しました",
+    "twoFactorTitle": "二要素認証",
+    "twoFactorSubtitle": "確認方法を選択し、コードを入力してください",
+    "methodAuthenticator": "認証アプリ",
+    "methodAuthenticatorDesc": "TOTP認証アプリを使用",
+    "methodEmail": "メールコード",
+    "methodEmailDesc": "メールでコードを受信",
+    "methodBackup": "バックアップコード",
+    "methodBackupDesc": "バックアップコードのいずれかを使用",
+    "authenticatorCode": "認証コード",
+    "authenticatorCodePlaceholder": "6桁のコードを入力",
+    "backupCode": "バックアップコード",
+    "backupCodePlaceholder": "バックアップコードを入力",
+    "emailCode": "メールコード",
+    "emailCodePlaceholder": "メールコードを入力",
+    "send": "送信",
+    "verifying": "確認中...",
+    "verify": "確認",
+    "cancel": "キャンセル",
+    "credentials": "認証情報",
+    "emailAddress": "メールアドレス",
+    "emailPlaceholder": "you@example.com",
+    "password": "パスワード",
+    "passwordPlaceholder": "••••••••",
+    "hidePassword": "パスワードを隠す",
+    "showPassword": "パスワードを表示",
+    "forgotPassword": "パスワードをお忘れですか？",
+    "resend": "再送信",
+    "emailCodeSent": "メールコードを送信しました。受信トレイを確認してください。",
+    "signingIn": "サインイン中...",
+    "signIn": "サインイン",
+    "orContinueWith": "または次で続行",
+    "waitingPasskey": "パスキーを待機中...",
+    "signInWithPasskey": "パスキーでサインイン",
+    "termsNotice": "サインインすることで、<legal>/legal</legal>で利用可能なすべてのポリシーに同意したことになります。",
+    "noAccount": "アカウントをお持ちでないですか？",
+    "createAccount": "アカウントを作成",
+    "securityNote": "耐量子暗号で保護されています",
+    "enterCodeSelectedMethod": "選択した方法のコードを入力してください。",
+    "invalidServerResponse": "サーバーからの無効な応答",
+    "verificationFailed": "確認に失敗しました",
+    "enterEmailBeforePasskey": "最初にメールアドレスを入力し、その後「パスキーでサインイン」をクリックしてください。",
+    "passkeyCancelled": "パスキー認証がキャンセルされました。",
+    "passkeyFailed": "パスキー認証に失敗しました。",
+    "retry": "再試行",
+    "backendUnavailableTitle": "バックエンドが利用できません",
+    "backendUnavailableMessage": "現在パネルのバックエンドに接続できません。後でもう一度お試しください。",
+    "loginFailed": "ログインに失敗しました",
+    "missingTemporarySession": "一時セッションが見つかりません",
+    "failedToSendEmailCode": "メールコードの送信に失敗しました",
+    "back": "戻る"
+  },
+  "register": {
+    "steps": {
+      "account": "アカウント",
+      "address": "住所",
+      "verify": "確認"
+    },
+    "title": "アカウントを作成",
+    "subtitle": "わずか数ステップでサーバーを始めましょう",
+    "verifyDomain": "このドメインを確認",
+    "domainWarning": "このパネルは<domain>ecli.app</domain>から提供される必要があります。URLが異なる場合は<link>https://ecli.app</link>に移動してください。",
+    "registrationUnavailable": "登録は利用できません",
+    "backendUnavailableTitle": "バックエンドが利用できません",
+    "backendUnavailableMessage": "現在パネルのバックエンドに接続できません。後でもう一度お試しください。",
+    "retry": "再試行",
+    "somethingWentWrong": "問題が発生しました",
+    "registrationNotAvailable": "現在、登録はご利用いただけません。",
+    "signInInstead": "代わりにサインイン",
+    "personalInfo": "個人情報",
+    "firstName": "名",
+    "firstNamePlaceholder": "Jane",
+    "lastName": "姓",
+    "lastNamePlaceholder": "Doe",
+    "titleField": "敬称",
+    "selectTitle": "敬称を選択…",
+    "gender": "性別",
+    "selectGender": "回答しない",
+    "genderFemale": "女性",
+    "genderMale": "男性",
+    "genderNonBinary": "ノンバイナリー",
+    "genderPreferNotToSay": "回答しない",
+    "genderOther": "その他",
+    "emailAddress": "メールアドレス",
+    "emailPlaceholder": "you@example.com",
+    "password": "パスワード",
+    "passwordPlaceholder": "強力なパスワードを作成",
+    "hidePassword": "パスワードを隠す",
+    "showPassword": "パスワードを表示",
+    "phoneNumber": "電話番号",
+    "phonePlaceholder": "+1 (555) 000-0000",
+    "dateOfBirth": "生年月日",
+    "dateOfBirthPlaceholder": "YYYY-MM-DD",
+    "billingAddress": "請求先住所",
+    "companyOptional": "会社（任意）",
+    "companyPlaceholder": "会社名",
+    "streetAddress": "住所",
+    "streetAddressPlaceholder": "123 Main Street",
+    "addressLine2Optional": "住所2行目（任意）",
+    "addressLine2Placeholder": "アパート、スイート、ユニットなど",
+    "city": "市区町村",
+    "cityPlaceholder": "市区町村",
+    "stateProvince": "都道府県",
+    "stateProvincePlaceholder": "都道府県",
+    "zipPostal": "郵便番号",
+    "zipPostalPlaceholder": "12345",
+    "country": "国",
+    "selectCountry": "国を選択…",
+    "reviewTitle": "詳細を確認",
+    "name": "名前",
+    "email": "メール",
+    "phone": "電話番号",
+    "location": "所在地",
+    "securityCheck": "セキュリティチェック",
+    "captchaLoadFailed": "キャプチャを読み込めません",
+    "playing": "再生中…",
+    "listenAudioCaptcha": "音声キャプチャを聞く",
+    "audioPlayFailed": "音声を再生できません。更新してみてください。",
+    "yourAnswer": "回答",
+    "yourAnswerPlaceholder": "回答を入力",
+    "refreshCaptchaAria": "キャプチャを更新",
+    "newCaptchaTitle": "新しいキャプチャ",
+    "termsNotice": "アカウントを作成することで、<legal>/legal</legal>で利用可能なすべてのポリシーに同意したことになります。",
+    "back": "戻る",
+    "continue": "続行",
+    "creatingAccount": "アカウント作成中…",
+    "createAccount": "アカウントを作成",
+    "alreadyHaveAccount": "すでにアカウントをお持ちですか？",
+    "signIn": "サインイン",
+    "securityNote": "耐量子暗号で保護されています",
+    "requiredFieldsStep0": "すべての必須フィールドに入力し、パスワードが最低限の強度を持っていることを確認してください。",
+    "requiredFieldsStep1": "すべての必須住所フィールドに入力してください。",
+    "parentInviteHint": "親アカウントの招待で登録する場合、請求情報と電話番号は空白のままにすると親アカウントから継承されます。",
+    "captchaChallengeOrWait": "キャプチャチャレンジを解くか、不可視キャプチャが有効になるまでお待ちください。",
+    "captchaExpired": "キャプチャが読み込まれていないか、期限切れです。キャプチャを更新して再試行してください。",
+    "invisibleCaptchaMissing": "不可視キャプチャトークンが見つかりません。ページを更新してみてください。",
+    "registrationFailed": "登録に失敗しました"
+  },
+  "license": {
+    "translationNote": "これはライセンスの法的拘束力のある原本です。",
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "[home]",
+      "dashboard": "[dashboard]"
+    },
+    "hero": {
+      "title": "コミュニティライセンス",
+      "line1Prefix": "オープンソース：",
+      "line1Highlight": "非商用",
+      "line1Suffix": "利用。",
+      "line2Prefix": "商用権利は以下に留保：",
+      "line2Highlight": "EclipseSystems"
+    },
+    "terminal": {
+      "windowTitle": "ターミナル",
+      "licenseLabel": "LICENSE:",
+      "licenseValue": "EclipseSystems Community License v1.1",
+      "copyrightLabel": "COPYRIGHT:",
+      "copyrightValue": "© 2026 EclipseSystems (Misiu LLC)",
+      "stewardLabel": "STEWARD:",
+      "stewardValue": "Maksym Huzun (noname@ecli.app)",
+      "allowed": "非商用利用は許可されています",
+      "forbidden": "商用利用は留保されています"
+    },
+    "quick": {
+      "title": "クイックリファレンス",
+      "permittedTitle": "許可",
+      "permitted1": "ソースコードの閲覧・読み取り・検査",
+      "permitted2": "個人/教育プロジェクトでの使用",
+      "permitted3": "非商用目的での改変",
+      "permitted4": "研究・学術利用",
+      "permitted5": "非商用の派生作品の作成",
+      "permitted6": "未修正コピーの共有（非商用）",
+      "prohibitedTitle": "禁止",
+      "prohibited1": "商用ホスティングまたはSaaSデプロイ",
+      "prohibited2": "収益を生むサービス",
+      "prohibited3": "本番ビジネスデプロイ",
+      "prohibited4": "ソフトウェアを使用した有料コンサルティング",
+      "prohibited5": "商用目的での再配布",
+      "prohibited6": "帰属表示またはライセンス通知の削除",
+      "attributionTitle": "帰属表示が必要",
+      "attributionPrefix": "すべてのデプロイには以下の可視的な帰属表示を含める必要があります：",
+      "attributionName1": "EclipseSystems",
+      "attributionAnd": "および",
+      "attributionName2": "Maksym Huzun",
+      "attributionSuffix": "公式リポジトリへのリンク付きで。これはフロントエンドとバックエンドの両方のインターフェースに適用されます。"
+    },
+    "full": {
+      "title": "ライセンス全文",
+      "docTitle": "EclipseSystems Community License v1.1",
+      "docLine1": "Copyright (c) 2026 EclipseSystems",
+      "docLine2": "Misiu LLCのプロジェクト",
+      "docLine3": "認可されたスチュワード：Maksym Huzun (noname@ecli.app)",
+      "sections": {
+        "definitions": {
+          "title": "1. 定義",
+          "body": "「ソフトウェア」とは、このリポジトリで提供されるソースコード、ドキュメント、およびその他の資料を意味します。\n\n「ユーザー」とは、ソフトウェアにアクセスする個人または組織を意味します。\n\n「非商用目的」とは、商業的利益、金銭的報酬、または収益を生む活動を意図しない、または指向しない利用を意味します。\n\n「商用目的」とは、収益を生み出す、有料サービスを提供する、ビジネスコンテキストで使用される、または本番環境にデプロイされる方法でのソフトウェアの利用を意味します。\n\n「認可されたスチュワード」とは、Misiu LLC傘下のEclipseSystemsおよびMaksym Huzunによって明示的に指名された個人を意味します。"
+        },
+        "grant": {
+          "title": "2. 権利の付与",
+          "body": "本ライセンスの条件に従い、ユーザーには以下の権利が世界的、非独占的、ロイヤリティフリーで付与されます：\n\n  (a) ソフトウェアの閲覧、読み取り、検査\n  (b) 非商用目的でのソフトウェアの使用\n  (c) 非商用目的でのソフトウェアの改変\n  (d) 非商用派生作品の作成と共有"
+        },
+        "nonCommercial": {
+          "title": "3. 非商用利用",
+          "body": "非営利団体、教育機関、研究者、個人は、非商用目的でソフトウェアを制限なく使用、改変、実行することができます。"
+        },
+        "commercialReserved": {
+          "title": "4. 商用利用の留保",
+          "body": "商用目的でソフトウェアを使用、改変、ホスト、デプロイ、サブライセンス、統合、または配布するすべての権利は、以下に独占的に留保されます：\n\n  - EclipseSystems（Misiu LLC傘下のプロジェクト）\n  - Maksym Huzun (noname@ecli.app)\n\n他のいかなるユーザーも、いかなる状況においても商用権利を付与されません。"
+        },
+        "redistribution": {
+          "title": "5. 再配布",
+          "body": "ユーザーは、以下の条件を満たす場合に限り、非商用目的でのみソフトウェアの未修正コピーを再配布できます：\n\n  (a) 本ライセンスが完全に含まれていること\n  (b) 合理的な配布コストを超える料金が請求されないこと\n\n商用目的での再配布は禁止されています。"
+        },
+        "derivative": {
+          "title": "6. 派生作品",
+          "body": "ユーザーは、非商用目的でのみ派生作品を作成、改変、共有することができます。すべての派生作品は以下を満たす必要があります：\n\n  (a) 本ライセンスを完全に含めること\n  (b) オリジナルソフトウェアの派生作品であることを明示すること\n  (c) 第9条で要求されるすべての帰属表示を保持すること"
+        },
+        "hosting": {
+          "title": "7. ホスティングとデプロイの制限",
+          "body": "ユーザーは、非商用の教育、研究、テストのデモンストレーションを除き、ソフトウェア（または派生作品）をサービス、クラウド提供、または本番システムとして公開アクセス可能にすることはできません。\n\nすべての商用ホスティングおよびSaaSの権利は、EclipseSystemsおよびMaksym Huzunに独占的に留保されています。"
+        },
+        "preservation": {
+          "title": "8. ライセンスの保持",
+          "body": "本ライセンスおよびすべての著作権表示は、認可されたスチュワードに対して明示的に免除されている場合を除き、すべてのコピー、フォーク、または派生作品に保持される必要があります。"
+        },
+        "attribution": {
+          "title": "9. 帰属表示要件",
+          "body": "ソフトウェアまたは非商用派生作品をデプロイ、実行、または配布するすべてのユーザーは、以下の可視的な著作権およびライセンス通知を保持・表示する必要があります：\n\n  (a) EclipseSystemsおよび/またはMaksym Huzunを著作権者として明示すること\n  (b) 公式EclipseSystemsプロジェクトリポジトリへの参照またはハイパーリンクを含めること\n  (c) フロントエンドユーザーインターフェース、バックエンド管理インターフェース、またはその両方でエンドユーザーが合理的にアクセスできること\n\nこの帰属表示要件は、Misiu LLC傘下のEclipseSystemsまたはMaksym Huzunによって指名された認可されたスチュワードには適用されません。"
+        },
+        "termination": {
+          "title": "10. 終了",
+          "body": "本ライセンスの違反は、ここに付与されたすべての権利を直ちに永久に終了させます。終了時には、ユーザーはすべての使用を中止し、ソフトウェアのすべてのコピーを破棄する必要があります。"
+        },
+        "noWarranty": {
+          "title": "11. 無保証",
+          "body": "ソフトウェアは「現状有姿」で提供され、明示または黙示を問わず、いかなる種類の保証もありません。著作権者または認可されたスチュワードは、ソフトウェアの使用に起因するいかなる請求、損害、またはその他の責任についても一切の責任を負いません。"
+        }
+      }
+    },
+    "faq": {
+      "title": "ライセンスFAQ",
+      "q1": "学校のプロジェクトに使用できますか？",
+      "a1": "はい！教育および学術利用はこのライセンスで完全に許可されています。",
+      "q2": "個人の学習のためにコードを改変できますか？",
+      "a2": "もちろんです。非商用目的でコードを閲覧、改変、実験することができます。",
+      "q3": "有料サービスとしてホストできますか？",
+      "a3": "いいえ。商用ホスティング、SaaSデプロイ、収益を生むサービスはEclipseSystemsおよびMaksym Huzunに独占的に留保されています。",
+      "q4": "オープンソースへの貢献は？",
+      "a4": "貢献を歓迎します！貢献方法の詳細はGitHubのコントリビューションガイドラインをご確認ください。",
+      "q5": "スタートアップ/ビジネスに使用できますか？",
+      "a5": "明示的な許可なしでは使用できません。すべての商用利用権は留保されています。商用ライセンスのお問い合わせはnoname@ecli.appまでご連絡ください。",
+      "q6": "ライセンスに違反した場合は？",
+      "a6": "違反によりライセンスは直ちに終了します。すべての使用を中止し、ソフトウェアのすべてのコピーを破棄する必要があります。"
+    },
+    "contact": {
+      "title": "質問がありますか？",
+      "heading": "商用アクセスが必要ですか？",
+      "body": "ビジネスでEcliPanelまたはその資産を利用することに興味がありますか？商用ライセンスとエンタープライズサポートを提供しています。お客様のニーズと商用プロジェクトでのEcliPanel活用方法についてお気軽にお問い合わせください。",
+      "contactCommercial": "contact_commercial()",
+      "viewSource": "view_source()"
+    }
+  },
+  "forgotPasswordPage": {
+    "title": "パスワードをリセット",
+    "subtitle": "メールアドレスを入力してください。リセットリンクをお送りします。",
+    "emailPlaceholder": "メール",
+    "sending": "送信中…",
+    "sendResetEmail": "リセットメールを送信",
+    "backToSignIn": "サインインに戻る",
+    "messages": {
+      "sent": "そのメールアドレスが存在する場合、まもなくパスワードリセットの手順が届きます。"
+    },
+    "errors": {
+      "enterEmail": "メールアドレスを入力してください",
+      "requestFailed": "パスワードリセットのリクエストに失敗しました"
+    }
+  },
+  "restoreEmailPage": {
+    "title": "以前のメールアドレスを復元中",
+    "redirecting": "お待ちください - まもなくリダイレクトされます。",
+    "notRedirectedPrefix": "リダイレクトされない場合は、",
+    "clickHere": "こちらをクリック",
+    "loading": "読み込み中…",
+    "errors": {
+      "missingToken": "復元トークンが見つかりません。"
+    }
+  },
+  "verifyEmailPage": {
+    "title": "メールアドレスを確認中",
+    "redirecting": "お待ちください - まもなくリダイレクトされます。",
+    "notRedirectedPrefix": "リダイレクトされない場合は、",
+    "clickHere": "こちらをクリック",
+    "loading": "読み込み中…",
+    "errors": {
+      "missingToken": "確認トークンが見つかりません。"
+    }
+  },
+  "organisationAcceptPage": {
+    "title": "組織招待を承認",
+    "actions": {
+      "acceptInvite": "招待を承認"
+    },
+    "messages": {
+      "accepted": "招待が承認されました。リダイレクト中...",
+      "failed": "招待の承認に失敗しました"
+    }
+  },
+  "publicFormPage": {
+    "brand": "Eclipse Systems",
+    "nav": {
+      "home": "ホーム",
+      "dashboard": "ダッシュボード",
+      "login": "ログイン"
+    },
+    "badges": {
+      "active": "アクティブ",
+      "closed": "クローズ",
+      "archived": "アーカイブ",
+      "publicAnonymous": "公開",
+      "publicUsers": "ユーザー",
+      "privateInvite": "招待のみ"
+    },
+    "loading": {
+      "title": "フォームを読み込み中...",
+      "subtitle": "サーバーからフォームデータを取得中..."
+    },
+    "errorState": {
+      "title": "フォームが見つかりません",
+      "subtitle": "要求されたフォームが見つかりませんでした。削除されたか、リンクが間違っている可能性があります。",
+      "returnHome": "ホームに戻る",
+      "goDashboard": "ダッシュボードに移動"
+    },
+    "success": {
+      "title": "送信済み",
+      "value": "送信が受信され、レビュー待ちになりました。",
+      "submitAgain": "再送信",
+      "navigateHome": "ホームに戻る"
+    },
+    "warnings": {
+      "authRequired": "このフォームにはパネルアカウントが必要です。",
+      "login": "ログインして続行",
+      "anonymousInfo": "匿名送信はIPごとに1時間に1回に制限されています。フォローアップを受け取るには、以下にメールアドレスを入力してください。",
+      "formClosed": "フォームは締め切られました",
+      "formClosedDetail": "このフォームは現在送信を受け付けていません。"
+    },
+    "contactEmail": {
+      "label": "連絡先メール（任意）",
+      "placeholder": "you@example.com",
+      "help": "送信に関する更新を受け取るためのメールアドレスを入力してください。"
+    },
+    "progress": {
+      "label": "完了"
+    },
+    "questions": {
+      "none": "このフォームには質問が設定されていません。"
+    },
+    "actions": {
+      "transmitting": "送信中...",
+      "submit": "送信",
+      "navigateHome": "ホームに戻る",
+      "loginRequired": "送信にはログインが必要です"
+    },
+    "messages": {
+      "transmitted": "送信が正常に送信されました。"
+    },
+    "errors": {
+      "formUnavailable": "フォームが見つからないか、アクセスできません",
+      "questionRequired": "質問「{question}」は必須です",
+      "submitFailed": "送信に失敗しました",
+      "validationTitle": "検証エラー"
+    },
+    "footer": {
+      "questions": "質問がありますか？メール：",
+      "orReturn": "または戻る：",
+      "home": "ホーム"
+    }
+  },
+  "resetPasswordPage": {
+    "title": "新しいパスワードを設定",
+    "newPassword": "新しいパスワード",
+    "confirmPassword": "パスワードの確認",
+    "resetting": "リセット中...",
+    "resetPassword": "パスワードをリセット",
+    "backToSignIn": "サインインに戻る",
+    "messages": {
+      "updated": "パスワードが正常に更新されました。ログインにリダイレクトします..."
+    },
+    "errors": {
+      "fillBoth": "両方のパスワードフィールドに入力してください",
+      "noMatch": "パスワードが一致しません",
+      "failed": "パスワードのリセットに失敗しました"
+    }
+  },
+  "dashboardPage": {
+    "authInProgress": "認証処理中...",
+    "header": {
+      "title": "SOC ダッシュボード",
+      "description": "セキュリティオペレーションセンター概要"
+    },
+    "stats": {
+      "yourServersOnline": "オンラインのサーバー",
+      "others": "その他 {online}/{total}",
+      "totalServersOnline": "オンラインサーバー総数",
+      "threatLevel": "脅威レベル",
+      "elevated": "上昇",
+      "low": "低",
+      "alertsDetected": "{count}件のアラートが検出されました",
+      "noThreats": "アクティブな脅威は検出されませんでした",
+      "uptime": "稼働時間",
+      "totalUptime": "合計：{value}%",
+      "noServers": "サーバーなし"
+    },
+    "serverHealth": {
+      "title": "サーバー状態",
+      "description": "リアルタイムリソース使用率",
+      "noServersOnline": "オンラインのサーバーはありません",
+      "yourServers": "あなたのサーバー",
+      "otherServers": "他のサーバー"
+    },
+    "resourceSummary": {
+      "title": "リソース概要",
+      "avgCpu": "平均CPU",
+      "totalRam": "合計RAM",
+      "totalDisk": "合計ディスク",
+      "serversOnline": "オンラインサーバー"
+    },
+    "recentActivity": {
+      "title": "最近のアクティビティ",
+      "empty": "最近のアクティビティはありません。"
+    },
+    "securityAlerts": {
+      "title": "セキュリティアラート",
+      "description": "最近のセキュリティイベントと通知",
+      "noneTitle": "セキュリティアラートはありません",
+      "noneSubtitle": "すべてのシステムは正常に動作しています",
+      "eventDetected": "セキュリティイベントが検出されました",
+      "server": "サーバー",
+      "unknown": "不明"
+    },
+    "warnings": {
+      "nodeIssueTitle": "{node}は現在問題が発生しています",
+      "nodesIssueTitle": "一部のノードで現在問題が発生しています",
+      "nodeIssueDescription": "このノード上のサーバーは利用できないか、応答しない可能性があります。",
+      "nodesIssueDescription": "これらのノード上のサーバーは利用できないか、応答しない可能性があります：{nodes}。",
+      "learnMore": "/statusで詳細を確認"
+    },
+    "securityFindings": {
+      "title": "セキュリティ検出事項",
+      "description": "自動脆弱性およびセキュリティ態勢スキャン結果",
+      "scan": "スキャンを実行",
+      "scanning": "スキャン中...",
+      "empty": "セキュリティ検出事項はありません",
+      "emptyDescription": "すべてのシステムがセキュリティチェックに合格しています",
+      "totalOpen": "{count}件オープン",
+      "severity": {
+        "critical": "緊急",
+        "high": "高",
+        "medium": "中",
+        "low": "低",
+        "info": "情報"
+      },
+      "categories": {
+        "login_anomaly": "ログイン異常",
+        "server_posture": "サーバー態勢",
+        "access_control": "アクセス制御",
+        "resource_anomaly": "リソース異常",
+        "node_security": "ノードセキュリティ",
+        "image_security": "イメージセキュリティ",
+        "intrusion_detection": "侵入検知",
+        "malware": "マルウェア",
+        "policy_violation": "ポリシー違反",
+        "configuration": "設定",
+        "other": "その他"
+      },
+      "actions": {
+        "acknowledge": "確認",
+        "resolve": "解決",
+        "falsePositive": "誤検知"
+      },
+      "source": {
+        "internal": "内部スキャン",
+        "external": "外部エージェント"
+      }
+    }
+  },
+  "adminPage": {
+    "header": {
+      "title": "スタッフポータル",
+      "description": "システム管理と運用"
+    },
+    "actions": {
+      "cancel": "キャンセル",
+      "confirm": "確認",
+      "working": "処理中…",
+      "confirmReveal": "表示するには確認してください",
+      "rehidePrivateData": "プライベートデータを非表示",
+      "open": "オープン"
+    },
+    "privacy": {
+      "sensitiveDataPrefix": "機密データは現在",
+      "hidden": "非表示",
+      "visible": "表示",
+      "confirmationTitle": "プライバシー確認",
+      "confirmationDescription": "この管理パネルにはプライベートなユーザーデータ（名前、メール、ID）が含まれており、第三者と共有することは禁止されています（NDA参照）。\n続行するには、画面を録画または共有していないことを確認してください。",
+      "continueWithRedaction": "プライベートデータを非表示のまま",
+      "notRecording": "プライベートデータを表示",
+      "keepPrivateDataHidden": "プライベートデータを非表示のまま",
+      "revealPrivateData": "プライベートデータを表示"
+    },
+    "globalSearch": {
+      "title": "グローバル検索",
+      "placeholder": "ユーザー、組織、サーバー、注文をID/名前/メールで検索...",
+      "clearSearch": "検索をクリア",
+      "searching": "検索中...",
+      "hint": "ユーザー、組織、サーバー、注文を検索するためのクエリを入力してください。",
+      "noMatches": "一致するものが見つかりません",
+      "users": "ユーザー（{count}）",
+      "organisations": "組織（{count}）",
+      "servers": "サーバー（{count}）",
+      "orders": "注文（{count}）",
+      "orderFallback": "順序",
+      "forUser": "ユーザー #{id} 向け"
+    },
+    "tabs": {
+      "overview": "概要",
+      "users": "ユーザー",
+      "metrics": "メトリクス",
+      "exportJobs": "エクスポートジョブ",
+      "organisations": "組織",
+      "servers": "サーバー",
+      "tickets": "チケット",
+      "applications": "申請",
+      "kyc": "KYC",
+      "deletions": "削除",
+      "nodes": "ノード",
+      "eggs": "Eggs",
+      "aiModels": "AIモデル",
+      "announcements": "お知らせ",
+      "outboundEmails": "送信メール",
+      "antiabuse": "不正利用対策",
+      "fraud": "不正検知",
+      "roles": "ロール",
+      "shortUrls": "短縮URL",
+      "logs": "ログ",
+      "oauth": "OAuth",
+      "databases": "データベース",
+      "plans": "プラン",
+      "orders": "注文",
+      "payments": "支払い方法",
+      "coupons": "クーポン",
+      "settings": "設定",
+      "tunnels": "トンネル",
+      "rollouts": "ロールアウト",
+      "audit": "監査",
+      "feedback": "フィードバック",
+      "chat": "チャット"
+    },
+    "shortUrls": {
+      "overview": {
+        "title": "短縮URL",
+        "description": "ecli.appおよびecli.app/a/の短縮リダイレクトコードを作成・管理します。",
+        "count": "合計{count}件",
+        "activeCount": "{count}件アクティブ"
+      },
+      "editor": {
+        "editTitle": "短縮URLを編集",
+        "createTitle": "新しい短縮URLを作成",
+        "description": "短縮リダイレクトは内部または外部の宛先を指すことができます。"
+      },
+      "list": {
+        "title": "アクティブな短縮URL",
+        "description": "エントリをクリックして編集または削除します。",
+        "loading": "短縮URLを読み込み中...",
+        "empty": "まだ短縮URLは作成されていません。",
+        "active": "アクティブ",
+        "inactive": "非アクティブ"
+      },
+      "fields": {
+        "code": "短縮コード",
+        "codePlaceholder": "'launch'のようなコードを入力",
+        "codeHint": "コードは英数字、ダッシュ、アンダースコアに対応しています。",
+        "prefix": "短縮URLプレフィックス",
+        "optionA": "/a/ プレフィックス付き",
+        "optionRoot": "ルートパス",
+        "targetUrl": "ターゲットURL",
+        "targetPlaceholder": "https://example.com/page",
+        "targetHint": "絶対URLまたはルート相対パスを使用してください。"
+      },
+      "actions": {
+        "create": "短縮URLを作成",
+        "update": "短縮URLを更新",
+        "cancel": "キャンセル",
+        "confirmDelete": "この短縮URLを削除しますか？"
+      },
+      "errors": {
+        "failedLoad": "短縮URLの読み込みに失敗しました。",
+        "failedSave": "短縮URLの保存に失敗しました。",
+        "failedDelete": "短縮URLの削除に失敗しました。",
+        "missingFields": "コードとターゲットURLは必須です。"
+      }
+    },
+    "tunnelsTab": {
+      "header": {
+        "title": "トンネル",
+        "description": "トンネルデバイスとパブリック割り当てを管理"
+      },
+      "sections": {
+        "devices": "デバイス",
+        "devicesDescription": "保留中のトンネルエージェントを表示して承認します。",
+        "allocations": "割り当て",
+        "allocationsDescription": "アクティブなトンネルエンドポイントを監視し、割り当てをクローズします。"
+      },
+      "labels": {
+        "deviceCode": "デバイスコード",
+        "userCode": "ユーザーコード",
+        "name": "名前",
+        "kind": "タイプ",
+        "serverType": "サーバータイプ",
+        "organisation": "組織",
+        "approved": "承認済み",
+        "lastSeen": "最終確認",
+        "created": "作成日",
+        "actions": "アクション",
+        "id": "ID",
+        "publicEndpoint": "パブリックエンドポイント",
+        "localTarget": "ローカルターゲット",
+        "status": "ステータス",
+        "clientDevice": "クライアントデバイス",
+        "serverDevice": "サーバーデバイス",
+        "updated": "更新日"
+      },
+      "serverTypes": {
+        "free": "無料",
+        "paid": "有料",
+        "freeAndPaid": "無料 + 有料",
+        "enterprise": "エンタープライズ"
+      },
+      "serverOrg": {
+        "noOrg": "組織なし"
+      },
+      "actions": {
+        "refresh": "更新",
+        "approve": "承認",
+        "close": "閉じる"
+      },
+      "states": {
+        "yes": "はい",
+        "no": "いいえ",
+        "approved": "承認済み",
+        "closed": "クローズ",
+        "loading": "読み込み中…",
+        "noDevices": "トンネルデバイスが見つかりません。",
+        "noAllocations": "割り当てが見つかりません。",
+        "devices": "デバイス",
+        "allocations": "割り当て",
+        "failedToLoad": "トンネルデータの読み込みに失敗しました。",
+        "failedToApprove": "デバイスを承認できません。",
+        "failedToClose": "割り当てをクローズできません。"
+      }
+    },
+    "adminOutboundEmails": {
+      "searchPlaceholder": "受信者、件名、本文で検索...",
+      "userFilterPlaceholder": "ユーザーでフィルター...",
+      "statusAll": "すべてのステータス",
+      "statusQueued": "キュー済み",
+      "statusSent": "送信済み",
+      "statusFailed": "失敗",
+      "searchButton": "検索",
+      "columnId": "ID",
+      "columnUser": "ユーザー",
+      "columnFrom": "送信者",
+      "columnTo": "宛先",
+      "columnSubject": "件名",
+      "columnStatus": "ステータス",
+      "columnSentAt": "送信日時",
+      "columnActions": "アクション",
+      "viewButton": "表示",
+      "viewTitle": "送信メール #{id}",
+      "viewFrom": "送信者：",
+      "viewTo": "宛先：",
+      "viewSubject": "件名：",
+      "viewFailure": "失敗理由：",
+      "messageId": "メッセージID：",
+      "createdAt": "作成日時：",
+      "close": "閉じる",
+      "loading": "読み込み中...",
+      "noResults": "送信メールが見つかりません。",
+      "prev": "前",
+      "next": "次"
+    },
+    "editDialog": {
+      "fields": {
+        "environmentVariables": "環境変数",
+        "resetEnvironment": "リセット",
+        "addVariable": "変数を追加",
+        "variableName": "変数名",
+        "variableValue": "変数値",
+        "readOnly": "読み取り専用",
+        "noEnvironmentVariables": "環境変数が定義されていません。"
+      }
+    }
+  },
+  "adminAntiAbuseTab": {
+    "header": {
+      "title": "不正利用インシデント",
+      "subtitle": "AIリスク選別付きの最近の検出"
+    },
+    "search": {
+      "placeholder": "サーバー、ノード、IP、検出タイプで検索..."
+    },
+    "summary": {
+      "total": "総インシデント数",
+      "highRisk": "高リスク（80以上）",
+      "suspended": "停止中",
+      "liveFeed": "不正利用対策デーモンからのライブフィード",
+      "activeAgents": "アクティブエージェント"
+    },
+    "agents": {
+      "title": "実行中の不正利用対策エージェント",
+      "none": "アクティブな不正利用対策エージェントは検出されませんでした",
+      "lastSeenAgo": "最終確認 {seconds}秒前",
+      "justNow": "たった今",
+      "secondsAgo": "{count}秒前",
+      "minutesAgo": "{count}分前",
+      "hoursAgo": "{count}時間前"
+    },
+    "table": {
+      "server": "サーバー",
+      "detection": "検出",
+      "risk": "リスク",
+      "status": "ステータス",
+      "time": "時刻",
+      "actions": "アクション"
+    },
+    "filters": {
+      "sort": "並べ替え",
+      "sortRisk": "AIリスク",
+      "sortCreated": "作成日時",
+      "order": "順序",
+      "desc": "降順",
+      "asc": "昇順",
+      "minRisk": "最小リスク"
+    },
+    "labels": {
+      "risk": "リスク",
+      "detection": "検出",
+      "action": "アクション",
+      "strikes": "ストライク",
+      "time": "時刻",
+      "source": "ソース",
+      "target": "ターゲット",
+      "suspend": "停止中",
+      "suspended": "停止中",
+      "aiAction": "AIアクション",
+      "status": "ステータス",
+      "attachedCandidates": "関連サーバー候補",
+      "id": "ID"
+    },
+    "actions": {
+      "refresh": "更新",
+      "apply": "適用",
+      "markSolved": "解決済みにする",
+      "details": "詳細",
+      "dismiss": "却下",
+      "delete": "削除",
+      "selectAllVisible": "表示中のものを選択",
+      "clearSelection": "選択をクリア",
+      "bulkResolve": "解決（{count}）",
+      "bulkDismiss": "拒否（{count}）",
+      "bulkArchive": "アーカイブ（{count}）",
+      "bulkDelete": "削除（{count}）"
+    },
+    "confirm": {
+      "deleteOne": "このインシデントを削除しますか？この操作は元に戻せません。",
+      "bulkDelete": "選択した{count}件のインシデントを削除しますか？この操作は元に戻せません。"
+    },
+    "states": {
+      "loading": "インシデントを読み込み中…",
+      "empty": "現在のフィルターに一致するインシデントはありません",
+      "saving": "保存中..."
+    },
+    "bulk": {
+      "selected": "選択中"
+    },
+    "riskLevels": {
+      "critical": "緊急",
+      "high": "高",
+      "medium": "中",
+      "low": "低",
+      "none": "N/A"
+    },
+    "status": {
+      "pending": "保留中",
+      "resolved": "解決済み",
+      "dismissed": "却下",
+      "archived": "アーカイブ"
+    },
+    "pagination": {
+      "page": "ページ",
+      "of": "/",
+      "total": "合計{count}件",
+      "previous": "前",
+      "next": "次"
+    },
+    "common": {
+      "unknownServer": "不明なサーバー",
+      "noReason": "理由は提供されていません",
+      "yes": "はい",
+      "no": "いいえ",
+      "pending": "保留中",
+      "na": "N/A"
+    }
+  },
+  "adminExportJobsTab": {
+    "title": "エクスポートジョブキュー",
+    "common": {
+      "na": "N/A"
+    },
+    "meta": {
+      "runner": "実行者",
+      "nextRun": "次回実行",
+      "lastRun": "最終実行",
+      "expiresAt": "有効期限"
+    },
+    "table": {
+      "user": "ユーザー",
+      "status": "ステータス",
+      "progress": "進捗",
+      "created": "作成日",
+      "updated": "更新日",
+      "actions": "アクション"
+    },
+    "states": {
+      "empty": "まだエクスポートジョブはありません。"
+    },
+    "actions": {
+      "refresh": "更新",
+      "download": "ダウンロード",
+      "generating": "生成中…",
+      "createShareLink": "共有リンクを作成",
+      "copyShareLink": "共有リンクをコピー",
+      "copy": "コピー"
+    }
+  },
+  "adminUsersTab": {
+    "common": {
+      "user": "ユーザー",
+      "avatar": "アバター"
+    },
+    "search": {
+      "placeholder": "名前またはメールでユーザーを検索…",
+      "moreResults": "さらに結果を表示",
+      "totalUsers": "{count}ユーザー"
+    },
+    "table": {
+      "user": "ユーザー",
+      "role": "ロール",
+      "tier": "ティア",
+      "verification": "確認",
+      "status": "ステータス",
+      "actions": "アクション"
+    },
+    "verification": {
+      "email": "メール",
+      "student": "学生",
+      "id": "ID"
+    },
+    "status": {
+      "active": "アクティブ",
+      "suspended": "停止中",
+      "supportBanned": "サポート禁止",
+      "banned": "禁止"
+    },
+    "states": {
+      "loading": "ユーザーを読み込み中…",
+      "noMatch": "検索に一致するユーザーはありません"
+    },
+    "pagination": {
+      "page": "ページ",
+      "of": "/",
+      "total": "合計{count}件"
+    },
+    "actions": {
+      "refresh": "更新",
+      "viewProfile": "プロフィールを表示",
+      "editUser": "ユーザーを編集",
+      "view": "表示",
+      "edit": "編集",
+      "suspend": "停止",
+      "unsuspend": "停止解除",
+      "startExportJob": "エクスポートジョブを開始",
+      "download": "ダウンロード",
+      "deassignStudent": "学生割り当て解除",
+      "requireReverify": "再確認を要求",
+      "deleteAccount": "アカウントを削除",
+      "previous": "前",
+      "next": "次"
+    }
+  },
+  "adminTicketsTab": {
+    "common": {
+      "dash": "—"
+    },
+    "filters": {
+      "all": "すべて",
+      "open": "オープン",
+      "awaitingReply": "返信待ち",
+      "replied": "返信済み",
+      "closed": "クローズ",
+      "archived": "アーカイブ",
+      "aiHandled": "AI処理"
+    },
+    "search": {
+      "placeholder": "ユーザーIDまたはメールで検索…"
+    },
+    "priority": {
+      "label": "優先度",
+      "any": "すべての優先度",
+      "urgent": "緊急",
+      "high": "高",
+      "medium": "中",
+      "low": "低"
+    },
+    "selection": {
+      "selected": "{count}件選択中",
+      "selectAll": "すべて選択",
+      "totalTickets": "{count}チケット",
+      "confirmArchive": "{count}件のチケットをアーカイブしますか？",
+      "confirmUnarchive": "{count}件のチケットのアーカイブを解除しますか？"
+    },
+    "table": {
+      "ticket": "チケット",
+      "user": "ユーザー",
+      "department": "部門",
+      "assigned": "担当",
+      "priority": "優先度",
+      "status": "ステータス",
+      "created": "作成日",
+      "actions": "アクション"
+    },
+    "states": {
+      "loading": "チケットを読み込み中…",
+      "noMatch": "フィルターに一致するチケットはありません"
+    },
+    "status": {
+      "opened": "開封済み",
+      "awaitingStaffReply": "スタッフ返信待ち",
+      "replied": "返信済み",
+      "closed": "クローズ",
+      "archived": "アーカイブ"
+    },
+    "pagination": {
+      "page": "ページ",
+      "of": "/",
+      "total": "合計{count}件"
+    },
+    "dialog": {
+      "replyTitle": "返信 — #{id}",
+      "conversation": "会話",
+      "supportTeam": "サポートチーム",
+      "userId": "ユーザー #{id}",
+      "noMessages": "メッセージなし",
+      "yourReply": "返信を入力",
+      "typeReply": "返信を入力…",
+      "replyAs": "返信者",
+      "staff": "スタッフ",
+      "user": "ユーザー",
+      "assignedStaff": "担当スタッフ",
+      "searchStaff": "名前、メール、IDでスタッフを検索",
+      "setStatus": "ステータスを設定"
+    },
+    "actions": {
+      "refresh": "更新",
+      "reset": "リセット",
+      "archive": "アーカイブ",
+      "unarchive": "アーカイブ解除",
+      "reply": "返信",
+      "open": "オープン",
+      "openInNewTab": "新しいタブで開く",
+      "previous": "前",
+      "next": "次",
+      "cancel": "キャンセル",
+      "sending": "送信中…",
+      "sendReply": "返信を送信"
+    }
+  },
+  "adminOrdersTab": {
+    "header": {
+      "title": "注文",
+      "subtitle": "プランとリソースパックを管理",
+      "orderCount": "{count}件の注文"
+    },
+    "common": {
+      "orderId": "注文 #{id}",
+      "userId": "ユーザー #{id}",
+      "planId": "プラン #{id}",
+      "dash": "—",
+      "none": "— なし —",
+      "infinity": "∞",
+      "lifetime": "生涯"
+    },
+    "search": {
+      "placeholder": "ユーザーIDまたはメールで検索…"
+    },
+    "table": {
+      "order": "順序",
+      "user": "ユーザー",
+      "amount": "金額",
+      "status": "ステータス",
+      "dates": "日付",
+      "created": "作成日",
+      "expires": "{date}に期限切れ",
+      "expiresShort": "有効期限",
+      "actions": "アクション"
+    },
+    "status": {
+      "active": "アクティブ",
+      "pending": "保留中",
+      "cancelled": "キャンセル",
+      "expired": "期限切れ",
+      "awaitingPayment": "支払い待ち",
+      "paymentSent": "支払い送信済み"
+    },
+    "states": {
+      "loading": "注文を読み込み中…",
+      "emptyTitle": "まだ注文はありません",
+      "emptySubtitle": "ユーザーにプランまたはリソースパックを割り当てるための注文を発行してください。"
+    },
+    "pagination": {
+      "page": "ページ",
+      "of": "/",
+      "total": "合計{count}件"
+    },
+    "issueDialog": {
+      "title": "注文を発行",
+      "userRequired": "ユーザー *",
+      "searchUser": "名前またはメールで検索",
+      "description": "説明",
+      "descriptionPlaceholder": "例：月額ホスティングプラン",
+      "planOptional": "プラン（任意）",
+      "amount": "金額（{currency}）",
+      "issueStatus": "発行ステータス：",
+      "pendingUnpaid": "保留中（未払い）",
+      "taxPreview": "税金プレビュー",
+      "expiresOptional": "有効期限（任意）",
+      "notes": "備考",
+      "notesPlaceholder": "内部メモ",
+      "lifetime": "生涯（一括支払い、更新なし）"
+    },
+    "applyPlanDialog": {
+      "title": "ユーザー #{id} にプランを適用",
+      "planRequired": "プラン *",
+      "selectPlan": "— プランを選択 —",
+      "servers": "サーバー",
+      "expiresOptional": "有効期限（任意）",
+      "assignOrgOptional": "組織IDに割り当て（任意）",
+      "assignOrgPlaceholder": "ユーザーのみの場合は空白",
+      "assignOrgHint": "設定すると、組織のティアもエンタープライズにアップグレードされます。",
+      "notesInternal": "備考（内部）",
+      "notesPlaceholder": "例：トライアル期間",
+      "lifetime": "生涯（一括支払い、更新なし）"
+    },
+    "editDialog": {
+      "editOrder": "注文を編集",
+      "editOrderId": "注文 #{id} を編集",
+      "description": "注文の詳細を変更するかステータスを変更します。",
+      "fields": {
+        "description": "説明",
+        "amount": "金額（{currency}）",
+        "planId": "プランID",
+        "notes": "備考",
+        "expiresAt": "有効期限",
+        "status": "ステータス"
+      }
+    },
+    "actions": {
+      "refresh": "更新",
+      "issueOrder": "注文を発行",
+      "issue": "発行",
+      "editOrder": "注文を編集",
+      "cancelOrder": "注文をキャンセル",
+      "deleteOrder": "注文を削除",
+      "confirmPayment": "支払いを確認",
+      "rejectPayment": "支払いを拒否",
+      "confirm": "確認",
+      "reject": "拒否",
+      "suspendUser": "ユーザーを停止",
+      "edit": "編集",
+      "cancel": "キャンセル",
+      "previous": "前",
+      "next": "次",
+      "issuing": "発行中…",
+      "applying": "適用中…",
+      "saving": "保存中…",
+      "applyPlan": "プランを適用",
+      "saveChanges": "変更を保存",
+      "downloadInvoice": "請求書をダウンロード",
+      "invoice": "請求書"
+    }
+  },
+  "adminVerificationsTab": {
+    "common": {
+      "user": "ユーザー",
+      "avatar": "アバター"
+    },
+    "header": {
+      "title": "本人確認",
+      "subtitle": "提出されたKYC書類を確認",
+      "pendingCount": "{count}件保留中"
+    },
+    "filters": {
+      "all": "すべて",
+      "pending": "保留中",
+      "verified": "確認済み",
+      "failed": "失敗"
+    },
+    "table": {
+      "user": "ユーザー",
+      "status": "ステータス",
+      "documents": "文書",
+      "actions": "アクション"
+    },
+    "documents": {
+      "idDoc": "身分証明書",
+      "idDocument": "身分証明書",
+      "selfie": "自撮り写真",
+      "none": "書類なし",
+      "tapToPreview": "タップしてプレビュー",
+      "noneUploaded": "書類がアップロードされていません"
+    },
+    "status": {
+      "pending": "保留中",
+      "pendingReview": "審査待ち",
+      "verified": "確認済み",
+      "failed": "失敗"
+    },
+    "states": {
+      "noneFound": "確認リクエストはありません",
+      "noMatch": "このフィルターに一致する確認はありません"
+    },
+    "actions": {
+      "refresh": "更新",
+      "approve": "承認",
+      "reject": "拒否",
+      "revoke": "取り消し",
+      "revokeVerification": "確認を取り消し",
+      "delete": "削除",
+      "deleteRecord": "レコードとファイルを削除"
+    }
+  },
+  "adminAnnouncementsTab": {
+    "header": {
+      "title": "お知らせ",
+      "subtitle": "製品アップデートとプラットフォームのお知らせを送信"
+    },
+    "compose": {
+      "title": "作成",
+      "subject": "件名",
+      "subjectPlaceholder": "例：プラットフォームメンテナンスのお知らせ",
+      "message": "メッセージ",
+      "markdownSupported": "Markdown対応",
+      "messagePlaceholder": "お知らせを入力…",
+      "characters": "{count}文字",
+      "minRead": "約{minutes}分で読めます",
+      "forceTitle": "全員に強制送信",
+      "forceSubtitle": "ユーザーのメール設定を上書き",
+      "forceWarning": "これは通知設定に関係なくすべてのユーザーにメールを送信します。",
+      "excludeSuspendedTitle": "停止中のユーザーには送信しない",
+      "excludeSuspendedSubtitle": "アカウントが停止中のユーザーをスキップ"
+    },
+    "preview": {
+      "title": "メールプレビュー",
+      "live": "ライブプレビュー",
+      "subjectFallback": "お知らせの件名",
+      "from": "送信者：Eclipse Systems",
+      "justNow": "たった今",
+      "badge": "プレビュー",
+      "note": "これは概略のプレビューです。最終的な表示はメールクライアントによって異なる場合があります。"
+    },
+    "alerts": {
+      "required": "件名とメッセージは必須です",
+      "testRequired": "テスト送信には件名とメッセージが必要です",
+      "testSent": "テスト送信完了 — {recipients}件",
+      "testFailed": "テスト送信に失敗しました",
+      "testFailedWithReason": "テスト送信に失敗しました：{reason}",
+      "confirmBroadcast": "このお知らせをすべてのユーザーに送信しますか？Forceオプションに基づいて設定を尊重または上書きします。",
+      "broadcastSent": "一斉送信完了 — {recipients}件",
+      "broadcastQueued": "一斉送信がキューに入りました — バックグラウンドで送信中です。",
+      "broadcastFailed": "一斉送信に失敗しました",
+      "broadcastFailedWithReason": "一斉送信に失敗しました：{reason}"
+    },
+    "actions": {
+      "showPreview": "プレビューを表示",
+      "hidePreview": "プレビューを非表示",
+      "sendTest": "テスト送信",
+      "test": "テスト",
+      "sendBroadcast": "一斉送信",
+      "broadcast": "一斉送信",
+      "tapToPreview": "タップしてメールをプレビュー"
+    }
+  },
+  "adminFraudTab": {
+    "common": {
+      "dash": "—",
+      "error": "エラー"
+    },
+    "header": {
+      "title": "AI不正検知",
+      "subtitle": "AIがユーザーの請求情報をスキャンして不審なパターンを検出します"
+    },
+    "filters": {
+      "hideSuspended": "停止中を非表示",
+      "showSuspended": "停止中/処理済みの不正アラートを表示"
+    },
+    "states": {
+      "empty": "不正アラートはありません — すべてのユーザーはクリーンです",
+      "reasonRedacted": "機密の不正理由は編集されています"
+    },
+    "status": {
+      "suspended": "停止中"
+    },
+    "fields": {
+      "address": "住所：",
+      "city": "市区町村：",
+      "country": "国：",
+      "company": "会社：",
+      "phone": "電話番号：",
+      "detected": "検出日時"
+    },
+    "alerts": {
+      "scanStarted": "グローバル不正スキャンが開始されました — 結果はまもなく利用可能になります。タブを更新して最新情報を確認してください。",
+      "scanComplete": "スキャン完了 — {count}人のユーザーにフラグが付きました",
+      "scanFailed": "スキャン失敗：{reason}",
+      "confirmDismissSelected": "選択した{count}件の不正アラートを却下しますか？",
+      "dismissFailed": "却下に失敗しました：{reason}",
+      "failed": "失敗：{reason}",
+      "confirmSuspend": "ユーザー {name} を停止しますか？",
+      "suspendReasonPrompt": "停止理由を入力（任意）：",
+      "rescanFailed": "再スキャン失敗：{reason}"
+    },
+    "actions": {
+      "scanAllUsers": "全ユーザーをスキャン",
+      "scanningAll": "全件スキャン中…",
+      "selectAll": "すべて選択",
+      "unselectAll": "すべて選択解除",
+      "dismissSelected": "選択を却下（{count}）",
+      "dismissing": "却下中…",
+      "dismiss": "却下",
+      "suspend": "停止",
+      "rescan": "再スキャン"
+    }
+  },
+  "adminDeletionsTab": {
+    "header": {
+      "title": "削除リクエスト",
+      "subtitle": "アカウント削除リクエストを確認して対応",
+      "pendingCount": "{count}件保留中"
+    },
+    "filters": {
+      "all": "すべて",
+      "pending": "保留中",
+      "pendingDeletion": "削除待ち",
+      "approved": "承認済み",
+      "rejected": "拒否",
+      "cancelled": "キャンセル",
+      "deleted": "削除済み"
+    },
+    "table": {
+      "user": "ユーザー",
+      "requested": "リクエスト日",
+      "status": "ステータス",
+      "actions": "アクション",
+      "timeElapsed": "経過時間"
+    },
+    "time": {
+      "today": "今日",
+      "yesterday": "昨日",
+      "daysAgo": "{count}日前"
+    },
+    "states": {
+      "noneFound": "削除リクエストはありません",
+      "noMatch": "このフィルターに一致するリクエストはありません"
+    },
+    "status": {
+      "pending": "保留中",
+      "pendingReview": "審査待ち",
+      "pendingDeletion": "削除待ち",
+      "approved": "承認済み",
+      "rejected": "拒否",
+      "cancelled": "キャンセル",
+      "deleted": "削除済み",
+      "processed": "処理済み",
+      "deletionProcessed": "削除処理済み"
+    },
+    "actions": {
+      "refresh": "更新",
+      "approveDeletion": "削除を承認",
+      "approveDelete": "削除を承認",
+      "keepAccountTitle": "アカウントを保持（削除を拒否）",
+      "keepAccount": "アカウントを保持",
+      "deleteUserNow": "ユーザーを今すぐ削除",
+      "deleteNow": "今すぐ削除",
+      "dontDeleteUser": "ユーザーを削除しない",
+      "dontDelete": "削除しない",
+      "reconsiderTitle": "再検討 — 削除を承認",
+      "reconsider": "再検討",
+      "reconsiderApprove": "再検討して承認"
+    }
+  },
+  "adminMetricsTab": {
+    "common": {
+      "dash": "—"
+    },
+    "header": {
+      "title": "グローバルメトリクス",
+      "lastDays": "過去{days}日間"
+    },
+    "errors": {
+      "loadFailed": "メトリクスの読み込みに失敗しました",
+      "clearFailed": "メトリクスのクリアに失敗しました"
+    },
+    "actions": {
+      "refresh": "更新",
+      "clearCollectedMetrics": "収集されたメトリクスをクリア",
+      "clearing": "クリア中…",
+      "confirmClear": "収集されたすべてのメトリクスデータを削除しますか？この操作は元に戻せません。"
+    },
+    "cards": {
+      "users": {
+        "title": "ユーザー",
+        "new": "{count}件の新規"
+      },
+      "registrationGrowth": {
+        "title": "登録増加数",
+        "vsPrevious": "前{days}日間比"
+      },
+      "organisations": {
+        "title": "組織",
+        "new": "{count}件の新規"
+      },
+      "supportOrders": {
+        "title": "サポート & 注文",
+        "subtitle": "期間内のチケット / 注文"
+      },
+      "servers": {
+        "title": "サーバー",
+        "subtitle": "{online} オンライン · {moving} 移行中 · {offline} オフライン"
+      }
+    },
+    "serverStatus": {
+      "online": "オンライン",
+      "transitioning": "起動中/停止中",
+      "offline": "オフライン"
+    },
+    "charts": {
+      "loading": "チャートを読み込み中…",
+      "userRegistrations": "ユーザー登録",
+      "platformActivity": "プラットフォームアクティビティ",
+      "serverStatusLive": "サーバーステータス（ライブ）",
+      "legend": {
+        "registrations": "登録",
+        "organisations": "組織",
+        "tickets": "チケット",
+        "orders": "注文"
+      }
+    }
+  },
+  "adminPlansTab": {
+    "header": {
+      "title": "プラン",
+      "subtitle": "ユーザー向けのリソースティアと価格を定義します。",
+      "planCount": "{count}件のプランが設定されています"
+    },
+    "common": {
+      "infinity": "∞",
+      "perMonth": "/月"
+    },
+    "resources": {
+      "ram": "RAM",
+      "disk": "ディスク",
+      "cpu": "CPU",
+      "servers": "サーバー",
+      "dbs": "DB",
+      "backups": "バックアップ",
+      "tunnelPorts": "トンネルポート"
+    },
+    "types": {
+      "free": "無料",
+      "paid": "有料",
+      "educational": "教育",
+      "enterprise": "エンタープライズ"
+    },
+    "badges": {
+      "default": "デフォルト",
+      "hiddenInBilling": "請求で非表示"
+    },
+    "states": {
+      "noPlans": "プランが設定されていません",
+      "noPlansSubtitle": "最初のプランを作成してユーザーのリソースティアを定義してください。"
+    },
+    "dialog": {
+      "newTitle": "新しいプラン",
+      "editTitle": "プランを編集",
+      "resourceLimits": "リソース制限（無制限の場合は空白）",
+      "fields": {
+        "planName": "プラン名 *",
+        "planNamePlaceholder": "例：Starter",
+        "type": "タイプ",
+        "price": "価格（{currency}/月）",
+        "description": "説明",
+        "descriptionPlaceholder": "プランの簡単な説明",
+        "memoryMb": "メモリ（MB）",
+        "memoryPlaceholder": "例：2048",
+        "diskMb": "ディスク（MB）",
+        "diskPlaceholder": "例：10240",
+        "cpuPercent": "CPU（%）",
+        "cpuPlaceholder": "例：100",
+        "serverLimit": "サーバー制限",
+        "serverLimitPlaceholder": "例：3",
+        "databases": "データベース",
+        "databasesPlaceholder": "例：10",
+        "backups": "バックアップ",
+        "backupsPlaceholder": "例：20",
+        "portsPerServer": "サーバーあたりのポート数",
+        "tunnelPortCount": "トンネルポート",
+        "accountDatabasesLimit": "アカウントデータベース制限",
+        "accountBackupsLimit": "アカウントバックアップ制限",
+        "setAsDefaultPlan": "デフォルトプランに設定",
+        "hideFromBillingShowcases": "請求ショーケースで非表示",
+        "billingPageFeatures": "請求ページの機能（1行に1つ）",
+        "billingPageFeaturesPlaceholder": "例：\n3サーバー\n2048 MB RAM\n10 GB SSD\n優先サポート",
+        "billingPageFeaturesHint": "これらの行はユーザーの請求ページで機能の箇条書きとして表示されます。"
+      }
+    },
+    "actions": {
+      "syncPortal": "ポータルを同期",
+      "newPlan": "新しいプラン",
+      "createFirstPlan": "最初のプランを作成",
+      "reapply": "再適用",
+      "force": "強制",
+      "editPlan": "プランを編集",
+      "deletePlan": "プランを削除",
+      "cancel": "キャンセル",
+      "saving": "保存中…",
+      "saveChanges": "変更を保存",
+      "createPlan": "プランを作成"
+    }
+  },
+  "adminOauthTab": {
+    "stats": {
+      "endpoints": "エンドポイント",
+      "scopes": "スコープ",
+      "grantTypes": "認可タイプ",
+      "pkce": "PKCE"
+    },
+    "sections": {
+      "discovery": "RFC 8414 ディスカバリー",
+      "discoverySubtitle": "サービスはこのwell-known URLを介してサーバーメタデータを自動的に検出します：",
+      "endpointReference": "エンドポイントリファレンス",
+      "scopeReference": "スコープリファレンス",
+      "authCodeFlow": "認可コードフロー（+ PKCE）",
+      "clientCredentialsFlow": "クライアントクレデンシャルフロー（サービス間）",
+      "tokenIntrospection": "トークンイントロスペクション（RFC 7662）",
+      "tokenLifetimes": "トークン有効期間"
+    },
+    "table": {
+      "method": "メソッド",
+      "path": "パス",
+      "auth": "認証",
+      "description": "説明"
+    },
+    "registeredApps": {
+      "title": "登録済みアプリ",
+      "registered": "登録日 {date}"
+    },
+    "states": {
+      "noApps": "まだOAuthアプリは登録されていません。"
+    },
+    "createDialog": {
+      "title": "OAuthアプリを登録",
+      "appName": "アプリ名 *",
+      "appNamePlaceholder": "My Eclipse Service",
+      "description": "説明",
+      "descriptionPlaceholder": "任意の説明",
+      "redirectUris": "リダイレクトURI",
+      "allowedScopes": "許可されたスコープ",
+      "grantTypes": "認可タイプ"
+    },
+    "newSecretDialog": {
+      "title": "アプリが作成されました — シークレットを保存してください",
+      "appName": "アプリ名",
+      "clientId": "クライアントID",
+      "clientSecret": "クライアントシークレット",
+      "saved": "シークレットを保存しました"
+    },
+    "editDialog": {
+      "title": "OAuthアプリを編集 — {name}",
+      "redirectUris": "リダイレクトURI",
+      "allowedScopes": "許可されたスコープ",
+      "grantTypes": "認可タイプ"
+    },
+    "rotateDialog": {
+      "title": "クライアントシークレットをローテーションしますか？"
+    },
+    "actions": {
+      "copy": "コピー",
+      "newApp": "新しいアプリ",
+      "deleteApp": "アプリを削除",
+      "edit": "編集",
+      "rotateSecret": "シークレットをローテーション",
+      "addUri": "URIを追加",
+      "cancel": "キャンセル",
+      "creating": "作成中…",
+      "createApp": "アプリを作成",
+      "saving": "保存中…",
+      "saveChanges": "変更を保存",
+      "rotating": "ローテーション中…"
+    }
+  },
+  "adminEggsTab": {
+    "header": {
+      "title": "サーバーテンプレート",
+      "eggCount": "{count}件のEggが設定されています"
+    },
+    "table": {
+      "egg": "Egg",
+      "dockerImage": "Dockerイメージ",
+      "visibility": "表示設定",
+      "actions": "アクション"
+    },
+    "visibility": {
+      "visible": "表示",
+      "hidden": "非表示"
+    },
+    "states": {
+      "noEggs": "Eggが設定されていません",
+      "noEggsSubtitle": "新しいEggを作成するか、インポートして開始してください。"
+    },
+    "tabs": {
+      "basic": "基本",
+      "variables": "変数",
+      "processConfig": "プロセス設定",
+      "installScript": "インストールスクリプト"
+    },
+    "fields": {
+      "name": "名前 *",
+      "author": "作成者",
+      "description": "説明",
+      "primaryDockerImage": "プライマリDockerイメージ *",
+      "startupCommand": "起動コマンド *",
+      "visibleToUsers": "ユーザーに表示",
+      "launchRootless": "ルートレスモードで起動",
+      "requiresKvm": "KVMが必要（このテンプレートでKVM仮想化を有効にします）",
+      "stopCommand": "停止コマンド",
+      "installContainer": "インストールコンテナ",
+      "entrypoint": "エントリポイント",
+      "installScript": "インストールスクリプト",
+      "allowedPortals": "許可されたポータル",
+      "allowedPortalsHint": "空の場合、このEggはすべてのポータルで利用可能です。"
+    },
+    "importDialog": {
+      "title": "Pterodactyl Eggをインポート",
+      "importedSuccessfully": "Eggが正常にインポートされました！",
+      "modes": {
+        "pasteJson": "JSONを貼り付け",
+        "fetchFromUrl": "URLから取得"
+      },
+      "eggJson": "Egg JSON（PTDL_v1 または PTDL_v2）",
+      "pasteHint": "Pterodactyl / Pelicanからエクスポートされた完全なEgg JSONを貼り付けてください。",
+      "rawJsonUrl": "Raw JSON URL",
+      "urlHint": "パネルはこのURLをサーバーサイドで取得します。コミュニティEggにはraw GitHub URLを使用してください。",
+      "preview": {
+        "image": "イメージ",
+        "envVars": "環境変数",
+        "installIncluded": "インストールスクリプトが含まれています",
+        "processIncluded": "プロセス設定が含まれています"
+      }
+    },
+    "dialog": {
+      "newTitle": "新しいEgg",
+      "editTitle": "Eggを編集 — {name}"
+    },
+    "actions": {
+      "refresh": "更新",
+      "importEgg": "Eggをインポート",
+      "import": "インポート",
+      "newEgg": "新しいEgg",
+      "new": "新規",
+      "deleteAll": "すべて削除",
+      "clear": "クリア",
+      "editEgg": "Eggを編集",
+      "syncToWings": "Wingsに同期",
+      "deleteEgg": "Eggを削除",
+      "copyImageName": "イメージ名をコピー",
+      "edit": "編集",
+      "sync": "同期",
+      "done": "完了",
+      "cancel": "キャンセル",
+      "importing": "インポート中…",
+      "saving": "保存中…",
+      "createEgg": "Eggを作成",
+      "saveChanges": "変更を保存"
+    }
+  },
+  "adminSettingsTab": {
+    "header": {
+      "title": "パネル設定",
+      "subtitle": "登録、サービス、アクセス制限を設定"
+    },
+    "alerts": {
+      "failedToSaveSettings": "設定の保存に失敗しました"
+    },
+    "sections": {
+      "quickToggles": "クイックトグル",
+      "featureFlags": "機能フラグ"
+    },
+    "toggles": {
+      "registration": {
+        "label": "登録",
+        "enabled": "新規ユーザーがアカウントを作成できます",
+        "disabled": "サインアップはブロックされています（HTTP 503を返します）"
+      },
+      "tempEmailFilter": {
+        "label": "一時メールフィルター",
+        "enabled": "使い捨てメールアドレスはブロックされます",
+        "disabled": "使い捨てメールは登録時に許可されます"
+      },
+      "classicCaptcha": {
+        "label": "クラシックキャプチャ",
+        "enabled": "登録には画像キャプチャが必要です",
+        "disabled": "クラシックキャプチャは無効です"
+      },
+      "invisibleCaptcha": {
+        "label": "不可視キャプチャ",
+        "enabled": "行動ベースのボット検出が有効です",
+        "disabled": "不可視キャプチャは無効です"
+      },
+      "gamblingMode": {
+        "label": "ギャンブルモード",
+        "enabled": "テーマベースのギャンブル動作が有効です",
+        "disabled": "ギャンブル機能はグローバルで無効です"
+      }
+    },
+    "featureFlags": {
+      "ai": {
+        "label": "AIサービス",
+        "note": "AIコントロールプレーンとLLMモデル"
+      },
+      "billing": {
+        "label": "請求システム",
+        "note": "注文とサブスクリプション管理"
+      },
+      "dns": {
+        "label": "DNS管理",
+        "note": "組織DNSゾーン制御"
+      },
+      "ticketing": {
+        "label": "サポートチケット",
+        "note": "ヘルプデスクとチャットログ"
+      },
+      "applications": {
+        "label": "申請",
+        "note": "スタッフ申請と不正利用報告フォーム"
+      },
+      "oauth": {
+        "label": "OAuthサーバー",
+        "note": "OAuthクライアントとトークンサービス"
+      },
+      "tunnels": {
+        "label": "トンネル",
+        "note": "パブリックトンネルダッシュボードと転送制御"
+      },
+      "dedicatedIps": {
+        "label": "専用IP",
+        "note": "KVMサーバーに専用パブリックIPを割り当て"
+      },
+      "captcha": {
+        "label": "クラシックキャプチャ",
+        "note": "画像ベースのボット対策"
+      },
+      "captchaInvisible": {
+        "label": "不可視キャプチャ",
+        "note": "行動チャレンジシステム"
+      },
+      "elo": {
+        "label": "ELOランキング",
+        "note": "コミュニティ投票とプロジェクトランキングシステム"
+      }
+    },
+    "gambling": {
+      "title": "ギャンブル確率",
+      "info": "値は0から1の範囲です（例：0.5 = 50%の確率）。変更はギャンブルテーマが有効なすべてのユーザーに影響します。",
+      "luckyRollChance": "ラッキーロール確率",
+      "luckyRollHint": "ボーナスリソース割り当て確率",
+      "powerDenyChance": "電源拒否確率",
+      "powerDenyHint": "サーバー電源操作の失敗率"
+    },
+    "registration": {
+      "titleEnabled": "登録通知",
+      "titleDisabled": "登録無効メッセージ",
+      "placeholderEnabled": "例：これは開発ビルドです。データは予告なくリセットされる場合があります。",
+      "placeholderDisabled": "例：システムメンテナンスのため登録は一時的に停止されています。",
+      "hintEnabled": "ログイン/登録ページに表示される任意の情報バナー。",
+      "hintDisabled": "登録ページにアクセスしようとするユーザーに表示されます。",
+      "unavailableTitle": "現在登録はご利用いただけません"
+    },
+    "billing": {
+      "title": "請求通貨と税ルール",
+      "currencyLabel": "通貨（ISOコード）",
+      "currencyExamples": "例：USD、EUR、GBP、JPY",
+      "quickExamples": "クイック例",
+      "taxRulesLabel": "税ルール（国/グループ:パーセント）",
+      "ageRulesLabel": "最低年齢ルール",
+      "ageRulesHint": "国コード、国名、EU、UK、またはdefaultを使用。1行に1ルール。"
+    },
+    "geoRules": {
+      "title": "Geoブロックルール",
+      "ruleCount": "{count}件のルール",
+      "noRules": "ルールなし",
+      "restrictionLevels": "制限レベル",
+      "addRule": "ルールを追加",
+      "updateExisting": "これは{country}の既存ルールを更新します",
+      "noMatchingCountries": "一致する国はありません",
+      "blockedCount": "{count}カ国がブロックされています",
+      "confirmRemoveAll": "{count}件のGeoブロックルールをすべて削除しますか？",
+      "clearAll": "すべてクリア",
+      "noneConfigured": "Geoブロックルールが設定されていません",
+      "noneConfiguredHint": "上に国コードを追加してアクセスを制限してください",
+      "rawConfig": "Raw設定値"
+    },
+    "geoMetrics": {
+      "title": "Geoブロックの影響とメトリクス",
+      "loading": "メトリクスを読み込み中…",
+      "failedToLoad": "メトリクスの読み込みに失敗しました",
+      "levelGte1": "レベル ≥ 1",
+      "levelGte2": "レベル ≥ 2",
+      "levelGte3": "レベル ≥ 3",
+      "levelGte5": "レベル ≥ 5",
+      "level4": "レベル 4",
+      "cards": {
+        "totalUsers": "総ユーザー数",
+        "regBlocked": "登録ブロック",
+        "idBlocked": "IDブロック",
+        "freeBlocked": "無料ブロック",
+        "eduBlocked": "教育ブロック",
+        "subuserOnly": "サブユーザーのみ"
+      },
+      "noMetrics": "利用可能なメトリクスはありません",
+      "noMetricsHint": "設定を保存して影響メトリクスを生成"
+    },
+    "common": {
+      "advanced": "詳細",
+      "required": "必須"
+    },
+    "actions": {
+      "saving": "保存中…",
+      "saveSettings": "設定を保存",
+      "save": "保存"
+    },
+    "states": {
+      "changesSaved": "変更が保存されました",
+      "saved": "保存済み"
+    }
+  },
+  "adminApplicationsTab": {
+    "states": {
+      "loadingApplicationForms": "申請フォームを読み込み中..."
+    },
+    "common": {
+      "error": "エラー",
+      "dash": "—"
+    },
+    "errors": {
+      "loadApplicationsData": "申請データの読み込みに失敗しました",
+      "formTitleRequired": "フォームタイトルは必須です",
+      "saveForm": "フォームの保存に失敗しました",
+      "deleteForm": "フォームの削除に失敗しました",
+      "createInvite": "招待の作成に失敗しました",
+      "revokeInvite": "招待の取り消しに失敗しました",
+      "updateSubmission": "送信の更新に失敗しました",
+      "deleteSubmission": "送信の削除に失敗しました"
+    },
+    "confirm": {
+      "deleteFormWithSubmissions": "このフォームとすべての送信を削除しますか？",
+      "deleteSubmission": "この送信を削除しますか？この操作は元に戻せません。",
+      "bulkDeleteSubmissions": "選択した{count}件の送信を削除しますか？この操作は元に戻せません。"
+    },
+    "forms": {
+      "title": "フォーム",
+      "searchPlaceholder": "タイトル、説明、スラッグでフォームを検索...",
+      "noFormsYet": "まだフォームはありません",
+      "noFormsMatch": "検索に一致するフォームはありません",
+      "tryDifferentSearch": "別の検索語をお試しください",
+      "createFirstForm": "最初のフォームを作成して始めましょう",
+      "pendingCount": "{count}件保留中",
+      "formsCount": "フォーム",
+      "formFallback": "フォーム {id}"
+    },
+    "visibilityLabels": {
+      "publicAnonymous": "匿名",
+      "publicUsers": "ユーザー",
+      "privateInvite": "招待のみ"
+    },
+    "statusBadge": {
+      "active": "アクティブ",
+      "closed": "クローズ",
+      "archived": "アーカイブ",
+      "pending": "保留中",
+      "accepted": "承認済み",
+      "rejected": "拒否"
+    },
+    "status": {
+      "active": "アクティブ",
+      "closedViewOnly": "クローズ（閲覧のみ）",
+      "archived": "アーカイブ"
+    },
+    "questionTypes": {
+      "shortText": "短いテキスト",
+      "longText": "長いテキスト",
+      "email": "メール",
+      "number": "数値",
+      "singleSelect": "単一選択",
+      "multiSelect": "複数選択",
+      "checkbox": "チェックボックス",
+      "date": "日付",
+      "url": "URL"
+    },
+    "questions": {
+      "title": "質問",
+      "questionFallback": "質問 {index}",
+      "shortLabel": "Q"
+    },
+    "builder": {
+      "createForm": "フォームを作成",
+      "editForm": "フォームを編集",
+      "titleRequired": "フォームタイトルは必須です",
+      "types": {
+        "staffApplication": "スタッフ申請",
+        "abuseReport": "不正利用報告"
+      },
+      "visibility": {
+        "publicAnonymous": "公開（匿名）",
+        "publicUsers": "公開（ユーザー）",
+        "privateInvite": "非公開（招待のみ）"
+      },
+      "fields": {
+        "formTitle": "フォームタイトル",
+        "formTitlePlaceholder": "例：モデレーター申請",
+        "customSlug": "カスタムスラッグ",
+        "customSlugHint": "空白のままにするとタイトルから自動生成されます",
+        "customSlugPlaceholder": "例：moderator-application",
+        "formType": "フォームタイプ",
+        "visibility": "表示設定",
+        "status": "ステータス",
+        "description": "説明",
+        "descriptionPlaceholder": "フォームの上部に表示される任意の紹介テキスト"
+      },
+      "questionFields": {
+        "label": "ラベル",
+        "labelPlaceholder": "質問 {index} ラベル",
+        "type": "タイプ",
+        "placeholder": "プレースホルダー",
+        "placeholderHint": "任意のヒントテキスト...",
+        "required": "必須",
+        "options": "オプション",
+        "noOptionsYet": "まだオプションはありません — 以下に追加してください",
+        "optionInputPlaceholder": "オプションを入力してEnterを押してください..."
+      }
+    },
+    "invites": {
+      "title": "招待リンク",
+      "createNewInvite": "新しい招待を作成",
+      "noInviteLinks": "まだ招待リンクはありません",
+      "inviteFallback": "招待 #{id}",
+      "never": "なし",
+      "usageCount": "{used}/{max} 回使用",
+      "usageCountUnlimited": "{used} 回使用",
+      "fields": {
+        "label": "ラベル",
+        "emailOptional": "メール（任意）",
+        "maxUses": "最大使用回数",
+        "maxUsesHint": "無制限の場合は空白",
+        "expiresHours": "有効期限（時間）",
+        "expiresHoursHint": "無期限の場合は空白"
+      },
+      "placeholders": {
+        "label": "例：Johnの招待",
+        "email": "user@example.com",
+        "maxUses": "例：1",
+        "expiresHours": "例：24"
+      }
+    },
+    "submissions": {
+      "title": "送信",
+      "searchAll": "すべての送信を検索",
+      "searchIn": "検索対象",
+      "noSubmissions": "送信はありません",
+      "noFiltered": "{status}の送信はありません",
+      "willAppear": "送信はここに表示されます",
+      "anonymous": "匿名",
+      "filters": {
+        "all": "すべて",
+        "pending": "保留中",
+        "accepted": "承認済み",
+        "rejected": "拒否",
+        "archived": "アーカイブ"
+      }
+    },
+    "table": {
+      "form": "フォーム",
+      "type": "タイプ",
+      "visibility": "表示設定",
+      "status": "ステータス",
+      "submissions": "送信",
+      "submitter": "送信者",
+      "submitted": "送信済み",
+      "link": "リンク",
+      "id": "ID",
+      "actions": "アクション"
+    },
+    "labels": {
+      "pending": "保留中"
+    },
+    "pagination": {
+      "page": "ページ",
+      "of": "/",
+      "total": "合計：{count}",
+      "previous": "前",
+      "next": "次"
+    },
+    "bulk": {
+      "selected": "選択中"
+    },
+    "actions": {
+      "newForm": "新しいフォーム",
+      "copyLink": "リンクをコピー",
+      "edit": "編集",
+      "view": "表示",
+      "viewSubmissions": "送信を表示",
+      "template": "テンプレート",
+      "deleteForm": "フォームを削除",
+      "addQuestion": "質問を追加",
+      "add": "追加",
+      "saving": "保存中...",
+      "updateForm": "フォームを更新",
+      "createForm": "フォームを作成",
+      "cancel": "キャンセル",
+      "createInviteLink": "招待リンクを作成",
+      "revoke": "取り消し",
+      "copied": "コピーしました",
+      "copy": "コピー",
+      "refresh": "更新",
+      "accept": "承認",
+      "reject": "拒否",
+      "archive": "アーカイブ",
+      "reset": "リセット",
+      "delete": "削除",
+      "selectVisible": "表示中のものを選択",
+      "clearSelection": "選択をクリア",
+      "bulkDeleteSubmissions": "選択を削除（{count}）"
+    }
+  },
+  "adminDatabaseHostsPanel": {
+    "header": {
+      "title": "データベースホスト"
+    },
+    "errors": {
+      "passwordRequired": "パスワードは必須です",
+      "failedToSave": "保存に失敗しました",
+      "failedToDelete": "削除に失敗しました"
+    },
+    "states": {
+      "loading": "読み込み中...",
+      "connectionSuccessful": "接続成功",
+      "connectionFailed": "接続失敗",
+      "emptyHosts": "データベースホストが設定されていません。サーバーがデータベースを作成できるように追加してください。"
+    },
+    "form": {
+      "newTitle": "新しいデータベースホスト",
+      "editTitle": "データベースホストを編集",
+      "fields": {
+        "name": "名前 *",
+        "host": "ホスト *",
+        "port": "ポート",
+        "username": "ユーザー名 *",
+        "password": "パスワード *",
+        "passwordKeep": "パスワード（保持する場合は空白）",
+        "linkedNodeId": "リンクノードID（任意）",
+        "maxDatabases": "最大データベース数（0 = 無制限）"
+      },
+      "placeholders": {
+        "name": "本番MySQL",
+        "host": "192.168.1.10",
+        "username": "panel_admin",
+        "linkedNodeId": "任意のノードの場合は空白"
+      }
+    },
+    "row": {
+      "userPrefix": "ユーザー：",
+      "nodePrefix": "ノード",
+      "limitPrefix": "制限：",
+      "allNodes": "すべてのノード",
+      "unlimited": "無制限"
+    },
+    "actions": {
+      "addHost": "ホストを追加",
+      "saving": "保存中...",
+      "saveChanges": "変更を保存",
+      "createHost": "ホストを作成",
+      "test": "テスト",
+      "confirm": "確認",
+      "cancel": "キャンセル"
+    }
+  },
+  "adminAiTab": {
+    "header": {
+      "title": "AIモデル",
+      "modelCount": "{count}件のモデルが設定されています"
+    },
+    "table": {
+      "model": "モデル",
+      "type": "タイプ",
+      "status": "ステータス",
+      "tags": "タグ",
+      "endpoints": "エンドポイント",
+      "actions": "アクション"
+    },
+    "status": {
+      "active": "アクティブ",
+      "beta": "ベータ",
+      "disabled": "無効"
+    },
+    "states": {
+      "noModels": "AIモデルが設定されていません",
+      "noModelsSubtitle": "モデルを追加してパネル全体でAI機能を有効にしてください。"
+    },
+    "endpoints": {
+      "configured": "{count}件設定済み",
+      "notSet": "未設定",
+      "endpointCount": "{count}件のエンドポイント",
+      "noEndpoints": "エンドポイントなし"
+    },
+    "cooldowns": {
+      "title": "レート制限クールダウン",
+      "subtitle": "過去24時間のAIエンドポイントスロットリングイベント",
+      "empty": "過去24時間にレート制限クールダウンはありません",
+      "wait": "{seconds}秒待機"
+    },
+    "assignDialog": {
+      "title": "「{name}」をユーザーに割り当て",
+      "selectUser": "ユーザーを選択",
+      "searchPlaceholder": "名前、メール、IDを入力して検索",
+      "limitsHint": "制限（任意 — 無制限の場合は空白）",
+      "tokenLimit": "トークン制限",
+      "tokenPlaceholder": "例：100000",
+      "requestLimit": "リクエスト制限",
+      "requestPlaceholder": "例：500"
+    },
+    "modelDialog": {
+      "newTitle": "新しいAIモデル",
+      "editTitle": "モデルを編集 — {name}",
+      "fields": {
+        "name": "名前",
+        "namePlaceholder": "gpt-4o",
+        "type": "タイプ",
+        "status": "ステータス",
+        "maxTokens": "最大トークン数",
+        "maxTokensPlaceholder": "4096",
+        "description": "説明",
+        "descriptionPlaceholder": "ユーザーに表示される任意の説明",
+        "tags": "タグ",
+        "tagsPlaceholder": "カンマ区切りのタグ（例：core, experimental）",
+        "tagsHint": "タグは特別な目的のためにモデルをマークするのに使用できます。",
+        "endpointUrl": "エンドポイントURL",
+        "endpointPlaceholder": "https://api.openai.com",
+        "apiKey": "APIキー",
+        "apiKeyPlaceholder": "sk-...",
+        "fallbackEndpoints": "フォールバックエンドポイント",
+        "fallbackEndpointPlaceholder": "https://api.groq.com",
+        "fallbackApiKeyPlaceholder": "APIキー",
+        "fallbackIdPlaceholder": "ID（任意）",
+        "fallbackHint": "フォールバックエンドポイントは失敗/レート制限時に順次試行されます。"
+      }
+    },
+    "common": {
+      "none": "なし",
+      "dash": "—",
+      "unknown": "不明"
+    },
+    "actions": {
+      "newModel": "新しいモデル",
+      "new": "新規",
+      "refresh": "更新",
+      "assignToUsers": "ユーザーに割り当て",
+      "editModel": "モデルを編集",
+      "deleteModel": "モデルを削除",
+      "assign": "割り当て",
+      "edit": "編集",
+      "delete": "削除",
+      "cancel": "キャンセル",
+      "assigning": "割り当て中…",
+      "assignAccess": "アクセスを割り当て",
+      "remove": "削除",
+      "addEndpoint": "エンドポイントを追加",
+      "saving": "保存中…",
+      "createModel": "モデルを作成",
+      "saveChanges": "変更を保存"
+    }
+  },
+  "adminNodesTab": {
+    "header": {
+      "nodeCount": "{count}件のノードが登録されています"
+    },
+    "types": {
+      "free": "無料",
+      "paid": "有料",
+      "freeAndPaid": "無料 + 有料",
+      "enterprise": "エンタープライズ"
+    },
+    "fields": {
+      "org": "組織",
+      "responseTimeLast120": "応答時間 · 過去120回のping"
+    },
+    "states": {
+      "noNodes": "ノードが登録されていません",
+      "noNodesSubtitle": "Wingsノードを追加してサーバーのホスティングを開始してください。",
+      "loading": "読み込み中…"
+    },
+    "actions": {
+      "refresh": "更新",
+      "syncToWings": "Wingsに同期",
+      "addNode": "ノードを追加",
+      "classify": "分類",
+      "viewWingsConfig": "Wings config.ymlを表示",
+      "fullHistory": "全履歴 →",
+      "generate": "生成",
+      "copy": "コピー",
+      "cancel": "キャンセル",
+      "creating": "作成中…",
+      "generateTokenFirst": "最初にトークンを生成",
+      "createNode": "ノードを作成",
+      "done": "完了",
+      "saving": "保存中…",
+      "save": "保存",
+      "close": "閉じる"
+    },
+    "addDialog": {
+      "title": "ノードを追加",
+      "configTitle": "Wings設定",
+      "fields": {
+        "nodeName": "ノード名",
+        "nodeNamePlaceholder": "EU-1",
+        "nodeType": "ノードタイプ",
+        "fqdn": "FQDN（ドメインまたはIP）",
+        "fqdnPlaceholder": "wings.example.com",
+        "wingsPort": "Wingsポート",
+        "wingsPortPlaceholder": "8080",
+        "sftpPort": "SFTPポート",
+        "sftpPortPlaceholder": "2022",
+        "ssl": "SSL",
+        "wingsDataDirectory": "Wingsデータディレクトリ",
+        "authToken": "認証トークン",
+        "authTokenPlaceholder": "「生成」をクリックするか、自身のトークンを貼り付けてください"
+      },
+      "configReady": "ノード {name} が登録されました。以下の設定をコピーしてください",
+      "afterSaving": "設定を保存した後、以下でWingsを再起動してください"
+    },
+    "editDialog": {
+      "title": "ノードを編集 — {name}",
+      "fields": {
+        "nodeType": "ノードタイプ",
+        "portRangeStart": "ポート範囲開始",
+        "portRangeStartPlaceholder": "例：25500",
+        "portRangeEnd": "ポート範囲終了",
+        "portRangeEndPlaceholder": "例：25600",
+        "defaultBindIp": "デフォルトバインドIP（任意）",
+        "defaultBindIpHint": "自動割り当てポートに使用されるIP。空白の場合は0.0.0.0。"
+      }
+    },
+    "heartbeatDialog": {
+      "title": "ハートビート履歴 — {name}",
+      "last24Hours": "過去24時間",
+      "last7Days": "過去7日間",
+      "cards": {
+        "uptime": "稼働時間",
+        "avgResponse": "平均応答",
+        "checks": "チェック"
+      },
+      "legend": {
+        "timeout": "タイムアウト",
+        "error": "エラー"
+      },
+      "noData": "この期間のハートビートデータはありません。"
+    },
+    "configDialog": {
+      "title": "Wings設定 — {name}",
+      "loadingToken": "トークンを読み込み中…",
+      "failedToken": "このノードのトークンの読み込みに失敗しました。"
+    }
+  },
+  "adminOrganisationsTab": {
+    "search": {
+      "placeholder": "名前またはハンドルで組織を検索…"
+    },
+    "header": {
+      "orgCount": "{count}組織"
+    },
+    "common": {
+      "logo": "ロゴ"
+    },
+    "table": {
+      "organisation": "組織",
+      "handle": "ハンドル",
+      "owner": "所有者",
+      "tier": "ティア",
+      "members": "メンバー",
+      "actions": "アクション",
+      "id": "ID"
+    },
+    "states": {
+      "loading": "組織を読み込み中…",
+      "noMatch": "検索に一致する組織はありません"
+    },
+    "pagination": {
+      "page": "ページ",
+      "of": "/",
+      "total": "合計{count}件"
+    },
+    "editDialog": {
+      "title": "組織を編集",
+      "fields": {
+        "name": "名前",
+        "handle": "ハンドル",
+        "tier": "ティア",
+        "ownerUserId": "所有者ユーザーID",
+        "userIdPlaceholder": "ユーザーID",
+        "staffOrganisation": "スタッフ組織",
+        "staffOrgHint": "この組織をスタッフ所有としてマーク",
+        "addMemberByUserId": "ユーザーIDでメンバーを追加"
+      }
+    },
+    "alerts": {
+      "failed": "失敗：{reason}"
+    },
+    "actions": {
+      "showFullDetails": "詳細を表示",
+      "redactDetails": "詳細を非表示",
+      "refresh": "更新",
+      "editOrganisation": "組織を編集",
+      "deleteOrganisation": "組織を削除",
+      "edit": "編集",
+      "delete": "削除",
+      "previous": "前",
+      "next": "次",
+      "add": "追加",
+      "adding": "追加中…",
+      "cancel": "キャンセル",
+      "saving": "保存中…",
+      "saveChanges": "変更を保存"
+    }
+  },
+  "adminServersTab": {
+    "search": {
+      "placeholder": "名前、UUID、またはノードでサーバーを検索…"
+    },
+    "header": {
+      "serverCount": "{count}サーバー"
+    },
+    "common": {
+      "unknown": "不明",
+      "unknownLower": "不明",
+      "default": "デフォルト"
+    },
+    "table": {
+      "server": "サーバー",
+      "uuid": "UUID",
+      "node": "ノード",
+      "status": "ステータス",
+      "actions": "アクション"
+    },
+    "states": {
+      "loading": "サーバーを読み込み中…",
+      "noMatch": "検索に一致するサーバーはありません",
+      "unnamedServer": "名前のないサーバー"
+    },
+    "pagination": {
+      "page": "ページ",
+      "of": "/",
+      "total": "合計{count}件"
+    },
+    "editDialog": {
+      "title": "サーバーを編集",
+      "fields": {
+        "name": "名前",
+        "description": "説明",
+        "ownerUserId": "所有者ユーザーID",
+        "memoryMb": "メモリ（MB）",
+        "diskMb": "ディスク（MB）",
+        "cpuPercent": "CPU（%）",
+        "swapMb": "スワップ（MB）",
+        "dockerImage": "Dockerイメージ",
+        "startupCommand": "起動コマンド",
+        "eggTemplate": "Eggテンプレート",
+        "noTemplate": "テンプレートなし",
+        "networkAllocations": "ネットワーク割り当て",
+        "noAllocations": "割り当てが設定されていません",
+        "bindIp": "バインドIP",
+        "port": "ポート",
+        "displayFqdn": "表示FQDN"
+      }
+    },
+    "createDialog": {
+      "title": "サーバーを作成",
+      "fields": {
+        "serverNameOptional": "サーバー名（任意）",
+        "serverNamePlaceholder": "新しいサーバー",
+        "nodeRequired": "ノード *",
+        "selectNode": "ノードを選択",
+        "eggOptional": "Egg（任意）",
+        "defaultNodeJs": "デフォルト Node.js",
+        "ownerUserIdOptional": "所有者ユーザーID（任意）",
+        "userIdPlaceholder": "ユーザーID",
+        "resources": "リソース",
+        "memoryMb": "メモリ（MB）",
+        "diskMb": "ディスク（MB）",
+        "cpuPercent": "CPU（%）",
+        "enableKvmPassthrough": "KVMパススルーを有効にする"
+      }
+    },
+    "actions": {
+      "showFullDetails": "詳細を表示",
+      "redactDetails": "詳細を非表示",
+      "refresh": "更新",
+      "syncFromWings": "Wingsから同期",
+      "sync": "同期",
+      "createServer": "サーバーを作成",
+      "create": "作成",
+      "copyUuid": "UUIDをコピー",
+      "start": "開始",
+      "restart": "再起動",
+      "stop": "停止",
+      "unsuspend": "停止解除",
+      "suspend": "停止",
+      "editServer": "サーバーを編集",
+      "deleteServer": "サーバーを削除",
+      "edit": "編集",
+      "delete": "削除",
+      "previous": "前",
+      "next": "次",
+      "saveFqdn": "FQDNを保存",
+      "cancel": "キャンセル",
+      "editFqdn": "FQDNを編集",
+      "setAsDefault": "デフォルトに設定",
+      "remove": "削除",
+      "add": "追加",
+      "reinstall": "再インストール",
+      "saving": "保存中…",
+      "saveChanges": "変更を保存",
+      "creating": "作成中…"
+    }
+  },
+  "adminLogsTab": {
+    "types": {
+      "audit": "監査",
+      "apiRequests": "APIリクエスト",
+      "slowQueries": "低速クエリ",
+      "serverErrors": "サーバーエラー"
+    },
+    "header": {
+      "entries": "{count}件のエントリ",
+      "subtitle": "システムログを閲覧・検査"
+    },
+    "table": {
+      "time": "時刻",
+      "user": "ユーザー",
+      "action": "アクション",
+      "error": "エラー",
+      "manage": "管理",
+      "endpoint": "エンドポイント",
+      "count": "件数",
+      "duration": "所要時間",
+      "query": "クエリ",
+      "stack": "スタックトレース"
+    },
+    "states": {
+      "noLogs": "ログが見つかりません",
+      "noDetails": "詳細なし"
+    },
+    "common": {
+      "system": "システム",
+      "dash": "—"
+    },
+    "pagination": {
+      "showingSlow": "{count}件の低速クエリエントリを表示中",
+      "page": "ページ",
+      "of": "/"
+    },
+    "actions": {
+      "clear": "クリア",
+      "refresh": "更新",
+      "previous": "前",
+      "next": "次"
+    }
+  },
+  "adminAuditLogs": {
+    "searchPlaceholder": "サーバーUUIDを入力して関連するすべてのアクティビティを表示...",
+    "search": "検索",
+    "entriesFound": "件のエントリが見つかりました",
+    "noResults": "このUUIDのアクティビティログは見つかりませんでした。アクティビティが記録される前にサーバーが削除された可能性があります。"
+  },
+  "adminRolesTab": {
+    "header": {
+      "title": "ロール管理",
+      "roleCount": "{count}ロール"
+    },
+    "roles": {
+      "title": "ロール",
+      "emptyTitle": "まだロールはありません",
+      "emptySubtitle": "ロールを作成して権限の割り当てを開始してください。",
+      "full": "フル",
+      "permissionCount": "{count}権限"
+    },
+    "permissions": {
+      "title": "権限",
+      "noRoleSelected": "ロールが選択されていません",
+      "selectRoleHint": "権限を管理するロールを選択してください。",
+      "createRoleFirst": "権限を管理するには最初にロールを作成してください。",
+      "addPermission": "権限を追加",
+      "selectPermission": "権限を選択",
+      "noneAssigned": "権限が割り当てられていません。",
+      "fullAccessWarning": "このロールはすべての権限にフルアクセスできます。"
+    },
+    "alerts": {
+      "confirmDeleteRole": "ロール {name} を削除しますか？"
+    },
+    "actions": {
+      "newRole": "新しいロール",
+      "new": "新規",
+      "refresh": "更新",
+      "createRole": "ロールを作成",
+      "add": "追加"
+    }
+  },
+  "settingsPage": {
+    "header": {
+      "title": "設定",
+      "description": "アカウントと設定を管理"
+    },
+    "tabs": {
+      "profile": "プロフィール",
+      "security": "セキュリティ",
+      "alerts": "アラート",
+      "documents": "文書",
+      "api": "API",
+      "theme": "テーマ",
+      "editor": "エディタ",
+      "ai": "AI",
+      "calendar": "カレンダー"
+    },
+    "calendar": {
+      "title": "カレンダー設定",
+      "description": "自動スケジュールのための勤務時間と曜日を設定します。",
+      "workHours": "勤務時間",
+      "workDays": "勤務日",
+      "workHoursHint": "自動スケジュールはこの時間内の空き枠を見つけ、タスクを期限前に配置します。「自由時間」とマークされたタスクは休憩枠を使用します。",
+      "workStart": "開始",
+      "workEnd": "終了",
+      "breaks": "休憩（ここにはスケジュールされません）"
+    },
+    "documents": {
+      "title": "文書",
+      "subtitle": "同意した契約とアカウントに割り当てられた文書を確認します。",
+      "agreementsTitle": "同意済み契約",
+      "agreementsDescription": "同意した利用規約、プライバシーポリシー、その他の登録契約。",
+      "noAgreements": "同意済みの文書は見つかりませんでした。",
+      "agreement": "契約",
+      "version": "バージョン",
+      "acceptedOn": "同意日",
+      "acceptedImplicit": "サービス利用による同意",
+      "acceptedUnknown": "同意日は利用できません",
+      "adminTitle": "管理文書",
+      "adminDescription": "管理者がアカウント用にアップロードしたPDF。",
+      "noAdminDocuments": "管理文書はアップロードされていません。",
+      "uploadedOn": "アップロード日",
+      "uploadedUnknown": "アップロード日は利用できません",
+      "view": "表示",
+      "download": "ダウンロード"
+    },
+    "messages": {
+      "failed": "失敗",
+      "failedToSave": "保存に失敗しました",
+      "failedToSaveSettings": "設定の保存に失敗しました",
+      "requiredFields": "必須フィールドを更新してください：{fields}。",
+      "enterDateOfBirthSelfie": "自撮りで確認する前に生年月日を入力してください。",
+      "takeSelfieBeforeVerify": "確認する前に自撮り写真を撮ってください。",
+      "selfieVerificationFailed": "自撮り確認に失敗しました：{error}。",
+      "unknown": "不明"
+    },
+    "actions": {
+      "cancel": "キャンセル",
+      "saving": "保存中...",
+      "saveChanges": "変更を保存",
+      "updating": "更新中...",
+      "uploading": "アップロード中..."
+    },
+    "portal": {
+      "free": "無料ポータル",
+      "paid": "有料ポータル",
+      "enterprise": "エンタープライズポータル"
+    },
+    "profile": {
+      "userFallback": "ユーザー",
+      "badges": "バッジ",
+      "basicInformation": "基本情報",
+      "displayName": "表示名",
+      "displayNamePlaceholder": "表示される名前",
+      "displayNameHint": "これは他のユーザーに表示される名前です",
+      "emailAddress": "メールアドレス",
+      "emailHint": "ログインと通知に使用されます",
+      "legalName": "法的氏名",
+      "legalNameHint": "請求と確認の目的で使用されます",
+      "firstName": "名",
+      "middleName": "ミドルネーム",
+      "lastName": "姓",
+      "title": "敬称",
+      "gender": "代名詞",
+      "selectTitle": "敬称を選択…",
+      "selectGender": "回答しない",
+      "genderFemale": "女性",
+      "genderMale": "男性",
+      "genderNonBinary": "ノンバイナリー",
+      "genderPreferNotToSay": "回答しない",
+      "genderOther": "その他",
+      "optional": "任意",
+      "billingInformation": "請求情報",
+      "billingInformationHint": "請求書と支払い処理用",
+      "streetAddress": "住所",
+      "addressLine2": "住所2行目",
+      "addressLine2Placeholder": "アパート、スイート（任意）",
+      "company": "会社",
+      "phone": "電話番号",
+      "city": "市区町村",
+      "stateProvince": "都道府県",
+      "zipPostal": "郵便番号",
+      "country": "国",
+      "selectCountry": "国を選択",
+      "taxRateFor": "税率：",
+      "selectedCountry": "選択された国",
+      "updated": "プロフィールが正常に更新されました！",
+      "uploadFailed": "アップロードに失敗しました",
+      "guideHelp": "セットアップガイドを再生してすべての機能を探索してください。",
+      "showGuideAgain": "ガイドを再表示"
+    },
+    "security": {
+      "changePassword": "パスワードを変更",
+      "currentPassword": "現在のパスワード",
+      "currentPasswordPlaceholder": "現在のパスワードを入力",
+      "newPassword": "新しいパスワード",
+      "newPasswordPlaceholder": "新しいパスワード",
+      "newPasswordHint": "8文字以上",
+      "confirmPassword": "パスワードの確認",
+      "confirmPasswordPlaceholder": "パスワードの確認",
+      "updatePassword": "パスワードを更新",
+      "passkeys": "パスキー",
+      "passkeysHint": "生体認証またはハードウェアキーでアカウントを保護",
+      "twoFactor": "二要素認証",
+      "twoFactorHint": "認証アプリで追加のセキュリティを",
+      "sshKeys": "SSHキー",
+      "sshKeysHint": "サーバーへのパスワード不要のSFTP/SSHアクセス",
+      "activeSessions": "アクティブセッション",
+      "activeSessionsHint": "ログイン中のデバイスと場所を管理",
+      "passwordUpdated": "パスワードが正常に更新されました。",
+      "confirmLogoutElsewhere": "これにより、このデバイス以外のすべてのデバイスからログアウトします。続行しますか？",
+      "passwordUpgrade": {
+        "title": "パスワードセキュリティをアップグレード",
+        "description": "アカウントはまだ古いbcryptパスワードハッシュを使用しています。パスワードを更新して新しいArgon2idハッシュに移行してください！",
+        "action": "パスワードを更新",
+        "dismiss": "却下"
+      },
+      "loggedOutElsewhere": "すべてのセッションから正常にログアウトしました",
+      "confirmDeletion": "⚠️ アカウント削除をリクエストしますか？この操作は元に戻せず、すべてのデータが完全に削除されます。",
+      "deletionSubmitted": "削除リクエストが送信されました。30日以内にチームがリクエストを処理します。",
+      "logoutElsewhere": "他のすべての端末からログアウト",
+      "requestDeletion": "アカウント削除をリクエスト",
+      "errors": {
+        "enterCurrentPassword": "現在のパスワードを入力してください",
+        "enterNewPassword": "新しいパスワードを入力してください",
+        "passwordMinLength": "新しいパスワードは8文字以上必要です",
+        "passwordsDoNotMatch": "パスワードが一致しません",
+        "failedUpdatePassword": "パスワードの更新に失敗しました"
+      }
+    },
+    "notifications": {
+      "title": "通知設定",
+      "subtitle": "受け取りたい通知を選択してください",
+      "items": {
+        "serverAlerts": {
+          "label": "サーバーアラート",
+          "desc": "サーバーがオフラインになったときの通知"
+        },
+        "serverLifecycle": {
+          "label": "サーバーイベント",
+          "desc": "作成、停止、起動、削除イベント"
+        },
+        "serverErrors": {
+          "label": "サーバーエラー",
+          "desc": "クラッシュと障害"
+        },
+        "serverActivity": {
+          "label": "詳細アクティビティ",
+          "desc": "詳細なライフサイクルイベント"
+        },
+        "billing": {
+          "label": "請求",
+          "desc": "請求書と支払い"
+        },
+        "security": {
+          "label": "セキュリティ",
+          "desc": "ログイン試行とアラート"
+        },
+        "productUpdates": {
+          "label": "製品アップデート",
+          "desc": "新機能とお知らせ"
+        },
+        "tickets": {
+          "label": "チケット",
+          "desc": "サポートチケットの返信"
+        },
+        "aiUsage": {
+          "label": "AI使用状況",
+          "desc": "週次AIクレジットサマリー"
+        }
+      }
+    },
+    "passkeys": {
+      "confirmRemove": "このパスキーを削除しますか？",
+      "loading": "パスキーを読み込み中...",
+      "emptyTitle": "パスキーが登録されていません",
+      "emptyDescription": "パスキーを追加して生体認証またはハードウェア認証でアカウントを保護してください。",
+      "fallbackName": "パスキー",
+      "waitingForDevice": "デバイスを待機中...",
+      "registerNew": "新しいパスキーを登録",
+      "errors": {
+        "httpsRequired": "パスキー登録には安全な接続（HTTPS）が必要です。",
+        "httpsRequiredShort": "パスキー登録には安全な接続が必要です。",
+        "registrationCancelled": "登録がキャンセルされました",
+        "failedRegister": "パスキーの登録に失敗しました"
+      }
+    },
+    "ssh": {
+      "confirmRemove": "このSSHキーをアカウントから削除しますか？",
+      "loading": "キーを読み込み中...",
+      "emptyTitle": "SSHキーがありません",
+      "emptyDescription": "SSHキーを追加してサーバーへのパスワード不要のSFTPアクセスを設定してください。",
+      "label": "ラベル",
+      "labelPlaceholder": "例：MacBook Pro",
+      "publicKey": "公開鍵",
+      "publicKeyPlaceholder": "ssh-ed25519 AAAA... または ssh-rsa AAAA...",
+      "addKey": "キーを追加",
+      "addSshKey": "SSHキーを追加",
+      "errors": {
+        "failedAdd": "キーの追加に失敗しました",
+        "failedRemove": "キーの削除に失敗しました"
+      }
+    },
+    "twoFactor": {
+      "enabledAlert": "二要素認証が有効になりました - リカバリーコードを今すぐ保存してください。",
+      "disabledAlert": "二要素認証が無効です",
+      "confirmDisable": "二要素認証を無効にしますか？",
+      "notEnabledDescription": "アカウントに追加のセキュリティ層を追加します。",
+      "loading": "読み込み中...",
+      "enable": "2FAを有効にする",
+      "scanTitle": "認証アプリでスキャン",
+      "scanDescription": "Google Authenticator、Authy、またはTOTP対応アプリを使用してください",
+      "enterCodeManually": "またはこのコードを手動で入力：",
+      "copyToClipboard": "クリップボードにコピー",
+      "verificationCode": "確認コード",
+      "enterSixDigit": "6桁のコードを入力",
+      "verificationHint": "認証アプリのコードを入力してください",
+      "verifying": "確認中...",
+      "verifyEnable": "確認して有効にする",
+      "enabledDescription": "アカウントは2FAで保護されています。",
+      "enterCodeToDisable": "無効にするコードを入力",
+      "sixDigit": "6桁のコード",
+      "disableHint": "これによりアカウントから2FA保護が削除されます",
+      "disabling": "無効化中...",
+      "disable": "2FAを無効にする",
+      "recoveryCodes": "リカバリーコード",
+      "recoveryCodesHint": "これらのコードを安全に保存してください。認証アプリにアクセスできなくなった場合、それぞれ1回ずつ使用できます。",
+      "recoveryCopied": "リカバリーコードがクリップボードにコピーされました",
+      "copyAllCodes": "すべてのコードをコピー",
+      "errors": {
+        "failedStartSetup": "セットアップの開始に失敗しました",
+        "missingSecret": "シークレットが見つかりません",
+        "failedVerify": "確認に失敗しました",
+        "failedDisable": "無効化に失敗しました"
+      }
+    },
+    "sessions": {
+      "loading": "セッションを読み込み中...",
+      "session": "セッション",
+      "current": "現在",
+      "revoke": "取り消し"
+    },
+    "api": {
+      "apiKeys": "APIキー",
+      "apiKeysHint": "アカウントへのプログラムによるアクセスを管理",
+      "newKey": "新しいキー",
+      "new": "新規",
+      "keyCreated": "キーが作成されました",
+      "confirmRevoke": "このAPIキーを取り消しますか？",
+      "keyName": "キー名",
+      "keyNamePlaceholder": "例：本番API",
+      "keyNameHint": "わかりやすい名前を選択してください",
+      "keyType": "キータイプ",
+      "client": "クライアント",
+      "admin": "管理者",
+      "permissions": "権限",
+      "fullAccess": "フルアクセス",
+      "createKey": "キーを作成",
+      "loadingKeys": "キーを読み込み中...",
+      "emptyTitle": "APIキーがありません",
+      "emptyDescription": "キーを作成してEclipse APIにプログラムからアクセスしてください。",
+      "revoke": "取り消し",
+      "documentation": "APIドキュメント",
+      "documentationHint": "エンドポイント、スキーマ、例を探索",
+      "viewDocs": "ドキュメントを表示"
+    },
+    "appearance": {
+      "theme": "テーマ",
+      "themeHint": "ダッシュボードの外観をカスタマイズ",
+      "language": "言語",
+      "languageHint": "希望のインターフェース言語を設定してください。",
+      "english": "英語",
+      "russian": "ロシア語",
+      "chinese": "中国語",
+      "japanese": "日本語",
+      "hindi": "ヒンディー語",
+      "luckMode": "⚠ ラックモードが有効です"
+    },
+    "editor": {
+      "title": "エディタ設定",
+      "subtitle": "コードエディタの動作と外観を設定",
+      "resetDefaults": "デフォルトにリセット",
+      "aiAssistant": "AIアシスタント",
+      "aiAssistantHint": "インラインコード補完と提案（ベータ）",
+      "autoIndent": "自動インデント",
+      "autoIndentHint": "新しい行を自動的にインデント",
+      "showMinimap": "ミニマップを表示",
+      "showMinimapHint": "ナビゲーション用のコードミニマップを表示",
+      "formatOnPaste": "貼り付け時にフォーマット",
+      "formatOnPasteHint": "貼り付けたコードを自動フォーマット",
+      "formatOnType": "入力時にフォーマット",
+      "formatOnTypeHint": "入力中に自動フォーマット",
+      "fontSize": "フォントサイズ",
+      "fontSizeHint": "エディタのフォントサイズ（ピクセル）",
+      "tabSize": "タブサイズ",
+      "tabSizeHint": "タブあたりのスペース数",
+      "fontFamily": "フォントファミリー",
+      "fontFamilyHint": "コードの可読性を向上させる等幅フォントを選択"
+    },
+    "ai": {
+      "title": "自分のAIを持ち込む",
+      "subtitle": "OpenAI互換APIエンドポイントで自分のAIプロバイダーを使用します。OpenCode Goがプリセットとして含まれています。",
+      "enableLabel": "BYOAIを有効にする",
+      "enableHint": "パネル管理モデルの代わりに自分のAPIキーとエンドポイントを使用",
+      "provider": {
+        "title": "プロバイダー",
+        "presetLabel": "プリセット",
+        "presetHint": "事前設定されたプロバイダーを選択するか、カスタム設定を入力",
+        "custom": "カスタム"
+      },
+      "connection": {
+        "title": "接続",
+        "endpointLabel": "APIエンドポイント",
+        "endpointHint": "OpenAI互換APIのベースURL（例：https://opencode.ai/zen/go）",
+        "apiKeyLabel": "APIキー",
+        "apiKeyHint": "プロバイダーAPIキーはアカウント設定に安全に保存されます",
+        "getApiKey": "APIキーをお持ちでないですか？OpenCode Goから取得してください"
+      },
+      "model": {
+        "title": "モデル",
+        "modelLabel": "モデル",
+        "modelHint": "補完に使用するモデルを選択",
+        "customModelLabel": "モデルID",
+        "customModelHint": "モデル識別子を入力（例：gpt-4, claude-3-opus, deepseek-v4-pro）"
+      },
+      "status": {
+        "title": "ステータス",
+        "configured": "AIプロバイダーが設定され、使用準備ができました",
+        "incomplete": "AIプロバイダーを有効にするにはすべての必須フィールドに入力してください",
+        "active": "アクティブ"
+      }
+    }
+  },
+  "identityPage": {
+    "header": {
+      "title": "本人確認",
+      "description": "本人確認は任意です - 必須手順を完了して拡張機能を解除してください"
+    },
+    "dialog": {
+      "unavailableTitle": "本人確認は利用できません",
+      "unavailableDescription": "EU居住者向けの本人確認は現地の規制により現在無効になっています。アクセスが必要と思われる場合は、サポートにお問い合わせください。"
+    },
+    "actions": {
+      "gotIt": "了解",
+      "uploading": "アップロード中...",
+      "submitForVerification": "確認を送信",
+      "verifySelfieAge": "自撮り年齢確認",
+      "connectHackClub": "Hack Clubに接続",
+      "connectGithub": "GitHubに接続"
+    },
+    "messages": {
+      "submittedForReview": "確認書類が送信されました - 書類は審査中です。"
+    },
+    "errors": {
+      "selectBothFiles": "両方のファイルを選択してください",
+      "failed": "失敗",
+      "failedHackClubFlow": "Hack Clubフローの開始に失敗しました",
+      "failedGithubFlow": "GitHubフローの開始に失敗しました"
+    },
+    "banner": {
+      "completeTitle": "確認完了",
+      "partialTitle": "確認が一部完了",
+      "completeDescription": "すべての必須手順が確認されました。エンタープライズ機能とより高いリソース制限が解除されました。",
+      "partialDescription": "必須手順を完了してエンタープライズ機能とより高いリソース制限を解除してください。",
+      "required": "必須"
+    },
+    "start": {
+      "title": "確認を開始",
+      "description": "ID情報を提出してください（任意）",
+      "idDocumentLabel": "政府発行の身分証明書",
+      "idDocumentHint": "対応形式：JPEG、PNG、PDF（最大10MB）",
+      "selfieLabel": "自撮り写真",
+      "selfieHint": "顔の鮮明な写真を撮影またはアップロードしてください（JPEG、PNG）",
+      "selected": "選択済み",
+      "selfieOptionalTitle": "自撮り確認",
+      "selfieOptionalDescription": "身分証明書を提出せずに自撮りで年齢を確認します。",
+      "selfieDateOfBirthRequired": "自撮りで確認する前に設定で生年月日を設定してください。",
+      "selfieVerified": "自撮り年齢確認が成功しました。"
+    },
+    "steps": {
+      "common": {
+        "notApplicableEu": "EU居住者には適用されません"
+      },
+      "email": {
+        "title": "メール確認",
+        "verified": "メールアドレスが確認されました",
+        "verifyToContinue": "続行するにはメールアドレスを確認してください"
+      },
+      "security": {
+        "title": "セキュリティ確認",
+        "description": "パスキーを登録するか二要素認証を有効にしてください"
+      },
+      "student": {
+        "title": "学生確認",
+        "verified": "学生ステータスが確認されました",
+        "connectHackClub": "Hack Clubに接続して教育ステータスを確認",
+        "connectGithub": "GitHubに接続して教育ステータスを確認",
+        "comingSoon": "学生確認は近日公開予定です"
+      },
+      "identityDocument": {
+        "title": "身分証明書",
+        "description": "政府発行のIDをアップロードしてください（任意）"
+      },
+      "selfie": {
+        "title": "自撮り確認",
+        "description": "IDと一致する写真を撮影してください（任意）"
+      }
+    },
+    "profileMissing": {
+      "title": "プロフィール情報が必要です",
+      "description": "確認のためにID書類を提出する前に、以下の必須フィールドに入力してください：",
+      "goToSettings": "設定に移動"
+    },
+    "stepsSection": {
+      "title": "確認手順",
+      "description": "本人確認のために各手順を完了してください"
+    },
+    "status": {
+      "verified": "確認済み",
+      "pending": "保留中",
+      "notApplicable": "適用外",
+      "failedResubmit": "失敗 - 再提出",
+      "uploadAbove": "上にアップロード",
+      "comingSoon": "近日公開",
+      "locked": "ロック中",
+      "lockedTitle": "最初に前の手順を完了してください"
+    },
+    "verified": {
+      "title": "確認済み情報",
+      "description": "確認済みのアカウント詳細",
+      "fullName": "氏名",
+      "email": "メール",
+      "accountId": "アカウントID",
+      "idDocument": "身分証明書",
+      "idStatus": {
+        "verifiedNotApplicableEu": "確認済み | EU居住者には適用外",
+        "notApplicableEu": "EU居住者には適用外",
+        "verified": "確認済み",
+        "underReview": "審査中",
+        "failedResubmit": "失敗 — 再提出してください",
+        "notUploaded": "まだアップロードされていません"
+      }
+    }
+  },
+  "activityPage": {
+    "header": {
+      "title": "アカウントアクティビティ",
+      "description": "セキュリティ監査証跡とアカウントイベント"
+    },
+    "time": {
+      "justNow": "たった今",
+      "minutesAgo": "{count}分前",
+      "hoursAgo": "{count}時間前",
+      "daysAgo": "{count}日前"
+    },
+    "stats": {
+      "currentPage": "現在のページ",
+      "today": "今日",
+      "logins": "ログイン",
+      "serverEvents": "サーバーイベント",
+      "onThisPage": "このページ",
+      "page": "ページ {page}"
+    },
+    "filters": {
+      "title": "イベントをフィルター",
+      "clear": "クリア",
+      "all": "すべて",
+      "server": "サーバー",
+      "login": "ログイン",
+      "logout": "ログアウト",
+      "billing": "請求",
+      "security": "セキュリティ",
+      "support": "サポート"
+    },
+    "log": {
+      "title": "アクティビティログ",
+      "shown": "{count}件表示中",
+      "unknownAction": "不明なアクション",
+      "unknown": "不明"
+    },
+    "states": {
+      "loadingActivity": "アクティビティを読み込み中...",
+      "noActivityTitle": "アクティビティは見つかりませんでした",
+      "noActivityMessage": "アカウントのアクティビティはまだ記録されていません。",
+      "noActivityForFilter": "{filter}のイベントはまだ記録されていません。"
+    },
+    "details": {
+      "eventDetails": "イベント詳細",
+      "action": "アクション",
+      "targetType": "ターゲットタイプ",
+      "targetId": "ターゲットID",
+      "timestamp": "タイムスタンプ",
+      "ipAddress": "IPアドレス",
+      "userId": "ユーザーID",
+      "metadata": "メタデータ",
+      "allProperties": "すべてのプロパティ",
+      "rawJson": "Raw JSON"
+    },
+    "footer": {
+      "pageEvents": "ページ {page} • {count}件のイベント"
+    },
+    "actions": {
+      "prev": "前",
+      "next": "次"
+    },
+    "actionLabels": {
+      "startedServer": "サーバーを起動しました",
+      "stoppedServer": "サーバーを停止しました",
+      "restartedServer": "サーバーを再起動しました",
+      "killedServer": "サーバーを強制停止しました",
+      "ranConsoleCommand": "サーバーコンソールコマンドを実行しました",
+      "modifiedFile": "ファイルを変更しました",
+      "deletedFiles": "ファイルを削除しました",
+      "reinstalledServer": "サーバーを再インストールしました",
+      "addedSubuser": "サーバーサブユーザーを追加しました",
+      "acceptedSubuserInvite": "サーバーサブユーザー招待を承認しました",
+      "removedSubuser": "サーバーサブユーザーアクセスを削除しました",
+      "rejectedSubuserInvite": "サーバーサブユーザー招待を拒否しました",
+      "serverSuspend": "サーバーを停止しました",
+      "serverUnsuspend": "サーバーの停止を解除しました",
+      "updatedProfile": "プロフィール設定を更新しました",
+      "fraudScanStarted": "不正スキャンが開始されました",
+      "fraudScanCompleted": "不正スキャンが完了しました",
+      "fraudScanError": "不正スキャンに失敗しました"
+    }
+  },
+  "serversPage": {
+    "header": {
+      "title": "サーバー",
+      "description": "ゲームサーバーを管理"
+    },
+    "status": {
+      "online": "オンライン",
+      "starting": "起動中",
+      "stopping": "停止中",
+      "offline": "オフライン",
+      "installing": "インストール中",
+      "hibernated": "休止中",
+      "dmca": "DMCA",
+      "unknown": "不明",
+      "unavailable": "利用不可"
+    },
+    "resources": {
+      "cpu": "CPU",
+      "ram": "RAM",
+      "disk": "ディスク"
+    },
+    "actions": {
+      "start": "開始",
+      "stop": "停止",
+      "restart": "再起動",
+      "console": "コンソール",
+      "newServer": "新しいサーバー",
+      "deployServer": "サーバーをデプロイ"
+    },
+    "stats": {
+      "total": "合計",
+      "online": "オンライン",
+      "offline": "オフライン"
+    },
+    "sections": {
+      "favorites": "お気に入り",
+      "code": "コード",
+      "yourServers": "あなたのサーバー",
+      "sharedWithYou": "共有されたサーバー"
+    },
+    "warnings": {
+      "legalInfoTitle": "必要な法的情報を入力してください",
+      "legalInfoDescription": "アカウントに必要な法的プロフィール情報または年齢確認が不足しているため、プロジェクトの表示や新しいサーバーのデプロイができません。設定で法的氏名、電話番号、請求先住所、生年月日を更新してください。",
+      "nodeIssueTitle": "{node}は現在問題が発生しています",
+      "nodesIssueTitle": "一部のノードで現在問題が発生しています",
+      "nodeIssueDescription": "このノード上のサーバーは利用できないか、応答しない可能性があります。",
+      "nodesIssueDescription": "これらのノード上のサーバーは利用できないか、応答しない可能性があります：{nodes}。",
+      "learnMore": "/statusで詳細を確認"
+    },
+    "search": {
+      "placeholder": "サーバーを検索..."
+    },
+    "states": {
+      "loadingServers": "サーバーを読み込み中…",
+      "noServersFound": "サーバーが見つかりません",
+      "noServersYet": "まだサーバーはありません",
+      "tryDifferentSearch": "別の検索語を試すか、フィルターをクリアしてください。",
+      "deployFirst": "最初のサーバーをデプロイして、素晴らしいものを作り始めましょう。"
+    },
+    "serverCard": {
+      "favorite": "お気に入りサーバー",
+      "unfavorite": "お気に入り解除"
+    },
+    "toasts": {
+      "diceDeniedTitle": "ダイス拒否",
+      "powerDenied": "ダイスロールにより電源操作が拒否されました。",
+      "actionSentTitle": "アクション送信",
+      "actionRequested": "{action}が正常にリクエストされました。",
+      "powerFailedTitle": "電源操作に失敗しました",
+      "unknownError": "不明なエラー",
+      "diceEventTitle": "ダイスイベント",
+      "diceShutdown": "サーバーをシャットダウンすることにしました、womp womp",
+      "diceBlocked": "ダイスがシャットダウンしようとしましたがブロックされました。",
+      "diceFailed": "ダイスがカオスを望みましたが、今回はシャットダウンに失敗しました。"
+    },
+    "errors": {
+      "favoriteSaveFailed": "お気に入り状態の保存に失敗しました：{reason}"
+    },
+    "newServerModal": {
+      "header": {
+        "title": "新しいサーバー",
+        "subtitle": "設定とデプロイ"
+      },
+      "alerts": {
+        "verifyEmail": "サーバーを作成する前にメールアドレスを確認してください。",
+        "securityRequirement": "サーバーを作成する前に、Identity > Securityで2FAを有効にするかパスキーを登録してください。"
+      },
+      "fields": {
+        "serverName": {
+          "label": "サーバー名",
+          "placeholder": "マイクラサーバー"
+        },
+        "template": "テンプレート",
+        "node": "ノード",
+        "startup": {
+          "label": "起動コマンド",
+          "placeholder": "Eggのデフォルト起動コマンドを使用",
+          "hint": "これは選択されたEggのデフォルト起動コマンドです。"
+        },
+        "env": {
+          "title": "環境変数",
+          "add": "変数を追加",
+          "empty": "環境変数が設定されていません。追加してデフォルトを上書きするか新しい値を定義してください。",
+          "keyPlaceholder": "キー",
+          "valuePlaceholder": "値"
+        },
+        "searchTemplates": "テンプレートを検索...",
+        "searchNodes": "ノードを検索...",
+        "legalConfirmLabel": "以下を読み、同意します：",
+        "termsLink": "利用規約",
+        "aupLink": "適正利用ポリシー",
+        "sunsetLink": "サンセットポリシー",
+        "freePlanWarning": "無料サーバーは非アクティブまたはティア変更後にサンセットされる場合があります。長期保持にはバックアップを保持し、アップグレードを検討してください。",
+        "freePlanEloOnly": "無料プランユーザーはELOサーバーのみ作成できます。ELOサーバーはコミュニティ投票でリソースをスケーリングし、個別のスロット制限があります。",
+        "freePlanUpgradeLink": "プランをアップグレード",
+        "planWarning": "デプロイ前にポリシーを確認してください。",
+        "nodeTypes": {
+          "freeAndPaid": "パブリックノード",
+          "enterprise": "エンタープライズノード",
+          "paid": "有料ノード",
+          "free": "無料ノード",
+          "unknown": "{value}"
+        }
+      },
+      "states": {
+        "loading": "読み込み中…",
+        "noTemplates": "利用可能なテンプレートはありません。",
+        "noNodes": "利用可能なノードはありません。",
+        "noTemplatesMatch": "検索に一致するテンプレートはありません。",
+        "noNodesMatch": "検索に一致するノードはありません。"
+      },
+      "resources": {
+        "title": "リソース",
+        "gamblingActive": "選択したテーマを介してギャンブルモードが有効です。リソースセレクタはロックされ、ブラックジャックの手がアカウント範囲からCPU、RAM、ディスクを決定します。",
+        "blackjackTable": "ブラックジャックテーブル",
+        "dealer": "ディーラー",
+        "you": "あなた",
+        "autoDraw": "スタンド目標まで自動ドロー",
+        "higherHands": "より高い勝ち手が最終リソースを最大制限に近づけます。",
+        "standTarget": "ブラックジャックスタンド目標",
+        "standAt": "{value}でスタンド",
+        "standHint": "手がカードを引くのを止めるタイミングを決めます。",
+        "memory": "メモリ",
+        "disk": "ディスク",
+        "cpu": "CPU",
+        "planOption": "プラン · {value}{unit}",
+        "nodeOption": "ノード · {value}{unit}",
+        "resourcePoolSelection": "リソースプール選択",
+        "noLimitsPlan": "<strong>{planName}</strong>プランには設定された制限がありません。管理者にお問い合わせください。",
+        "noPlanAssigned": "プランが割り当てられていません。リソースはデフォルトを使用します。",
+        "notice": "このノードのリソースは他のユーザーと共有されています。アプリケーションに十分なメモリ、ディスク、CPUを割り当ててください。ただし、他のユーザーもサービスを利用できるように過剰割り当ては避けてください。"
+      },
+      "kvm": {
+        "required": "KVM仮想化（必須）",
+        "enable": "KVM仮想化を有効にする",
+        "portHint": "ポートはノードの割り当てプールから自動的に割り当てられます。"
+      },
+      "minecraftNotice": {
+        "title": "Minecraftテンプレートが検出されました",
+        "description": "このEggはMinecraft固有のサポートフラグを公開しています。デプロイ前に以下の設定を確認してください。",
+        "items": {
+          "eula": "Minecraft EULAの同意が必要です。",
+          "javaVersion": "選択されたテンプレートのJavaバージョン設定をサポートします。",
+          "pidLimit": "安定性向上のためにPID/プロセス制限設定を使用する場合があります。"
+        },
+        "acceptEula": "Minecraft EULAに同意します。"
+      },
+      "messages": {
+        "serverCreated": "サーバーが正常に作成されました。",
+        "createdMessage": "サーバー「{name}」が正常に作成されました。"
+      },
+      "errors": {
+        "serverNameRequired": "サーバー名は必須です。",
+        "selectServerType": "サーバータイプを選択してください。",
+        "failedCreate": "サーバーの作成に失敗しました。",
+        "eulaAcceptRequired": "このサーバーを作成する前にMinecraft EULAに同意してください。",
+        "legalAcceptRequired": "このサーバーを作成する前に、利用規約、適正利用ポリシー、サンセットポリシーを読み、同意したことを確認してください。"
+      },
+      "actions": {
+        "cancel": "キャンセル",
+        "deploying": "デプロイ中…",
+        "deploy": "サーバーをデプロイ",
+        "close": "了解。閉じる"
+      },
+      "result": {
+        "blackjackTitle": "🃏 ブラックジャックサーバー作成結果",
+        "createdTitle": "✅ サーバー作成完了",
+        "serverId": "サーバーID：{id}",
+        "creationNotice": "作成通知",
+        "handVsDealer": "あなたの手 {player} vs ディーラー {dealer} {outcome}。",
+        "serverGot": "サーバーは RAM {memory} MB · ディスク {disk} MB · CPU {cpu}% を取得しました。",
+        "assignedResources": "割り当てられたリソース",
+        "luckyRoll": "ラッキーロール",
+        "luckyTriggered": "777バイブス！ラック発動！！！",
+        "luckyMissed": "ぬーん…今回はラッキートリガーなし。",
+        "blackjackRound": "ブラックジャックラウンド",
+        "roundSummary": "あなた {playerScore} ({playerCards}) · ディーラー {dealerScore} ({dealerCards})",
+        "standTarget": "スタンド目標：{value}",
+        "confirmTitle": "デプロイ前に",
+        "confirmDescription": "サーバー起動は利用規約と適正利用ポリシーに従う必要があります。デプロイ前にルールを確認してください。",
+        "termsLink": "利用規約",
+        "aupLink": "適正利用ポリシー",
+        "sunsetLink": "無料プランサンセットポリシー",
+        "sunsetNotice": "サンセットポリシーの詳細はすべてのサーバータイプのドキュメントで確認できます。",
+        "freeSunsetNotice": "無料サーバーは非アクティブまたはティア変更後にサンセットされる場合があります。長期保持にはバックアップを保持し、アップグレードを検討してください。",
+        "bonusTitle": "24時間ボーナス（+{percent}%上限）",
+        "bonusActivated": "{until}まで有効",
+        "bonusAlreadyActive": "すでに{until}まで有効",
+        "notActive": "無効",
+        "untilTomorrow": "明日",
+        "untilSoon": "まもなく",
+        "outcomes": {
+          "won": "勝ち",
+          "lost": "負け",
+          "pushed": "プッシュ"
+        },
+        "outcomeMessage": {
+          "player": "ディーラーに勝ちました。",
+          "dealer": "ディーラーの勝ちです。",
+          "push": "プッシュ - 引き分けです。"
+        }
+      }
+    }
+  },
+  "serverConsoleTab": {
+    "status": {
+      "connected": "接続済み",
+      "stopping": "停止中",
+      "disconnected": "切断",
+      "installing": "インストール中"
+    },
+    "history": {
+      "empty": "コマンド履歴はありません",
+      "recent": "最近のコマンド"
+    },
+    "toolbar": {
+      "console": "コンソール",
+      "copyOutput": "コンソール出力をコピー",
+      "clearConsole": "コンソールをクリア",
+      "reinstall": "再インストール"
+    },
+    "input": {
+      "placeholder": "コマンドを入力..."
+    },
+    "states": {
+      "loadingConsole": "コンソールを読み込み中...",
+      "frozenTitle": "コンソールが凍結中",
+      "frozenDescription": "クリックして再開"
+    },
+    "footer": {
+      "typeCommandsAbove": "上のコンソールに直接コマンドを入力してください"
+    },
+    "actions": {
+      "close": "閉じる",
+      "copy": "コピー",
+      "copied": "コピーしました",
+      "clear": "クリア",
+      "cancel": "キャンセル",
+      "reconnect": "再接続",
+      "fullscreen": "全画面",
+      "exitFullscreen": "全画面を終了"
+    },
+    "terminal": {
+      "errorTag": "ERROR",
+      "consoleCleared": "コンソールがクリアされました。",
+      "connectingToConsole": "サーバーコンソールに接続中...",
+      "maxReconnect": "最大再接続試行回数に達しました。「再接続」をクリックして再試行してください。",
+      "serverOfflineRetry": "サーバーがオフラインのようです。{delaySec}秒後に再試行します...（試行 {attempt}/{maxRetries}）",
+      "reconnectingIn": "{delaySec}秒後に再接続中...（試行 {attempt}/{maxRetries}）",
+      "failedWsCredentials": "WebSocket認証情報の取得に失敗しました。",
+      "websocketError": "WebSocketエラー：{reason}",
+      "connectionTimedOut": "接続がタイムアウトしました。",
+      "connected": "接続済み",
+      "typeCommands": "コマンドを直接入力してください。",
+      "sessionExpired": "セッションの期限が切れました。再接続中...",
+      "websocketErrorOccurred": "WebSocketエラーが発生しました",
+      "authFailed": "認証に失敗しました（{code}）。「再接続」をクリックして再試行してください。",
+      "disconnected": "切断されました（{code}{reason}）",
+      "serverOffline": "サーバーがオフラインのようです：{reason}",
+      "connectionFailed": "接続に失敗しました：{reason}",
+      "manuallyReconnecting": "手動再接続中...",
+      "tryingDirectConnection": "直接接続を試行中...",
+      "directConnected": "直接接続が確立されました",
+      "fallingBackToProxy": "直接接続に失敗しました。プロキシにフォールバックします...",
+      "reinstallStarted": "再インストールが開始されました。インストール出力を待機中...",
+      "confirmReinstall": "このサーバーを再インストールしますか？すべてのファイルが削除されます。",
+      "tags": {
+        "install": "インストール",
+        "status": "ステータス",
+        "daemon": "デーモン",
+        "error": "エラー",
+        "authError": "認証エラー"
+      },
+      "statusValues": {
+        "offline": "オフライン",
+        "starting": "起動中",
+        "running": "実行中",
+        "stopping": "停止中",
+        "stopped": "停止",
+        "connecting": "接続中",
+        "connecting_dots": "接続中...",
+        "connected": "接続済み",
+        "disconnected": "切断",
+        "installing": "インストール中"
+      },
+      "daemonMessages": {
+        "crashedState": "サーバープロセスがクラッシュ状態で検出されました！",
+        "exitCode": "終了コード：{code}",
+        "outOfMemory": "メモリ不足：{value}",
+        "updatingConfig": "プロセス設定ファイルを更新中...",
+        "settingPermissions": "ファイル権限が正しく設定されていることを確認中です。数秒かかる場合があります...",
+        "pullingImage": "Dockerコンテナイメージをプル中です。完了まで数分かかる場合があります...",
+        "finishedPulling": "Dockerコンテナイメージのプルが完了しました",
+        "diskLimit": "サーバーが割り当てられたディスク容量制限を超過しています。プロセスを停止します。",
+        "throttling": "サーバーがコンソールデータを高速に出力しています -- スロットリング中...",
+        "crashDisabled": "自動再起動を中止します。このインスタンスではクラッシュ検出が無効です。",
+        "crashTooFrequent": "自動再起動を中止します。最後のクラッシュは{timeout}秒未満前に発生しました。"
+      },
+      "installMessages": {
+        "pullingFrom": "{image}からプル中",
+        "digest": "ダイジェスト：{digest}",
+        "status": "ステータス：{status}",
+        "finishedPulling": "Dockerコンテナイメージのプルが完了しました"
+      }
+    }
+  },
+  "serverTabShared": {
+    "loading": "読み込み中...",
+    "error": {
+      "title": "問題が発生しました",
+      "tryAgain": "再試行"
+    }
+  },
+  "serverMonacoEditor": {
+    "position": {
+      "lineCol": "行 {line}, 列 {col}",
+      "lines": "{count}行"
+    },
+    "ai": {
+      "label": "AI",
+      "thinking": "思考中...",
+      "suggestion": "AIの提案",
+      "generatedBy": "AIが生成"
+    },
+    "actions": {
+      "undo": "元に戻す",
+      "redo": "やり直す",
+      "decreaseFont": "フォントサイズを小さく",
+      "increaseFont": "フォントサイズを大きく",
+      "disableWrap": "ワードラップを無効",
+      "enableWrap": "ワードラップを有効",
+      "search": "検索（Ctrl+F）",
+      "copyAll": "すべてコピー"
+    },
+    "states": {
+      "loadingEditor": "エディタを読み込み中..."
+    }
+  },
+  "serverStatsTab": {
+    "timeWindow": {
+      "live": "ライブ",
+      "5m": "5分",
+      "10m": "10分",
+      "1h": "1H",
+      "6h": "6H",
+      "24h": "24H",
+      "7d": "7D"
+    },
+    "sections": {
+      "resourceUsage": "リソース使用状況"
+    },
+    "charts": {
+      "cpu": "CPU",
+      "memory": "メモリ",
+      "disk": "ディスク",
+      "network": "ネットワーク",
+      "download": "ダウンロード",
+      "upload": "アップロード",
+      "cpuUsage": "CPU使用状況",
+      "memoryUsage": "メモリ使用状況",
+      "diskUsage": "ディスク使用状況",
+      "networkTraffic": "ネットワークトラフィック"
+    },
+    "labels": {
+      "netUp": "ネット ↑",
+      "netDown": "ネット ↓",
+      "downloadTraffic7d": "7日間ダウンロードトラフィック",
+      "uploadTraffic7d": "7日間アップロードトラフィック"
+    },
+    "states": {
+      "loadingStatistics": "統計を読み込み中...",
+      "noDataTitle": "利用可能なデータはありません",
+      "noDataMessage": "統計はサーバーの実行中に収集されます。数分後にもう一度確認してください。"
+    },
+    "node": {
+      "system": "ノードシステム",
+      "cpu": "ノードCPU",
+      "memory": "ノードメモリ",
+      "disk": "ノードディスク",
+      "version": "バージョン",
+      "architecture": "アーキテクチャ",
+      "cpuAvg24h": "ノードCPU平均（24時間）",
+      "net24h": "ノードネット24時間（↓ / ↑）",
+      "currentNet": "現在のネット（↓ / ↑）",
+      "usage24h": "ノード使用状況（24時間）"
+    }
+  },
+  "serverFilesTab": {
+    "actions": {
+      "connect": "接続",
+      "create": "作成",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "copy": "コピー",
+      "upload": "アップロード",
+      "newFile": "新しいファイル",
+      "newFolder": "新しいフォルダ",
+      "archive": "アーカイブ",
+      "extract": "展開",
+      "move": "移動",
+      "chmod": "権限変更",
+      "delete": "削除",
+      "download": "ダウンロード",
+      "rename": "名前変更",
+      "changePermissions": "権限を変更",
+      "viewImage": "画像を表示",
+      "edit": "編集",
+      "openSftp": "SFTPで開く",
+      "openQemuFolder": "QEMUフォルダを開く",
+      "hide": "非表示",
+      "details": "詳細"
+    },
+    "table": {
+      "name": "名前",
+      "size": "サイズ",
+      "modified": "更新日",
+      "actions": "アクション"
+    },
+    "bulk": {
+      "selected": "{count}件選択中",
+      "recursive": "再帰的"
+    },
+    "inputs": {
+      "fileNamePlaceholder": "filename.txt",
+      "folderNamePlaceholder": "folder-name",
+      "sftpPassword": "SFTPパスワード"
+    },
+    "preview": {
+      "zoomOut": "縮小",
+      "zoomIn": "拡大",
+      "resetView": "表示をリセット",
+      "toggleFullscreen": "全画面切替"
+    },
+    "states": {
+      "dropToUpload": "ファイルをドロップしてアップロード",
+      "loadingFiles": "ファイルを読み込み中...",
+      "emptyDirectory": "空のディレクトリ",
+      "openingSftp": "SFTPクライアントを開いています…何も起こらない場合は、上のコマンドをコピーしてターミナルまたはSFTPアプリを使用してください。",
+      "sftpConnected": "SFTPで接続しました",
+      "sftpNotConnected": "SFTP — 未接続",
+      "sftpAutoConnected": "SFTPで自動接続しました",
+      "fileSaved": "ファイルが保存されました",
+      "archiveCreated": "アーカイブが作成されました",
+      "archiveExtracted": "アーカイブが展開されました",
+      "commandCopied": "コマンドがクリップボードにコピーされました",
+      "revisionRestored": "リビジョンが復元されました"
+    },
+    "kvmNotes": {
+      "title": "KVMアクセスノート",
+      "usePrimary": "SSH/SFTPにはプライマリ割り当てを使用してください。",
+      "default": "デフォルト：",
+      "defaultCredentials": "デフォルト認証情報：",
+      "filesystemManaged": "ファイルシステムはcloud-initによって管理されています。",
+      "panelFilesGuest": "パネルファイルはゲストの状態を反映しない場合があります。"
+    },
+    "labels": {
+      "na": "—",
+      "proxied": "プロキシ経由",
+      "yesterday": "昨日",
+      "host": "ホスト",
+      "port": "ポート",
+      "username": "ユーザー名",
+      "qemuHostFolder": "QEMUホストフォルダ",
+      "vmFilesystemViaSftp": "SFTP経由のVMファイルシステム",
+      "sftpModeDescription": "ゲストファイルシステムへの直接SFTPアクセスを使用します。",
+      "sftpCommand": "SFTPコマンド",
+      "sftpPassword": "SFTPパスワード"
+    },
+    "confirm": {
+      "openUnknownType": "このファイルタイプは正しく表示されない可能性があります。それでも開きますか？",
+      "openUnknownFileTitle": "不明なファイルタイプを開く",
+      "openUnknownFileDescription": "「{name}」はテキストファイルではない可能性があります。それでも開きますか？",
+      "openAnyway": "それでも開く",
+      "deleteFile": "「{name}」を削除しますか？",
+      "fileExistsOpen": "「{name}」は既に存在します。代わりに開きますか？",
+      "applyRecursive": "再帰的に適用しますか？",
+      "deleteSelected": "{count}個のアイテムを削除しますか？"
+    },
+    "prompts": {
+      "renameTo": "名前変更：",
+      "chmodSingle": "権限を設定（8進数、例：0644 または 0755）：",
+      "chmodBulk": "権限を設定（8進数）：",
+      "moveToFolder": "フォルダに移動（相対パス）："
+    },
+    "errors": {
+      "uploadFailed": "アップロード失敗：{reason}",
+      "imagePreviewFailed": "画像プレビュー失敗：{reason}",
+      "binaryNotEditable": "このファイルタイプは編集できません。代わりにダウンロードしてください。",
+      "openFailed": "ファイルを開けませんでした：{reason}",
+      "saveFailed": "保存失敗：{reason}",
+      "deleteFailed": "削除失敗：{reason}",
+      "sftpAuthRequired": "続行するにはSFTPパスワードを入力してください。",
+      "sftpAuthFailed": "SFTP認証に失敗しました。パスワードを確認して再試行してください。",
+      "sftpAutoAuthFailed": "ROOT_PASSWORDからの自動SFTPログインに失敗しました：{reason}。手動でパスワードを入力してください。",
+      "folderExists": "「{name}」という名前のフォルダは既に存在します。",
+      "itemExists": "作成できません：「{name}」という名前のアイテムは既に存在します。",
+      "actionFailed": "失敗：{reason}",
+      "renameFailed": "名前変更失敗：{reason}",
+      "downloadFailed": "ダウンロード失敗：{reason}",
+      "invalidMode": "無効なモードです。8進数形式を使用してください（例：0644, 0755）",
+      "invalidModeShort": "無効なモード",
+      "permissionUpdateFailed": "権限更新失敗：{reason}",
+      "archiveFailed": "アーカイブ失敗：{reason}",
+      "extractFailed": "展開失敗：{reason}",
+      "moveFailed": "移動失敗：{reason}",
+      "bulkChmodFailed": "一括権限変更失敗：{reason}",
+      "bulkDeleteFailed": "一括削除失敗：{reason}",
+      "sftpDetailsUnavailable": "SFTP接続の詳細は利用できません。",
+      "revisionRestoreFailed": "リビジョンの復元に失敗しました"
+    },
+    "shareModal": {
+      "title": "ファイルを共有",
+      "file": "ファイル",
+      "linkExpiration": "リンク有効期限",
+      "duration1h": "1時間",
+      "duration1d": "1日",
+      "duration1w": "1週間",
+      "duration1m": "1ヶ月",
+      "duration1y": "1年",
+      "durationPermanent": "永続",
+      "cancel": "キャンセル",
+      "createShareLink": "共有リンクを作成",
+      "shareLinkDescription": "共有リンク（このリンクを知っている人は誰でも閲覧/ダウンロードできます）",
+      "copied": "コピーしました！",
+      "copy": "コピー",
+      "close": "閉じる",
+      "shareAnother": "別のファイルを共有",
+      "toastCreated": "共有リンクが作成されました！",
+      "toastFailed": "共有リンクの作成に失敗しました",
+      "toastCopyFailed": "リンクのコピーに失敗しました"
+    }
+  },
+  "serverDetailPage": {
+    "header": {
+      "serverFallback": "サーバー",
+      "unnamedServer": "名前のないサーバー"
+    },
+    "tabs": {
+      "console": "コンソール",
+      "statistics": "統計",
+      "statsShort": "統計",
+      "files": "ファイル",
+      "shares": "共有",
+      "startup": "起動",
+      "databases": "データベース",
+      "dbShort": "DB",
+      "schedules": "スケジュール",
+      "network": "ネットワーク",
+      "firewall": "ファイアウォール",
+      "netShort": "ネット",
+      "backups": "バックアップ",
+      "activity": "アクティビティ",
+      "subusers": "サブユーザー",
+      "mounts": "マウント",
+      "settings": "設定"
+    },
+    "stats": {
+      "cpu": "CPU",
+      "memory": "メモリ",
+      "disk": "ディスク",
+      "net": "ネット ↑↓",
+      "currentPage": "現在のページ",
+      "today": "今日",
+      "logins": "ログイン",
+      "serverEvents": "サーバーイベント",
+      "onThisPage": "このページ",
+      "page": "ページ {page}"
+    },
+    "firewall": {
+      "description": "VM_PORTSを使用してKVM VMの追加転送ポートを管理します。",
+      "helpText": "このタブではKVM Eggの追加ホスト-ゲストポート転送を設定します。デフォルトSSHポートは保護されており、ここでは変更できません。",
+      "defaultSshPortLabel": "デフォルトSSHポート",
+      "defaultSshPortHint": "このポートはSSH用に予約されており、VM_PORTSを使用して更新できません。",
+      "sshConflict": "ポート {{hostPort}} はSSH用に予約されています。",
+      "noVmPortsDefined": "このサーバーにはVM_PORTS変数が定義されていません。このタブを使用するにはStartup → Environment Variablesで追加してください。",
+      "extraPortsTitle": "追加転送ポート",
+      "extraPortsDescription": "各エントリはVM_PORTSを介した追加のホスト-ゲスト転送になります。",
+      "addPortRule": "ポートルールを追加",
+      "portPlaceholder": "25038 or 8080:80 or 9999/udp",
+      "removePortRule": "削除",
+      "noPortRules": "追加ポートは設定されていません。",
+      "portRuleHint": "有効なエントリ：port、host:guest、port/tcp、port/udp。デフォルトSSHポートまたはゲストポート22は使用しないでください。",
+      "hostBindAddress": "ホストバインドアドレス",
+      "hostBindHelp": "転送用の任意のホストアドレス（例：0.0.0.0）。",
+      "bindAll": "すべてのIPにバインド（IPv4 + IPv6）",
+      "bindIpv4": "IPv4のみにバインド（0.0.0.0）",
+      "bindIpv6": "IPv6のみにバインド",
+      "bindCustom": "カスタムバインドアドレス",
+      "bindAllHelp": "利用可能なすべてのIPに転送を適用します。IPv6転送はネットワークタブに自動的に表示されます。",
+      "bindIpv4Help": "転送をIPv4のみにバインドします。IPv6転送は作成されません。",
+      "bindIpv6Help": "割り当てられたIPv6アドレスに転送をバインドします。",
+      "bindCustomHelp": "これらの転送をバインドする特定のホストアドレスを指定してください。",
+      "hostBindNeedsIpv6": "IPv6のみのバインディングを選択する前にIPv6アドレスを割り当ててください。",
+      "save": "保存",
+      "saved": "保存しました。",
+      "saving": "保存中…",
+      "loadFailedTitle": "ファイアウォール設定の読み込みに失敗しました",
+      "loadFailed": "ファイアウォール設定を読み込めません。後でもう一度お試しください。",
+      "portMustBeValid": "ポートは1〜65535の有効な数値である必要があります。",
+      "fixErrors": "エラーを修正",
+      "validLabel": "有効",
+      "protocolLabel": "プロトコル",
+      "protocolTcp": "TCP",
+      "protocolUdp": "UDP",
+      "protocolBoth": "両方",
+      "portRule": "ポートルール",
+      "vmPortLabel": "VMポート",
+      "vmPortHelp": "VM内部のポート",
+      "vmPortPlaceholder": "25045",
+      "globalPortLabel": "グローバルポート",
+      "globalPortHelp": "ホストで公開されるポート",
+      "globalPortPlaceholder": "25045",
+      "rulesCount": "{count}件のルール",
+      "validCount": "{count}件有効",
+      "errorsCount": "{count}件のエラー",
+      "noRulesDescription": "VMからサービスを公開するためのポート転送ルールを追加してください。",
+      "addFirstRule": "最初のルールを追加",
+      "fixErrorsBeforeSaving": "保存前に検証エラーを修正してください。",
+      "outputLabel": "出力：",
+      "howItWorksTitle": "仕組み",
+      "trafficFlow": "トラフィックフロー",
+      "internet": "インターネット",
+      "globalPortTag": "グローバルポート",
+      "vmPortTag": "VMポート",
+      "vmPortDesc": "VM内部でサービスがリッスンするポート（内部）。",
+      "globalTag": "グローバル",
+      "globalDesc": "ホスト/インターネットで公開されるポート（外部）。",
+      "protocolsTitle": "プロトコル",
+      "protocolTcpDesc": "Web、SSH、データベース",
+      "protocolUdpDesc": "ゲームサーバー、DNS、VPN",
+      "protocolBothDesc": "各プロトコルに1つのルールを作成",
+      "hostBindNote": "ホストバインドアドレスは任意で、すべての転送ポートに適用されます。",
+      "saveFailed": "保存失敗：{reason}",
+      "invalidPortEntries": "1つ以上のポートエントリが無効です。",
+      "invalidPorts": "保存前に無効なポートエントリを修正してください。",
+      "sshPortConflict": "デフォルトSSHポートと競合するルールがあります。保存前に削除してください。",
+      "examplesTitle": "例",
+      "exampleSingle": "25038",
+      "exampleHostGuest": "8080:80",
+      "exampleUdp": "9999/udp"
+    },
+    "states": {
+      "loadingServer": "サーバーを読み込み中…",
+      "serverNotFoundTitle": "サーバーが見つかりません",
+      "serverNotFoundDescription": "お探しのサーバーは存在しないか、利用できません。",
+      "loadingConsole": "コンソールを読み込み中…",
+      "loadingStatistics": "統計を読み込み中…",
+      "loadingFiles": "ファイルを読み込み中…",
+      "loadingFirewall": "ファイアウォール設定を読み込み中…",
+      "loadingSchedules": "スケジュールを読み込み中…",
+      "loadingBackups": "バックアップを読み込み中…",
+      "enabled": "有効",
+      "disabled": "無効",
+      "unknown": "不明",
+      "accessRevokedTitle": "アクセスが取り消されました",
+      "accessRevokedDescription": "このサーバーへのアクセスが削除されました。再読み込みすると権限が更新されます。",
+      "loadingActivity": "アクティビティを読み込み中…",
+      "noActivityTitle": "アクティビティは見つかりませんでした",
+      "noActivityMessage": "このサーバーのアクティビティはまだ記録されていません。",
+      "noActivityForFilter": "{filter}のイベントはまだ記録されていません。"
+    },
+    "actions": {
+      "start": "開始",
+      "stop": "停止",
+      "restart": "再起動",
+      "kill": "強制終了",
+      "transfer": "転送",
+      "enableKvm": "KVMを有効",
+      "disableKvm": "KVMを無効",
+      "markStarted": "起動済みとしてマーク",
+      "morePowerOptions": "その他の電源オプション",
+      "adminMode": "管理者モード",
+      "refreshServer": "サーバーを更新",
+      "backToServers": "サーバー一覧に戻る",
+      "cancel": "キャンセル",
+      "confirm": "確認"
+    },
+    "toasts": {
+      "diceDeniedTitle": "ダイス拒否",
+      "powerDenied": "ダイスロールにより電源操作が拒否されました。",
+      "actionSentTitle": "アクション送信",
+      "actionRequested": "{action}が正常にリクエストされました。",
+      "powerFailedTitle": "電源操作に失敗しました",
+      "unknownError": "不明なエラー"
+    },
+    "alerts": {
+      "kvmToggled": "KVM {state}。",
+      "kvmToggleFailed": "KVM切り替え失敗：{reason}",
+      "deleteFailed": "削除失敗：{reason}",
+      "transferInitiated": "転送が開始されました。数分かかる場合があります。",
+      "markedStarted": "サーバーが起動済みとしてマークされました。",
+      "markStartedFailed": "起動済みマーク失敗：{reason}"
+    },
+    "errors": {
+      "selectTargetNode": "ターゲットノードを選択してください",
+      "transferFailed": "転送に失敗しました"
+    },
+    "confirm": {
+      "deleteServer": "このサーバーを完全に削除してもよろしいですか？この操作は元に戻せません。"
+    },
+    "dialogs": {
+      "power": {
+        "confirmPrefix": "確認",
+        "confirmMessage": "サーバーを{action}してもよろしいですか？",
+        "killWarning": "サーバーの強制終了はプロセスを強制的に終了します。データ損失が発生する可能性があります。"
+      },
+      "transfer": {
+        "title": "サーバーを転送",
+        "description": "このサーバーの転送先ノードを選択してください。",
+        "destinationNode": "転送先ノード",
+        "selectNode": "ノードを選択…",
+        "notice": "数分かかる場合があります。両方のノードがオンラインである必要があります。",
+        "forceTransfer": "強制転送（ソースの全データを削除）",
+        "forceTransferButton": "強制転送",
+        "forceTransferWarning": "警告：これによりソースノード上のすべてのサーバーデータが削除され、新しいポート割り当てでターゲットノードにサーバーが再作成されます。サーバーに保存されたすべてのファイル、データベース、設定は完全に失われます。"
+      }
+    },
+    "kvm": {
+      "bannerTitle": "KVM仮想化が有効です",
+      "bannerDescription": "このサーバーは完全な仮想マシンとして実行されます。ファイル管理とコンソールはコンテナベースのサーバーとは異なる動作をする場合があります。",
+      "filesNotice": "KVMファイルシステムはcloud-initによって管理されています。ここに表示されるファイルはゲストVMの実際のファイルシステムを反映しない場合があります。SSH/SFTPを使用してVMに直接アクセスしてください。",
+      "killWarning": "KVM仮想マシンの強制終了は電源プラグを抜くのと同じです。ゲストOSは正常にシャットダウンされません。",
+      "transferNotice": "KVMサーバーの転送には、両方のノードがKVMパススルーをサポートしている必要があります。VMディスクイメージが移行されます。"
+    },
+    "network": {
+      "title": "ネットワーク割り当て",
+      "requestPort": "ポートをリクエスト",
+      "add": "追加",
+      "empty": "ネットワーク割り当てが見つかりません。",
+      "primary": "プライマリ",
+      "secondary": "セカンダリ",
+      "removeAllocation": "割り当てを削除",
+      "requestFailed": "リクエストに失敗しました",
+      "failed": "失敗"
+    },
+    "startup": {
+      "selectDockerBeforeSave": "保存する前にDockerイメージを選択してください。",
+      "saved": "保存しました。",
+      "saveFailed": "保存失敗：{reason}",
+      "loadFailed": "起動設定の読み込みに失敗しました。",
+      "serverConfiguration": "サーバー設定",
+      "egg": "Egg",
+      "dockerImage": "Dockerイメージ",
+      "selectDockerImage": "Dockerイメージを選択",
+      "selectImage": "イメージを選択…",
+      "noAlternateDocker": "このEggには代替Dockerイメージが設定されていません。",
+      "startupCommand": "起動コマンド",
+      "detectionTitle": "起動検出",
+      "detectionDescription": "起動完了を検出するためにコンソール出力と照合されるパターン。",
+      "patternPlaceholder": "例：Server started",
+      "removePattern": "パターンを削除",
+      "addPattern": "パターンを追加",
+      "environmentVariables": "環境変数",
+      "resetDefaults": "デフォルトにリセット",
+      "addVariable": "変数を追加",
+      "variableName": "変数名",
+      "variableValue": "変数値",
+      "removeVariable": "変数を削除",
+      "save": "保存",
+      "readOnly": "読み取り専用",
+      "noEnvironmentVariables": "環境変数が定義されていません。"
+    },
+    "mounts": {
+      "title": "マウント",
+      "kvmNotice": "KVMファイルシステムはcloud-initによって管理されており、このパネルでは正しく表示されない場合があります。",
+      "description": "マウントはホストディレクトリをサーバーコンテナにバインドします。",
+      "empty": "マウントは設定されていません。マウントは管理者によって管理されます。",
+      "readOnly": "読み取り専用",
+      "source": "ソース",
+      "target": "ターゲット",
+      "attach": "マウントを接続",
+      "detach": "切断",
+      "available": "利用可能なマウント",
+      "selectPlaceholder": "接続するマウントを選択",
+      "loading": "マウントを読み込み中...",
+      "attachSuccess": "マウントが正常に接続されました。",
+      "attachFailed": "マウントの接続に失敗しました：{reason}",
+      "detachSuccess": "マウントが正常に切断されました。",
+      "detachFailed": "マウントの切断に失敗しました：{reason}"
+    },
+    "databases": {
+      "title": "データベース",
+      "newDatabase": "新しいデータベース",
+      "new": "新規",
+      "labelOptional": "ラベル（任意）",
+      "labelPlaceholder": "例：プライマリDB",
+      "create": "作成",
+      "empty": "データベースが設定されていません。",
+      "user": "ユーザー",
+      "hide": "非表示",
+      "show": "表示",
+      "deleteDatabase": "データベースを削除",
+      "copy": "{field}をコピー",
+      "createFailed": "データベースの作成に失敗しました",
+      "confirmDelete": "このデータベースを削除しますか？これによりデータベースが完全に削除されます。",
+      "credentials": {
+        "host": "ホスト",
+        "db": "DB",
+        "user": "ユーザー",
+        "pass": "パスワード",
+        "jdbc": "JDBC"
+      }
+    },
+    "schedules": {
+      "title": "スケジュール",
+      "newSchedule": "新しいスケジュール",
+      "new": "新規",
+      "name": "名前",
+      "namePlaceholder": "毎日再起動",
+      "cronExpression": "Cron式",
+      "customCron": "カスタム",
+      "create": "スケジュールを作成",
+      "save": "変更を保存",
+      "empty": "スケジュールが設定されていません。",
+      "unnamed": "名前なし",
+      "active": "アクティブ",
+      "inactive": "非アクティブ",
+      "last": "最終",
+      "never": "なし",
+      "deleteSchedule": "スケジュールを削除",
+      "confirmDelete": "このスケジュールを削除しますか？この操作は元に戻せません。",
+      "failed": "失敗：{reason}",
+      "triggerNow": "今すぐ実行",
+      "abort": "中断",
+      "edit": "編集",
+      "triggerType": "トリガー",
+      "triggerCron": "Cronスケジュール",
+      "triggerPresets": {
+        "everyHour": "毎時",
+        "every6Hours": "6時間毎",
+        "every12Hours": "12時間毎",
+        "daily": "毎日深夜",
+        "daily3am": "毎日午前3時",
+        "weekly": "毎週（月曜深夜）",
+        "custom": "カスタムcron"
+      },
+      "actions": "アクション",
+      "noActions": "アクションが設定されていません。以下に少なくとも1つのアクションを追加してください。",
+      "addAction": "アクションを追加",
+      "actionType": "アクションタイプ",
+      "actionSendCommand": "コマンドを送信",
+      "actionPowerStart": "サーバーを起動",
+      "actionPowerStop": "サーバーを停止",
+      "actionPowerRestart": "サーバーを再起動",
+      "actionPowerKill": "サーバーを強制終了",
+      "actionCreateBackup": "バックアップを作成",
+      "commandPlaceholder": "say サーバーは1分後に再起動します！",
+      "backupNamePlaceholder": "自動バックアップ",
+      "ignoreFailure": "失敗時に続行",
+      "ignoredFiles": "除外ファイル（1行に1つ）",
+      "lastRun": "最終実行",
+      "runSuccessful": "正常に完了",
+      "runFailed": "エラーで完了",
+      "runs": "実行",
+      "triggerHint": "UTCのCronスケジュール。一般的な間隔にはプリセットを使用するか、カスタム式を記述してください。"
+    },
+    "backups": {
+      "title": "バックアップ",
+      "createBackup": "バックアップを作成",
+      "create": "作成",
+      "empty": "バックアップが見つかりません。作成して開始してください。",
+      "backupFallback": "バックアップ",
+      "backupFailed": "バックアップに失敗しました",
+      "progress": "{value}%完了",
+      "restore": "復元",
+      "unlockBackup": "バックアップのロックを解除",
+      "lockBackup": "バックアップをロック",
+      "deleteBackup": "バックアップを削除",
+      "confirmRestore": "このバックアップを復元しますか？現在のデータが上書きされる可能性があります。",
+      "restoreInitiated": "復元が開始されました。",
+      "confirmDelete": "このバックアップを完全に削除しますか？",
+      "failed": "失敗：{reason}",
+      "newGroup": "新しいグループ",
+      "editGroup": "グループを編集",
+      "createGroup": "バックアップグループを作成",
+      "groupName": "グループ名",
+      "groupDescription": "説明（任意）",
+      "compressionType": "圧縮",
+      "defaultCompression": "デフォルト圧縮",
+      "moveToGroup": "グループに移動…",
+      "removeFromGroup": "グループから削除",
+      "noBackupsInGroup": "このグループにはまだバックアップがありません。",
+      "ungrouped": "グループ化されていないバックアップ",
+      "confirmDeleteGroup": "このバックアップグループを削除しますか？バックアップは削除されません。",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "delete": "削除",
+      "edit": "編集",
+      "history": "履歴",
+      "fileHistory": "ファイル履歴",
+      "noRevisions": "リビジョンが見つかりません",
+      "view": "表示",
+      "diff": "差分",
+      "restoreRevision": "このリビジョンを復元",
+      "restored": "選択したリビジョンにファイルが復元されました",
+      "exitDiff": "差分を終了",
+      "snapshot": "スナップショット"
+    },
+    "activity": {
+      "title": "アクティビティログ",
+      "empty": "まだアクティビティは記録されていません。",
+      "user": "ユーザー #{id}",
+      "actions": {
+        "startedServer": "サーバーを起動しました",
+        "stoppedServer": "サーバーを停止しました",
+        "restartedServer": "サーバーを再起動しました",
+        "killedServer": "サーバーを強制停止しました",
+        "ranCommand": "コマンドを実行",
+        "ranConsoleCommand": "サーバーコンソールコマンドを実行しました",
+        "enabledKvm": "KVMを有効化",
+        "disabledKvm": "KVMを無効化",
+        "modifiedFile": "ファイルを変更しました",
+        "deletedFiles": "ファイルを削除しました",
+        "reinstalledServer": "サーバーを再インストールしました",
+        "addedSubuser": "サーバーサブユーザーを追加しました",
+        "acceptedSubuserInvite": "サーバーサブユーザー招待を承認しました",
+        "removedSubuser": "サーバーサブユーザーアクセスを削除しました",
+        "rejectedSubuserInvite": "サーバーサブユーザー招待を拒否しました",
+        "serverSuspend": "サーバーを停止しました",
+        "serverUnsuspend": "サーバーの停止を解除しました",
+        "updatedProfile": "プロフィール設定を更新しました"
+      }
+    },
+    "filters": {
+      "title": "イベントをフィルター",
+      "clear": "クリア",
+      "all": "すべて",
+      "power": "電源",
+      "console": "コンソール",
+      "file": "ファイル",
+      "subuser": "サブユーザー",
+      "settings": "設定",
+      "server": "サーバー",
+      "login": "ログイン",
+      "logout": "ログアウト",
+      "billing": "請求",
+      "security": "セキュリティ",
+      "support": "サポート"
+    },
+    "log": {
+      "title": "アクティビティログ",
+      "shown": "{count}件表示中",
+      "unknownAction": "不明なアクション",
+      "unknown": "不明"
+    },
+    "details": {
+      "eventDetails": "イベント詳細",
+      "action": "アクション",
+      "targetType": "ターゲットタイプ",
+      "targetId": "ターゲットID",
+      "timestamp": "タイムスタンプ",
+      "ipAddress": "IPアドレス",
+      "userId": "ユーザーID",
+      "metadata": "メタデータ",
+      "allProperties": "すべてのプロパティ",
+      "rawJson": "Raw JSON"
+    },
+    "footer": {
+      "pageEvents": "ページ {page} • {count}件のイベント"
+    },
+    "pagination": {
+      "prev": "前",
+      "next": "次"
+    },
+    "time": {
+      "justNow": "たった今",
+      "minutesAgo": "{count}分前",
+      "hoursAgo": "{count}時間前",
+      "daysAgo": "{count}日前"
+    },
+    "subusers": {
+      "title": "サブユーザー",
+      "addSubuser": "サブユーザーを追加",
+      "add": "追加",
+      "email": "メール",
+      "permissions": "権限",
+      "empty": "まだサブユーザーは追加されていません。",
+      "userFallback": "ユーザー #{id}",
+      "pending": "保留中",
+      "pendingInvites": "保留中の招待",
+      "pendingInvitesTitle": "保留中のサブユーザー招待",
+      "pendingInvitesDescription": "保留中のサーバーアクセス招待を確認して承認または拒否してください。",
+      "invitesPendingTitle": "保留中の招待",
+      "invitesPendingDescription": "これらの招待は承認待ちです。",
+      "invitesLoading": "保留中の招待を読み込み中...",
+      "noInvitesTitle": "保留中の招待はありません",
+      "invite": "招待",
+      "invites": "招待",
+      "serverUnavailable": "サーバーは利用できません",
+      "acceptInvite": "承認",
+      "rejectInvite": "拒否",
+      "viewServer": "サーバーを表示",
+      "unableToLoadInvites": "保留中の招待を読み込めません。",
+      "failedAcceptInvite": "招待の承認に失敗しました。",
+      "failedRejectInvite": "招待の拒否に失敗しました。",
+      "inviteServerName": "サーバー：{name}",
+      "inviteServerMissing": "サーバーはもう存在しません",
+      "invitesEmpty": "保留中のサブユーザー招待はありません。",
+      "locked": "ロック中",
+      "unlockSubuser": "サブユーザーのロック解除",
+      "lockSubuser": "サブユーザーをロック",
+      "removeSubuser": "サブユーザーを削除",
+      "failed": "失敗",
+      "failedWithReason": "失敗：{reason}",
+      "failedUpdateLock": "ロック更新失敗：{reason}",
+      "confirmRemove": "このサブユーザーを削除しますか？",
+      "editSubuser": "サブユーザーを編集",
+      "editPermissions": "権限を編集",
+      "savePermissions": "保存",
+      "failedUpdatePerms": "権限更新失敗：{reason}"
+    },
+    "settings": {
+      "confirmReinstall": "このサーバーを再インストールしますか？すべてのファイルが削除されます。",
+      "reinstallDialog": {
+        "title": "サーバーを再インストール",
+        "description": "再インストール前にサーバーファイルを消去するかどうかを選択してください。",
+        "wipeTitle": "すべてのファイルを消去",
+        "wipeDescription": "Eggから再インストールする前にサーバーディレクトリをクリアします。",
+        "keepTitle": "ファイルを保持",
+        "keepDescription": "ファイルを保持し、インストールスクリプトのみを再実行します。",
+        "wingsNote": "Wingsは再インストール時のオプションのファイル切り捨てをサポートしています。クリーンな状態にするかどうかに基づいて選択してください。"
+      },
+      "reinstallInitiated": "再インストールが開始されました。",
+      "failedWithReason": "失敗：{reason}",
+      "sshDetailsUnavailable": "SSH接続の詳細は利用できません。",
+      "sftpDetailsUnavailable": "SFTP接続の詳細は利用できません。",
+      "openingSsh": "SSHクライアントを開いています…何も起こらない場合は、上のコマンドをコピーしてターミナルを使用してください。",
+      "openingSftp": "SFTPクライアントを開いています…何も起こらない場合は、上のコマンドをコピーしてターミナルまたはSFTPアプリを使用してください。",
+      "serverInformation": "サーバー情報",
+      "uuid": "UUID",
+      "name": "名前",
+      "status": "ステータス",
+      "node": "ノード",
+      "dockerImage": "Dockerイメージ",
+      "virtualization": "仮想化",
+      "virtualizationKvm": "KVM（完全VM）",
+      "virtualizationDocker": "Docker",
+      "externalAccess": "外部アクセス",
+      "host": "ホスト",
+      "port": "ポート",
+      "username": "ユーザー名",
+      "launchSsh": "SSHを起動",
+      "launchSftp": "SFTPを起動",
+      "sshCommand": "SSHコマンド",
+      "sftpCommand": "SFTPコマンド",
+      "copySshCommand": "SSHコマンドをコピー",
+      "copySftpCommand": "SFTPコマンドをコピー",
+      "authNote": "パネルパスワードまたはSSHキーを使用して認証してください。",
+      "resourceLimits": "リソース制限",
+      "ioWeight": "IO重み",
+      "swap": "スワップ",
+      "kvmPassthrough": "KVMパススルー",
+      "saveResources": "リソースを保存",
+      "resourcesSaved": "リソース制限が正常に更新されました。",
+      "saveFailed": "保存失敗：{reason}",
+      "dangerZone": "危険ゾーン",
+      "dangerDescription": "これらの操作は元に戻せません。注意して進めてください。",
+      "reinstall": "再インストール",
+      "deleteServer": "サーバーを削除",
+      "kvmNotes": {
+        "title": "KVMアクセスノート",
+        "usePrimary": "SSH/SFTPにはプライマリ割り当てを使用してください",
+        "default": "デフォルト",
+        "filesystemManaged": "cloud-init管理のファイルシステム",
+        "panelFilesGuest": "パネルファイルはゲスト状態を反映しない場合があります"
+      }
+    },
+    "warnings": {
+      "nodeIssueTitle": "{node}は現在問題が発生しています",
+      "nodesIssueTitle": "一部のノードで現在問題が発生しています",
+      "nodeIssueDescription": "このノード上のサーバーは利用できないか、応答しない可能性があります。",
+      "nodesIssueDescription": "これらのノード上のサーバーは利用できないか、応答しない可能性があります：{nodes}。",
+      "learnMore": "/statusで詳細を確認"
+    }
+  },
+  "tunnelsPage": {
+    "header": {
+      "title": "トンネル",
+      "description": "パブリックトンネルの割り当てを作成し、リモートエージェントを承認します。"
+    },
+    "sections": {
+      "devices": "デバイス",
+      "allocations": "割り当て",
+      "createAllocation": "割り当てを作成",
+      "createAllocationDescription": "パブリックトラフィックをローカルサービスに転送"
+    },
+    "labels": {
+      "localHost": "ローカルホスト",
+      "localPort": "ローカルポート",
+      "protocol": "プロトコル",
+      "protocolTcp": "TCP",
+      "protocolUdp": "UDP",
+      "clientDevice": "クライアントデバイス",
+      "serverDevice": "サーバーデバイス",
+      "deviceCode": "デバイスコード",
+      "name": "名前",
+      "type": "タイプ",
+      "userCode": "ユーザーコード",
+      "approved": "承認済み",
+      "lastSeen": "最終確認",
+      "publicEndpoint": "パブリックエンドポイント",
+      "localTarget": "ローカルターゲット",
+      "status": "ステータス",
+      "created": "作成日",
+      "connection": "接続"
+    },
+    "placeholders": {
+      "selectClientDevice": "クライアントデバイスを選択"
+    },
+    "search": {
+      "devices": "デバイスを検索..."
+    },
+    "actions": {
+      "createAllocation": "割り当てを作成",
+      "approve": "承認",
+      "close": "閉じる",
+      "manage": "管理",
+      "copy": "コピー",
+      "regenerateToken": "トークンを再生成",
+      "deleteDevice": "デバイスを削除"
+    },
+    "prompts": {
+      "nameForDevice": "デバイス名",
+      "defaultDeviceName": "エージェント",
+      "deleteDeviceWithAllocations": "このトンネルデバイスとそのすべての割り当てを削除しますか？"
+    },
+    "downloads": {
+      "title": "トンネルバイナリ",
+      "description": "最新のトンネルバイナリをダウンロードするか、curlコマンドを使用してサーバーにセットアップしてください。",
+      "client": "クライアントバイナリ",
+      "clientBadge": "クライアント",
+      "server": "サーバーバイナリ",
+      "serverBadge": "サーバー",
+      "downloadClient": "クライアントをダウンロード",
+      "downloadServer": "サーバーをダウンロード",
+      "curlClient": "curlでクライアントをセットアップ",
+      "curlServer": "curlでサーバーをセットアップ",
+      "curlCopy": "curlコマンドをコピー",
+      "curlCopied": "コピーしました！",
+      "clientCurlDesc": "デバイスにトンネルクライアントをインストール：",
+      "serverCurlDesc": "サーバーにトンネルサーバーをインストール：",
+      "deployOneLiner": "クイックセットアップ（ワンライナー）",
+      "deployOneLinerDesc": "トンネルエージェントを自動インストールして実行：",
+      "deployOneLinerOpen": "ローカルポートをすぐに公開：",
+      "deployOneLinerRun": "永続トンネルエージェントを実行：",
+      "quickSetup": "クイックセットアップ",
+      "quickSetupDescription": "任意のマシンでトンネルエージェントを実行するための貼り付け可能なワンライナーを生成します。",
+      "generateOneLiner": "ワンライナーを生成"
+    },
+    "rollout": {
+      "title": "トンネル機能はロールアウト中です",
+      "description": "トンネル機能は段階的にリリースされています。まもなく再度確認するか、早期アクセスが必要な場合はサポートにお問い合わせください。"
+    },
+    "states": {
+      "yes": "はい",
+      "no": "いいえ",
+      "loading": "読み込み中…",
+      "noApprovedClients": "まだ承認されたクライアントはありません — まず以下のデバイスを承認してください。",
+      "noDevicesMatchSearch": "検索に一致するデバイスはありません",
+      "noDevicesConnected": "接続されているデバイスはありません",
+      "tryDifferentSearchTerm": "別の検索語をお試しください。",
+      "downloadAgentToGetStarted": "トンネルエージェントをダウンロードして実行し、開始してください。",
+      "unnamedDevice": "名前のないデバイス",
+      "never": "なし",
+      "noDate": "—",
+      "selectClientFirst": "最初にクライアントデバイスを選択してください。",
+      "devicesRegistered": "{count}件登録済み",
+      "pending": "保留中",
+      "tunnelsAllocated": "{count}件のトンネルが割り当てられています",
+      "noAllocationsYet": "まだ割り当てはありません",
+      "createAllocationHint": "上のトンネル割り当てを作成してトラフィック転送を開始してください。",
+      "closed": "クローズ",
+      "active": "アクティブ",
+      "approved": "承認済み"
+    }
+  },
+  "infrastructureNodesPage": {
+    "header": {
+      "title": "インフラストラクチャノード",
+      "description": "Wingsノードとネットワーク設定を管理します。"
+    },
+    "states": {
+      "nodesRegistered": "{count}件のノードが登録されています",
+      "loadingNodes": "ノードを読み込み中...",
+      "noNodesTitle": "まだノードはありません",
+      "noNodesDescription": "最初のノードを追加してワークロードのホスティングを開始してください。"
+    },
+    "actions": {
+      "refresh": "更新",
+      "addNode": "ノードを追加",
+      "edit": "編集",
+      "generate": "生成",
+      "cancel": "キャンセル",
+      "saving": "保存中...",
+      "saveChanges": "変更を保存"
+    },
+    "alerts": {},
+    "confirm": {
+      "deleteNode": "ノード「{name}」を削除しますか？"
+    },
+    "nodeTypes": {
+      "free": "無料",
+      "paid": "有料",
+      "freeAndPaid": "無料 + 有料",
+      "enterprise": "エンタープライズ"
+    },
+    "nodeTypeOptions": {
+      "free": "無料",
+      "paid": "有料",
+      "freeAndPaid": "無料 + 有料",
+      "enterprise": "エンタープライズ"
+    },
+    "labels": {
+      "fqdn": "FQDN",
+      "ssl": "SSL",
+      "noSslProxied": "SSLなし（プロキシ経由）",
+      "org": "組織"
+    },
+    "dialog": {
+      "addTitle": "ノードを追加",
+      "editTitle": "ノードを編集：{name}"
+    },
+    "sections": {
+      "sftp": "SFTP",
+      "resourceLimits": "リソース制限",
+      "network": "ネットワーク"
+    },
+    "form": {
+      "name": "名前",
+      "namePlaceholder": "マイノード",
+      "nodeId": "ノードID",
+      "nodeIdPlaceholder": "uuid",
+      "nodeIdHint": "WingsとAPIルートで使用される一意の識別子。",
+      "fqdnOptional": "FQDN（任意）",
+      "fqdnHint": "表示とネットワークルーティングに使用される任意のホスト名。",
+      "fqdnPlaceholder": "node.example.com",
+      "wingsUrl": "Wings URL",
+      "wingsUrlPlaceholder": "https://node.example.com:8080",
+      "backendWingsUrlOptional": "バックエンドWings URL（任意）",
+      "backendWingsUrlHint": "内部バックエンド→ノードURL。公開エンドポイントと非公開エンドポイントが異なる場合に使用します。",
+      "backendWingsUrlPlaceholder": "http://10.0.0.5:8080",
+      "authToken": "認証トークン",
+      "authTokenPlaceholder": "トークンを貼り付けるか生成してください",
+      "nodeType": "ノードタイプ",
+      "linkedOrganisation": "リンク組織",
+      "noneOption": "なし",
+      "sslHttps": "SSL / HTTPS",
+      "sslHint": "WingsノードがHTTPを使用する場合は無効にします。WebSocketはバックエンド経由でプロキシされます。",
+      "allowedOrigin": "許可されたオリジン（WSプロキシ）",
+      "allowedOriginPlaceholder": "例：https://ecli.app（Wingsのallowed_originsと一致する必要があります）",
+      "allowedOriginHint": "このノードにWebSocketをプロキシするときに送信するパネルオリジン。Wingsデーモン設定のエントリと一致する必要があります。デフォルトはFRONTEND_URLです。",
+      "sftpPort": "SFTPポート",
+      "sftpPortPlaceholder": "2022",
+      "sftpProxyPort": "SFTPプロキシポート",
+      "sftpProxyPortPlaceholder": "例：12022",
+      "sftpProxyPortHint": "ノードに直接接続できないクライアント向けのバックエンドTCPプロキシポート。",
+      "memoryMb": "メモリ（MB）",
+      "memoryMbPlaceholder": "例：8192",
+      "diskMb": "ディスク（MB）",
+      "diskMbPlaceholder": "例：51200",
+      "cpuPercent": "CPU（%）",
+      "cpuPercentPlaceholder": "例：400",
+      "serverLimit": "サーバー制限",
+      "serverLimitPlaceholder": "例：20",
+      "defaultIp": "デフォルトIP",
+      "portRangeStart": "ポート範囲開始",
+      "portRangeEnd": "ポート範囲終了",
+      "monthlyCost": "月額費用（$）"
+    }
+  },
+  "ticketsPage": {
+    "common": {
+      "na": "N/A"
+    },
+    "header": {
+      "title": "サポートチケット",
+      "description": "サポートリクエストを管理"
+    },
+    "banned": {
+      "message": "サポートチケットの作成および操作が禁止されています。理由：{reason}。異議申し立てはcontact@ecli.appまでご連絡ください。",
+      "noReason": "理由は提供されていません"
+    },
+    "stats": {
+      "openTickets": "オープンチケット",
+      "pendingReply": "返信待ち",
+      "totalTickets": "総チケット数",
+      "avgResponse30d": "平均応答時間（30日）",
+      "samples": "{count}件のサンプルに基づく",
+      "noSamples30d": "30日間のサンプルなし"
+    },
+    "filters": {
+      "searchPlaceholder": "チケットを検索...",
+      "status": {
+        "all": "すべてのステータス",
+        "open": "オープン",
+        "awaitingStaff": "スタッフ待ち",
+        "replied": "返信済み",
+        "closed": "クローズ",
+        "archived": "アーカイブ"
+      },
+      "priority": {
+        "all": "すべての優先度",
+        "urgent": "緊急",
+        "high": "高",
+        "medium": "中",
+        "low": "低"
+      },
+      "department": {
+        "all": "すべての部門",
+        "technicalSupport": "テクニカルサポート",
+        "billing": "請求",
+        "sales": "営業",
+        "security": "セキュリティ"
+      }
+    },
+    "actions": {
+      "newTicket": "新しいチケット"
+    },
+    "states": {
+      "loading": "チケットを読み込み中...",
+      "noMatch": "検索に一致するチケットはありません。",
+      "noneYet": "まだサポートチケットはありません。"
+    },
+    "labels": {
+      "dept": "部門：{value}",
+      "assigned": "担当：#{value}",
+      "created": "作成日：{value}",
+      "lastReply": "最終返信：{value}",
+      "updated": "更新日：{value}"
+    },
+    "pagination": {
+      "page": "ページ"
+    }
+  },
+  "ticketsNewPage": {
+    "header": {
+      "title": "新しいチケット",
+      "description": "サポートリクエストを送信"
+    },
+    "hero": {
+      "title": "サポートチケットを開く",
+      "description": "問題の詳細を記述してください。チームができるだけ早く対応します。"
+    },
+    "banned": {
+      "message": "サポートチケットの作成が禁止されています。理由：{reason}。異議申し立てはcontact@ecli.appまでご連絡ください。",
+      "noReason": "理由は提供されていません"
+    },
+    "fields": {
+      "subject": {
+        "label": "件名",
+        "placeholder": "問題の概要"
+      },
+      "priority": {
+        "label": "優先度",
+        "low": "低 - 一般的な質問 / 緊急ではない",
+        "medium": "中 - 何かが期待通りに動作していない",
+        "high": "高 - サービスに重大な影響",
+        "urgent": "緊急 - 完全な停止 / 重大な問題"
+      },
+      "department": {
+        "label": "部門",
+        "select": "部門を選択",
+        "support": "サポート",
+        "billing": "請求",
+        "technical": "テクニカル",
+        "sales": "営業",
+        "other": "その他"
+      },
+      "message": {
+        "label": "メッセージ",
+        "placeholder": "問題をできるだけ詳細に記述してください。エラーメッセージ、再現手順、期待される動作を含めてください。",
+        "characters": "{count}文字"
+      },
+      "screenshots": {
+        "label": "スクリーンショット",
+        "choose": "スクリーンショットを選択…",
+        "selected": "{count}件のスクリーンショットが選択されました"
+      }
+    },
+    "actions": {
+      "backToTickets": "チケット一覧に戻る",
+      "cancel": "キャンセル",
+      "submitting": "送信中...",
+      "submitTicket": "チケットを送信"
+    },
+    "errors": {
+      "requiredFields": "件名とメッセージは必須です。",
+      "submitFailed": "チケットの送信に失敗しました。もう一度お試しください。"
+    }
+  },
+  "ticketDetailPage": {
+    "common": {
+      "you": "あなた",
+      "supportTeam": "サポートチーム",
+      "information": "情報",
+      "unset": "未設定",
+      "unknown": "不明",
+      "unknownWrapped": "（不明）",
+      "user": "ユーザー",
+      "yes": "はい",
+      "no": "いいえ",
+      "staff": "スタッフ",
+      "ai": "AI"
+    },
+    "header": {
+      "ticket": "チケット"
+    },
+    "time": {
+      "justNow": "たった今",
+      "minutesAgo": "{count}分前",
+      "hoursAgo": "{count}時間前",
+      "daysAgo": "{count}日前"
+    },
+    "states": {
+      "loadingTicket": "チケットを読み込み中…",
+      "ticketNotFound": "チケットが見つかりません",
+      "ticketClosed": "チケットはクローズされました"
+    },
+    "labels": {
+      "ticketDetails": "チケット詳細",
+      "status": "ステータス",
+      "priority": "優先度",
+      "created": "作成日",
+      "messages": "メッセージ",
+      "department": "部門",
+      "assigned": "担当",
+      "updated": "更新日",
+      "quickActions": "クイックアクション"
+    },
+    "status": {
+      "open": "オープン",
+      "awaitingStaff": "スタッフ待ち",
+      "replied": "返信済み",
+      "closed": "クローズ"
+    },
+    "priority": {
+      "low": "低",
+      "medium": "中",
+      "high": "高",
+      "urgent": "緊急"
+    },
+    "department": {
+      "none": "（なし）",
+      "technicalSupport": "テクニカルサポート",
+      "billing": "請求",
+      "sales": "営業",
+      "security": "セキュリティ"
+    },
+    "owner": {
+      "ticketOwner": "チケット所有者",
+      "viewFullProfile": "完全なプロフィールを表示",
+      "name": "名前",
+      "title": "敬称",
+      "gender": "性別",
+      "email": "メール",
+      "role": "ロール",
+      "portal": "ポータル"
+    },
+    "admin": {
+      "admin": "管理者",
+      "adminSettings": "管理者設定",
+      "aiSettings": "AI設定",
+      "aiResponses": "AI応答",
+      "disabled": "無効",
+      "enabled": "有効",
+      "aiTouched": "AI処理済み",
+      "dangerZone": "危険ゾーン"
+    },
+    "composer": {
+      "staffPlaceholder": "スタッフ返信を入力…",
+      "userPlaceholder": "詳細情報を追加…",
+      "sendHint": "⌘+Enterで送信",
+      "screenshots": "スクリーンショット"
+    },
+    "actions": {
+      "backToTickets": "チケット一覧に戻る",
+      "close": "閉じる",
+      "reopen": "再オープン",
+      "closeTicket": "チケットをクローズ",
+      "reopenTicket": "チケットを再オープン",
+      "saveChanges": "変更を保存",
+      "saving": "保存中…",
+      "ban": "禁止",
+      "unban": "禁止解除",
+      "deleteTicket": "チケットを削除",
+      "deleting": "削除中…",
+      "reply": "返信",
+      "send": "送信"
+    },
+    "confirm": {
+      "deleteTicket": "このチケットを完全に削除しますか？",
+      "banUser": "このユーザーをサポートから禁止しますか？",
+      "unbanUser": "このユーザーのサポート禁止を解除しますか？"
+    },
+    "prompt": {
+      "banReason": "禁止理由（任意）："
+    },
+    "alerts": {
+      "failed": "失敗：{reason}",
+      "failedSend": "送信失敗：{reason}",
+      "failedLoadTicket": "チケットの読み込みに失敗しました",
+      "failedSaveAdmin": "管理者設定の保存に失敗しました：{reason}",
+      "failedDelete": "削除失敗：{reason}",
+      "userBanned": "ユーザーがサポートから禁止されました",
+      "failedBan": "禁止失敗：{reason}",
+      "userUnbanned": "ユーザーの禁止が解除されました",
+      "failedUnban": "禁止解除失敗：{reason}"
+    },
+    "errors": {
+      "failedLoadTicket": "チケットの読み込みに失敗しました"
+    },
+    "notifications": {
+      "priorityChanged": "優先度が{value}に変更されました",
+      "departmentChanged": "部門が{value}に変更されました",
+      "markedSpam": "チケットがスパムとしてマークされました",
+      "closedByAi": "チケットがAIによってクローズされました",
+      "statusChanged": "ステータスが{value}に変更されました",
+      "adminUpdated": "管理者チケット設定が更新されました"
+    }
+  },
+  "organisationsPage": {
+    "header": {
+      "title": "組織",
+      "description": "組織を管理"
+    },
+    "actions": {
+      "newOrganisation": "新しい組織"
+    },
+    "states": {
+      "loading": "読み込み中...",
+      "none": "どの組織のメンバーでもありません。"
+    },
+    "labels": {
+      "role": "ロール：{value}",
+      "tier": "ティア：{value}"
+    }
+  },
+  "organisationsCreatePage": {
+    "header": {
+      "title": "新しい組織",
+      "description": "新しい組織を作成"
+    },
+    "fields": {
+      "namePlaceholder": "組織名",
+      "handlePlaceholder": "ハンドル（例：acme.ecli.app）"
+    },
+    "tiers": {
+      "free": "無料",
+      "paid": "有料",
+      "enterprise": "エンタープライズ"
+    },
+    "actions": {
+      "creating": "作成中...",
+      "create": "作成"
+    },
+    "errors": {
+      "failedCreate": "組織の作成に失敗しました"
+    }
+  },
+  "organisationsDetailPage": {
+    "header": {
+      "fallbackTitle": "組織"
+    },
+    "common": {
+      "dash": "—"
+    },
+    "labels": {
+      "orgLogoAlt": "組織ロゴ",
+      "cpu": "CPU",
+      "ram": "RAM",
+      "disk": "ディスク"
+    },
+    "tiers": {
+      "free": "無料",
+      "pro": "Pro",
+      "enterprise": "エンタープライズ"
+    },
+    "tabs": {
+      "members": "メンバー",
+      "orders": "注文",
+      "servers": "サーバー",
+      "nodes": "ノード",
+      "dns": "DNS",
+      "activity": "アクティビティ"
+    },
+    "roles": {
+      "member": "メンバー",
+      "admin": "管理者",
+      "owner": "所有者"
+    },
+    "states": {
+      "invalidOrganisation": "無効な組織です。",
+      "loading": "読み込み中...",
+      "organisationNotFound": "組織が見つかりません。",
+      "loadingActivity": "アクティビティを読み込み中…",
+      "noActivityTitle": "アクティビティは見つかりませんでした",
+      "noActivityMessage": "この組織のアクティビティはまだ記録されていません。",
+      "noActivityForFilter": "{filter}のイベントはまだ記録されていません。"
+    },
+    "members": {
+      "count": "{count}人のメンバー",
+      "none": "この組織にはメンバーがいません。",
+      "unknownUser": "不明なユーザー",
+      "userIdLabel": "ユーザー #{id}",
+      "pendingInvitations": "保留中の招待",
+      "accepted": "承認済み",
+      "pending": "保留中",
+      "addExistingUser": "既存ユーザーを追加（管理者）",
+      "userIdOptional": "ユーザーID（任意）",
+      "orEmail": "または email@example.com",
+      "inviteUser": "ユーザーを招待",
+      "userEmail": "user@example.com"
+    },
+    "orders": {
+      "title": "組織の注文",
+      "none": "この組織の注文はありません。",
+      "columns": {
+        "id": "ID",
+        "description": "説明",
+        "amount": "金額",
+        "status": "ステータス",
+        "date": "日付"
+      }
+    },
+    "servers": {
+      "title": "組織のサーバー",
+      "loading": "サーバーを読み込み中…",
+      "none": "この組織のサーバーは見つかりませんでした。"
+    },
+    "nodes": {
+      "title": "組織のノード",
+      "loading": "ノードを読み込み中…",
+      "none": "この組織に割り当てられたノードはありません。",
+      "memoryLimit": "メモリ制限",
+      "diskLimit": "ディスク制限",
+      "cpuLimit": "CPU制限",
+      "serverLimit": "サーバー制限",
+      "monthlyCost": "月額費用",
+      "portRange": "ポート範囲"
+    },
+    "dns": {
+      "title": "組織DNS",
+      "subdomainPlaceholder": "サブドメイン 例：app.example.com",
+      "loadingSubdomains": "サブドメインを読み込み中…",
+      "noSubdomains": "サブドメインが見つかりません。上に追加するか、インフラDNSページでルートゾーンを作成してください。",
+      "zone": "ゾーン：{name}",
+      "id": "ID：{id}",
+      "loadingRecords": "レコードを読み込み中…",
+      "noRecords": "このゾーンのレコードは見つかりません。",
+      "ttl": "TTL {ttl}",
+      "ttlShort": "TTL",
+      "proxied": "プロキシ経由",
+      "dns": "DNS",
+      "editRecord": "DNSレコードを編集",
+      "name": "名前",
+      "content": "内容",
+      "autoTtl": "自動TTL",
+      "addRecordTitle": "DNSレコードを追加（ルート = @）",
+      "nameExample": "名前（例：@、www、api）"
+    },
+    "activity": {
+      "title": "組織アクティビティ",
+      "loading": "アクティビティを読み込み中…",
+      "none": "この組織のアクティビティは記録されていません。",
+      "actions": {
+        "orgCreate": "組織を作成しました",
+        "orgAddUser": "メンバーを追加しました",
+        "orgRemoveMember": "メンバーを削除しました",
+        "orgChangeRole": "メンバーロールを変更しました",
+        "orgInvite": "招待を送信しました",
+        "orgResendInvite": "招待を再送信しました",
+        "orgRevokeInvite": "招待を取り消しました",
+        "orgAcceptInvite": "招待を承認しました",
+        "serverCreate": "サーバーを作成しました",
+        "serverDelete": "サーバーを削除しました",
+        "serverUpdate": "サーバーを更新しました",
+        "serverSuspend": "サーバーを停止しました",
+        "serverUnsuspend": "サーバーの停止を解除しました"
+      }
+    },
+    "stats": {
+      "currentPage": "現在のページ",
+      "today": "今日",
+      "logins": "ログイン",
+      "serverEvents": "サーバーイベント",
+      "onThisPage": "このページ",
+      "page": "ページ {page}"
+    },
+    "filters": {
+      "title": "イベントをフィルター",
+      "clear": "クリア",
+      "all": "すべて",
+      "member": "メンバー",
+      "server": "サーバー",
+      "billing": "請求",
+      "security": "セキュリティ",
+      "support": "サポート"
+    },
+    "log": {
+      "title": "アクティビティログ",
+      "shown": "{count}件表示中",
+      "unknownAction": "不明なアクション",
+      "unknown": "不明"
+    },
+    "details": {
+      "eventDetails": "イベント詳細",
+      "action": "アクション",
+      "targetType": "ターゲットタイプ",
+      "targetId": "ターゲットID",
+      "timestamp": "タイムスタンプ",
+      "ipAddress": "IPアドレス",
+      "userId": "ユーザーID",
+      "metadata": "メタデータ",
+      "allProperties": "すべてのプロパティ",
+      "rawJson": "Raw JSON"
+    },
+    "footer": {
+      "pageEvents": "ページ {page} • {count}件のイベント"
+    },
+    "pagination": {
+      "prev": "前",
+      "next": "次"
+    },
+    "time": {
+      "justNow": "たった今",
+      "minutesAgo": "{count}分前",
+      "hoursAgo": "{count}時間前",
+      "daysAgo": "{count}日前"
+    },
+    "actions": {
+      "uploading": "アップロード中…",
+      "uploadLogo": "ロゴをアップロード",
+      "leaveOrg": "組織を退出",
+      "refresh": "更新",
+      "resend": "再送信",
+      "revoke": "取り消し",
+      "addUser": "ユーザーを追加",
+      "invite": "招待",
+      "edit": "編集",
+      "delete": "削除",
+      "create": "作成",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "addRecord": "レコードを追加"
+    },
+    "confirm": {
+      "leaveOrg": "組織を退出しますか？これによりアクセスと関連するサブユーザーリンクが削除されます。",
+      "deleteRecord": "このレコードを削除しますか？",
+      "revokeInvite": "この招待を取り消しますか？",
+      "removeSubdomain": "サブドメイン {name} を組織から削除しますか？"
+    },
+    "alerts": {
+      "leftOrg": "組織から退出しました",
+      "failed": "失敗：{reason}",
+      "failedUpdate": "更新失敗：{reason}",
+      "failedDelete": "削除失敗：{reason}",
+      "failedUpdateTier": "ティア更新失敗：{reason}",
+      "uploadFailed": "アップロード失敗：{reason}",
+      "subdomainNameRequired": "サブドメイン名が必要です",
+      "orgHandleNotSet": "組織ハンドルが設定されていません",
+      "onlyHandleZone": "組織ハンドルゾーンのみ作成できます",
+      "invitationSent": "招待が送信されました",
+      "cannotInviteYourself": "自分自身を招待することはできません。",
+      "userAdded": "ユーザーが組織に追加されました",
+      "inviteResent": "招待が再送信されました",
+      "inviteRevoked": "招待が取り消されました",
+      "failedDeleteSubdomain": "サブドメイン削除失敗：{reason}",
+      "failedChangeRole": "ロール変更に失敗しました"
+    }
+  },
+  "aiChatPage": {
+    "initialMessage": "こんにちは！👋 Eclipse AIアシスタントです。サーバー管理、問題のデバッグ、インフラの最適化をお手伝いします。今日はどのような作業をされますか？",
+    "header": {
+      "title": "AI チャット",
+      "description": "AIアシスタントとチャット",
+      "assistantName": "Eclipse AI",
+      "typing": "入力中...",
+      "online": "オンライン",
+      "noModels": "利用可能なモデルはありません",
+      "selectModel": "モデルを選択"
+    },
+    "suggestions": {
+      "optimize": "サーバーを最適化",
+      "debug": "問題をデバッグ",
+      "configure": "設定を構成",
+      "bestPractices": "ベストプラクティス"
+    },
+    "actions": {
+      "clearChat": "チャットをクリア"
+    },
+    "states": {
+      "thinking": "思考中..."
+    },
+    "quickActions": {
+      "title": "クイックアクション"
+    },
+    "composer": {
+      "placeholder": "何でも聞いてください...",
+      "sendHint": "送信",
+      "newLineHint": "改行"
+    },
+    "messageActions": {
+      "title": "メッセージアクション",
+      "copy": "コピー",
+      "good": "良い",
+      "bad": "悪い",
+      "retry": "再試行"
+    },
+    "errors": {
+      "noModelAvailable": "利用可能なAIモデルがありません。管理者に連絡して設定してください。",
+      "chatResponse": "エラー：{reason}",
+      "failedGetResponse": "応答の取得に失敗しました"
+    }
+  },
+  "aiStudioPage": {
+    "header": {
+      "title": "AI スタジオ",
+      "description": "サーバー管理のためのAI駆動ツール"
+    },
+    "sections": {
+      "aiToolsTitle": "AIツール",
+      "aiToolsDescription": "ワークフローに特化したAIツール"
+    },
+    "tools": {
+      "comingSoon": "近日公開",
+      "codeAssistant": {
+        "name": "コードアシスタント",
+        "description": "サーバー設定の生成、デバッグ、最適化",
+        "systemPrompt": "あなたはEcliPanelゲームサーバー管理プラットフォームのコードアシスタントです。ユーザーがサーバー設定ファイル（server.properties、spigot.yml、paper.yml、bukkyt.yml、起動スクリプト、Docker composeファイル、.envファイル、nginx設定など）の生成、デバッグ、最適化を支援します。コードを提供する際は、常にファイルの完全なパスを先頭にコメントとして含めてください。各設定の機能を説明してください。該当する場合はセキュリティ強化を提案してください。完全ですぐに使える設定ブロックを出力してください。ユーザーのゲームサーバータイプ（Minecraft、Valheim、CS2など）を考慮し、それに応じて設定を調整してください。",
+        "placeholder": "必要なことを説明してください — 例：「50人用にpaper.ymlを最適化」"
+      },
+      "logAnalyzer": {
+        "name": "ログアナライザー",
+        "description": "サーバーログを分析し、問題を自動的に特定",
+        "systemPrompt": "あなたはEcliPanelのゲームサーバー用ログアナライザーです。ユーザーがサーバーログを貼り付けます。体系的に以下を特定してください：エラー（クラッシュログ、スタックトレース）、警告（非推奨API呼び出し、MODの競合）、パフォーマンス問題（TPS低下、GC停止、ティック遅延）、プラグイン/MODの競合、セキュリティ上の懸念。見つかった各問題について：1) 関連するログ行を引用、2) その意味を説明、3) 正確な設定値やコマンドによる具体的な修正方法を提供。重大な問題を優先してください。ログに完全なクラッシュレポートが含まれている場合は、スタックトレースを分析し、根本原因のMOD/プラグインを特定してください。",
+        "placeholder": "サーバーログを貼り付けるか、エラーを説明してください…"
+      },
+      "imageGenerator": {
+        "name": "画像ジェネレーター",
+        "description": "AIでサーバーアイコンとバナーを生成"
+      },
+      "configWizard": {
+        "name": "設定ウィザード",
+        "description": "最適なサーバー設定を自動生成",
+        "systemPrompt": "あなたはEcliPanelのゲームサーバー用設定ウィザードです。ユーザーの要件（プレイヤー数、サーバータイプ、MOD/プラグイン、RAMやCPUなどのハードウェアスペック）に基づいて、完全で最適化された設定ファイルを生成します。各設定について：1) ファイルパスを明記、2) 重要な決定事項を説明、3) すぐに使える完全な設定を出力。JVMフラグ、ガベージコレクション設定、起動パラメータを指定されたハードウェアに適応させてください。サーバータイプ固有の最適化（パフォーマンスにはPaper/Airplane/Pufferfish、MODにはForge/Fabric）を考慮してください。重要な各設定を説明するコメントを含めてください。",
+        "placeholder": "例：「8GB RAM、Paper 1.21、100人用の最適化JVMフラグを生成」"
+      },
+      "performanceAdvisor": {
+        "name": "パフォーマンスアドバイザー",
+        "description": "AI駆動のパフォーマンス最適化提案",
+        "systemPrompt": "あなたはEcliPanelのゲームサーバー用パフォーマンスアドバイザーです。ユーザーが説明するセットアップを分析し、すべてのレイヤーにわたる具体的な最適化提案を提供してください：JVM/起動フラグ（GC調整、メモリ割り当て）、サーバー設定（view-distance、simulation-distance、entity-activation-range、tick-rates）、プラグイン最適化（遅延の原因となるプラグインの特定、代替案の提案）、データベース調整（MySQL/Redisが関係する場合）、および該当する場合はOSレベルの調整。正確な設定値とファイルパスを具体的に示してください。各変更のパフォーマンスへの影響を説明してください。影響度で優先順位を付け — 最も効果の高い変更を最初に。",
+        "placeholder": "サーバー設定とパフォーマンスの問題を説明してください…"
+      },
+      "analyticsAi": {
+        "name": "分析AI",
+        "description": "サーバーリソース計画のための予測分析",
+        "systemPrompt": "あなたはEcliPanelのサーバーリソース計画用分析AIです。ユーザーがリソース需要の予測、スケーリング計画、コスト見積もり、使用パターンの分析を行うのを支援します。以下のデータ駆動型の推奨事項を提供してください：プレイヤー数あたりに必要なCPUコア数、サーバータイプ別のRAM割り当てガイドライン、ストレージ増加の見積もり、ネットワーク帯域幅要件、ノード容量計画。コストを見積もる際は、EcliPanelのノードベースのインフラストラクチャモデルを考慮してください。ユーザーが垂直スケーリング（より大きなノード）と水平スケーリング（より多くのノード）のどちらを選択すべきかを理解できるように支援してください。ユーザーが自分のケースに適応できるように、該当する場合は数式を含めてください。",
+        "placeholder": "例：「200人の同時プレイヤーを想定しています。どのリソースが必要ですか？」"
+      }
+    },
+    "chat": {
+      "startUsing": "メッセージを送信して{tool}を使い始めましょう",
+      "thinking": "思考中…",
+      "typeMessage": "メッセージを入力..."
+    },
+    "models": {
+      "myModelsTitle": "マイAIモデル",
+      "myModelsDescription": "管理者がアクセスを許可したモデル",
+      "loading": "モデルを読み込み中...",
+      "noModelsAssignedTitle": "割り当てられたモデルはありません",
+      "noModelsAssignedDescription": "管理者に連絡してAIモデルへのアクセスを取得してください。",
+      "allModelsTitle": "すべてのモデル",
+      "allModelsDescription": "利用可能なAIモデルの全カタログ"
+    },
+    "badges": {
+      "beta": "ベータ"
+    },
+    "modelStatus": {
+      "accessGranted": "アクセス許可済み",
+      "assigned": "担当",
+      "notAssigned": "未割り当て"
+    },
+    "errors": {
+      "chatResponse": "エラー：{reason}",
+      "failedGetResponse": "応答の取得に失敗しました"
+    }
+  },
+  "billingPage": {
+    "header": {
+      "title": "請求",
+      "description": "サブスクリプションと支払い方法を管理"
+    },
+    "portal": {
+      "free": "無料ポータル (ELO)",
+      "paid": "有料ポータル",
+      "educational": "教育ポータル",
+      "enterprise": "エンタープライズポータル"
+    },
+    "common": {
+      "na": "N/A",
+      "unlimited": "無制限",
+      "perMonth": "/月"
+    },
+    "pricing": {
+      "priceVaries": "価格は要相談",
+      "custom": "カスタム",
+      "customPlan": "カスタムプラン",
+      "inclTax": "{taxRate}%税込"
+    },
+    "stats": {
+      "currentPlan": "現在のプラン",
+      "monthlyCost": "月額費用",
+      "priceFromOrder": "注文または営業からの価格",
+      "includesTax": "{country}の{taxRate}%税込み",
+      "yourBillingCountry": "請求先国",
+      "totalInvoices": "総請求書数",
+      "planExpires": "プラン有効期限",
+      "managedViaSales": "営業経由で管理"
+    },
+    "tax": {
+      "title": "税金情報",
+      "description": "請求先国とパネルの税ルールから計算",
+      "billingCountry": "請求先国",
+      "notSet": "未設定",
+      "taxRate": "税率",
+      "preTaxMonthly": "税抜月額",
+      "taxAmount": "税額"
+    },
+    "activeSubscription": {
+      "title": "アクティブサブスクリプション",
+      "descriptionFallback": "現在のプラン詳細",
+      "manage": "管理",
+      "configuredLimits": "設定された制限",
+      "memory": "メモリ",
+      "disk": "ディスク",
+      "cpu": "CPU",
+      "serverLimit": "サーバー制限",
+      "ports": "サーバーあたりポート数",
+      "tunnelPorts": "トンネルポート",
+      "emailDailyLimit": "メール送信制限",
+      "emailQueueLimit": "メールキュー制限",
+      "databases": "データベース",
+      "backups": "バックアップ",
+      "renews": "更新日",
+      "cancelRenewal": "更新をキャンセル",
+      "cancelConfirmTitle": "プラン更新をキャンセル",
+      "cancelConfirmDescription": "これによりプランの更新がキャンセルされます。現在のプランは請求期間の終了まで有効です。その後、アカウントは無料ティアに戻ります。",
+      "currentExpires": "現在のプラン有効期限",
+      "confirmCancel": "はい、更新をキャンセル",
+      "keepPlan": "プランを維持",
+      "cancelled": "プラン更新がキャンセルされました",
+      "cancelFailed": "プランのキャンセルに失敗しました",
+      "activeBadge": "アクティブ",
+      "created": "作成日"
+    },
+    "currentSubscription": {
+      "title": "現在のサブスクリプション",
+      "description": "アクティブなプランと機能。アップグレードまたは変更するには管理者にお問い合わせください。",
+      "requestChange": "変更をリクエスト",
+      "active": "アクティブ",
+      "connect": "接続",
+      "buyNow": "今すぐ購入",
+      "contactSales": "営業に連絡",
+      "cancelFirst": "新しいプランを購入する前に現在のプランをキャンセルしてください",
+      "noPlansVisible": "請求ショーケースに現在表示されるプランはありません。",
+      "switchTitle": "サブスクリプションを切り替え",
+      "switchDescription": "現在{current}をご利用中です。{target}に切り替えますか？",
+      "renewCurrent": "現在のサブスクリプションを更新",
+      "upgradeNow": "今すぐアップグレード",
+      "downgradeNow": "今すぐダウングレード",
+      "switchNow": "今すぐ切り替え",
+      "goBack": "戻る",
+      "switchTo": "切り替え先",
+      "confirmSwitch": "切り替えを確認",
+      "currentPlan": "現在のプラン",
+      "switched": "切り替えました",
+      "queued": "更新待ち",
+      "activateNow": "今すぐ有効化（現在のプランを置き換え）",
+      "activateOnRenewal": "次回更新時に適用"
+    },
+    "invoices": {
+      "title": "請求履歴",
+      "descriptionBase": "過去の支払いと請求書",
+      "taxRate": "税率 {taxRate}%（{country}）",
+      "billingCountry": "請求先国",
+      "columns": {
+        "invoice": "請求書",
+        "description": "説明",
+        "date": "日付",
+        "amountTaxIncl": "金額（税込）",
+        "status": "ステータス",
+        "actions": "アクション"
+      },
+      "loading": "注文を読み込み中...",
+      "empty": "注文が見つかりません。",
+      "tax": "税",
+      "paid": "有料",
+      "pending": "保留中",
+      "awaitingPayment": "支払い待ち",
+      "paymentSent": "支払い送信済み",
+      "cancelled": "キャンセル",
+      "pay": "支払う"
+    },
+    "errors": {
+      "failedStudentVerification": "学生確認フローの開始に失敗しました",
+      "failedFetchInvoice": "請求書の取得に失敗しました",
+      "unableDownloadInvoice": "請求書をダウンロードできません",
+      "orderCreateFailed": "注文の作成に失敗しました"
+    }
+  },
+  "checkoutPage": {
+    "title": "チェックアウト",
+    "description": "支払いを完了",
+    "backToBilling": "請求に戻る",
+    "orderSummary": "注文概要",
+    "orderDescription": "説明",
+    "orderAmount": "金額",
+    "orderCreated": "作成日",
+    "orderExpiresAt": "有効期限",
+    "orderStarts": "開始日",
+    "planSpecs": "プラン仕様",
+    "planType": "プランタイプ",
+    "coupon": {
+      "placeholder": "クーポンコード",
+      "apply": "適用",
+      "applied": "クーポンが適用されました"
+    },
+    "selectMethod": {
+      "title": "支払い方法を選択",
+      "description": "支払い方法を選択してください",
+      "continue": "支払いに進む",
+      "cancelOrder": "注文をキャンセル",
+      "activationTitle": "有効化",
+      "activateNow": "今すぐ有効化（現在のプランを置き換え）",
+      "activateOnRenewal": "次回更新時に適用"
+    },
+    "instructions": {
+      "title": "支払い手順",
+      "description": "以下の詳細を使用して支払いを送信してください。管理者が受領を確認次第、プランが有効化されます。",
+      "amountToSend": "送金額",
+      "walletAddress": "ウォレットアドレス",
+      "payTo": "支払い先",
+      "markSent": "支払いを送信しました",
+      "later": "後で行う",
+      "cancelOrder": "注文をキャンセル",
+      "sentTitle": "支払いが送信済みとしてマークされました",
+      "sentDescription": "支払いが送信済みとしてマークされました。管理者がまもなく確認します。",
+      "backToBilling": "請求に戻る",
+      "processingTime": "管理者確認後、処理に最大24時間かかる場合があります。",
+      "fraudWarning": "表示された正確な金額のみを送信してください。出金が遅延する取引所から送信しないでください。"
+    },
+    "error": {
+      "loadFailed": "チェックアウト情報を読み込めませんでした。",
+      "missingOrder": "注文が指定されていません。戻って再試行してください。",
+      "invalidStatus": "この注文は現在支払いできません。すでに有効またはキャンセルされている可能性があります。",
+      "noPaymentMethods": "現在利用可能な支払い方法はありません。サポートにお問い合わせください。",
+      "backToBilling": "請求に戻る",
+      "cancelFailed": "注文のキャンセルに失敗しました"
+    }
+  },
+  "serverSharesTab": {
+    "title": "共有ファイル",
+    "description": "サーバーファイルの公開共有リンクを管理",
+    "refresh": "更新",
+    "loading": "共有ファイルを読み込み中...",
+    "retry": "再試行",
+    "emptyTitle": "まだ共有はありません",
+    "emptyDescription": "Filesタブからファイルを共有してリンクを作成してください",
+    "neverExpires": "期限なし",
+    "expires": "{duration}で期限切れ",
+    "downloads": "{count, plural, one {# ダウンロード} other {# ダウンロード}}",
+    "statusActive": "アクティブ",
+    "statusExpired": "期限切れ",
+    "statusDisabled": "無効",
+    "copyLink": "リンクをコピー",
+    "openSharePage": "共有ページを開く",
+    "deleteShareLink": "共有リンクを削除",
+    "deleteDialogTitle": "共有リンクを削除",
+    "deleteDialogDescription": "これにより共有リンクが完全に無効になります。リンクを知っている人はファイルにアクセスできなくなります。",
+    "cancel": "キャンセル",
+    "deleteLink": "リンクを削除",
+    "errorLoad": "共有の読み込みに失敗しました",
+    "errorDelete": "共有リンクの削除に失敗しました"
+  },
+  "shareFileClient": {
+    "loading": "共有ファイルを読み込み中...",
+    "sharedFile": "共有ファイル",
+    "expired": "期限切れ",
+    "expires": "{date}に期限切れ",
+    "downloads": "{count, plural, one {# ダウンロード} other {# ダウンロード}}",
+    "download": "ダウンロード",
+    "linkExpired": "この共有リンクは期限切れです",
+    "noPreview": "このファイルタイプのプレビューは利用できません",
+    "clickDownload": "ダウンロードをクリックしてファイルを取得",
+    "linkExpiredTitle": "リンク期限切れ",
+    "fileDeletedTitle": "ファイルが削除されました",
+    "notFoundTitle": "見つかりません",
+    "errorNotFound": "共有リンクが見つかりません",
+    "errorNotValid": "この共有リンクは無効です",
+    "errorTimeout": "リクエストがタイムアウトしました。サーバーがオフラインの可能性があります。",
+    "errorLoadInfo": "共有情報の読み込みに失敗しました",
+    "errorLoadLink": "共有リンクの読み込みに失敗しました"
+  },
+  "adminPaymentMethodsTab": {
+    "header": {
+      "title": "支払い方法",
+      "subtitle": "ユーザーが利用できる支払い方法を設定"
+    },
+    "form": {
+      "label": "ラベル",
+      "labelPlaceholder": "例：ビットコインウォレット",
+      "type": "タイプ",
+      "currency": "通貨",
+      "network": "ネットワーク",
+      "address": "アドレス / ウォレット / メール",
+      "addressPlaceholder": "アドレスまたはPayPalメールを入力",
+      "addressPlaceholderCrypto": "ウォレットアドレスを入力",
+      "addressPlaceholderPaypal": "PayPalメールを入力",
+      "instructions": "手順",
+      "instructionsPlaceholder": "ユーザー向けの任意の手順",
+      "optional": "任意",
+      "enabled": "アクティブ",
+      "disabled": "無効",
+      "selectNetwork": "ネットワークを選択"
+    },
+    "actions": {
+      "addMethod": "方法を追加",
+      "saveAll": "すべて保存",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "refresh": "更新"
+    },
+    "footer": {
+      "changesCount": "{count}件の方法が設定されています"
+    },
+    "states": {
+      "emptyTitle": "支払い方法がありません",
+      "emptySubtitle": "ユーザーが注文の支払いを行えるように支払い方法を追加してください。"
+    },
+    "toasts": {
+      "saved": "支払い方法が正常に保存されました",
+      "saveFailed": "支払い方法の保存に失敗しました"
+    }
+  },
+  "serverMinecraftTab": {
+    "tabs": {
+      "online": "オンライン",
+      "whitelist": "ホワイトリスト",
+      "bans": "BAN",
+      "ops": "OP",
+      "versions": "バージョン",
+      "plugins": "プラグイン",
+      "settings": "設定"
+    },
+    "players": {
+      "onlineCount": "{online} / {max} 人のプレイヤーがオンライン",
+      "offline": "サーバーがオフラインか到達できません",
+      "searchPlaceholder": "プレイヤーを検索...",
+      "whitelistLabel": "ホワイトリスト",
+      "addPlayerPlaceholder": "プレイヤー名...",
+      "opPlayerPlaceholder": "OPにするプレイヤー名...",
+      "add": "追加",
+      "op": "OP",
+      "save": "保存",
+      "empty": {
+        "online": "オンラインのプレイヤーはいません",
+        "whitelist": "ホワイトリスト登録されたプレイヤーはいません",
+        "bans": "BANされたプレイヤーはいません",
+        "ops": "OP権限を持つプレイヤーはいません"
+      },
+      "size": "{size} KB"
+    },
+    "versions": {
+      "paper": "Paper",
+      "vanilla": "Vanilla",
+      "currentConfig": "現在の設定",
+      "minecraftVersion": "Minecraftバージョン",
+      "buildNumber": "ビルド番号",
+      "build": "ビルド",
+      "version": "バージョン",
+      "latest": "最新",
+      "autoUpdate": "自動更新",
+      "latestRelease": "最新リリース",
+      "auto": "自動",
+      "current": "現在",
+      "apply": "{type}バージョンを適用",
+      "cannotModify": "インストール中は変更できません",
+      "serverInstalling": "サーバーがインストール中です",
+      "serverInstallingDesc": "このサーバーは現在インストール中です。以下のバージョンを変更して再インストールできますが、変更は次回のインストール試行時に反映されます。",
+      "serverSuspended": "サーバーは{status}です",
+      "serverSuspendedDesc": "このサーバーは{status}の間は変更できません。",
+      "reinstallKeep": "再インストール（ファイルを保持）",
+      "reinstallKeepDesc": "既存のサーバーファイルとデータを保持したまま再インストールします。",
+      "reinstallWipe": "再インストールしてすべてのファイルを消去",
+      "reinstallWipeDesc": "サーバーを完全に再インストール – すべての既存ファイルが削除されます。",
+      "later": "後で",
+      "reinstallNow": "今すぐ再インストール",
+      "versionApplied": "バージョンが適用されました",
+      "changesEffectNextInstall": "このサーバーは現在インストール中です。以下のバージョンを変更して再インストールできますが、変更は次回のインストール試行時に反映されます。",
+      "loadingPaper": "Paperバージョンを読み込み中...",
+      "loadingVanilla": "Vanillaバージョンを読み込み中...",
+      "loadingBuilds": "ビルドを読み込み中...",
+      "noBuilds": "{version}のビルドは利用できません。",
+      "serverUsingChannel": "サーバーは<strong>{channel}</strong>チャンネルを使用しています。以下で特定のバージョンを選択して安定ビルドに固定してください。",
+      "autoUpdateDesc": "最新の安定したPaperビルドを自動的に使用します。更新には再インストールが必要です。",
+      "vanillaLatestDesc": "最新の安定したMinecraftリリースを自動的に使用します。更新には再インストールが必要です。",
+      "vanillaSpecificDesc": "サーバーjarはMojangの公式ランチャーメタからダウンロードされます。",
+      "changes": "{count}件の変更",
+      "changes_plural": "{count}件の変更",
+      "hideNotes": "ノートを非表示",
+      "versionAppliedDescPaper": "Paper {version}が適用されました。更新を完了するために今すぐ再インストールしますか？",
+      "versionAppliedDescVanilla": "Vanilla {version}が適用されました。更新を完了するために今すぐ再インストールしますか？"
+    },
+    "plugins": {
+      "searchPlaceholder": "Modrinthプラグインを検索...",
+      "search": "検索",
+      "installed": "インストール済み（{count}）",
+      "noPlugins": "まだプラグインがインストールされていません。",
+      "noResults": "「{query}」のプラグインが見つかりません",
+      "noResultsHint": "別の検索語をお試しください。",
+      "viewDetails": "詳細を表示 / 更新",
+      "delete": "プラグインを削除",
+      "installedBadge": "インストール済み",
+      "downloads": "{count}ダウンロード",
+      "notFound": "Modrinthにありません",
+      "notFoundDesc": "「{name}」はModrinthで見つかりませんでした。カスタムまたはプライベートプラグインの可能性があります — SFTP/ファイルで管理してください。",
+      "close": "閉じる",
+      "installSelected": "選択したバージョンをインストール",
+      "installing": "インストール中...",
+      "versions": "バージョン",
+      "noVersions": "利用可能なバージョンはありません。",
+      "deleteTitle": "プラグインを削除",
+      "deleteConfirm": "サーバーから「{name}」を削除しますか？",
+      "byAuthor": "作者：{author}",
+      "onModrinth": "Modrinth"
+    },
+    "dialogs": {
+      "cancel": "キャンセル",
+      "confirm": "確認",
+      "addToWhitelist": "ホワイトリストに追加",
+      "removeFromWhitelist": "ホワイトリストから削除",
+      "deop": "OP解除",
+      "pardon": "赦免",
+      "ban": "禁止",
+      "kick": "キック",
+      "op": "OP",
+      "whitelistConfirm": "「{player}」をホワイトリストに追加しますか？",
+      "unwhitelistConfirm": "「{player}」をホワイトリストから削除しますか？",
+      "banConfirm": "「{player}」をBANしますか？",
+      "pardonConfirm": "「{player}」を赦免/BAN解除しますか？",
+      "kickConfirm": "「{player}」をサーバーからキックしますか？",
+      "opConfirm": "「{player}」をOPにしますか？",
+      "deopConfirm": "「{player}」のOPを解除しますか？",
+      "reasonPlaceholder": "理由（任意）"
+    },
+    "errors": {
+      "loadPlayers": "プレイヤーの読み込みに失敗しました",
+      "loadPaperVersions": "Paperバージョンの読み込みに失敗しました",
+      "loadBuilds": "ビルドの読み込みに失敗しました",
+      "loadVanillaVersions": "Vanillaバージョンの読み込みに失敗しました",
+      "actionFailed": "アクションに失敗しました",
+      "applyFailed": "バージョンの適用に失敗しました",
+      "reinstallFailed": "再インストールの開始に失敗しました：{message}",
+      "unknownError": "不明なエラー",
+      "searchPlugins": "プラグインの検索に失敗しました",
+      "installPlugin": "プラグインのインストールに失敗しました",
+      "toggleWhitelist": "ホワイトリストの切り替えに失敗しました",
+      "saveSettings": "設定の保存に失敗しました",
+      "reinstallInitiated": "再インストールが開始されました – サーバーは新しいバージョンで再インストールされます。"
+    },
+    "startup": {
+      "startupCommand": "起動コマンド",
+      "startupDesc": "Minecraftサーバーの起動に使用されるコマンド。変更を反映するには再起動が必要です。",
+      "presets": "クイックプリセット",
+      "defaultPreset": "デフォルト",
+      "defaultPresetDesc": "最適化されたメモリとターミナル設定の標準起動コマンド。",
+      "aikarFlags": "Aikar's Flags",
+      "aikarFlagsDesc": "Paper/PurpurサーバーでGCパフォーマンスを向上させるためのAikar推奨JVMフラグ。",
+      "custom": "カスタム",
+      "saveStartup": "起動コマンドを保存",
+      "startupSaved": "起動コマンドが保存されました。変更を反映するにはサーバーを再起動してください。",
+      "startupSaveFailed": "起動コマンドの保存に失敗しました：{message}",
+      "startupLoading": "起動設定を読み込み中..."
+    }
+  },
+  "calendarPage": {
+    "title": "カレンダー & ToDo",
+    "description": "週の計画、イベント管理、整理整頓",
+    "view": {
+      "calendar": "カレンダー",
+      "todo": "ToDo"
+    },
+    "calendar": {
+      "today": "今日",
+      "upcomingEvents": "今後のイベント",
+      "noUpcomingEvents": "今後のイベントはありません。日付をクリックして追加してください。",
+      "newEvent": "新しいイベント",
+      "editEvent": "イベントを編集",
+      "eventTitle": "イベントタイトル",
+      "description": "説明（任意）",
+      "start": "開始",
+      "end": "終了",
+      "color": "色",
+      "repeat": "繰り返し",
+      "doesNotRepeat": "繰り返さない",
+      "daily": "毎日",
+      "weekly": "毎週",
+      "monthly": "月額",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "delete": "削除",
+      "more": "+{count}件"
+    },
+    "todo": {
+      "openTasks": "{count}件の未完了{count, plural, one {タスク} other {タスク}}",
+      "thisWeek": "今週{count}件",
+      "quickAdd": "ToDoをクイック追加...",
+      "newTask": "新しいタスク",
+      "editTask": "タスクを編集",
+      "aiPlan": "AI計画",
+      "taskTitle": "タスクタイトル",
+      "description": "説明（任意）",
+      "priority": "優先度",
+      "high": "高",
+      "medium": "中",
+      "low": "低",
+      "dueDate": "期限日",
+      "time": "時刻",
+      "estimatedMinutes": "推定時間（分）",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "delete": "削除",
+      "weekOf": "{date}の週",
+      "noDueDate": "期限なし",
+      "allTasksHaveDueDate": "すべてのタスクに期限があります。"
+    },
+    "ai": {
+      "planning": "計画中...",
+      "planningError": "AIプランナーは現在利用できません。後でもう一度お試しください。"
+    }
+  },
+  "blogPage": {
+    "title": "ブログ",
+    "description": "説明",
+    "noDescription": "まだ説明はありません",
+    "view": "表示",
+    "published": "公開済み",
+    "drafts": "下書き",
+    "settings": "設定",
+    "builder": "ビルダー",
+    "posts": "投稿",
+    "newPost": "新しい投稿",
+    "noPosts": "まだ投稿はありません。最初の投稿を書きましょう！",
+    "edit": "編集",
+    "back": "ブログに戻る",
+    "error": "ブログを読み込めませんでした",
+    "slug": "スラッグ",
+    "excerpt": "抜粋（任意）",
+    "excerptPlaceholder": "簡単な概要...",
+    "postTitle": "敬称",
+    "postTitlePlaceholder": "投稿タイトル...",
+    "write": "執筆",
+    "preview": "プレビュー",
+    "contentPlaceholder": "Markdownで投稿を書く...",
+    "previewEmpty": "まだプレビューするものはありません...",
+    "coverImage": "カバー画像（任意）",
+    "upload": "アップロード",
+    "uploading": "アップロード中...",
+    "tags": "タグ（カンマ区切り）",
+    "saveDraft": "下書きを保存",
+    "publish": "公開",
+    "save": "保存",
+    "saving": "保存中...",
+    "delete": "削除",
+    "confirmDelete": "この投稿を削除しますか？",
+    "editPost": "投稿を編集",
+    "editPostDescription": "ブログ投稿を編集",
+    "newPostDescription": "新しいブログ投稿を書く",
+    "settingsDescription": "ブログの外観と設定をカスタマイズ",
+    "general": "一般",
+    "theme": "テーマ",
+    "blogInfo": "ブログ情報",
+    "blogName": "ブログ名",
+    "visibility": "表示設定",
+    "public": "公開",
+    "members": "メンバー",
+    "unlisted": "未公開",
+    "themePresets": "テーマプリセット",
+    "themePresetsDescription": "プリセットを選んで調整",
+    "colors": "色",
+    "primaryColor": "プライマリ",
+    "bgColor": "背景",
+    "fgColor": "テキスト",
+    "cardColor": "カード",
+    "typography": "タイポグラフィ",
+    "headingFont": "見出しフォント",
+    "bodyFont": "本文フォント",
+    "sampleTitle": "サンプルブログタイトル",
+    "sampleDescription": "ブログの説明はこのように表示されます。",
+    "samplePost": "サンプル投稿タイトル",
+    "samplePostDate": "たった今投稿",
+    "membersDescription": "ブログに投稿できる人を管理",
+    "addMember": "メンバーを追加",
+    "confirmRemoveMember": "このメンバーを削除しますか？",
+    "noMembers": "まだメンバーはいません。ブログに執筆者を招待しましょう！",
+    "memberEmail": "ユーザーメール",
+    "memberRole": "ロール",
+    "memberNotFound": "メンバーが見つかりません",
+    "memberAlreadyExists": "メンバーは既に存在します",
+    "memberEmailRequired": "メールアドレスは必須です",
+    "userNotFound": "ユーザーが見つかりません",
+    "invalidRole": "無効なロール",
+    "titleRequired": "タイトルは必須です",
+    "onlyOwnerCanTransfer": "ブログ所有者のみが所有権を譲渡できます",
+    "cannotRemoveOwner": "ブログ所有者を削除することはできません",
+    "orgMembershipRequired": "この組織のメンバーである必要があります",
+    "subscribe": "購読",
+    "subscribed": "購読中",
+    "unsubscribe": "購読解除",
+    "cannotSubscribeOwn": "自分のブログを購読することはできません",
+    "alreadySubscribed": "既に購読中です",
+    "notSubscribed": "購読していません",
+    "subscriberCount": "{count}人の購読者",
+    "builderDescription": "ブログランディングページのレイアウトをデザイン",
+    "builderEmpty": "まだセクションはありません。パレットからセクションを追加してブログレイアウトを構築してください。",
+    "createBlog": "ブログを作成",
+    "createBlogDescription": "ブログのURLスラッグを選択してください。これが公開アドレスになります。",
+    "blogUrl": "ブログURL",
+    "slugAvailable": "このURLは利用可能です！",
+    "slugTaken": "このURLは既に使用されています。別のURLをお試しください。",
+    "slugInvalid": "無効なスラッグです。英数字とハイフンを使用してください（2文字以上）。",
+    "creating": "作成中...",
+    "scriptsHandbook": "ブログスクリプトSDKハンドブック",
+    "customCss": "カスタムCSS",
+    "customCssDescription": "独自のCSSを追加します。公開ブログページに挿入されます。",
+    "contentFlags": "コンテンツフラグ",
+    "mature": "成人向け（NSFW）",
+    "political": "政治的意見",
+    "analytics": "分析",
+    "analyticsDescription": "投稿パフォーマンスと閲覧統計",
+    "analyticsTotalViews": "総閲覧数",
+    "analyticsLastNDays": "過去{days}日",
+    "analyticsTopPostsByViews": "閲覧数トップ投稿",
+    "analyticsNoPublishedPosts": "まだ公開された投稿はありません。",
+    "analyticsAllPosts": "すべての投稿",
+    "analyticsTableTitle": "敬称",
+    "analyticsTableViews": "閲覧数",
+    "analyticsTableStatus": "ステータス",
+    "analyticsTableCreated": "作成日",
+    "views": "閲覧数",
+    "handbook": "ハンドブック"
+  }
+}
