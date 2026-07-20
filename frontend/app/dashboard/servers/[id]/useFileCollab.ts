@@ -125,7 +125,8 @@ export default function useFileCollab({ enabled, filePath, serverId, userName, u
         }
       };
 
-      const onSync = (syncPath: string, state: string, meta?: string) => {
+      const onSync = (args: unknown[]) => {
+        const syncPath = String(args?.[0] ?? ''); const state = String(args?.[1] ?? ''); const meta = args?.[2] as string | undefined;
         if (normPath(syncPath) !== normPath(path)) return;
         console.log(LOG, 'FILE_COLLAB_SYNC', state?.length, 'bytes');
         syncReceived = true;
@@ -173,19 +174,22 @@ export default function useFileCollab({ enabled, filePath, serverId, userName, u
         s.send(SocketRequest.FILE_COLLAB_AWARENESS, [path, b64enc(encodeAwarenessUpdate(awareness, [doc.clientID]))]);
       };
 
-      const onUpdate = (p: string, update: string) => {
+      const onUpdate = (args: unknown[]) => {
+        const p = String(args?.[0] ?? ''); const update = String(args?.[1] ?? '');
         if (normPath(p) !== normPath(path) || !docRef.current) return;
         console.log(LOG, 'update', update?.length, 'bytes');
         Y.applyUpdate(docRef.current, b64dec(update), 'remote');
       };
 
-      const onAwareness = (p: string, update: string) => {
+      const onAwareness = (args: unknown[]) => {
+        const p = String(args?.[0] ?? ''); const update = String(args?.[1] ?? '');
         if (normPath(p) !== normPath(path) || !awarenessRef.current) return;
         console.log(LOG, 'awareness', update?.length, 'bytes');
         applyAwarenessUpdate(awarenessRef.current, b64dec(update), 'remote');
       };
 
-      const onParticipants = (p: string, data: string) => {
+      const onParticipants = (args: unknown[]) => {
+        const p = String(args?.[0] ?? ''); const data = String(args?.[1] ?? '');
         if (normPath(p) !== normPath(path)) return;
         console.log(LOG, 'participants:', data);
         let list: CollabParticipant[] = [];
@@ -213,7 +217,8 @@ export default function useFileCollab({ enabled, filePath, serverId, userName, u
         }
       };
 
-      const onSavedEvent = (p: string, data: string) => {
+      const onSavedEvent = (args: unknown[]) => {
+        const p = String(args?.[0] ?? ''); const data = String(args?.[1] ?? '');
         if (normPath(p) !== normPath(path)) return;
         console.log(LOG, 'saved:', data);
         try {
@@ -222,7 +227,8 @@ export default function useFileCollab({ enabled, filePath, serverId, userName, u
         } catch {}
       };
 
-      const onErrorEvent = (p: string, message: string) => {
+      const onErrorEvent = (args: unknown[]) => {
+        const p = String(args?.[0] ?? ''); const message = String(args?.[1] ?? '');
         console.warn(LOG, 'error:', { path: p, message });
         if (normPath(p) !== normPath(path)) return;
         const wasActive = !!docRef.current;

@@ -169,7 +169,7 @@ export class WingsSocket extends Emitter {
         if (typeof e.data !== 'string') return
         const { event, args } = JSON.parse(e.data)
         if (event && event.startsWith('file collab')) console.log('[ws] recv:', event, args?.[0])
-        if (event) this.emit(event, ...(Array.isArray(args) ? args : [args]))
+        if (event) this.emit(event, args ?? [])
       } catch { /* ermmm */ }
     }
 
