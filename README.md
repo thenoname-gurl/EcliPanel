@@ -149,29 +149,6 @@ Here is some small overview about optimisation we have done!
   - Added `useMemo` around stats history data (`chartData`) to avoid recomputing on every render..
   - Already existing lazy loading of heavy dependencies (`@monaco-editor/react`, `recharts`) is now leveraged more aggressively in tab use patterns, so the app initial bundle reduces first paint cost.
 
-## Optimization Results (observed)
-- Repeated dashboard refresh calls for mostly-read endpoints now hit the JS cache and skip server round trips for the 60s window which improves UX.
-- Stats tab no longer recomputes chart data on unrelated state changes, CPU usage and React render churn go down! (YAY)
-- Page load intial rendering is faster in cold loads because Monaco and charting engine only download when needed..
-
-### Optimization visual comparison
-Before and after optimization showed performance improvement on most pages avg at 10-20 points per page!
-
-<p float="left">
-  <img src="./showcase/Before-Optimisation.png" alt="Before optimization" width="45%" />
-  <img src="./showcase/After-Optimisation.png" alt="After optimization" width="45%" />
-</p>
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=thenoname-gurl%2FEcliPanel&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=thenoname-gurl/EcliPanel&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=thenoname-gurl/EcliPanel&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=thenoname-gurl/EcliPanel&type=date&legend=top-left" />
- </picture>
-</a>
-
 Happy exploring!
 >Side note: 
 > This project took part in [Flavortown](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) and in [Macondo](https://macondo.hackclub.com/projects/506?ref=HHDFS)!
