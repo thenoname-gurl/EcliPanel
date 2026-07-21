@@ -18,7 +18,7 @@ import { WingsApiService } from '../services/wingsApiService';
 import { t } from 'elysia';
 import { errorMessage, sanitizeError } from '../utils/sanitizeError';
 import { randomHex } from '../utils/bunCrypto';
-import type { BaseHandlerContext, NodeApp, CreateNodeBody, UpdateNodeBody, RebootOperation } from '../types';
+import type { AuthenticatedHandlerContext, BaseHandlerContext, NodeApp, CreateNodeBody, UpdateNodeBody, RebootOperation } from '../types';
 import type { OrganisationMember } from '../models/organisationMember.entity';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
@@ -1209,6 +1209,94 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         404: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Get reboot operation status', tags: ['Nodes'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/nodes/:nodeId/servers/transfer',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const nodeId = Number((ctx.params as any).nodeId);
+      const body = (ctx.body || {}) as Record<string, unknown>;
+
+      const sourceNode = await nodeRepo().findOneBy({ id: nodeId });
+      if (!sourceNode) { ctx.set.status = 404; return { error: 'Node not found' }; }
+
+      const destNodeId = body.node_uuid != null ? Number(body.node_uuid) : undefined;
+      if (!destNodeId) { ctx.set.status = 400; return { error: 'node_uuid (destination) is required' }; }
+      if (destNodeId === nodeId) { ctx.set.status = 409; return { error: 'Cannot transfer to the same node' }; }
+
+      const destNode = await nodeRepo().findOneBy({ id: destNodeId });
+      if (!destNode) { ctx.set.status = 404; return { error: 'Destination node not found' }; }
+
+      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+      const serverUuids = Array.isArray(body.servers) && (body.servers as any[]).length > 0
+        ? body.servers as string[]
+        : (await cfgRepo.find({ where: { nodeId }, select: { uuid: true } })).map(c => c.uuid);
+
+      let affected = 0;
+      const targetUrl = `${String(destNode.url).replace(/\/+$/, '')}/api/transfers`;
+      const now = Math.floor(Date.now() / 1000);
+      const { signWingsJwt } = require('./remoteHandler');
+
+      for (const uuid of serverUuids) {
+        const cfg = await cfgRepo.findOneBy({ uuid });
+        if (!cfg || cfg.nodeId !== nodeId || cfg.destinationNodeId != null) continue;
+
+        cfg.destinationNodeId = destNodeId;
+        await cfgRepo.save(cfg);
+
+        try {
+          const svc = await nodeService.getServiceForServer(uuid) as any;
+          const token = signWingsJwt({
+            iss: 'eclipanel', sub: uuid, aud: '', iat: now, nbf: now, exp: now + 600,
+            jti: crypto.randomUUID(), scope: 'transfer',
+          }, destNode.token);
+
+          await svc.transferServer(uuid, {
+            url: targetUrl, token,
+            archive_format: body.archive_format || 'tar_zstd',
+            compression_level: body.compression_level || 'good_compression',
+            multiplex_streams: Number(body.multiplex_channels ?? body.multiplex_streams ?? 0),
+            ...(body.transfer_backups && Array.isArray(body.backups) ? { backups: body.backups } : {}),
+            ...(body.delete_source_backups ? { delete_backups: true } : {}),
+          });
+          affected++;
+        } catch {
+          cfg.destinationNodeId = undefined;
+          await cfgRepo.save(cfg).catch(() => {});
+        }
+      }
+
+      return { affected };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:transfers')],
+      body: t.Any(),
+      detail: { summary: 'Mass transfer servers from node', tags: ['Nodes'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/nodes/:nodeId/servers/transfers',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const nodeId = Number((ctx.params as any).nodeId);
+      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+      const servers = await cfgRepo.find({ where: { nodeId, destinationNodeId: In([nodeId]) as any } });
+      const incoming = await cfgRepo.find({ where: { destinationNodeId: nodeId } as any });
+
+      return {
+        transferring: [...servers, ...incoming].map(c => ({
+          uuid: c.uuid,
+          name: c.name,
+          nodeId: c.nodeId,
+          destinationNodeId: c.destinationNodeId,
+          createdAt: c.createdAt,
+        })),
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:transfers')],
+      detail: { summary: 'List transferring servers on node', tags: ['Nodes'] },
     }
   );
 }

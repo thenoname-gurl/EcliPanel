@@ -4837,7 +4837,26 @@
         "notice": "This may take several minutes. Both nodes must be online.",
         "forceTransfer": "Force Transfer (delete all data on source)",
         "forceTransferButton": "Force Transfer",
-        "forceTransferWarning": "WARNING: This will delete all server data on the source node and recreate the server on the target node with new port allocations. All files, databases, and configurations stored on the server will be permanently lost."
+        "forceTransferWarning": "WARNING: This will delete all server data on the source node and recreate the server on the target node with new port allocations. All files, databases, and configurations stored on the server will be permanently lost.",
+        "archiveFormat": "Archive Format",
+        "compression": "Compression",
+        "multiplexChannels": "Multiplex Channels",
+        "multiplexHint": "Parallel transfer streams (0-16). Higher = faster but more bandwidth.",
+        "deleteSourceBackups": "Delete source backups after transfer",
+        "transferBackups": "Transfer Backups",
+        "startTransfer": "Start Transfer",
+        "cancelTransfer": "Cancel Transfer",
+        "transferring": "Transferring...",
+        "progress": "{pct}% complete",
+        "files": "Files",
+        "archived": "Archived",
+        "sent": "Sent",
+        "total": "Total",
+        "noCompressionNote": "Not available for uncompressed formats.",
+        "loadingNodes": "Loading nodes...",
+        "noAvailableNodes": "No available nodes found.",
+        "transferringBanner": "Server is being transferred",
+        "transferringMessage": "This server is currently being transferred to another node and cannot be accessed until the transfer is complete."
       }
     },
     "kvm": {

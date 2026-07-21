@@ -1091,7 +1091,7 @@
     "sendResetEmail": "リセットメールを送信",
     "backToSignIn": "サインインに戻る",
     "messages": {
-      "sent": "そのメールアドレスが存在する場合、まもなくパスワードリセットの手順が届きます。"
+      "sent": "送信済み"
     },
     "errors": {
       "enterEmail": "メールアドレスを入力してください",
@@ -1138,7 +1138,7 @@
     "badges": {
       "active": "アクティブ",
       "closed": "クローズ",
-      "archived": "アーカイブ",
+      "archived": "アーカイブ済み",
       "publicAnonymous": "公開",
       "publicUsers": "ユーザー",
       "privateInvite": "招待のみ"
@@ -1532,7 +1532,7 @@
       "placeholder": "サーバー、ノード、IP、検出タイプで検索..."
     },
     "summary": {
-      "total": "総インシデント数",
+      "total": "合計",
       "highRisk": "高リスク（80以上）",
       "suspended": "停止中",
       "liveFeed": "不正利用対策デーモンからのライブフィード",
@@ -1616,12 +1616,12 @@
       "pending": "保留中",
       "resolved": "解決済み",
       "dismissed": "却下",
-      "archived": "アーカイブ"
+      "archived": "アーカイブ済み"
     },
     "pagination": {
       "page": "ページ",
       "of": "/",
-      "total": "合計{count}件",
+      "total": "合計",
       "previous": "前",
       "next": "次"
     },
@@ -1648,7 +1648,7 @@
     "table": {
       "user": "ユーザー",
       "status": "ステータス",
-      "progress": "進捗",
+      "progress": "{pct}% 完了",
       "created": "作成日",
       "updated": "更新日",
       "actions": "アクション"
@@ -1701,7 +1701,7 @@
     "pagination": {
       "page": "ページ",
       "of": "/",
-      "total": "合計{count}件"
+      "total": "合計"
     },
     "actions": {
       "refresh": "更新",
@@ -1730,7 +1730,7 @@
       "awaitingReply": "返信待ち",
       "replied": "返信済み",
       "closed": "クローズ",
-      "archived": "アーカイブ",
+      "archived": "アーカイブ済み",
       "aiHandled": "AI処理"
     },
     "search": {
@@ -1770,12 +1770,12 @@
       "awaitingStaffReply": "スタッフ返信待ち",
       "replied": "返信済み",
       "closed": "クローズ",
-      "archived": "アーカイブ"
+      "archived": "アーカイブ済み"
     },
     "pagination": {
       "page": "ページ",
       "of": "/",
-      "total": "合計{count}件"
+      "total": "合計"
     },
     "dialog": {
       "replyTitle": "返信 — #{id}",
@@ -1852,7 +1852,7 @@
     "pagination": {
       "page": "ページ",
       "of": "/",
-      "total": "合計{count}件"
+      "total": "合計"
     },
     "issueDialog": {
       "title": "注文を発行",
@@ -2627,7 +2627,7 @@
     "statusBadge": {
       "active": "アクティブ",
       "closed": "クローズ",
-      "archived": "アーカイブ",
+      "archived": "アーカイブ済み",
       "pending": "保留中",
       "accepted": "承認済み",
       "rejected": "拒否"
@@ -2635,7 +2635,7 @@
     "status": {
       "active": "アクティブ",
       "closedViewOnly": "クローズ（閲覧のみ）",
-      "archived": "アーカイブ"
+      "archived": "アーカイブ済み"
     },
     "questionTypes": {
       "shortText": "短いテキスト",
@@ -2726,7 +2726,7 @@
         "pending": "保留中",
         "accepted": "承認済み",
         "rejected": "拒否",
-        "archived": "アーカイブ"
+        "archived": "アーカイブ済み"
       }
     },
     "table": {
@@ -2747,7 +2747,7 @@
     "pagination": {
       "page": "ページ",
       "of": "/",
-      "total": "合計：{count}",
+      "total": "合計",
       "previous": "前",
       "next": "次"
     },
@@ -3047,7 +3047,7 @@
     "pagination": {
       "page": "ページ",
       "of": "/",
-      "total": "合計{count}件"
+      "total": "合計"
     },
     "editDialog": {
       "title": "組織を編集",
@@ -3109,7 +3109,7 @@
     "pagination": {
       "page": "ページ",
       "of": "/",
-      "total": "合計{count}件"
+      "total": "合計"
     },
     "editDialog": {
       "title": "サーバーを編集",
@@ -4863,7 +4863,20 @@
         "notice": "数分かかる場合があります。両方のノードがオンラインである必要があります。",
         "forceTransfer": "強制転送（ソースの全データを削除）",
         "forceTransferButton": "強制転送",
-        "forceTransferWarning": "警告：これによりソースノード上のすべてのサーバーデータが削除され、新しいポート割り当てでターゲットノードにサーバーが再作成されます。サーバーに保存されたすべてのファイル、データベース、設定は完全に失われます。"
+        "forceTransferWarning": "警告：これによりソースノード上のすべてのサーバーデータが削除され、新しいポート割り当てでターゲットノードにサーバーが再作成されます。サーバーに保存されたすべてのファイル、データベース、設定は完全に失われます。",
+        "transferringMessage": "このサーバーは現在別のノードに転送中で、転送が完了するまでアクセスできません。",
+        "transferringBanner": "サーバーは転送中です",
+        "noAvailableNodes": "利用可能なノードがありません。",
+        "noCompressionNote": "非圧縮形式では利用できません。",
+        "transferring": "転送中...",
+        "cancelTransfer": "転送キャンセル",
+        "startTransfer": "転送開始",
+        "transferBackups": "バックアップを転送",
+        "deleteSourceBackups": "転送後にソースバックアップを削除",
+        "multiplexHint": "並列転送ストリーム (0-16)。高いほど高速ですが帯域幅を消費します。",
+        "multiplexChannels": "多重チャンネル",
+        "compression": "圧縮",
+        "archiveFormat": "アーカイブ形式"
       }
     },
     "kvm": {
@@ -5012,7 +5025,7 @@
       "empty": "バックアップが見つかりません。作成して開始してください。",
       "backupFallback": "バックアップ",
       "backupFailed": "バックアップに失敗しました",
-      "progress": "{value}%完了",
+      "progress": "{pct}% 完了",
       "restore": "復元",
       "unlockBackup": "バックアップのロックを解除",
       "lockBackup": "バックアップをロック",
@@ -5332,7 +5345,7 @@
     },
     "states": {
       "nodesRegistered": "{count}件のノードが登録されています",
-      "loadingNodes": "ノードを読み込み中...",
+      "loadingNodes": "ノード読み込み中...",
       "noNodesTitle": "まだノードはありません",
       "noNodesDescription": "最初のノードを追加してワークロードのホスティングを開始してください。"
     },
@@ -5447,7 +5460,7 @@
         "awaitingStaff": "スタッフ待ち",
         "replied": "返信済み",
         "closed": "クローズ",
-        "archived": "アーカイブ"
+        "archived": "アーカイブ済み"
       },
       "priority": {
         "all": "すべての優先度",

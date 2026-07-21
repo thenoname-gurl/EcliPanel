@@ -1091,7 +1091,7 @@
     "sendResetEmail": "发送重置邮件",
     "backToSignIn": "返回登录",
     "messages": {
-      "sent": "如果该邮箱存在，您将很快收到密码重置说明。"
+      "sent": "已发送"
     },
     "errors": {
       "enterEmail": "请输入您的邮箱地址",
@@ -1799,7 +1799,7 @@
       "placeholder": "按服务器、节点、IP、检测类型搜索..."
     },
     "summary": {
-      "total": "事件总数",
+      "total": "总计",
       "highRisk": "高风险 (80+)",
       "suspended": "已暂停",
       "liveFeed": "来自反滥用守护进程的实时数据",
@@ -1888,7 +1888,7 @@
     "pagination": {
       "page": "页",
       "of": "/",
-      "total": "{count} 总计",
+      "total": "总计",
       "previous": "上一页",
       "next": "下一页"
     },
@@ -1915,7 +1915,7 @@
     "table": {
       "user": "用户",
       "status": "状态",
-      "progress": "进度",
+      "progress": "已完成 {pct}%",
       "created": "创建时间",
       "updated": "更新时间",
       "actions": "操作"
@@ -1968,7 +1968,7 @@
     "pagination": {
       "page": "页",
       "of": "/",
-      "total": "{count} 总计"
+      "total": "总计"
     },
     "actions": {
       "refresh": "刷新",
@@ -2042,7 +2042,7 @@
     "pagination": {
       "page": "页",
       "of": "/",
-      "total": "{count} 总计"
+      "total": "总计"
     },
     "dialog": {
       "replyTitle": "Reply — #{id}",
@@ -2119,7 +2119,7 @@
     "pagination": {
       "page": "页",
       "of": "/",
-      "total": "{count} 总计"
+      "total": "总计"
     },
     "issueDialog": {
       "title": "发放订单",
@@ -3014,7 +3014,7 @@
     "pagination": {
       "page": "页",
       "of": "/",
-      "total": "总计：{count}",
+      "total": "总计",
       "previous": "上一页",
       "next": "下一页"
     },
@@ -3314,7 +3314,7 @@
     "pagination": {
       "page": "页",
       "of": "/",
-      "total": "{count} 总计"
+      "total": "总计"
     },
     "editDialog": {
       "title": "编辑组织",
@@ -3376,7 +3376,7 @@
     "pagination": {
       "page": "页",
       "of": "/",
-      "total": "{count} 总计"
+      "total": "总计"
     },
     "editDialog": {
       "title": "编辑服务器",
@@ -4863,7 +4863,20 @@
         "notice": "这可能需要几分钟。两个节点都必须在线。",
         "forceTransfer": "强制转移（删除源节点上的所有数据）",
         "forceTransferButton": "强制转移",
-        "forceTransferWarning": "警告：这将删除源节点上的所有服务器数据，并在目标节点上使用新的端口分配重新创建服务器。服务器上存储的所有文件、数据库和配置将永久丢失。"
+        "forceTransferWarning": "警告：这将删除源节点上的所有服务器数据，并在目标节点上使用新的端口分配重新创建服务器。服务器上存储的所有文件、数据库和配置将永久丢失。",
+        "transferringMessage": "此服务器正在传输到另一个节点，传输完成前无法访问。",
+        "transferringBanner": "服务器正在传输",
+        "noAvailableNodes": "没有可用节点。",
+        "noCompressionNote": "不适用于无压缩格式。",
+        "transferring": "传输中...",
+        "cancelTransfer": "取消传输",
+        "startTransfer": "开始传输",
+        "transferBackups": "传输备份",
+        "deleteSourceBackups": "传输后删除源备份",
+        "multiplexHint": "并行传输流 (0-16)。越高越快，但占用更多带宽。",
+        "multiplexChannels": "多路通道",
+        "compression": "压缩",
+        "archiveFormat": "归档格式"
       }
     },
     "kvm": {
@@ -5012,7 +5025,7 @@
       "empty": "未找到备份。创建一个以开始使用。",
       "backupFallback": "备份",
       "backupFailed": "备份失败",
-      "progress": "已完成 {value}%",
+      "progress": "已完成 {pct}%",
       "restore": "恢复",
       "unlockBackup": "解锁备份",
       "lockBackup": "锁定备份",
@@ -5332,7 +5345,7 @@
     },
     "states": {
       "nodesRegistered": "已注册 {count} 个节点",
-      "loadingNodes": "Loading nodes...",
+      "loadingNodes": "正在加载节点...",
       "noNodesTitle": "No nodes yet",
       "noNodesDescription": "Add your first node to start hosting workloads."
     },

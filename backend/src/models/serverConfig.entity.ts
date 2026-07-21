@@ -11,6 +11,10 @@ export class ServerConfig {
   nodeId: number;
 
   @Index()
+  @Column({ nullable: true })
+  destinationNodeId?: number;
+
+  @Index()
   @Column()
   userId: number;
 

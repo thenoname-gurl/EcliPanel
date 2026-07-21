@@ -256,6 +256,8 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'schedules:write', category: 'Schedules', admin: false },
   { value: 'sync:execute', category: 'Sync', admin: false },
   { value: 'transfer:execute', category: 'Transfer', admin: false },
+  { value: 'nodes:transfers', category: 'Transfer', admin: true },
+  { value: 'admin:websocket:transfer', category: 'Transfer', admin: true },
   { value: 'version:read', category: 'Version', admin: false },
   { value: 'wings:system', category: 'Wings', admin: true },
   { value: 'wings:transfers', category: 'Wings', admin: true },

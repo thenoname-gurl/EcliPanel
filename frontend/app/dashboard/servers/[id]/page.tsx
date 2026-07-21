@@ -111,6 +111,7 @@ const SharesTabLazy = lazy(() => import("./SharesTab").then((m) => ({ default: m
 const MinecraftTabLazy = lazy(() => import("./MinecraftTab").then((m) => ({ default: m.MinecraftTab })))
 const BackupsTabLazy = lazy(() => import("./BackupsTab").then((m) => ({ default: m.BackupsTab })))
 const SchedulesTabLazy = lazy(() => import("./SchedulesTab").then((m) => ({ default: m.SchedulesTab })))
+import { ServerTransferModal } from "./ServerTransferModal"
 
 // ─── Shared UI Primitives ────────────────────────────────────────────────────
 
@@ -1125,6 +1126,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
     !!subuserEntry && !isOwnerOrAdmin && subuserEntry.accepted !== false
 
   const hasServerAccess = isOwnerOrAdmin || isViewerSubuser
+  const isTransferring = !!server?.isTransferring || server?.configuration?.destinationNodeId != null
   const isDmcaProtected = server?.status === 'dmca' || !!server?.is_dmca
   const dmcaDeletionAt = server?.dmcaDeletionAt ? new Date(server.dmcaDeletionAt) : server?.configuration?.dmcaDeletionAt ? new Date(server.configuration.dmcaDeletionAt) : null
   const dmcaDaysLeft = dmcaDeletionAt ? Math.max(0, Math.ceil((dmcaDeletionAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000))) : null
@@ -1228,6 +1230,25 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       </div>
     )
   }
+
+    if (isTransferring) {
+      return (
+        <div className="flex min-h-full items-center justify-center p-6">
+          <div className="max-w-2xl border border-blue-500/30 bg-blue-500/5 p-8 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 mb-4">
+              <Server className="h-8 w-8" />
+            </div>
+            <h2 className="text-2xl font-semibold text-foreground mb-3">{t("transfer.transferringBanner")}</h2>
+            <p className="text-sm text-muted-foreground mb-3">
+              {t("transfer.transferringMessage")}
+            </p>
+            <Button variant="outline" onClick={() => router.push("/dashboard/servers")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Servers
+            </Button>
+          </div>
+        </div>
+      )
+    }
 
     if (isDmcaProtected && !isAdminUser) {
       return (
@@ -1629,175 +1650,12 @@ const dmcaAlert = isDmcaProtected ? (
       </Dialog>
 
       {/* Transfer Dialog */}
-      <Dialog
+      <ServerTransferModal
+        serverId={id}
+        server={server}
         open={transferDialogOpen}
-        onOpenChange={(open) => {
-          if (!open && !transferring) {
-            setTransferDialogOpen(false)
-            setTransferNodeId(null)
-            setTransferError(null)
-          }
-        }}
-      >
-        <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-md overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">{t("dialogs.transfer.title")}</DialogTitle>
-          </DialogHeader>
-          <div className="py-3 space-y-4">
-            {!transferring ? (
-              <>
-                <p className="text-sm text-muted-foreground break-words">
-                  {t("dialogs.transfer.description")}
-                </p>
-                {isKvm && (
-                  <KvmInfoNotice message={t("kvm.transferNotice")} />
-                )}
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-foreground">{t("dialogs.transfer.destinationNode")}</label>
-                  <select
-                    value={transferNodeId ?? ""}
-                    onChange={(e) =>
-                      setTransferNodeId(e.target.value ? Number(e.target.value) : null)
-                    }
-                    className="w-full border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary appearance-none"
-                  >
-                    <option value="">{t("dialogs.transfer.selectNode")}</option>
-                    {transferNodes.map((n: any) => (
-                      <option key={n.id} value={n.id}>
-                        {n.name || n.nodeId || n.id}{" "}
-                        {n.nodeType ? `(${n.nodeType})` : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {transferError && (
-                  <div className="p-3 bg-destructive/10 border border-destructive/20">
-                    <p className="text-xs text-destructive break-words">{transferError}</p>
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  {t("dialogs.transfer.notice")}
-                </p>
-                <div className="flex items-center gap-2 pt-2 border-t border-border">
-                  <input
-                    type="checkbox"
-                    id="force-transfer"
-                    checked={forceTransfer}
-                    onChange={(e) => setForceTransfer(e.target.checked)}
-                    className="h-4 w-4 rounded border-border bg-input accent-primary"
-                  />
-                  <label htmlFor="force-transfer" className="text-xs text-destructive cursor-pointer select-none">
-                    {t("dialogs.transfer.forceTransfer") || "Force Transfer"}
-                  </label>
-                </div>
-                {forceTransfer && (
-                  <div className="p-3 bg-destructive/10 border border-destructive/20 rounded">
-                    <p className="text-xs text-destructive leading-relaxed">
-                      {t("dialogs.transfer.forceTransferWarning") || "WARNING: This will delete all server data on the source node and recreate the server on the target node with new port allocations. All files, databases, and configurations stored on the server will be permanently lost."}
-                    </p>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-foreground">
-                  <Loader2 className="h-4 w-4 rounded-full animate-spin" />
-                  <span>Transferring server...</span>
-                </div>
-                {transferProgress ? (
-                  <div className="space-y-3">
-                    {/* Progress bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Archive</span>
-                        <span>
-                          {transferProgress.archive_bytes_processed != null && transferProgress.bytes_total != null && transferProgress.bytes_total > 0
-                            ? `${Math.round((transferProgress.archive_bytes_processed / transferProgress.bytes_total) * 100)}%`
-                            : "—"}
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary transition-all duration-500"
-                          style={{
-                            width: `${transferProgress.bytes_total && transferProgress.bytes_total > 0
-                              ? Math.min(100, (transferProgress.archive_bytes_processed ?? 0) / transferProgress.bytes_total * 100)
-                              : 0}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                    {/* Stats grid */}
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div className="p-2 bg-muted/50 rounded">
-                        <div className="text-muted-foreground">Files</div>
-                        <div className="font-mono text-foreground">
-                          {(transferProgress.files_processed ?? 0).toLocaleString()}
-                        </div>
-                      </div>
-                      <div className="p-2 bg-muted/50 rounded">
-                        <div className="text-muted-foreground">Sent</div>
-                        <div className="font-mono text-foreground">
-                          {formatBytes(transferProgress.network_bytes_processed ?? 0)}
-                        </div>
-                      </div>
-                      <div className="p-2 bg-muted/50 rounded">
-                        <div className="text-muted-foreground">Archived</div>
-                        <div className="font-mono text-foreground">
-                          {formatBytes(transferProgress.archive_bytes_processed ?? 0)}
-                        </div>
-                      </div>
-                      <div className="p-2 bg-muted/50 rounded">
-                        <div className="text-muted-foreground">Total</div>
-                        <div className="font-mono text-foreground">
-                          {formatBytes(transferProgress.bytes_total ?? 0)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted-foreground">Waiting for transfer to start...</p>
-                )}
-              </div>
-            )}
-          </div>
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            {!transferring ? (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => setTransferDialogOpen(false)}
-                  disabled={transferLoading}
-                  className="w-full sm:w-auto"
-                >
-                  {t("actions.cancel")}
-                </Button>
-                <Button
-                  onClick={forceTransfer ? doForceTransfer : doTransfer}
-                  disabled={transferLoading || !transferNodeId}
-                  className="w-full sm:w-auto"
-                  variant={forceTransfer ? "destructive" : "default"}
-                 data-telemetry="servers:dotransfer">
-                  {transferLoading && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
-                  {forceTransfer
-                    ? (t("dialogs.transfer.forceTransferButton") || "Force Transfer")
-                    : t("actions.transfer")}
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="destructive"
-                onClick={cancelTransfer}
-                disabled={cancellingTransfer}
-                className="w-full sm:w-auto"
-               data-telemetry="servers:canceltransfer">
-                {cancellingTransfer && <Loader2 className="h-4 w-4 rounded-full animate-spin mr-2" />}
-                Cancel Transfer
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onClose={() => { setTransferDialogOpen(false) }}
+      />
 
       {/* Devlog Required Dialog */}
       <Dialog

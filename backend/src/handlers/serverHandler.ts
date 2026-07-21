@@ -4836,147 +4836,98 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     }
   );
 
+  const seenTransferring = new Set<string>();
+
   app.post(
     prefix + '/servers/v1/:id/transfer',
     async (ctx: AuthenticatedHandlerContext) => {
       const { id } = (ctx.params ?? {}) as Record<string, string>;
       const payload = (ctx.body || {}) as Record<string, unknown>;
-      const user = ctx.user;
-
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) { ctx.set.status = 404; return { error: 'Server not found' }; }
+      if (cfg.destinationNodeId != null) {
+        ctx.set.status = 409;
+        return { error: 'Server is already being transferred' };
+      }
       let svc: WingsApiService;
-      try {
-        svc = await serviceFor(id) as WingsApiService;
-      } catch {
-        ctx.set.status = 404;
-        return { error: ctx.t('server.serverNotFound') || 'Server not found' };
+      try { svc = await serviceFor(id) as WingsApiService; } catch {
+        ctx.set.status = 500; return { error: 'Failed to resolve source node' };
       }
-
-      const sourceNodeId =
-        payload.sourceNodeId != null ? Number(payload.sourceNodeId) : undefined;
-      if (sourceNodeId) {
-        try {
-          const sourceNode = await nodeRepo().findOneBy({ id: sourceNodeId });
-          if (!sourceNode) {
-            ctx.set.status = 404;
-            return { error: ctx.t('node.sourceNotFound') || 'Source node not found' };
-          }
-          svc = new WingsApiService(sourceNode.backendWingsUrl || sourceNode.url, sourceNode.token);
-        } catch {
-          ctx.set.status = 500;
-          return { error: ctx.t('node.resolveFailed') || 'Failed to resolve source node' };
-        }
-      }
-
-      const targetNodeId = payload.targetNodeId != null ? Number(payload.targetNodeId) : undefined;
+      const targetNodeId = payload.node_uuid != null ? Number(payload.node_uuid) : (payload.targetNodeId != null ? Number(payload.targetNodeId) : undefined);
       if (!targetNodeId) {
-        ctx.set.status = 400;
-        return { error: 'targetNodeId is required' };
+        ctx.set.status = 400; return { error: 'node_uuid (target) is required' };
+      }
+      if (targetNodeId === cfg.nodeId) {
+        ctx.set.status = 409; return { error: 'Cannot transfer server to the same node' };
       }
 
-      let targetNode: Node;
-      try {
-        const found = await nodeRepo().findOneBy({ id: targetNodeId });
-        if (!found) {
-          ctx.set.status = 404;
-          return { error: ctx.t('node.targetNotFound') || 'Target node not found' };
-        }
-        targetNode = found;
-      } catch {
-        ctx.set.status = 500;
-        return { error: ctx.t('node.resolveTargetFailed') || 'Failed to resolve target node' };
-      }
+      const targetNode = await nodeRepo().findOneBy({ id: targetNodeId });
+      if (!targetNode) { ctx.set.status = 404; return { error: 'Target node not found' }; }
 
       const targetIp = targetNode.defaultIp || targetNode.fqdn || null;
+      const oldNodeId = cfg.nodeId;
       if (targetIp) {
         try {
-          const cfg = await cfgRepo().findOneBy({ uuid: id });
-          if (cfg?.allocations && typeof cfg.allocations === 'object') {
+          if (cfg.allocations && typeof cfg.allocations === 'object') {
             const alloc = { ...cfg.allocations } as Record<string, any>;
             const oldMappings: Record<string, number[]> = alloc.mappings || {};
             const newMappings: Record<string, number[]> = {};
-
             for (const [, ports] of Object.entries(oldMappings)) {
-              const portList = Array.isArray(ports)
-                ? ports.map(Number).filter(p => Number.isInteger(p) && p > 0 && p <= 65535)
-                : [];
-              if (portList.length > 0) {
-                newMappings[targetIp] = [...(newMappings[targetIp] || []), ...portList];
-              }
+              const portList = Array.isArray(ports) ? ports.map(Number).filter(p => Number.isInteger(p) && p > 0 && p <= 65535) : [];
+              if (portList.length > 0) newMappings[targetIp] = [...(newMappings[targetIp] || []), ...portList];
             }
-            if (newMappings[targetIp]) {
-              newMappings[targetIp] = [...new Set(newMappings[targetIp])].sort((a, b) => a - b);
-            }
-
-            if (alloc.default && typeof alloc.default === 'object') {
-              alloc.default.ip = targetIp;
-            }
-
+            if (newMappings[targetIp]) newMappings[targetIp] = [...new Set(newMappings[targetIp])].sort((a, b) => a - b);
+            if (alloc.default && typeof alloc.default === 'object') alloc.default.ip = targetIp;
             const newFqdns: Record<string, string> = {};
             for (const [oldKey, fqdn] of Object.entries(alloc.fqdns || {})) {
               const m = String(oldKey).match(/:(\d+)$/);
               if (m) newFqdns[`${targetIp}:${m[1]}`] = String(fqdn);
             }
-
             alloc.mappings = newMappings;
             alloc.fqdns = newFqdns;
             cfg.allocations = alloc;
-            await cfgRepo().save(cfg);
           }
-        } catch (e) {
-          app.log?.warn?.({ err: e, uuid: id }, 'transfer: failed to reassign allocations');
-        }
+        } catch (e) { app.log?.warn?.({ err: e, uuid: id }, 'transfer: failed to reassign allocations'); }
       }
+
+      cfg.destinationNodeId = targetNodeId;
+      cfg.nodeId = oldNodeId;
+      await cfgRepo().save(cfg);
 
       const targetUrl = `${String(targetNode.url).replace(/\/+$/, '')}/api/transfers`;
       const now = Math.floor(Date.now() / 1000);
-      const token = signWingsJwt(
-        {
-          iss: 'eclipanel',
-          sub: id,
-          aud: '',
-          iat: now,
-          nbf: now,
-          exp: now + 600,
-          jti: crypto.randomUUID(),
-          scope: 'transfer',
-        },
-        targetNode.token,
-      );
+      const token = signWingsJwt({
+        iss: 'eclipanel', sub: id, aud: '', iat: now, nbf: now, exp: now + 600,
+        jti: crypto.randomUUID(), scope: 'transfer',
+      }, targetNode.token);
 
-      const wingsPayload: Record<string, unknown> = {
-        url: targetUrl,
-        token,
-      };
+      const wingsPayload: Record<string, unknown> = { url: targetUrl, token };
 
-      if (payload.archive_format != null) {
-        wingsPayload.archive_format = payload.archive_format;
-      }
-      if (payload.compression_level != null) {
-        wingsPayload.compression_level = payload.compression_level;
-      }
+      if (payload.archive_format != null) wingsPayload.archive_format = payload.archive_format;
+      if (payload.compression_level != null) wingsPayload.compression_level = payload.compression_level;
       if (Array.isArray(payload.backups) && (payload.backups as any[]).length > 0) {
         wingsPayload.backups = payload.backups;
-        wingsPayload.delete_backups = Boolean(payload.delete_backups);
+        wingsPayload.delete_backups = Boolean(payload.delete_source_backups ?? payload.delete_backups);
       }
-      if (payload.multiplex_streams != null) {
-        const n = Number(payload.multiplex_streams);
-        if (Number.isInteger(n) && n >= 0 && n <= 16) {
-          wingsPayload.multiplex_streams = n;
-        }
+      if (payload.multiplex_channels != null || payload.multiplex_streams != null) {
+        const n = Number(payload.multiplex_channels ?? payload.multiplex_streams);
+        if (Number.isInteger(n) && n >= 0 && n <= 16) wingsPayload.multiplex_streams = n;
       }
 
       try {
+        app.log?.info?.({ serverId: id, targetNodeId, wingsPayload }, '[transfer] INIT sending to Wings');
         const res = await svc.transferServer(id, wingsPayload);
+        app.log?.info?.({ serverId: id, response: res?.data }, '[transfer] INIT Wings accepted');
+        seenTransferring.add(id);
         return res.data && typeof res.data === 'object' ? res.data : { accepted: true };
       } catch (e: unknown) {
+        cfg.destinationNodeId = undefined;
+        await cfgRepo().save(cfg).catch(() => {});
         const err = e as Record<string, unknown>;
         const errResponse = err?.response as Record<string, unknown> | undefined;
         const status = (errResponse?.status as number) || 500;
         const errData = errResponse?.data;
-        const message =
-          (errData as Record<string, unknown> | undefined)?.error as string || errData ||
-          (err instanceof Error ? err.message : '') ||
-          'Transfer failed';
+        const message = (errData as any)?.error || (err instanceof Error ? err.message : '') || 'Transfer failed';
         ctx.set.status = status;
         return { error: message as string };
       }
@@ -5036,6 +4987,25 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const all = await svc.getTransfers();
         const data = (all as any)?.data ?? all;
         const progress = (data as Record<string, unknown>)?.[id] ?? null;
+        if (progress) {
+          seenTransferring.add(id);
+          app.log?.info?.({ serverId: id, progress }, '[transfer] PROGRESS poll');
+        } else if (seenTransferring.has(id)) {
+          // Transfer was in Wings' map but is now gone → likely completed.
+          // Auto-complete: move server to destination node
+          seenTransferring.delete(id);
+          app.log?.info?.({ serverId: id }, '[transfer] AUTO-COMPLETING — vanished from Wings map');
+          try {
+            const cfg = await cfgRepo().findOneBy({ uuid: id });
+            if (cfg && cfg.destinationNodeId) {
+              const destNodeId = cfg.destinationNodeId;
+              await cfgRepo().update({ uuid: id }, { nodeId: destNodeId, destinationNodeId: undefined as any });
+              try { await nodeService.unmapServer(id); } catch {}
+              await nodeService.mapServer(id, destNodeId);
+              app.log?.info?.({ serverId: id, newNode: destNodeId }, '[transfer] AUTO-COMPLETE done');
+            }
+          } catch (e) { app.log?.error?.({ err: e, serverId: id }, '[transfer] AUTO-COMPLETE failed'); }
+        }
         return { progress };
       } catch {
         return { progress: null };

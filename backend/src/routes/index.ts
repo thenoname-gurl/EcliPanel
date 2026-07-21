@@ -158,6 +158,7 @@ export function registerRoutes(app: any) {
   adminRoutes(app, '/api');
   eggRoutes(app, '/api');
   remoteRoutes(app, '/api');
+  remoteRoutes(app, '');
   oauthRoutes(app, '/api');
   oauthWellKnownRoutes(app, '/api');
   databaseRoutes(app, '/api');

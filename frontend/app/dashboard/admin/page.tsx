@@ -161,6 +161,11 @@ const BackupConfigsTab = dynamic(() => import("./tabs/BackupConfigsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading backup configs...</div>,
 })
 
+const TransfersTab = dynamic(() => import("./tabs/TransfersTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading transfers...</div>,
+})
+
 const EggsTab = dynamic(() => import("./tabs/EggsTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading eggs tab...</div>,
@@ -988,6 +993,7 @@ export default function AdminPanel() {
     { value: 'tunnels', label: t('tabs.tunnels'), feature: 'tunnels', permissions: ['tunnels:read', 'admin:tunnels:read'] },
     { value: 'eggs', label: t('tabs.eggs'), permissions: ['eggs:read'] },
     { value: 'backup-configs', label: 'Backup Configs', permissions: ['admin:read'] },
+    { value: 'transfers', label: 'Transfers', permissions: ['admin:read'] },
     { value: 'ai', label: t('tabs.aiModels'), feature: 'ai', permissions: ['ai:read'] },
     { value: 'announcements', label: t('tabs.announcements'), permissions: ['admin:announcements'] },
     { value: 'outbound-emails', label: t('tabs.outboundEmails'), permissions: ['admin:outbound-emails'] },
@@ -5942,6 +5948,10 @@ remote: ${panelUrl}`
             {/* ═══════════════ EGGS ═══════════════════════════════════════════ */}
             <TabsContent value="backup-configs" className="mt-4">
               {activeTab === "backup-configs" ? <BackupConfigsTab /> : null}
+            </TabsContent>
+
+            <TabsContent value="transfers" className="mt-4">
+              {activeTab === "transfers" ? <TransfersTab /> : null}
             </TabsContent>
 
             <TabsContent value="eggs" className="mt-4">

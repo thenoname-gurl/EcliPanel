@@ -94,18 +94,6 @@ async function authenticateWings(ctx: WingsContext): Promise<unknown> {
     node = await nodeRepo.findOneBy({ token: prefix });
   }
   if (!node) {
-    try {
-      const headers = Object.keys(ctx.request.headers || {})
-        .slice(0, 20)
-        .join(', ');
-      const redact = (s: string) => (s ? `***${s.slice(-6)}` : s);
-      const tried = [tokenPart, raw, dotIdx >= 0 ? raw.substring(0, dotIdx) : '']
-        .map(redact)
-        .join(', ');
-      ctx.app?.log?.warn?.({ headers, tried }, 'Wings auth failed: token lookup mismatch');
-    } catch (e) {
-      // skip
-    }
     ctx.set.status = 401;
     return { errors: [{ code: 'Unauthorized', detail: 'Invalid node token' }] };
   }
@@ -1346,7 +1334,6 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           return;
         }
 
-        await repo().update({ uuid }, { nodeId: targetNode.id });
 
         try { await nodeService.unmapServer(uuid); } catch {}
         await nodeService.mapServer(uuid, targetNode.id);
@@ -1494,6 +1481,10 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
         }
 
         if (cfg) {
+          try { await repo().update({ uuid }, { destinationNodeId: undefined as any }); } catch {}
+        }
+
+        if (cfg) {
           await createActivityLog({
             userId: cfg.userId,
             action: 'server:transfer:failed',
@@ -1555,6 +1546,43 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
       response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
     }
   );
+
+  if (!prefix) {
+    app.post('/servers/:uuid/transfer/success', async (ctx: WingsContext) => {
+      const uuid = (ctx.params as any).uuid;
+      const node = ctx.wingNode as Node;
+      app.log?.info?.({ uuid, nodeId: node?.id }, '[transfer] RECEIVED success (root)');
+      try {
+        const cfg = await repo().findOneBy({ uuid });
+        if (!cfg) { ctx.set.status = 204; return; }
+        await repo().update({ uuid }, { nodeId: node.id, destinationNodeId: undefined as any });
+        try { await nodeService.unmapServer(uuid); } catch {}
+        await nodeService.mapServer(uuid, node.id);
+      } catch (e) { app.log?.error?.({ err: e, uuid }, '[transfer] success root error'); }
+      ctx.set.status = 204; return;
+    }, {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Transfer success', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    });
+
+    app.post('/servers/:uuid/transfer/failure', async (ctx: WingsContext) => {
+      const uuid = (ctx.params as any).uuid;
+      const node = ctx.wingNode as Node;
+      app.log?.info?.({ uuid, nodeId: node?.id }, '[transfer] RECEIVED failure (root)');
+      try {
+        const cfg = await repo().findOneBy({ uuid });
+        if (cfg && cfg.nodeId !== node.id) {
+          await repo().update({ uuid }, { destinationNodeId: undefined as any });
+        }
+      } catch {}
+      ctx.set.status = 204; return;
+    }, {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Transfer failure', tags: ['Remote'] },
+      response: { 204: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    });
+  }
 }
 
 // ─── Helpers exported for use by serverHandler / adminHandler ─────────────────
