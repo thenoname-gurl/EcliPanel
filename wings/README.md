@@ -1,4 +1,4 @@
-# Wings — Patched for EcliPanel
+# Wings (Patched for EcliPanel)
 
 Game server daemon with embedded security & anti-abuse.  
 Upstream: [calagopus/wings](https://github.com/calagopus/wings)
@@ -7,7 +7,7 @@ Upstream: [calagopus/wings](https://github.com/calagopus/wings)
 
 ```
 wings/
-├── source/       Clean upstream Wings (no .git — just the source)
+├── source/       Clean upstream Wings
 ├── patched/      Your working copy with security patches applied
 ├── output/       Build target (source + patches, run cargo here)
 ├── patches/      .patch files (diff between patched/ and source/)
@@ -16,26 +16,18 @@ wings/
 └── README.md     This file
 ```
 
-**No `.git` in subdirectories** — they're plain source trees. The `/v3` repo handles version control.
-
 ## Quick Start
 
 ```bash
 cd /srv/samba/shared/EcliPanel/v3/wings
-./manage.sh build        # Compile — binary at target/release/wings-rs
+./manage.sh build
 ```
 
 Panel serves the binary at: `https://ecli.app/api/wings/download`
 
 ## Edit Wings Code
 
-Edit files directly in `patched/`:
-
-```bash
-vim patched/application/src/server/antiabuse.rs
-# ... make changes ...
-```
-
+Edit files directly in `patched/`,
 Then regenerate patches and rebuild:
 
 ```bash
@@ -72,18 +64,7 @@ rm -rf source/.git source/.github
 ## Deploy
 
 ```bash
-# One-liner from any Wings node:
 curl -fsSL https://ecli.app/api/wings/download -o /usr/local/bin/wings
 chmod +x /usr/local/bin/wings
 systemctl restart wings
 ```
-
-## What's Patched
-
-- `GET /api/servers/:id/security/processes` — container process listing
-- `GET /api/servers/:id/security/connections` — network info + port bindings
-- `GET /api/servers/:id/security/scan-files` — suspicious file scanner
-- Embedded anti-abuse engine (CPU mining + DDoS detection)
-- Panel rule polling (fetches detection rules every 5min)
-- EcliPanel version branding
-- License: EclipseSystems Community License v1.1
