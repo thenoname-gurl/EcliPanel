@@ -500,18 +500,26 @@ function AddressInput({
 
 function TypeBadge({ type }: { type: ItemType }) {
   const cfg = TYPE_CONFIG[type]
+  const t = useTranslations("mailboxPage")
+  const typeLabels: Record<ItemType, string> = {
+    email: t("typeLabels.email"),
+    organisation: t("typeLabels.organisation"),
+    subuser: t("typeLabels.server"),
+    notification: t("typeLabels.notification"),
+  }
   return (
     <span className={cn(
       "inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide border border-border/20",
       cfg.pill,
     )}>
       {cfg.icon}
-      {cfg.label}
+      {typeLabels[type]}
     </span>
   )
 }
 
 function CopyButton({ value }: { value: string }) {
+  const t = useTranslations("mailboxPage")
   const [copied, setCopied] = useState(false)
   return (
     <button
@@ -521,7 +529,7 @@ function CopyButton({ value }: { value: string }) {
         setTimeout(() => setCopied(false), 1500)
       }}
       className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors"
-      title="Copy"
+      title={t("actions.copy")}
     >
       {copied ? <CheckIcon className="h-3 w-3 text-primary" /> : <Copy className="h-3 w-3" />}
     </button>
@@ -655,12 +663,13 @@ function MetadataRow({ label, value, mono = false, copyable = false }: {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function SecurityBadge({ item }: { item: MailboxItem }) {
+  const t = useTranslations("mailboxPage")
   if (item.isVirus) {
     return (
       <div className="flex items-center gap-2 bg-destructive/10 border border-destructive/20 px-3 py-2">
         <ShieldAlert className="h-4 w-4 text-destructive flex-shrink-0" />
         <div>
-          <p className="text-xs font-semibold text-destructive">Virus detected</p>
+          <p className="text-xs font-semibold text-destructive">{t("security.virusDetected")}</p>
           {item.virusName && <p className="text-[11px] text-destructive/80 mt-0.5">{item.virusName}</p>}
         </div>
       </div>
@@ -671,9 +680,9 @@ function SecurityBadge({ item }: { item: MailboxItem }) {
       <div className="flex items-center gap-2 bg-accent/30 border border-accent/40 px-3 py-2">
         <AlertTriangle className="h-4 w-4 text-accent-foreground flex-shrink-0" />
         <div>
-          <p className="text-xs font-semibold text-accent-foreground">Likely spam</p>
+          <p className="text-xs font-semibold text-accent-foreground">{t("security.likelySpam")}</p>
           {item.spamScore != null && (
-            <p className="text-[11px] text-accent-foreground/80 mt-0.5">Score: {item.spamScore}</p>
+            <p className="text-[11px] text-accent-foreground/80 mt-0.5">{t("security.score", { score: item.spamScore })}</p>
           )}
         </div>
       </div>
@@ -682,7 +691,7 @@ function SecurityBadge({ item }: { item: MailboxItem }) {
   return (
     <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-2">
       <Shield className="h-4 w-4 text-primary flex-shrink-0" />
-      <p className="text-xs font-semibold text-primary">No threats detected</p>
+      <p className="text-xs font-semibold text-primary">{t("security.noThreats")}</p>
     </div>
   )
 }
@@ -692,18 +701,19 @@ function SecurityBadge({ item }: { item: MailboxItem }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function RemoteImagesBar({ onAllow, onAlwaysAllow }: { onAllow: () => void; onAlwaysAllow: () => void }) {
+  const t = useTranslations("mailboxPage")
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 bg-accent/20 border-b border-accent/30">
       <div className="flex items-center gap-1.5 text-xs text-accent-foreground">
         <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-        Remote images are blocked for privacy
+        {t("security.remoteImagesBlocked")}
       </div>
       <div className="flex items-center gap-3 ml-auto">
         <button onClick={onAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2" data-telemetry="mailbox:allow">
-          Show once
+          {t("security.showOnce")}
         </button>
         <button onClick={onAlwaysAllow} className="text-xs font-semibold text-accent-foreground hover:underline underline-offset-2" data-telemetry="mailbox:alwaysallow">
-          Always allow from sender
+          {t("security.alwaysAllow")}
         </button>
       </div>
     </div>
@@ -809,6 +819,7 @@ function RichComposer({
   placeholder?: string
   minRows?: number
 }) {
+  const tc = useTranslations("mailboxPage")
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [editorMode, setEditorMode] = useState<EditorMode>("write")
   const wordCount = value.trim() ? value.trim().split(/\s+/).filter(Boolean).length : 0
@@ -873,7 +884,7 @@ function RichComposer({
             )}
           >
             <Keyboard className="h-3 w-3" />
-            Write
+            {tc("toolbar.write")}
           </button>
           <button
             type="button"
@@ -886,7 +897,7 @@ function RichComposer({
             )}
           >
             <Eye className="h-3 w-3" />
-            Preview
+            {tc("toolbar.preview")}
           </button>
         </div>
       </div>
@@ -913,7 +924,7 @@ function RichComposer({
               <ReactMarkdown remarkPlugins={[remarkGfm]}>{value}</ReactMarkdown>
             </div>
           ) : (
-            <span className="text-muted-foreground" style={{ fontStyle: "italic" }}>Nothing to preview yet…</span>
+            <span className="text-muted-foreground" style={{ fontStyle: "italic" }}>{tc("toolbar.nothingToPreview")}</span>
           )}
         </div>
       )}
@@ -921,13 +932,13 @@ function RichComposer({
       {/* Status bar */}
       <div className="flex items-center gap-3 px-3 py-1.5 border-t border-border/50 bg-muted/20">
         <span className="text-[11px] text-muted-foreground/60">
-          Markdown supported ·{" "}
+          {tc("toolbar.markdownSupported")} ·{" "}
           <kbd className="font-mono text-[10px] bg-muted px-1 py-0.5 border border-border">Tab</kbd>
-          {" "}to indent
+          {" "}{tc("toolbar.toIndent")}
         </span>
         <div className="flex-1" />
         <span className="text-[11px] tabular-nums text-muted-foreground/50">
-          {wordCount}w · {charCount}c
+          {tc("toolbar.wordCharCount", { words: wordCount, chars: charCount })}
         </span>
       </div>
     </div>
@@ -949,6 +960,7 @@ function ComposePane({
   mailboxAddress: string | null
   sentMessages: any[]
 }) {
+  const tc = useTranslations("mailboxPage")
   const [to, setTo] = useState<string[]>([])
   const [cc, setCc] = useState<string[]>([])
   const [bcc, setBcc] = useState<string[]>([])
@@ -983,17 +995,17 @@ function ComposePane({
         },
       })
       toast({
-        title: result?.status === "sent" ? "Email sent" : "Email queued",
+        title: result?.status === "sent" ? tc("toast.emailSent") : tc("toast.emailQueued"),
         description: result?.status === "sent"
-          ? "Your message was sent successfully."
-          : "Your message was queued and will be delivered shortly.",
+          ? tc("toast.sentDescription")
+          : tc("toast.queuedDescription"),
       })
       onClose()
       onSent()
     } catch (err: any) {
       toast({
-        title: "Failed to send",
-        description: err?.message || "Something went wrong.",
+        title: tc("toast.failedToSend"),
+        description: err?.message || tc("toast.somethingWentWrong"),
         variant: "destructive",
       })
     } finally {
@@ -1020,10 +1032,10 @@ function ComposePane({
           <ChevronLeft className="h-4 w-4" />
         </button>
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-foreground">New Message</h2>
+          <h2 className="text-sm font-semibold text-foreground">{tc("compose.newMessage")}</h2>
           {mailboxAddress && (
             <p className="text-[11px] text-muted-foreground truncate">
-              From: <span className="font-mono">{mailboxAddress}</span>
+              {tc("compose.from")} <span className="font-mono">{mailboxAddress}</span>
             </p>
           )}
         </div>
@@ -1038,7 +1050,7 @@ function ComposePane({
             disabled={sending || !canSend}
            data-telemetry="mailbox:send">
             {sending ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">Send</span>
+            <span className="hidden sm:inline">{tc("compose.send")}</span>
           </Button>
         </div>
       </div>
@@ -1050,8 +1062,8 @@ function ComposePane({
           <div className="border border-border bg-card overflow-hidden">
             {/* To */}
             <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50">
-              <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">To</span>
-              <AddressInput values={to} onChange={setTo} placeholder="recipient@example.com" />
+              <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">{tc("compose.to")}</span>
+              <AddressInput values={to} onChange={setTo} placeholder={tc("compose.recipientPlaceholder")} />
               <div className="flex items-center gap-1">
                 {!showCc && (
                   <button
@@ -1059,7 +1071,7 @@ function ComposePane({
                     onClick={() => setShowCc(true)}
                     className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted/20 transition-colors"
                   >
-                    CC
+                    {tc("compose.cc")}
                   </button>
                 )}
                 {!showBcc && (
@@ -1068,7 +1080,7 @@ function ComposePane({
                     onClick={() => setShowBcc(true)}
                     className="text-[11px] font-medium text-muted-foreground hover:text-foreground px-1.5 py-0.5 rounded hover:bg-muted/20 transition-colors"
                   >
-                    BCC
+                    {tc("compose.bcc")}
                   </button>
                 )}
               </div>
@@ -1077,8 +1089,8 @@ function ComposePane({
             {/* CC */}
             {showCc && (
               <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50">
-                <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">CC</span>
-                <AddressInput values={cc} onChange={setCc} placeholder="cc@example.com" />
+                <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">{tc("compose.cc")}</span>
+                <AddressInput values={cc} onChange={setCc} placeholder={tc("compose.ccPlaceholder")} />
                 <button
                   type="button"
                   onClick={() => { setShowCc(false); setCc([]) }}
@@ -1092,8 +1104,8 @@ function ComposePane({
             {/* BCC */}
             {showBcc && (
               <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/50">
-                <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">BCC</span>
-                <AddressInput values={bcc} onChange={setBcc} placeholder="bcc@example.com" />
+                <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">{tc("compose.bcc")}</span>
+                <AddressInput values={bcc} onChange={setBcc} placeholder={tc("compose.bccPlaceholder")} />
                 <button
                   type="button"
                   onClick={() => { setShowBcc(false); setBcc([]) }}
@@ -1106,12 +1118,12 @@ function ComposePane({
 
             {/* Subject */}
             <div className="flex items-center gap-3 px-4 py-2.5">
-              <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">Sub</span>
+              <span className="text-xs font-medium text-muted-foreground w-8 flex-shrink-0">{tc("compose.subjectLabel")}</span>
               <input
                 type="text"
                 value={subject}
                 onChange={e => setSubject(e.target.value)}
-                placeholder="Subject"
+                placeholder={tc("compose.subjectPlaceholder")}
                 className="flex-1 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground font-medium"
               />
             </div>
@@ -1121,20 +1133,20 @@ function ComposePane({
           <div className="border border-border bg-muted/10 px-4 py-3 text-[12px] text-muted-foreground space-y-1">
             <p>
               {queuedCount > 0
-                ? `${queuedCount} message${queuedCount !== 1 ? "s" : ""} currently queued`
-                : "No messages currently queued."}
+                ? tc("compose.queueStatus.queuedCount", { count: queuedCount })
+                : tc("compose.queueStatus.noQueued")}
             </p>
             <p>
               {sentTodayCount > 0
-                ? `${sentTodayCount} sent today`
-                : "No messages sent today yet."}
+                ? tc("compose.queueStatus.sentTodayCount", { count: sentTodayCount })
+                : tc("compose.queueStatus.noSentToday")}
             </p>
           </div>
 
           <RichComposer
             value={body}
             onChange={setBody}
-            placeholder="Write your message… Markdown is supported."
+            placeholder={tc("compose.bodyPlaceholder")}
             minRows={16}
           />
 
@@ -1143,22 +1155,22 @@ function ComposePane({
             <div className="flex items-center gap-2">
               <FileText className="h-3.5 w-3.5 text-muted-foreground" />
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Markdown reference
+                {tc("compose.markdownReference")}
               </p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
               {[
-                ["**bold**", "Bold"],
-                ["*italic*", "Italic"],
-                ["~~strike~~", "Strikethrough"],
-                ["# Heading", "Heading 1"],
-                ["## Heading", "Heading 2"],
-                ["> text", "Blockquote"],
-                ["`code`", "Inline code"],
-                ["[text](url)", "Link"],
-                ["---", "Divider"],
-                ["- item", "Bullet list"],
-                ["1. item", "Ordered list"],
+                ["**bold**", tc("compose.markdownRefItems.bold")],
+                ["*italic*", tc("compose.markdownRefItems.italic")],
+                ["~~strike~~", tc("compose.markdownRefItems.strikethrough")],
+                ["# Heading", tc("compose.markdownRefItems.heading1")],
+                ["## Heading", tc("compose.markdownRefItems.heading2")],
+                ["> text", tc("compose.markdownRefItems.blockquote")],
+                ["`code`", tc("compose.markdownRefItems.inlineCode")],
+                ["[text](url)", tc("compose.markdownRefItems.link")],
+                ["---", tc("compose.markdownRefItems.divider")],
+                ["- item", tc("compose.markdownRefItems.bulletList")],
+                ["1. item", tc("compose.markdownRefItems.orderedList")],
               ].map(([syntax, desc]) => (
                 <div key={syntax} className="flex items-center gap-2 text-[11px]">
                   <span className="font-mono text-foreground/70 bg-muted/10 px-1.5 py-0.5 rounded text-[10px] flex-shrink-0">
@@ -1427,17 +1439,17 @@ export default function MailboxPage() {
   const sentItems = useMemo<MailboxItem[]>(() => sentMessages.map(msg => ({
     id: `sent-${msg.id}`, inviteId: msg.id, type: "email",
     title: msg.subject || t("detail.emailFallback"),
-    description: msg.status === "queued" ? "Queued outbound email" : "Sent outbound email",
-    details: msg.body || "", sender: msg.fromAddress || mailboxAddress || "You",
+    description: msg.status === "queued" ? t("sent.queuedDescription") : t("sent.sentDescription"),
+    details: msg.body || "", sender: msg.fromAddress || mailboxAddress || t("sent.fromYou"),
     senderEmail: msg.fromAddress || undefined, html: msg.html || null,
     category: null, isSpam: false, spamScore: null, isVirus: false, virusName: null,
     attachments: [], read: true, favorite: !!msg.favorite,
-    badge: msg.status === "sent" ? "Sent" : "Queued",
+    badge: msg.status === "sent" ? t("sent.sentBadge") : t("sent.queuedBadge"),
     status: msg.status || null, isSent: true,
     sentAt: msg.sentAt || null, scheduledAt: msg.scheduledAt || null,
     date: formatDate(msg.sentAt || msg.scheduledAt || undefined),
     rawDate: msg.sentAt || msg.scheduledAt || undefined,
-    avatarLabel: msg.fromAddress || mailboxAddress || "You",
+    avatarLabel: msg.fromAddress || mailboxAddress || t("sent.fromYou"),
     toAddress: msg.toAddress, messageId: msg.messageId || undefined,
   })), [sentMessages, t, mailboxAddress])
 
@@ -1595,7 +1607,7 @@ export default function MailboxPage() {
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
                 )}
               >
-                Inbox
+                {t("tabs.inbox")}
               </button>
               <button
                 type="button"
@@ -1607,7 +1619,7 @@ export default function MailboxPage() {
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/20",
                 )}
               >
-                Sent
+                {t("tabs.sent")}
               </button>
             </div>
             {activeSection === "inbox" && unreadCount > 0 && (
@@ -1629,7 +1641,7 @@ export default function MailboxPage() {
               }}
             >
               <Send className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Compose</span>
+              <span className="hidden sm:inline">{t("actions.compose")}</span>
             </Button>
             <button
               onClick={() => setShowFilters(s => !s)}
@@ -1657,7 +1669,7 @@ export default function MailboxPage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="search"
-            placeholder="Search messages…"
+            placeholder={t("list.searchPlaceholder")}
             value={searchQuery}
             onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
             className="w-full border border-border bg-muted/10 hover:bg-muted/20 py-2 pl-8 pr-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 focus:bg-card transition-all"
@@ -1676,7 +1688,7 @@ export default function MailboxPage() {
             >
               <span className="flex items-center gap-1.5">
                 {favoriteOnly ? <Star className="h-3.5 w-3.5" /> : <StarOff className="h-3.5 w-3.5" />}
-                Favorites only
+                {t("filters.favoritesOnly")}
               </span>
             </button>
 
@@ -1691,7 +1703,7 @@ export default function MailboxPage() {
                 >
                   <span className="flex items-center gap-1.5">
                     {unreadOnly ? <ToggleRight className="h-3.5 w-3.5" /> : <ToggleLeft className="h-3.5 w-3.5" />}
-                    Unread only
+                    {t("filters.unreadOnly")}
                   </span>
                   {unreadCount > 0 && <span className="text-[10px] text-muted-foreground">{unreadCount}</span>}
                 </button>
@@ -1709,7 +1721,7 @@ export default function MailboxPage() {
                             : "bg-muted text-muted-foreground hover:bg-secondary hover:text-secondary-foreground",
                         )}
                       >
-                        {cat ?? "All"}
+                        {cat ?? t("filters.all")}
                       </button>
                     ))}
                   </div>
@@ -1724,13 +1736,13 @@ export default function MailboxPage() {
       {(searchQuery || selectedCategory || unreadOnly || favoriteOnly) && (
         <div className="flex items-center justify-between px-3 py-1.5 bg-primary/5 border-b border-primary/10">
           <span className="text-[11px] text-primary/80 font-medium">
-            {currentItems.length} result{currentItems.length !== 1 ? "s" : ""}
+            {t("list.resultsCount", { count: currentItems.length })}
           </span>
           <button
             onClick={() => { setSearchQuery(""); setSelectedCategory(null); setUnreadOnly(false); setFavoriteOnly(false) }}
             className="text-[11px] font-medium text-primary hover:underline"
           >
-            Clear
+            {t("list.clearFilters")}
           </button>
         </div>
       )}
@@ -1740,7 +1752,7 @@ export default function MailboxPage() {
         {listLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Spinner className="h-5 w-5 text-muted-foreground" />
-            <p className="text-xs text-muted-foreground">Loading messages…</p>
+            <p className="text-xs text-muted-foreground">{t("list.loading")}</p>
           </div>
         ) : currentItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 px-6 text-center">
@@ -1749,11 +1761,11 @@ export default function MailboxPage() {
             </div>
             <div>
               <p className="text-sm font-medium text-foreground">
-                {activeSection === "sent" ? "No sent emails yet." : t("list.empty")}
+                {activeSection === "sent" ? t("list.noSentEmails") : t("list.empty")}
               </p>
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
                 {activeSection === "sent"
-                  ? "Compose a message to send your first email."
+                  ? t("list.noSentEmailsHint")
                   : t("list.emptyDescription")}
               </p>
             </div>
@@ -1826,10 +1838,10 @@ export default function MailboxPage() {
                           </button>
 
                           {item.isVirus && (
-                            <span className="text-[9px] font-bold uppercase tracking-wide text-destructive">VIRUS</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-destructive">{t("security.virusLabel")}</span>
                           )}
                           {!item.isVirus && item.isSpam && (
-                            <span className="text-[9px] font-bold uppercase tracking-wide text-accent-foreground">SPAM</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wide text-accent-foreground">{t("security.spamLabel")}</span>
                           )}
                           {item.priority && (
                             <span className={cn(
@@ -1925,7 +1937,7 @@ export default function MailboxPage() {
               onClick={() => handleFavoriteToggle(selectedItem, !selectedItem.favorite)}
               disabled={actionLoading[`favorite-${selectedItem.id}`]}
               className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors disabled:opacity-50"
-              title={selectedItem.favorite ? "Remove from favourites" : "Add to favourites"}
+              title={selectedItem.favorite ? t("actions.unfavorite") : t("actions.favorite")}
             >
               {selectedItem.favorite
                 ? <Star className="h-3.5 w-3.5 text-primary fill-primary" />
@@ -1943,7 +1955,7 @@ export default function MailboxPage() {
                     ? <Spinner className="h-3.5 w-3.5" />
                     : selectedItem.read ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   <span className="hidden sm:inline text-[11px]">
-                    {selectedItem.read ? "Mark unread" : "Mark read"}
+                    {selectedItem.read ? t("actions.markUnread") : t("actions.markRead")}
                   </span>
                 </button>
                 <button
@@ -2034,7 +2046,7 @@ export default function MailboxPage() {
               {/* Body */}
               {selectedItem.type === "email" && hasHtml && bodyView === null ? (
                 <div className="space-y-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Choose view format</p>
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("detail.chooseViewFormat")}</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       onClick={() => setBodyView("plain")}
@@ -2044,8 +2056,8 @@ export default function MailboxPage() {
                         <FileText className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-foreground">Plain text</p>
-                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Safe · No external content · Recommended</p>
+                        <p className="text-sm font-semibold text-foreground">{t("detail.plainText")}</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t("detail.plainTextDescription")}</p>
                       </div>
                     </button>
                     <button
@@ -2056,14 +2068,14 @@ export default function MailboxPage() {
                         <AlertTriangle className="h-4 w-4 text-accent-foreground" />
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-foreground">HTML view</p>
-                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Rich layout · Images blocked by default</p>
+                        <p className="text-sm font-semibold text-foreground">{t("detail.htmlView")}</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{t("detail.htmlViewDescription")}</p>
                       </div>
                     </button>
                   </div>
                   {selectedItem.details && (
                     <div className="border border-border bg-muted/30 px-4 py-3">
-                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-semibold">Preview</p>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2 font-semibold">{t("detail.preview")}</p>
                       <p className="text-sm leading-relaxed text-foreground/70 whitespace-pre-wrap line-clamp-4">
                         {selectedItem.details}
                       </p>
@@ -2082,7 +2094,7 @@ export default function MailboxPage() {
                             resolvedView === "plain" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                           )}
                         >
-                          <FileText className="h-3 w-3" />Plain
+                          <FileText className="h-3 w-3" />{t("detail.plain")}
                         </button>
                         <button
                           onClick={() => { if (!htmlConfirmed) setHtmlConfirmed(true); setBodyView("html") }}
@@ -2091,7 +2103,7 @@ export default function MailboxPage() {
                             resolvedView === "html" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
                           )}
                         >
-                          <AlertCircle className="h-3 w-3" />HTML
+                          <AlertCircle className="h-3 w-3" />{t("detail.html")}
                         </button>
                       </div>
                       {resolvedView === "html" && (
@@ -2099,7 +2111,7 @@ export default function MailboxPage() {
                           onClick={() => window.open("data:text/html," + encodeURIComponent(selectedItem.html || ""), "_blank")}
                           className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          <ExternalLink className="h-3 w-3" />Open raw
+                          <ExternalLink className="h-3 w-3" />{t("detail.openRaw")}
                         </button>
                       )}
                     </div>
@@ -2148,7 +2160,7 @@ export default function MailboxPage() {
                   <div className="flex items-center gap-2">
                     <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      Attachments · {selectedItem.attachments!.length}
+                      {t("detail.attachmentsCount", { count: selectedItem.attachments!.length })}
                     </p>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2164,7 +2176,7 @@ export default function MailboxPage() {
                 <div className="border border-border bg-card p-4 space-y-3">
                   <div className="flex items-center gap-2">
                     <Tag className="h-3.5 w-3.5 text-muted-foreground" />
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Category</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("detail.category")}</p>
                   </div>
                   <div className="flex gap-2">
                     <select
@@ -2172,12 +2184,12 @@ export default function MailboxPage() {
                       value={currentMessageCategory ?? ""}
                       onChange={e => setCurrentMessageCategory(e.target.value || null)}
                     >
-                      <option value="">Uncategorized</option>
+                      <option value="">{t("detail.uncategorized")}</option>
                       {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                     </select>
                     <Button size="sm" className="h-9 px-4 text-xs"
                       onClick={() => handleAssignCategory(selectedItem)} disabled={actionLoading[categoryKey]}>
-                      {actionLoading[categoryKey] ? <Spinner className="h-3.5 w-3.5" /> : "Save"}
+                      {actionLoading[categoryKey] ? <Spinner className="h-3.5 w-3.5" /> : t("actions.save")}
                     </Button>
                   </div>
                 </div>
@@ -2191,7 +2203,7 @@ export default function MailboxPage() {
                 >
                   <div className="flex items-center gap-2">
                     <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Message details</span>
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("detail.messageDetails")}</span>
                   </div>
                   {showMetadata
                     ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
@@ -2210,7 +2222,7 @@ export default function MailboxPage() {
                             metadataSection === tab ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
                           )}
                         >
-                          {tab}
+                          {t(`detail.metadata.${tab}`)}
                         </button>
                       ))}
                     </div>
@@ -2218,16 +2230,16 @@ export default function MailboxPage() {
                     <div className="px-4 py-1">
                       {metadataSection === "headers" && (
                         <div>
-                          <MetadataRow label="From" value={selectedItem.sender} copyable />
-                          <MetadataRow label="Email" value={selectedItem.senderEmail} mono copyable />
-                          <MetadataRow label="To" value={selectedItem.toAddress || "Unknown"} mono copyable />
-                          <MetadataRow label="Message ID" value={selectedItem.messageId || "Unknown"} mono copyable />
-                          <MetadataRow label="Subject" value={selectedItem.title} />
-                          <MetadataRow label="Date" value={formatDateLong(selectedItem.rawDate)} />
-                          <MetadataRow label="Type" value={selectedItem.type} />
-                          <MetadataRow label="Category" value={selectedItem.category ?? "Uncategorized"} />
+                          <MetadataRow label={t("detail.metadata.fields.from")} value={selectedItem.sender} copyable />
+                          <MetadataRow label={t("detail.metadata.fields.email")} value={selectedItem.senderEmail} mono copyable />
+                          <MetadataRow label={t("detail.metadata.fields.to")} value={selectedItem.toAddress || t("detail.metadata.fields.unknown")} mono copyable />
+                          <MetadataRow label={t("detail.metadata.fields.messageId")} value={selectedItem.messageId || t("detail.metadata.fields.unknown")} mono copyable />
+                          <MetadataRow label={t("detail.metadata.fields.subject")} value={selectedItem.title} />
+                          <MetadataRow label={t("detail.metadata.fields.date")} value={formatDateLong(selectedItem.rawDate)} />
+                          <MetadataRow label={t("detail.metadata.fields.type")} value={selectedItem.type} />
+                          <MetadataRow label={t("detail.metadata.fields.category")} value={selectedItem.category ?? t("detail.uncategorized")} />
                           {(selectedItem.attachments?.length ?? 0) > 0 && (
-                            <MetadataRow label="Attachments" value={selectedItem.attachments!.length} />
+                            <MetadataRow label={t("detail.metadata.fields.attachments")} value={selectedItem.attachments!.length} />
                           )}
                         </div>
                       )}
@@ -2236,19 +2248,19 @@ export default function MailboxPage() {
                         <div className="py-2 space-y-3">
                           <SecurityBadge item={selectedItem} />
                           <div>
-                            <MetadataRow label="Spam" value={selectedItem.isSpam ?? false} />
-                            <MetadataRow label="Spam score" value={selectedItem.spamScore} />
-                            <MetadataRow label="Virus" value={selectedItem.isVirus ?? false} />
-                            <MetadataRow label="Virus name" value={selectedItem.virusName} />
-                            <MetadataRow label="Sender IP" value={selectedItem.senderIp || "Unknown"} mono copyable />
-                            <MetadataRow label="Reverse DNS" value={selectedItem.senderRdns || "Unknown"} mono />
-                            <MetadataRow label="SPF" value={selectedItem.spfResult || "Unknown"} />
-                            <MetadataRow label="Priority" value={selectedItem.priority || "Unknown"} />
-                            <MetadataRow label="DKIM" value={selectedItem.dkimResult || "Unknown"} />
-                            <MetadataRow label="DMARC" value={selectedItem.dmarcResult || "Unknown"} />
-                            <MetadataRow label="Encryption" value={selectedItem.encryptionType || "None"} />
+                            <MetadataRow label={t("detail.metadata.fields.spam")} value={selectedItem.isSpam ?? false} />
+                            <MetadataRow label={t("detail.metadata.fields.spamScore")} value={selectedItem.spamScore} />
+                            <MetadataRow label={t("detail.metadata.fields.virus")} value={selectedItem.isVirus ?? false} />
+                            <MetadataRow label={t("detail.metadata.fields.virusName")} value={selectedItem.virusName} />
+                            <MetadataRow label={t("detail.metadata.fields.senderIp")} value={selectedItem.senderIp || t("detail.metadata.fields.unknown")} mono copyable />
+                            <MetadataRow label={t("detail.metadata.fields.reverseDns")} value={selectedItem.senderRdns || t("detail.metadata.fields.unknown")} mono />
+                            <MetadataRow label={t("detail.metadata.fields.spf")} value={selectedItem.spfResult || t("detail.metadata.fields.unknown")} />
+                            <MetadataRow label={t("detail.metadata.fields.priority")} value={selectedItem.priority || t("detail.metadata.fields.unknown")} />
+                            <MetadataRow label={t("detail.metadata.fields.dkim")} value={selectedItem.dkimResult || t("detail.metadata.fields.unknown")} />
+                            <MetadataRow label={t("detail.metadata.fields.dmarc")} value={selectedItem.dmarcResult || t("detail.metadata.fields.unknown")} />
+                            <MetadataRow label={t("detail.metadata.fields.encryption")} value={selectedItem.encryptionType || t("detail.metadata.fields.none")} />
                             {selectedItem.authResults && (
-                              <MetadataRow label="Auth results" value={selectedItem.authResults} mono />
+                              <MetadataRow label={t("detail.metadata.fields.authResults")} value={selectedItem.authResults} mono />
                             )}
                           </div>
                         </div>
@@ -2319,7 +2331,7 @@ export default function MailboxPage() {
                 <span className="text-xs font-mono text-muted-foreground/70">{alias.address}</span>
                 {alias.canSendFrom && (
                   <span className="text-[9px] font-bold uppercase tracking-wide text-primary bg-primary/10 rounded px-1 py-0.5">
-                    Send
+                    {t("compose.send")}
                   </span>
                 )}
               </div>

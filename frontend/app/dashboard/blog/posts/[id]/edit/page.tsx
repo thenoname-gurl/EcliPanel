@@ -106,16 +106,16 @@ export default function EditBlogPostPage({
   const formatToolbar = (
     <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b bg-muted/20 rounded-t-lg">
       {[
-        { icon: <Bold className="h-3.5 w-3.5" />, label: "Bold", before: "**", after: "**", placeholder: "bold text" },
-        { icon: <Italic className="h-3.5 w-3.5" />, label: "Italic", before: "_", after: "_", placeholder: "italic text" },
-        { icon: <Heading className="h-3.5 w-3.5" />, label: "Heading", before: "\n## ", placeholder: "Heading" },
-        { icon: <Quote className="h-3.5 w-3.5" />, label: "Quote", before: "\n> ", placeholder: "quote" },
-        { icon: <Code className="h-3.5 w-3.5" />, label: "Code", before: "\n```\n", after: "\n```\n", placeholder: "code" },
-        { icon: <LinkIcon className="h-3.5 w-3.5" />, label: "Link", before: "[", after: "](url)", placeholder: "link text" },
-        { icon: <Image className="h-3.5 w-3.5" />, label: "Image", before: "![", after: "](url)", placeholder: "alt text" },
-        { icon: <Video className="h-3.5 w-3.5" />, label: "Video", before: "\n:::video ", after: "\n", placeholder: "https://youtube.com/watch?v=..." },
-        { icon: <List className="h-3.5 w-3.5" />, label: "Bullet list", before: "\n- ", placeholder: "item" },
-        { icon: <ListOrdered className="h-3.5 w-3.5" />, label: "Numbered list", before: "\n1. ", placeholder: "item" },
+        { icon: <Bold className="h-3.5 w-3.5" />, label: t("toolbarBold", { defaultValue: "Bold" }), before: "**", after: "**", placeholder: "bold text" },
+        { icon: <Italic className="h-3.5 w-3.5" />, label: t("toolbarItalic", { defaultValue: "Italic" }), before: "_", after: "_", placeholder: "italic text" },
+        { icon: <Heading className="h-3.5 w-3.5" />, label: t("toolbarHeading", { defaultValue: "Heading" }), before: "\n## ", placeholder: "Heading" },
+        { icon: <Quote className="h-3.5 w-3.5" />, label: t("toolbarQuote", { defaultValue: "Quote" }), before: "\n> ", placeholder: "quote" },
+        { icon: <Code className="h-3.5 w-3.5" />, label: t("toolbarCode", { defaultValue: "Code" }), before: "\n```\n", after: "\n```\n", placeholder: "code" },
+        { icon: <LinkIcon className="h-3.5 w-3.5" />, label: t("toolbarLink", { defaultValue: "Link" }), before: "[", after: "](url)", placeholder: "link text" },
+        { icon: <Image className="h-3.5 w-3.5" />, label: t("toolbarImage", { defaultValue: "Image" }), before: "![", after: "](url)", placeholder: "alt text" },
+        { icon: <Video className="h-3.5 w-3.5" />, label: t("toolbarVideo", { defaultValue: "Video" }), before: "\n:::video ", after: "\n", placeholder: "https://youtube.com/watch?v=..." },
+        { icon: <List className="h-3.5 w-3.5" />, label: t("toolbarBulletList", { defaultValue: "Bullet list" }), before: "\n- ", placeholder: "item" },
+        { icon: <ListOrdered className="h-3.5 w-3.5" />, label: t("toolbarNumberedList", { defaultValue: "Numbered list" }), before: "\n1. ", placeholder: "item" },
       ].map((btn) => (
         <button
           key={btn.label}
@@ -215,7 +215,7 @@ export default function EditBlogPostPage({
   if (loading) {
     return (
       <FeatureGuard feature="blog">
-        <div className="p-4 md:p-6 space-y-4 max-w-4xl">
+        <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-4xl overflow-x-hidden">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-8 w-48" />
@@ -231,8 +231,8 @@ export default function EditBlogPostPage({
         title={t("editPost", { defaultValue: "Edit Post" })}
         description={title.replace(/~[^~]+~/g, '').replace(/\*\*/g, '').replace(/__/g, '').replace(/_/g, '').replace(/::.+/, '').trim() || t("editPostDescription", { defaultValue: "Edit your blog post" })}
       />
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 space-y-4 max-w-4xl">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+        <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-4xl">
           <div className="flex items-center justify-between">
             <Link href="/dashboard/blog">
               <Button variant="ghost" size="sm" className="gap-1 -ml-2">
@@ -334,7 +334,7 @@ export default function EditBlogPostPage({
                         })}
                         {content.length > 5000 && (
                           <p className="text-xs text-muted-foreground mt-4 italic border-t pt-3">
-                            Preview truncated at 5000 characters
+                            {t("previewTruncated", { defaultValue: "Preview truncated at 5000 characters" })}
                           </p>
                         )}
                       </div>
@@ -350,8 +350,8 @@ export default function EditBlogPostPage({
 
             <div className="grid gap-2">
               <Label>{t("coverImage", { defaultValue: "Cover image (optional)" })}</Label>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" className="gap-1" type="button" disabled={uploading}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                <Button variant="outline" size="sm" className="gap-1 min-w-0" type="button" disabled={uploading}
                   onClick={() => fileRef.current?.click()}>
                   <Upload className="h-3.5 w-3.5" />
                   {uploading
@@ -376,22 +376,22 @@ export default function EditBlogPostPage({
 
             <div className="flex flex-wrap gap-3 pt-2">
               <Label className="text-xs text-muted-foreground">{t("contentFlags", { defaultValue: "Content Flags" })}</Label>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                   <input type="checkbox" checked={contentFlags.includes("mature")}
                     onChange={(e) => setContentFlags(e.target.checked ? [...contentFlags, "mature"] : contentFlags.filter(f => f !== "mature"))} />
-                  Mature (NSFW)
+                  {t("mature", { defaultValue: "Mature (NSFW)" })}
                 </label>
                 <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                   <input type="checkbox" checked={contentFlags.includes("political")}
                     onChange={(e) => setContentFlags(e.target.checked ? [...contentFlags, "political"] : contentFlags.filter(f => f !== "political"))} />
-                  Political
+                  {t("political", { defaultValue: "Political" })}
                 </label>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-4 border-t">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"

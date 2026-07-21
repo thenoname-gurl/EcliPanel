@@ -42,7 +42,8 @@
       "subuserInvites": "सबयूज़र आमंत्रण",
       "mailbox": "मेलबॉक्स",
       "adminPanel": "स्टाफ पोर्टल",
-      "tunnels": "टनल"
+      "tunnels": "टनल",
+      "blog": "ब्लॉग"
     },
     "badges": {
       "new": "नया",
@@ -73,6 +74,45 @@
   "mailboxPage": {
     "title": "मेलबॉक्स",
     "description": "लंबित आमंत्रण, सूचनाएं और इनबॉक्स आइटम प्रबंधित करें।",
+    "tabs": {
+      "inbox": "इनबॉक्स",
+      "sent": "भेजे गए"
+    },
+    "compose": {
+      "newMessage": "नया संदेश",
+      "from": "प्रेषक:",
+      "to": "प्राप्तकर्ता",
+      "cc": "CC",
+      "bcc": "BCC",
+      "subject": "विषय",
+      "subjectLabel": "विषय",
+      "send": "भेजें",
+      "recipientPlaceholder": "recipient@example.com",
+      "ccPlaceholder": "cc@example.com",
+      "bccPlaceholder": "bcc@example.com",
+      "subjectPlaceholder": "विषय",
+      "bodyPlaceholder": "अपना संदेश लिखें… Markdown समर्थित है।",
+      "markdownReference": "Markdown संदर्भ",
+      "queueStatus": {
+        "queuedCount": "{count} संदेश{count, plural, one {} other {}} वर्तमान में कतार में",
+        "noQueued": "वर्तमान में कोई संदेश कतार में नहीं।",
+        "sentTodayCount": "{count} आज भेजे गए",
+        "noSentToday": "आज अभी तक कोई संदेश नहीं भेजा गया।"
+      },
+      "markdownRefItems": {
+        "bold": "गाढ़ा",
+        "italic": "तिरछा",
+        "strikethrough": "काटा हुआ",
+        "heading1": "शीर्षक 1",
+        "heading2": "शीर्षक 2",
+        "blockquote": "उद्धरण",
+        "inlineCode": "इनलाइन कोड",
+        "link": "लिंक",
+        "divider": "विभाजक",
+        "bulletList": "बुलेट सूची",
+        "orderedList": "क्रमांकित सूची"
+      }
+    },
     "sections": {
       "inbox": "इनबॉक्स",
       "inboxDescription": "एक स्थान जहां आप EcliPanel से संबंधित सभी महत्वपूर्ण चीज़ें पा सकते हैं।",
@@ -92,7 +132,13 @@
     },
     "list": {
       "empty": "आपका इनबॉक्स खाली है।",
-      "emptyDescription": "आपके फ़िल्टर से कोई संदेश मेल नहीं खाता।"
+      "emptyDescription": "आपके फ़िल्टर से कोई संदेश मेल नहीं खाता।",
+      "searchPlaceholder": "संदेश खोजें…",
+      "loading": "संदेश लोड हो रहे हैं…",
+      "noSentEmails": "अभी तक कोई भेजा गया ईमेल नहीं।",
+      "noSentEmailsHint": "पहला ईमेल भेजने के लिए एक संदेश लिखें।",
+      "resultsCount": "{count} परिणाम{count, plural, one {} other {}}",
+      "clearFilters": "साफ़ करें"
     },
     "actions": {
       "accept": "स्वीकार करें",
@@ -100,7 +146,12 @@
       "markRead": "पढ़ा हुआ चिह्नित करें",
       "markUnread": "अपठित चिह्नित करें",
       "assignCategory": "श्रेणी निर्दिष्ट करें",
-      "delete": "हटाएं"
+      "delete": "हटाएं",
+      "compose": "लिखें",
+      "save": "सहेजें",
+      "copy": "कॉपी करें",
+      "favorite": "पसंदीदा में जोड़ें",
+      "unfavorite": "पसंदीदा से हटाएं"
     },
     "details": {
       "sender": "प्रेषक",
@@ -118,22 +169,123 @@
       "displayMetadata": "मेटाडेटा दिखाएं",
       "hideMetadata": "मेटाडेटा छुपाएं",
       "chooseView": "यह ईमेल देखने का तरीका चुनें:",
+      "chooseViewFormat": "दृश्य प्रारूप चुनें",
       "plainText": "सादा पाठ",
+      "plainTextDescription": "सुरक्षित · कोई बाहरी सामग्री नहीं · अनुशंसित",
       "htmlView": "HTML दृश्य",
-      "raw": "कच्चा",
+      "htmlViewDescription": "समृद्ध लेआउट · छवियां डिफ़ॉल्ट रूप से अवरुद्ध",
+      "raw": "RAW",
       "noPlainTextContent": "कोई सादा पाठ सामग्री नहीं",
+      "preview": "पूर्वावलोकन",
+      "openRaw": "RAW खोलें",
+      "plain": "सादा",
+      "html": "HTML",
       "metadataTitle": "संदेश मेटाडेटा",
       "metadataHint": "सभी संदेश मेटाडेटा फ़ील्ड दिखाए जा रहे हैं। पठनीयता के लिए बॉडी HTML और सादा-पाठ पूर्वावलोकन छुपाए गए हैं।",
       "virusDetected": "वायरस पाया गया",
       "spamDetected": "स्पैम पाया गया",
-      "emailFallback": "ईमेल संदेश"
+      "emailFallback": "ईमेल संदेश",
+      "messageDetails": "संदेश विवरण",
+      "attachmentsCount": "अटैचमेंट · {count}",
+      "category": "श्रेणी",
+      "uncategorized": "अवर्गीकृत",
+      "metadata": {
+        "headers": "हेडर",
+        "security": "सुरक्षा",
+        "raw": "RAW",
+        "fields": {
+          "from": "प्रेषक",
+          "email": "ईमेल",
+          "to": "प्राप्तकर्ता",
+          "messageId": "संदेश ID",
+          "subject": "विषय",
+          "date": "दिनांक",
+          "type": "प्रकार",
+          "category": "श्रेणी",
+          "attachments": "अटैचमेंट",
+          "spam": "स्पैम",
+          "spamScore": "स्पैम स्कोर",
+          "virus": "वायरस",
+          "virusName": "वायरस का नाम",
+          "senderIp": "प्रेषक IP",
+          "reverseDns": "रिवर्स DNS",
+          "spf": "SPF",
+          "priority": "प्राथमिकता",
+          "dkim": "DKIM",
+          "dmarc": "DMARC",
+          "encryption": "एन्क्रिप्शन",
+          "authResults": "प्रमाणीकरण परिणाम",
+          "unknown": "अज्ञात",
+          "none": "कोई नहीं"
+        }
+      }
     },
     "confirm": {
       "deleteEmail": "यह ईमेल हटाएं? यह कार्रवाई पूर्ववत नहीं की जा सकती।"
     },
     "errors": {
       "failedAction": "कार्रवाई करने में विफल।"
-    }
+    },
+    "filters": {
+      "favoritesOnly": "केवल पसंदीदा",
+      "unreadOnly": "केवल अपठित",
+      "all": "सभी"
+    },
+    "typeLabels": {
+      "email": "ईमेल",
+      "organisation": "संगठन",
+      "server": "सर्वर",
+      "notification": "सूचना"
+    },
+    "security": {
+      "virusDetected": "वायरस पाया गया",
+      "virusLabel": "वायरस",
+      "spamLabel": "स्पैम",
+      "likelySpam": "संभावित स्पैम",
+      "score": "स्कोर: {score}",
+      "noThreats": "कोई खतरा नहीं पाया गया",
+      "remoteImagesBlocked": "गोपनीयता के लिए दूरस्थ छवियां अवरुद्ध हैं",
+      "showOnce": "एक बार दिखाएं",
+      "alwaysAllow": "प्रेषक से हमेशा अनुमति दें"
+    },
+    "sent": {
+      "queuedDescription": "कतारबद्ध आउटबाउंड ईमेल",
+      "sentDescription": "भेजा गया आउटबाउंड ईमेल",
+      "sentBadge": "भेजा गया",
+      "queuedBadge": "कतार में",
+      "fromYou": "आप"
+    },
+    "toolbar": {
+      "write": "लिखें",
+      "preview": "पूर्वावलोकन",
+      "markdownSupported": "Markdown समर्थित",
+      "toIndent": "इंडेंट करने के लिए",
+      "wordCharCount": "{words} शब्द · {chars} अक्षर",
+      "nothingToPreview": "पूर्वावलोकन के लिए अभी कुछ नहीं…",
+      "linkText": "लिंक पाठ",
+      "actions": {
+        "bold": "गाढ़ा",
+        "italic": "तिरछा",
+        "strikethrough": "काटा हुआ",
+        "heading1": "शीर्षक 1",
+        "heading2": "शीर्षक 2",
+        "blockquote": "उद्धरण",
+        "bulletList": "बुलेट सूची",
+        "numberedList": "क्रमांकित सूची",
+        "inlineCode": "इनलाइन कोड",
+        "link": "लिंक",
+        "divider": "विभाजक"
+      }
+    },
+    "toast": {
+      "emailSent": "ईमेल भेजा गया",
+      "emailQueued": "ईमेल कतारबद्ध",
+      "sentDescription": "आपका संदेश सफलतापूर्वक भेजा गया।",
+      "queuedDescription": "आपका संदेश कतारबद्ध कर दिया गया है और शीघ्र ही वितरित किया जाएगा।",
+      "failedToSend": "भेजने में विफल",
+      "somethingWentWrong": "कुछ गलत हो गया।"
+    },
+    "unknownOrganisation": "अज्ञात संगठन"
   },
   "panelHeader": {
     "search": "खोजें...",
@@ -4501,6 +4653,32 @@
       "vs": "बनाम",
       "byVoter": "{name} द्वारा",
       "pagination": "पृष्ठ {page} / {total}"
+    },
+    "verification": {
+      "dateOfBirth": "जन्म तिथि",
+      "dateOfBirthHint": "सर्वर प्रबंधन से पहले पात्रता सत्यापित करने के लिए अपनी जन्म तिथि दर्ज करें।",
+      "dateOfBirthLocked": "पहचान सत्यापन के बाद आपकी जन्म तिथि लॉक हो गई है और केवल सहायता द्वारा बदली जा सकती है।",
+      "ageVerificationNotice": "आयु सत्यापन पूरा करने और सर्वर प्रबंधन जारी रखने के लिए कृपया नीचे अपनी जन्म तिथि दर्ज करें।"
+    },
+    "feedback": {
+      "saved": "प्रतिक्रिया सहेजी गई!",
+      "thankYou": "धन्यवाद — आपका इनपुट EcliPanel को बेहतर बनाने में हमारी मदद करता है।",
+      "updateButton": "मेरी प्रतिक्रिया अपडेट करें",
+      "yourFeedback": "आपकी प्रतिक्रिया",
+      "enjoyingPrompt": "क्या आप EcliPanel का आनंद ले रहे हैं?",
+      "updatePrompt": "नीचे अपनी रेटिंग और विचार अपडेट करें।",
+      "newPrompt": "हमें आपके विचार सुनना अच्छा लगेगा। नीचे अपने अनुभव को रेट करें।",
+      "placeholder": "हमें और बताएं (वैकल्पिक, 250 शब्दों तक)...",
+      "saving": "सहेज रहे हैं...",
+      "updateAction": "प्रतिक्रिया अपडेट करें",
+      "submitAction": "प्रतिक्रिया सबमिट करें",
+      "selectRating": "कृपया रेटिंग चुनें",
+      "saveError": "प्रतिक्रिया सहेजने में विफल",
+      "veryPoor": "बहुत खराब",
+      "poor": "खराब",
+      "okay": "ठीक",
+      "good": "अच्छा",
+      "excellent": "उत्कृष्ट"
     }
   },
   "serverDetailPage": {
@@ -6353,6 +6531,9 @@
     "general": "सामान्य",
     "theme": "थीम",
     "blogInfo": "ब्लॉग जानकारी",
+      "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
+      "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
+      "roleOwner": "मालिक",
     "blogName": "ब्लॉग का नाम",
     "visibility": "दृश्यता",
     "public": "सार्वजनिक",

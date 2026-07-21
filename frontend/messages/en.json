@@ -42,7 +42,8 @@
       "subuserInvites": "Subuser Invites",
       "mailbox": "Mailbox",
       "adminPanel": "Staff Portal",
-      "tunnels": "Tunnels"
+      "tunnels": "Tunnels",
+      "blog": "Blog"
     },
     "badges": {
       "new": "New",
@@ -73,6 +74,45 @@
   "mailboxPage": {
     "title": "Mailbox",
     "description": "Manage pending invites, notices, and inbox items.",
+    "tabs": {
+      "inbox": "Inbox",
+      "sent": "Sent"
+    },
+    "compose": {
+      "newMessage": "New Message",
+      "from": "From:",
+      "to": "To",
+      "cc": "CC",
+      "bcc": "BCC",
+      "subject": "Subject",
+      "subjectLabel": "Sub",
+      "send": "Send",
+      "recipientPlaceholder": "recipient@example.com",
+      "ccPlaceholder": "cc@example.com",
+      "bccPlaceholder": "bcc@example.com",
+      "subjectPlaceholder": "Subject",
+      "bodyPlaceholder": "Write your message… Markdown is supported.",
+      "markdownReference": "Markdown reference",
+      "queueStatus": {
+        "queuedCount": "{count} message{count, plural, one {} other {s}} currently queued",
+        "noQueued": "No messages currently queued.",
+        "sentTodayCount": "{count} sent today",
+        "noSentToday": "No messages sent today yet."
+      },
+      "markdownRefItems": {
+        "bold": "Bold",
+        "italic": "Italic",
+        "strikethrough": "Strikethrough",
+        "heading1": "Heading 1",
+        "heading2": "Heading 2",
+        "blockquote": "Blockquote",
+        "inlineCode": "Inline code",
+        "link": "Link",
+        "divider": "Divider",
+        "bulletList": "Bullet list",
+        "orderedList": "Ordered list"
+      }
+    },
     "sections": {
       "inbox": "Inbox",
       "inboxDescription": "A place where you can find all EcliPanel-related important stuff.",
@@ -92,7 +132,13 @@
     },
     "list": {
       "empty": "Your inbox is empty.",
-      "emptyDescription": "No messages match your filters."
+      "emptyDescription": "No messages match your filters.",
+      "searchPlaceholder": "Search messages…",
+      "loading": "Loading messages…",
+      "noSentEmails": "No sent emails yet.",
+      "noSentEmailsHint": "Compose a message to send your first email.",
+      "resultsCount": "{count} result{count, plural, one {} other {s}}",
+      "clearFilters": "Clear"
     },
     "actions": {
       "accept": "Accept",
@@ -100,7 +146,12 @@
       "markRead": "Mark read",
       "markUnread": "Mark unread",
       "assignCategory": "Assign category",
-      "delete": "Delete"
+      "delete": "Delete",
+      "compose": "Compose",
+      "save": "Save",
+      "copy": "Copy",
+      "favorite": "Add to favourites",
+      "unfavorite": "Remove from favourites"
     },
     "details": {
       "sender": "From",
@@ -118,22 +169,123 @@
       "displayMetadata": "Display metadata",
       "hideMetadata": "Hide metadata",
       "chooseView": "Choose how to view this email:",
+      "chooseViewFormat": "Choose view format",
       "plainText": "Plain text",
+      "plainTextDescription": "Safe · No external content · Recommended",
       "htmlView": "HTML view",
+      "htmlViewDescription": "Rich layout · Images blocked by default",
       "raw": "Raw",
       "noPlainTextContent": "No plain text content",
+      "preview": "Preview",
+      "openRaw": "Open raw",
+      "plain": "Plain",
+      "html": "HTML",
       "metadataTitle": "Message metadata",
       "metadataHint": "Showing all message metadata fields. Body HTML and plain-text preview are hidden for readability.",
       "virusDetected": "Virus detected",
       "spamDetected": "Spam detected",
-      "emailFallback": "Email message"
+      "emailFallback": "Email message",
+      "messageDetails": "Message details",
+      "attachmentsCount": "Attachments · {count}",
+      "category": "Category",
+      "uncategorized": "Uncategorized",
+      "metadata": {
+        "headers": "headers",
+        "security": "security",
+        "raw": "raw",
+        "fields": {
+          "from": "From",
+          "email": "Email",
+          "to": "To",
+          "messageId": "Message ID",
+          "subject": "Subject",
+          "date": "Date",
+          "type": "Type",
+          "category": "Category",
+          "attachments": "Attachments",
+          "spam": "Spam",
+          "spamScore": "Spam score",
+          "virus": "Virus",
+          "virusName": "Virus name",
+          "senderIp": "Sender IP",
+          "reverseDns": "Reverse DNS",
+          "spf": "SPF",
+          "priority": "Priority",
+          "dkim": "DKIM",
+          "dmarc": "DMARC",
+          "encryption": "Encryption",
+          "authResults": "Auth results",
+          "unknown": "Unknown",
+          "none": "None"
+        }
+      }
     },
     "confirm": {
       "deleteEmail": "Delete this email? This action cannot be undone."
     },
     "errors": {
       "failedAction": "Failed to perform action."
-    }
+    },
+    "filters": {
+      "favoritesOnly": "Favorites only",
+      "unreadOnly": "Unread only",
+      "all": "All"
+    },
+    "typeLabels": {
+      "email": "Email",
+      "organisation": "Organisation",
+      "server": "Server",
+      "notification": "Notification"
+    },
+    "security": {
+      "virusDetected": "Virus detected",
+      "virusLabel": "VIRUS",
+      "spamLabel": "SPAM",
+      "likelySpam": "Likely spam",
+      "score": "Score: {score}",
+      "noThreats": "No threats detected",
+      "remoteImagesBlocked": "Remote images are blocked for privacy",
+      "showOnce": "Show once",
+      "alwaysAllow": "Always allow from sender"
+    },
+    "sent": {
+      "queuedDescription": "Queued outbound email",
+      "sentDescription": "Sent outbound email",
+      "sentBadge": "Sent",
+      "queuedBadge": "Queued",
+      "fromYou": "You"
+    },
+    "toolbar": {
+      "write": "Write",
+      "preview": "Preview",
+      "markdownSupported": "Markdown supported",
+      "toIndent": "to indent",
+      "wordCharCount": "{words}w · {chars}c",
+      "nothingToPreview": "Nothing to preview yet…",
+      "linkText": "Link text",
+      "actions": {
+        "bold": "Bold",
+        "italic": "Italic",
+        "strikethrough": "Strikethrough",
+        "heading1": "Heading 1",
+        "heading2": "Heading 2",
+        "blockquote": "Blockquote",
+        "bulletList": "Bullet list",
+        "numberedList": "Numbered list",
+        "inlineCode": "Inline code",
+        "link": "Link",
+        "divider": "Divider"
+      }
+    },
+    "toast": {
+      "emailSent": "Email sent",
+      "emailQueued": "Email queued",
+      "sentDescription": "Your message was sent successfully.",
+      "queuedDescription": "Your message was queued and will be delivered shortly.",
+      "failedToSend": "Failed to send",
+      "somethingWentWrong": "Something went wrong."
+    },
+    "unknownOrganisation": "Unknown organisation"
   },
   "panelHeader": {
     "search": "Search...",
@@ -6423,6 +6575,62 @@
     "analyticsTableStatus": "Status",
     "analyticsTableCreated": "Created",
     "views": "views",
-    "handbook": "Handbook"
+    "handbook": "Handbook",
+    "slugPlaceholder": "my-post-slug",
+    "tagsPlaceholder": "web, tutorial, guide",
+    "schedulePost": "Schedule publish (optional)",
+    "scheduleAutoPublish": "Post will auto-publish at {date}",
+    "previewTruncated": "Preview truncated at 5000 characters",
+    "coverImageAlt": "Cover image",
+    "toolbarBold": "Bold",
+    "toolbarItalic": "Italic",
+    "toolbarHeading": "Heading",
+    "toolbarQuote": "Quote",
+    "toolbarCode": "Code",
+    "toolbarLink": "Link",
+    "toolbarImage": "Image",
+    "toolbarVideo": "Video",
+    "toolbarBulletList": "Bullet list",
+    "toolbarNumberedList": "Numbered list",
+    "builderSections": "Sections",
+    "builderClickToAdd": "Click to add",
+    "builderConfigure": "Configure",
+    "builderCancel": "Cancel",
+    "builderDone": "Done",
+    "builderOrder": "Order:",
+    "builderDefaultHero": "Default hero",
+    "builderPostsInGrid": "{count} posts in grid",
+    "builderPostsInList": "{count} posts in list",
+    "builderHasContent": "Has content",
+    "builderEmptyField": "Empty",
+    "builderNoUrl": "No URL",
+    "builderVideoPrefix": "Video:",
+    "builderHasHtml": "Has HTML",
+    "builderSearchBar": "Search bar",
+    "builderHasScript": "Has script",
+    "builderBlogHeader": "Blog header",
+    "builderNoConfiguration": "No configuration available.",
+    "builderConfigureSection": "Configure: {section}",
+    "builderLoadingEditor": "Loading editor...",
+    "myBlogProfile": "My blog profile",
+    "myBlogProfileDescription": "Customise how you appear on this blog",
+    "editProfile": "Edit blog profile",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "How you appear on this blog",
+    "bio": "Bio",
+    "bioPlaceholder": "Write a short bio...",
+    "avatarLabel": "Avatar",
+    "setDisplayName": "Set your display name",
+    "memberFallback": "Member",
+    "roleOwner": "Owner",
+    "roleAdmin": "Admin",
+    "roleAuthor": "Author",
+    "roleAuthorDesc": "Author / write posts",
+    "roleAdminDesc": "Admin / manage members + write posts",
+    "roleOwnerDesc": "Owner / full control",
+    "cancel": "Cancel",
+    "add": "Add",
+    "adding": "Adding...",
+    "emailPlaceholder": "user@example.com"
   }
 }

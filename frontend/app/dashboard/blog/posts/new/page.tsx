@@ -102,7 +102,7 @@ export default function NewBlogPostPage() {
   }
 
   const formatToolbar = (
-    <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b bg-muted/20 rounded-t-lg">
+    <div className="flex flex-wrap items-center gap-0.5 p-1.5 border-b bg-muted/20 rounded-t-lg overflow-x-auto">
       {[
         { icon: <Bold className="h-3.5 w-3.5" />, label: "Bold", before: "**", after: "**", placeholder: "bold text" },
         { icon: <Italic className="h-3.5 w-3.5" />, label: "Italic", before: "_", after: "_", placeholder: "italic text" },
@@ -120,7 +120,7 @@ export default function NewBlogPostPage() {
           type="button"
           title={btn.label}
           onClick={() => insertFormat(btn.before, btn.after, btn.placeholder)}
-          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors shrink-0"
         >
           {btn.icon}
         </button>
@@ -192,55 +192,55 @@ export default function NewBlogPostPage() {
   return (
     <FeatureGuard feature="blog">
       <PanelHeader
-        title={t("newPost", { defaultValue: "New Post" })}
-        description={t("newPostDescription", { defaultValue: "Write a new blog post" })}
+        title={t("newPost")}
+        description={t("newPostDescription")}
       />
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 space-y-4 max-w-4xl">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+        <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-4xl mx-auto w-full overflow-hidden">
           <Link href="/dashboard/blog">
             <Button variant="ghost" size="sm" className="gap-1 -ml-2">
               <ArrowLeft className="h-3.5 w-3.5" />
-              {t("back", { defaultValue: "Back to blog" })}
+              {t("back")}
             </Button>
           </Link>
 
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">{t("postTitle", { defaultValue: "Title" })}</Label>
+              <Label htmlFor="title">{t("postTitle")}</Label>
               <Input
                 id="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={t("postTitlePlaceholder", { defaultValue: "Post title..." })}
+                placeholder={t("postTitlePlaceholder")}
                 className="text-lg font-medium"
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="slug">{t("slug", { defaultValue: "Slug" })}</Label>
+              <Label htmlFor="slug">{t("slug")}</Label>
               <Input
                 id="slug"
                 value={slug}
                 onChange={(e) => setSlug(slugify(e.target.value))}
-                placeholder="my-post-slug"
+                placeholder={t("slugPlaceholder")}
                 className="font-mono text-sm"
               />
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="excerpt">{t("excerpt", { defaultValue: "Excerpt (optional)" })}</Label>
+              <Label htmlFor="excerpt">{t("excerpt")}</Label>
               <Input
                 id="excerpt"
                 value={excerpt}
                 onChange={(e) => setExcerpt(e.target.value)}
-                placeholder={t("excerptPlaceholder", { defaultValue: "Brief summary..." })}
+                placeholder={t("excerptPlaceholder")}
               />
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
-                <TabsTrigger value="write">{t("write", { defaultValue: "Write" })}</TabsTrigger>
-                <TabsTrigger value="preview">{t("preview", { defaultValue: "Preview" })}</TabsTrigger>
+                <TabsTrigger value="write">{t("write")}</TabsTrigger>
+                <TabsTrigger value="preview">{t("preview")}</TabsTrigger>
               </TabsList>
               <TabsContent value="write" className="mt-2">
                 <div className="rounded-lg border overflow-hidden">
@@ -249,7 +249,7 @@ export default function NewBlogPostPage() {
                     ref={contentRef}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder={t("contentPlaceholder", { defaultValue: "Write your post in Markdown..." })}
+                    placeholder={t("contentPlaceholder")}
                     className="min-h-[350px] font-mono text-sm border-0 rounded-none focus-visible:ring-0"
                     onPaste={async (e) => {
                       const items = e.clipboardData?.items
@@ -296,13 +296,13 @@ export default function NewBlogPostPage() {
                         })}
                         {content.length > 5000 && (
                           <p className="text-xs text-muted-foreground mt-4 italic border-t pt-3">
-                            Preview truncated at 5000 characters
+                            {t("previewTruncated")}
                           </p>
                         )}
                       </div>
                     ) : (
                       <p className="text-muted-foreground italic text-sm">
-                        {t("previewEmpty", { defaultValue: "Nothing to preview yet..." })}
+                        {t("previewEmpty")}
                       </p>
                     )}
                   </CardContent>
@@ -311,18 +311,16 @@ export default function NewBlogPostPage() {
             </Tabs>
 
             <div className="grid gap-2">
-              <Label>{t("coverImage", { defaultValue: "Cover image (optional)" })}</Label>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" className="gap-1" type="button" disabled={uploading}
+              <Label>{t("coverImage")}</Label>
+              <div className="flex items-center gap-3 min-w-0">
+                <Button variant="outline" size="sm" className="gap-1 shrink-0" type="button" disabled={uploading}
                   onClick={() => fileRef.current?.click()}>
                   <Upload className="h-3.5 w-3.5" />
-                  {uploading
-                    ? t("uploading", { defaultValue: "Uploading..." })
-                    : t("upload", { defaultValue: "Upload" })}
+                  {uploading ? t("uploading") : t("upload")}
                 </Button>
                 <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleUpload} />
                 {coverImageUrl && (
-                  <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                  <span className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[200px] min-w-0">
                     {coverImageUrl.split("/").pop()}
                   </span>
                 )}
@@ -330,51 +328,55 @@ export default function NewBlogPostPage() {
               {coverImageUrl && (
                 <img
                   src={coverImageUrl}
-                  alt="Cover"
+                  alt={t("coverImageAlt")}
                   className="mt-2 rounded-lg max-h-40 object-cover"
                 />
               )}
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="tags">{t("tags", { defaultValue: "Tags (comma-separated)" })}</Label>
+              <Label htmlFor="tags">{t("tags")}</Label>
               <Input
                 id="tags"
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                placeholder="web, tutorial, guide"
+                placeholder={t("tagsPlaceholder")}
               />
             </div>
 
             <div className="grid gap-1.5">
-              <Label className="text-xs">{t("schedulePost", { defaultValue: "Schedule publish (optional)" })}</Label>
+              <Label className="text-xs">{t("schedulePost")}</Label>
               <input
                 type="datetime-local"
                 value={scheduledAt}
                 onChange={(e) => setScheduledAt(e.target.value)}
                 className="w-full max-w-[240px] border border-border/60 bg-background px-2.5 py-1.5 text-xs rounded-lg"
               />
-              {scheduledAt && <p className="text-[10px] text-muted-foreground">Post will auto-publish at {new Date(scheduledAt).toLocaleString()}</p>}
+              {scheduledAt && (
+                <p className="text-[10px] text-muted-foreground">
+                  {t("scheduleAutoPublish", { date: new Date(scheduledAt).toLocaleString() })}
+                </p>
+              )}
             </div>
 
-            <div className="flex flex-wrap gap-3 pt-2">
-              <Label className="text-xs text-muted-foreground">{t("contentFlags", { defaultValue: "Content Flags" })}</Label>
-              <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2">
+              <Label className="text-xs text-muted-foreground shrink-0">{t("contentFlags")}</Label>
+              <div className="flex flex-wrap gap-x-4 gap-y-1.5">
                 <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                   <input type="checkbox" checked={contentFlags.includes("mature")}
                     onChange={(e) => setContentFlags(e.target.checked ? [...contentFlags, "mature"] : contentFlags.filter(f => f !== "mature"))} />
-                  Mature (NSFW)
+                  {t("mature")}
                 </label>
                 <label className="flex items-center gap-1.5 text-xs cursor-pointer">
                   <input type="checkbox" checked={contentFlags.includes("political")}
                     onChange={(e) => setContentFlags(e.target.checked ? [...contentFlags, "political"] : contentFlags.filter(f => f !== "political"))} />
-                  Political
+                  {t("political")}
                 </label>
               </div>
             </div>
 
             <div className="flex items-center justify-between pt-4 border-t">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   variant="outline"
                   size="sm"
@@ -383,7 +385,7 @@ export default function NewBlogPostPage() {
                   className="gap-1"
                 >
                   <Save className="h-3.5 w-3.5" />
-                  {t("saveDraft", { defaultValue: "Save Draft" })}
+                  {t("saveDraft")}
                 </Button>
                 <Button
                   size="sm"
@@ -392,7 +394,7 @@ export default function NewBlogPostPage() {
                   className="gap-1"
                 >
                   <Eye className="h-3.5 w-3.5" />
-                  {t("publish", { defaultValue: "Publish" })}
+                  {t("publish")}
                 </Button>
               </div>
             </div>

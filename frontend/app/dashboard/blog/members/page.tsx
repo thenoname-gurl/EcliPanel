@@ -141,7 +141,7 @@ export default function BlogMembersPage() {
   }
 
   const handleRemove = async (userId: number) => {
-    if (!blogId || !confirm(t("confirmRemoveMember", { defaultValue: "Remove this member?" }))) return
+    if (!blogId || !confirm(t("confirmRemoveMember"))) return
     try {
       await apiFetch(
         API_ENDPOINTS.blogMemberDetail
@@ -155,53 +155,63 @@ export default function BlogMembersPage() {
     }
   }
 
+  const roleLabel = (r: string) => {
+    const map: Record<string, string> = {
+      owner: t("roleOwner", { defaultValue: "Owner" }),
+      admin: t("roleAdmin", { defaultValue: "Admin" }),
+      author: t("roleAuthor", { defaultValue: "Author" }),
+    }
+    return map[r] ?? r
+  }
+
   const roleBadge = (r: string) => {
-    if (r === "owner") return <Badge className="gap-1"><Shield className="h-3 w-3" />Owner</Badge>
-    if (r === "admin") return <Badge variant="secondary" className="gap-1"><Shield className="h-3 w-3" />Admin</Badge>
-    return <Badge variant="outline" className="gap-1"><User className="h-3 w-3" />Author</Badge>
+    const label = roleLabel(r)
+    if (r === "owner") return <Badge className="gap-1"><Shield className="h-3 w-3" />{label}</Badge>
+    if (r === "admin") return <Badge variant="secondary" className="gap-1"><Shield className="h-3 w-3" />{label}</Badge>
+    return <Badge variant="outline" className="gap-1"><User className="h-3 w-3" />{label}</Badge>
   }
 
   return (
     <FeatureGuard feature="blog">
       <PanelHeader
-        title={t("members", { defaultValue: "Blog Members" })}
-        description={t("membersDescription", { defaultValue: "Manage who can write on your blog" })}
+        title={t("members")}
+        description={t("membersDescription")}
       />
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 space-y-4 max-w-3xl">
-          <div className="flex items-center justify-between">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+        <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-3xl mx-auto w-full overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Link href="/dashboard/blog">
               <Button variant="ghost" size="sm" className="gap-1 -ml-2">
                 <ArrowLeft className="h-3.5 w-3.5" />
-                {t("back", { defaultValue: "Back to blog" })}
+                <span className="hidden sm:inline">{t("back")}</span>
               </Button>
             </Link>
             <Button size="sm" className="gap-1" onClick={() => setDialogOpen(true)}>
               <Plus className="h-3.5 w-3.5" />
-              {t("addMember", { defaultValue: "Add Member" })}
+              <span className="hidden sm:inline">{t("addMember")}</span>
             </Button>
           </div>
 
           {/* My Profile */}
           <Card className="border-dashed">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <div>
-                <CardTitle className="text-sm">My blog profile</CardTitle>
-                <CardDescription className="text-xs">Customise how you appear on this blog</CardDescription>
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2">
+              <div className="min-w-0">
+                <CardTitle className="text-sm">{t("myBlogProfile", { defaultValue: "My blog profile" })}</CardTitle>
+                <CardDescription className="text-xs hidden sm:block">{t("myBlogProfileDescription", { defaultValue: "Customise how you appear on this blog" })}</CardDescription>
               </div>
-              <Button size="sm" variant="outline" className="gap-1" onClick={() => setShowProfileEdit(true)}>
-                <Pencil className="h-3.5 w-3.5" /> Edit
+              <Button size="sm" variant="outline" className="gap-1 flex-shrink-0" onClick={() => setShowProfileEdit(true)}>
+                <Pencil className="h-3.5 w-3.5" /> {t("edit")}
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-3">
-                <Avatar className="h-10 w-10">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="h-10 w-10 flex-shrink-0">
                   <AvatarImage src={profileAvatar || myProfile?.avatarUrl || ""} />
                   <AvatarFallback>{(profileName || myProfile?.displayName || "?")[0]?.toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div>
-                  <p className="text-sm font-medium">{profileName || myProfile?.displayName || "Set your display name"}</p>
-                  <p className="text-xs text-muted-foreground">{myProfile?.role || "Member"}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{profileName || myProfile?.displayName || t("setDisplayName", { defaultValue: "Set your display name" })}</p>
+                  <p className="text-xs text-muted-foreground truncate">{myProfile?.role ? roleLabel(myProfile.role) : t("memberFallback", { defaultValue: "Member" })}</p>
                 </div>
               </div>
               {(profileBio || myProfile?.bio) && (
@@ -220,11 +230,11 @@ export default function BlogMembersPage() {
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <Users className="h-8 w-8 text-muted-foreground/40 mb-3" />
                 <p className="text-sm text-muted-foreground">
-                  {t("noMembers", { defaultValue: "No members yet. Invite authors to your blog!" })}
+                  {t("noMembers")}
                 </p>
                 <Button size="sm" className="gap-1 mt-3" onClick={() => setDialogOpen(true)}>
                   <Plus className="h-3.5 w-3.5" />
-                  {t("addMember", { defaultValue: "Add Member" })}
+                  {t("addMember")}
                 </Button>
               </CardContent>
             </Card>
@@ -232,24 +242,24 @@ export default function BlogMembersPage() {
             <div className="space-y-3">
               {members.map((member) => (
                 <Card key={member.id}>
-                  <CardContent className="flex items-center justify-between py-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9">
+                  <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 py-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Avatar className="h-9 w-9 flex-shrink-0">
                         <AvatarImage src={member.user?.avatarUrl || ""} />
                         <AvatarFallback>
                           {(member.user?.name || "?").slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div>
-                        <p className="text-sm font-medium">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate max-w-[180px] sm:max-w-[240px]">
                           {member.user?.name || `User #${member.userId}`}
                         </p>
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-muted-foreground truncate max-w-[180px] sm:max-w-[240px]">
                           {member.user?.email || ""}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
                       {roleBadge(member.role)}
                       {member.role !== "owner" && (
                         <>
@@ -258,8 +268,8 @@ export default function BlogMembersPage() {
                             onChange={(e) => handleChangeRole(member.userId, e.target.value)}
                             className="text-xs border border-border/60 bg-background px-1.5 py-1 rounded"
                           >
-                            <option value="admin">Admin</option>
-                            <option value="author">Author</option>
+                            <option value="admin">{roleLabel("admin")}</option>
+                            <option value="author">{roleLabel("author")}</option>
                           </select>
                           <Button
                             variant="ghost"
@@ -284,41 +294,41 @@ export default function BlogMembersPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{t("addMember", { defaultValue: "Add Member" })}</DialogTitle>
+            <DialogTitle>{t("addMember")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid gap-2">
               <label className="text-sm font-medium">
-                {t("memberEmail", { defaultValue: "User email" })}
+                {t("memberEmail")}
               </label>
               <Input
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="user@example.com"
+                placeholder={t("emailPlaceholder", { defaultValue: "user@example.com" })}
                 autoFocus
               />
             </div>
             <div className="grid gap-2">
               <label className="text-sm font-medium">
-                {t("memberRole", { defaultValue: "Role" })}
+                {t("memberRole")}
               </label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
                 className="w-full border border-border/60 bg-background px-2.5 py-1.5 text-sm rounded-lg"
               >
-                <option value="author">Author / write posts</option>
-                <option value="admin">Admin / manage members + write posts</option>
-                <option value="owner">Owner / full control</option>
+                <option value="author">{t("roleAuthorDesc", { defaultValue: "Author / write posts" })}</option>
+                <option value="admin">{t("roleAdminDesc", { defaultValue: "Admin / manage members + write posts" })}</option>
+                <option value="owner">{t("roleOwnerDesc", { defaultValue: "Owner / full control" })}</option>
               </select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={() => setDialogOpen(false)}>
-              Cancel
+              {t("cancel", { defaultValue: "Cancel" })}
             </Button>
             <Button size="sm" onClick={handleAdd} disabled={adding || !email.trim()}>
-              {adding ? "Adding..." : "Add"}
+              {adding ? t("adding", { defaultValue: "Adding..." }) : t("add", { defaultValue: "Add" })}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -328,32 +338,32 @@ export default function BlogMembersPage() {
       <Dialog open={showProfileEdit} onOpenChange={setShowProfileEdit}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit blog profile</DialogTitle>
+            <DialogTitle>{t("editProfile", { defaultValue: "Edit blog profile" })}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="grid gap-1.5">
-              <Label>Display name</Label>
-              <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder="How you appear on this blog" maxLength={128} />
+              <Label>{t("displayName", { defaultValue: "Display name" })}</Label>
+              <Input value={profileName} onChange={(e) => setProfileName(e.target.value)} placeholder={t("displayNamePlaceholder", { defaultValue: "How you appear on this blog" })} maxLength={128} />
             </div>
             <div className="grid gap-1.5">
-              <Label>Avatar</Label>
+              <Label>{t("avatarLabel", { defaultValue: "Avatar" })}</Label>
               <div className="flex items-center gap-3">
                 <Button variant="outline" size="sm" className="gap-1" type="button" disabled={profileUploading} onClick={() => profileFileRef.current?.click()}>
                   <Upload className="h-3.5 w-3.5" />
-                  {profileUploading ? "Uploading..." : "Upload"}
+                  {profileUploading ? t("uploading") : t("upload")}
                 </Button>
                 <input ref={profileFileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" className="hidden" onChange={handleProfileUpload} />
                 {profileAvatar && <img src={profileAvatar} alt="" className="h-10 w-10 rounded-full object-cover ring-2 ring-border" />}
               </div>
             </div>
             <div className="grid gap-1.5">
-              <Label>Bio</Label>
-              <Textarea value={profileBio} onChange={(e) => setProfileBio(e.target.value)} placeholder="Write a short bio..." rows={3} maxLength={2000} />
+              <Label>{t("bio", { defaultValue: "Bio" })}</Label>
+              <Textarea value={profileBio} onChange={(e) => setProfileBio(e.target.value)} placeholder={t("bioPlaceholder", { defaultValue: "Write a short bio..." })} rows={3} maxLength={2000} />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setShowProfileEdit(false)}>Cancel</Button>
-            <Button size="sm" onClick={handleSaveProfile}>Save</Button>
+            <Button variant="outline" size="sm" onClick={() => setShowProfileEdit(false)}>{t("cancel", { defaultValue: "Cancel" })}</Button>
+            <Button size="sm" onClick={handleSaveProfile}>{t("save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

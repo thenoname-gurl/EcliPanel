@@ -50,8 +50,8 @@ export default function BlogAnalyticsPage() {
         title={t("analytics", { defaultValue: "Analytics" })}
         description={t("analyticsDescription", { defaultValue: "Post performance and view statistics" })}
       />
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 space-y-6 max-w-5xl">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+        <div className="p-3 sm:p-4 md:p-6 space-y-6 max-w-5xl mx-auto w-full overflow-hidden">
           <Link href="/dashboard/blog">
             <Button variant="ghost" size="sm" className="gap-1 -ml-2">
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -75,14 +75,14 @@ export default function BlogAnalyticsPage() {
           </div>
 
           {loading ? (
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <Skeleton className="h-24" /><Skeleton className="h-24" />
               <Skeleton className="h-64 col-span-2" />
             </div>
           ) : data ? (
             <>
               {/* Stats cards */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
@@ -146,7 +146,7 @@ export default function BlogAnalyticsPage() {
                   <CardTitle className="text-sm">All posts</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  <div className="overflow-x-auto -mx-3 sm:mx-0">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b text-muted-foreground">

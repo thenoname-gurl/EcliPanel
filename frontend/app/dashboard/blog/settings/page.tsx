@@ -156,7 +156,7 @@ export default function BlogSettingsPage() {
   if (loading) {
     return (
       <FeatureGuard feature="blog">
-        <div className="p-4 md:p-6 space-y-4 max-w-3xl">
+        <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-3xl">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-64 w-full" />
         </div>
@@ -170,8 +170,8 @@ export default function BlogSettingsPage() {
         title={t("settings", { defaultValue: "Blog Settings" })}
         description={t("settingsDescription", { defaultValue: "Customize your blog appearance and settings" })}
       />
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 space-y-6 max-w-3xl">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+        <div className="p-3 sm:p-4 md:p-6 space-y-6 max-w-3xl mx-auto w-full overflow-hidden">
           <Link href="/dashboard/blog">
             <Button variant="ghost" size="sm" className="gap-1 -ml-2">
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -180,7 +180,7 @@ export default function BlogSettingsPage() {
           </Link>
 
           <Tabs defaultValue="general">
-            <TabsList>
+            <TabsList className="flex-wrap">
               <TabsTrigger value="general">{t("general", { defaultValue: "General" })}</TabsTrigger>
               <TabsTrigger value="theme" className="gap-1">
                 <Palette className="h-3.5 w-3.5" />
@@ -191,7 +191,7 @@ export default function BlogSettingsPage() {
             <TabsContent value="general" className="mt-4 space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">{t("blogInfo", { defaultValue: "Blog Info" })}</CardTitle>
+                  <CardTitle className="text-base truncate">{t("blogInfo", { defaultValue: "Blog Info" })}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid gap-2">
@@ -204,7 +204,7 @@ export default function BlogSettingsPage() {
                   </div>
                   <div className="grid gap-2">
                     <Label>{t("coverImage", { defaultValue: "Cover Image" })}</Label>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
                       <Button variant="outline" size="sm" className="gap-1" type="button" disabled={uploading}
                         onClick={() => fileRef.current?.click()}>
                         <Upload className="h-3.5 w-3.5" />
@@ -232,15 +232,15 @@ export default function BlogSettingsPage() {
                   <div className="grid gap-2">
                     <Label>{t("contentFlags", { defaultValue: "Content Flags" })}</Label>
                     <div className="flex flex-wrap gap-3">
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer min-w-0">
                         <input type="checkbox" checked={contentFlags.includes("mature")}
                           onChange={(e) => setContentFlags(e.target.checked ? [...contentFlags, "mature"] : contentFlags.filter(f => f !== "mature"))} />
-                        Mature (NSFW)
+                        {t("mature")}
                       </label>
-                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer min-w-0">
                         <input type="checkbox" checked={contentFlags.includes("political")}
                           onChange={(e) => setContentFlags(e.target.checked ? [...contentFlags, "political"] : contentFlags.filter(f => f !== "political"))} />
-                        Political
+                        {t("political")}
                       </label>
                     </div>
                   </div>
@@ -251,13 +251,13 @@ export default function BlogSettingsPage() {
             <TabsContent value="theme" className="mt-4 space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">{t("themePresets", { defaultValue: "Theme Presets" })}</CardTitle>
+                  <CardTitle className="text-base truncate">{t("themePresets", { defaultValue: "Theme Presets" })}</CardTitle>
                   <CardDescription>
                     {t("themePresetsDescription", { defaultValue: "Pick a preset and tweak it" })}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-5 gap-2">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
                     {THEME_PRESETS.map((p) => (
                       <button
                         key={p.name}
@@ -270,7 +270,7 @@ export default function BlogSettingsPage() {
                         >
                           <div className="h-1.5 rounded-t" style={{ background: p.primary }} />
                         </div>
-                        <span className="text-[10px] font-medium">{p.name}</span>
+                        <span className="text-[10px] font-medium truncate max-w-full">{p.name}</span>
                       </button>
                     ))}
                   </div>
@@ -279,12 +279,12 @@ export default function BlogSettingsPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">{t("colors", { defaultValue: "Colors" })}</CardTitle>
+                  <CardTitle className="text-base truncate">{t("colors", { defaultValue: "Colors" })}</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>{t("primaryColor", { defaultValue: "Primary" })}</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="color"
                         value={primary.startsWith("#") ? primary : "#1e3a5f"}
@@ -296,7 +296,7 @@ export default function BlogSettingsPage() {
                   </div>
                   <div className="grid gap-2">
                     <Label>{t("bgColor", { defaultValue: "Background" })}</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="color"
                         value={bg.startsWith("#") ? bg : "#ffffff"}
@@ -308,7 +308,7 @@ export default function BlogSettingsPage() {
                   </div>
                   <div className="grid gap-2">
                     <Label>{t("fgColor", { defaultValue: "Text" })}</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="color"
                         value={fg.startsWith("#") ? fg : "#0f172a"}
@@ -320,7 +320,7 @@ export default function BlogSettingsPage() {
                   </div>
                   <div className="grid gap-2">
                     <Label>{t("cardColor", { defaultValue: "Card" })}</Label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="color"
                         value={cardColor.startsWith("#") ? cardColor : "#f8f9fa"}
@@ -335,9 +335,9 @@ export default function BlogSettingsPage() {
 
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">{t("typography", { defaultValue: "Typography" })}</CardTitle>
+                  <CardTitle className="text-base truncate">{t("typography", { defaultValue: "Typography" })}</CardTitle>
                 </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4">
+                <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>{t("headingFont", { defaultValue: "Heading font" })}</Label>
                     <select
@@ -368,7 +368,7 @@ export default function BlogSettingsPage() {
               {/* Custom CSS */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">{t("customCss", { defaultValue: "Custom CSS" })}</CardTitle>
+                  <CardTitle className="text-base truncate">{t("customCss", { defaultValue: "Custom CSS" })}</CardTitle>
                   <CardDescription>
                     {t("customCssDescription", { defaultValue: "Add your own CSS. Injected on your public blog pages." })}
                   </CardDescription>
@@ -387,7 +387,7 @@ export default function BlogSettingsPage() {
               {/* Preview */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">{t("preview", { defaultValue: "Preview" })}</CardTitle>
+                  <CardTitle className="text-base truncate">{t("preview", { defaultValue: "Preview" })}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div

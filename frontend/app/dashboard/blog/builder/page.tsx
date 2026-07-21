@@ -145,11 +145,11 @@ export default function BlogBuilderPage() {
           <div className="space-y-3">
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showName !== false} onChange={(e) => set("showName", e.target.checked)} />
-              Show blog name
+              {t("builderShowBlogName", { defaultValue: "Show blog name" })}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showRss === true} onChange={(e) => set("showRss", e.target.checked)} />
-              Show RSS icon
+              {t("builderShowRssIcon", { defaultValue: "Show RSS icon" })}
             </label>
           </div>
         )
@@ -157,20 +157,20 @@ export default function BlogBuilderPage() {
         return (
           <div className="space-y-3">
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Title (leave empty for blog name)</label>
-              <Input value={(cfg.title as string) || ""} onChange={(e) => set("title", e.target.value)} placeholder="Hero title" />
+              <label className="text-xs font-medium">{t("builderHeroTitleLabel", { defaultValue: "Title (leave empty for blog name)" })}</label>
+              <Input value={(cfg.title as string) || ""} onChange={(e) => set("title", e.target.value)} placeholder={t("builderHeroTitlePlaceholder", { defaultValue: "Hero title" })} />
             </div>
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Subtitle</label>
-              <Input value={(cfg.subtitle as string) || ""} onChange={(e) => set("subtitle", e.target.value)} placeholder="Hero subtitle" />
+              <label className="text-xs font-medium">{t("builderSubtitleLabel", { defaultValue: "Subtitle" })}</label>
+              <Input value={(cfg.subtitle as string) || ""} onChange={(e) => set("subtitle", e.target.value)} placeholder={t("builderHeroSubtitlePlaceholder", { defaultValue: "Hero subtitle" })} />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showCover !== false} onChange={(e) => set("showCover", e.target.checked)} />
-              Show cover image
+              {t("builderShowCoverImage", { defaultValue: "Show cover image" })}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showRss === true} onChange={(e) => set("showRss", e.target.checked)} />
-              Show RSS icon
+              {t("builderShowRssIcon", { defaultValue: "Show RSS icon" })}
             </label>
           </div>
         )
@@ -178,16 +178,16 @@ export default function BlogBuilderPage() {
         return (
           <div className="space-y-3">
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Posts per page (0 = all)</label>
+              <label className="text-xs font-medium">{t("builderPostsPerPage", { defaultValue: "Posts per page (0 = all)" })}</label>
               <Input type="number" value={String(cfg.count || 6)} onChange={(e) => set("count", Number(e.target.value))} min={0} max={24} />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showExcerpt !== false} onChange={(e) => set("showExcerpt", e.target.checked)} />
-              Show excerpts
+              {t("builderShowExcerpts", { defaultValue: "Show excerpts" })}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showCover !== false} onChange={(e) => set("showCover", e.target.checked)} />
-              Show cover images
+              {t("builderShowCoverImages", { defaultValue: "Show cover images" })}
             </label>
           </div>
         )
@@ -195,24 +195,24 @@ export default function BlogBuilderPage() {
         return (
           <div className="space-y-3">
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Posts per page (0 = all)</label>
+              <label className="text-xs font-medium">{t("builderPostsPerPage", { defaultValue: "Posts per page (0 = all)" })}</label>
               <Input type="number" value={String(cfg.count || 10)} onChange={(e) => set("count", Number(e.target.value))} min={0} max={50} />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showDate !== false} onChange={(e) => set("showDate", e.target.checked)} />
-              Show dates
+              {t("builderShowDates", { defaultValue: "Show dates" })}
             </label>
           </div>
         )
       case "about":
         return (
           <div className="grid gap-1.5">
-            <label className="text-xs font-medium">Content (Markdown or plain text)</label>
+            <label className="text-xs font-medium">{t("builderContentMarkdown", { defaultValue: "Content (Markdown or plain text)" })}</label>
             <Textarea
               value={(cfg.content as string) || ""}
               onChange={(e) => set("content", e.target.value)}
               rows={6}
-              placeholder="Write about your blog..."
+              placeholder={t("builderAboutPlaceholder", { defaultValue: "Write about your blog..." })}
               className="font-mono text-sm"
             />
           </div>
@@ -221,12 +221,12 @@ export default function BlogBuilderPage() {
         return (
           <div className="space-y-3">
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Placeholder text</label>
-              <Input value={(cfg.placeholder as string) || ""} onChange={(e) => set("placeholder", e.target.value)} placeholder="Search posts..." />
+              <label className="text-xs font-medium">{t("builderPlaceholderText", { defaultValue: "Placeholder text" })}</label>
+              <Input value={(cfg.placeholder as string) || ""} onChange={(e) => set("placeholder", e.target.value)} placeholder={t("builderSearchPlaceholderText", { defaultValue: "Search posts..." })} />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.showCount !== false} onChange={(e) => set("showCount", e.target.checked)} />
-              Show result count
+              {t("builderShowResultCount", { defaultValue: "Show result count" })}
             </label>
           </div>
         )
@@ -234,28 +234,28 @@ export default function BlogBuilderPage() {
         return (
           <div className="space-y-3">
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Video URL (YouTube or Vimeo)</label>
-              <Input value={(cfg.url as string) || ""} onChange={(e) => set("url", e.target.value)} placeholder="https://youtube.com/watch?v=..." />
+              <label className="text-xs font-medium">{t("builderVideoUrlLabel", { defaultValue: "Video URL (YouTube or Vimeo)" })}</label>
+              <Input value={(cfg.url as string) || ""} onChange={(e) => set("url", e.target.value)} placeholder={t("builderVideoUrlPlaceholder", { defaultValue: "https://youtube.com/watch?v=..." })} />
             </div>
             <div className="grid gap-1.5">
-              <label className="text-xs font-medium">Title (optional)</label>
-              <Input value={(cfg.title as string) || ""} onChange={(e) => set("title", e.target.value)} placeholder="Video title" />
+              <label className="text-xs font-medium">{t("builderVideoTitleLabel", { defaultValue: "Title (optional)" })}</label>
+              <Input value={(cfg.title as string) || ""} onChange={(e) => set("title", e.target.value)} placeholder={t("builderVideoTitlePlaceholder", { defaultValue: "Video title" })} />
             </div>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={cfg.autoplay === true} onChange={(e) => set("autoplay", e.target.checked)} />
-              Autoplay (muted)
+              {t("builderAutoplayMuted", { defaultValue: "Autoplay (muted)" })}
             </label>
           </div>
         )
       case "custom-html":
         return (
           <div className="grid gap-1.5">
-            <label className="text-xs font-medium">HTML (scripts automatically stripped)</label>
+            <label className="text-xs font-medium">{t("builderHtmlLabel", { defaultValue: "HTML (scripts automatically stripped)" })}</label>
             <Textarea
               value={(cfg.html as string) || ""}
               onChange={(e) => set("html", e.target.value)}
               rows={8}
-              placeholder="<div>Your custom HTML here</div>"
+              placeholder={t("builderHtmlPlaceholder", { defaultValue: "<div>Your custom HTML here</div>" })}
               className="font-mono text-sm"
             />
           </div>
@@ -264,11 +264,11 @@ export default function BlogBuilderPage() {
         return (
           <div className="grid gap-1.5">
             <label className="text-xs font-medium">
-              JavaScript, uses the Blog SDK (<code>blog</code> object).{" "}
-              <a href="/docs/blog-handbook" target="_blank" className="underline text-primary">View handbook</a>
+              {t("builderScriptLabel", { defaultValue: "JavaScript, uses the Blog SDK" })} (<code>blog</code>).{" "}
+              <a href="/docs/blog-handbook" target="_blank" className="underline text-primary">{t("builderViewHandbook", { defaultValue: "View handbook" })}</a>
             </label>
             <div className="border rounded-lg overflow-hidden bg-[#1e1e1e]" style={{ minHeight: "320px" }}>
-              <Suspense fallback={<div className="h-[320px] flex items-center justify-center text-xs text-muted-foreground">Loading editor...</div>}>
+              <Suspense fallback={<div className="h-[320px] flex items-center justify-center text-xs text-muted-foreground">{t("builderLoadingEditor", { defaultValue: "Loading editor..." })}</div>}>
                 <MonacoEditor
                   height="320px"
                   language="javascript"
@@ -291,7 +291,7 @@ export default function BlogBuilderPage() {
           </div>
         )
       default:
-        return <p className="text-sm text-muted-foreground">No configuration available.</p>
+        return <p className="text-sm text-muted-foreground">{t("builderNoConfiguration", { defaultValue: "No configuration available." })}</p>
     }
   }
 
@@ -301,9 +301,9 @@ export default function BlogBuilderPage() {
         title={t("builder", { defaultValue: "Page Builder" })}
         description={t("builderDescription", { defaultValue: "Design your blog landing page layout" })}
       />
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 space-y-4 max-w-5xl">
-          <div className="flex items-center justify-between">
+      <ScrollArea className="flex-1 [&_[data-slot=scroll-area-viewport]]:overflow-x-hidden">
+        <div className="p-3 sm:p-4 md:p-6 space-y-4 max-w-5xl mx-auto w-full overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Link href="/dashboard/blog">
               <Button variant="ghost" size="sm" className="gap-1 -ml-2">
                 <ArrowLeft className="h-3.5 w-3.5" />
@@ -332,8 +332,8 @@ export default function BlogBuilderPage() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
               <Card className="lg:col-span-1 h-fit">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Sections</CardTitle>
-                  <CardDescription className="text-xs">Click to add</CardDescription>
+                  <CardTitle className="text-sm">{t("builderSections", { defaultValue: "Sections" })}</CardTitle>
+                  <CardDescription className="text-xs">{t("builderClickToAdd", { defaultValue: "Click to add" })}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-1.5">
                   {SECTION_TEMPLATES.map((tmpl) => (
@@ -346,8 +346,8 @@ export default function BlogBuilderPage() {
                         {tmpl.icon}
                       </span>
                       <div className="min-w-0">
-                        <p className="text-xs font-medium">{tmpl.label}</p>
-                        <p className="text-[10px] text-muted-foreground truncate">{tmpl.description}</p>
+                        <p className="text-xs font-medium truncate">{tmpl.label}</p>
+                        <p className="text-[10px] text-muted-foreground truncate hidden sm:block">{tmpl.description}</p>
                       </div>
                       <Plus className="h-3.5 w-3.5 text-muted-foreground shrink-0 ml-auto" />
                     </button>
@@ -374,33 +374,33 @@ export default function BlogBuilderPage() {
                             className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors">
                             <ChevronUp className="h-3.5 w-3.5" />
                           </button>
-                          <GripVertical className="h-4 w-4 text-muted-foreground/40" />
+                          <GripVertical className="h-4 w-4 text-muted-foreground/40 hidden sm:block" />
                           <button onClick={() => handleMove(section.id, 1)} disabled={idx === sections.length - 1}
                             className="p-0.5 rounded text-muted-foreground hover:text-foreground disabled:opacity-20 transition-colors">
                             <ChevronDown className="h-3.5 w-3.5" />
                           </button>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-[10px]">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="secondary" className="text-[10px] shrink-0">
                               {SECTION_LABELS[section.type] || section.type}
                             </Badge>
-                            <span className="text-[10px] text-muted-foreground">Order: {section.order}</span>
+                            <span className="text-[10px] text-muted-foreground hidden sm:inline">{t("builderOrder", { defaultValue: "Order:" })} {section.order}</span>
                           </div>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                            {section.type === "hero" && (section.config.title as string || "Default hero")}
-                            {section.type === "post-grid" && `${section.config.count || 6} posts in grid`}
-                            {section.type === "post-list" && `${section.config.count || 10} posts in list`}
-                            {section.type === "about" && (section.config.content ? "Has content" : "Empty")}
-                            {section.type === "video" && (section.config.url ? `Video: ${(section.config.url as string).substring(0, 40)}` : "No URL")}
-                            {section.type === "custom-html" && (section.config.html ? "Has HTML" : "Empty")}
-                            {section.type === "search" && "Search bar"}
-                            {section.type === "script" && (section.config.code ? "Has script" : "Empty")}
-                            {section.type === "header" && "Blog header"}
+                          <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-full">
+                            {section.type === "hero" && (section.config.title as string || t("builderDefaultHero", { defaultValue: "Default hero" }))}
+                            {section.type === "post-grid" && t("builderPostsInGrid", { defaultValue: "{count} posts in grid", count: Number(section.config.count) || 6 })}
+                            {section.type === "post-list" && t("builderPostsInList", { defaultValue: "{count} posts in list", count: Number(section.config.count) || 10 })}
+                            {section.type === "about" && (section.config.content ? t("builderHasContent", { defaultValue: "Has content" }) : t("builderEmptyField", { defaultValue: "Empty" }))}
+                            {section.type === "video" && (section.config.url ? `${t("builderVideoPrefix", { defaultValue: "Video:" })} ${(section.config.url as string).substring(0, 40)}` : t("builderNoUrl", { defaultValue: "No URL" }))}
+                            {section.type === "custom-html" && (section.config.html ? t("builderHasHtml", { defaultValue: "Has HTML" }) : t("builderEmptyField", { defaultValue: "Empty" }))}
+                            {section.type === "search" && t("builderSearchBar", { defaultValue: "Search bar" })}
+                            {section.type === "script" && (section.config.code ? t("builderHasScript", { defaultValue: "Has script" }) : t("builderEmptyField", { defaultValue: "Empty" }))}
+                            {section.type === "header" && t("builderBlogHeader", { defaultValue: "Blog header" })}
                           </p>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openConfig(section)}>Configure</Button>
+                        <div className="flex items-center gap-1 shrink-0 flex-wrap">
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openConfig(section)}>{t("builderConfigure", { defaultValue: "Configure" })}</Button>
                           <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-500" onClick={() => handleRemove(section.id)}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -419,13 +419,13 @@ export default function BlogBuilderPage() {
         <DialogContent className={editingSection?.type === "script" ? "sm:max-w-2xl" : "sm:max-w-md"}>
           <DialogHeader>
             <DialogTitle className="text-base">
-              Configure: {editingSection ? SECTION_LABELS[editingSection.type] : ""}
+              {t("builderConfigureSection", { defaultValue: "Configure: {section}", section: editingSection ? SECTION_LABELS[editingSection.type] : "" })}
             </DialogTitle>
           </DialogHeader>
           <div className="py-2">{renderConfigFields()}</div>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setConfigOpen(false)}>Cancel</Button>
-            <Button size="sm" onClick={saveConfig}>Done</Button>
+            <Button variant="outline" size="sm" onClick={() => setConfigOpen(false)}>{t("builderCancel", { defaultValue: "Cancel" })}</Button>
+            <Button size="sm" onClick={saveConfig}>{t("builderDone", { defaultValue: "Done" })}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

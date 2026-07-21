@@ -41,7 +41,8 @@
       "subuserInvites": "Приглашения субпользователя",
       "mailbox": "Почтовый ящик",
       "adminPanel": "Панель персонала",
-      "tunnels": "Туннели"
+      "tunnels": "Туннели",
+      "blog": "Блог"
     },
     "badges": {
       "new": "Новое",
@@ -71,68 +72,219 @@
   },
   "mailboxPage": {
     "title": "Почтовый ящик",
-    "description": "Управляйте ожидающими приглашениями, уведомлениями и другими сообщениями.",
+    "description": "Управляйте ожидающими приглашениями, уведомлениями и входящими сообщениями.",
+    "tabs": {
+      "inbox": "Входящие",
+      "sent": "Отправленные"
+    },
+    "compose": {
+      "newMessage": "Новое сообщение",
+      "from": "От:",
+      "to": "Кому",
+      "cc": "Копия",
+      "bcc": "Скрытая копия",
+      "subject": "Тема",
+      "subjectLabel": "Тема",
+      "send": "Отправить",
+      "recipientPlaceholder": "получатель@example.com",
+      "ccPlaceholder": "копия@example.com",
+      "bccPlaceholder": "скрытая@example.com",
+      "subjectPlaceholder": "Тема",
+      "bodyPlaceholder": "Напишите сообщение… Поддерживается Markdown.",
+      "markdownReference": "Справка по Markdown",
+      "queueStatus": {
+        "queuedCount": "{count, plural, one {# сообщение в очереди} few {# сообщения в очереди} many {# сообщений в очереди}}",
+        "noQueued": "Нет сообщений в очереди.",
+        "sentTodayCount": "{count} отправлено сегодня",
+        "noSentToday": "Сегодня ещё ничего не отправлено."
+      },
+      "markdownRefItems": {
+        "bold": "Жирный",
+        "italic": "Курсив",
+        "strikethrough": "Зачёркнутый",
+        "heading1": "Заголовок 1",
+        "heading2": "Заголовок 2",
+        "blockquote": "Цитата",
+        "inlineCode": "Встроенный код",
+        "link": "Ссылка",
+        "divider": "Разделитель",
+        "bulletList": "Маркированный список",
+        "orderedList": "Нумерованный список"
+      }
+    },
     "sections": {
       "inbox": "Входящие",
       "inboxDescription": "Место, где вы можете найти всё важное, связанное с EcliPanel.",
       "organisations": "Приглашения в организации",
-      "organisationsDescription": "Примите или отклоните приглашения присоединиться к организации.",
+      "organisationsDescription": "Примите или отклоните приглашения присоединиться к организациям.",
       "organisationInviteFallback": "Приглашение в организацию",
       "noOrganisationInvites": "Нет ожидающих приглашений в организации.",
-      "serverSubusers": "Приглашения субпользователя сервера",
+      "serverSubusers": "Приглашения субпользователей сервера",
       "serverSubusersDescription": "Примите или отклоните приглашения стать субпользователем сервера.",
-      "noSubuserInvites": "Нет ожидающих приглашений субпользователя сервера.",
+      "noSubuserInvites": "Нет ожидающих приглашений субпользователей сервера.",
       "notifications": "Уведомления",
       "notificationsDescription": "Системные уведомления и оповещения появятся здесь.",
       "notificationsEmpty": "Пока нет уведомлений.",
       "email": "Почта",
-      "emailDescription": "Входящие письма для вашего адреса электронной почты EcliPanel.",
+      "emailDescription": "Входящие письма на ваш почтовый ящик EcliPanel только для приёма.",
       "emailEmpty": "Пока нет писем."
     },
     "list": {
-      "empty": "В вашей почте нет сообщений.",
-      "emptyDescription": "Нет сообщений, соответствующих фильтрам."
+      "empty": "Входящие пусты.",
+      "emptyDescription": "Нет сообщений, соответствующих фильтрам.",
+      "searchPlaceholder": "Поиск сообщений…",
+      "loading": "Загрузка сообщений…",
+      "noSentEmails": "Нет отправленных писем.",
+      "noSentEmailsHint": "Напишите сообщение, чтобы отправить первое письмо.",
+      "resultsCount": "{count, plural, one {# результат} few {# результата} many {# результатов}}",
+      "clearFilters": "Сбросить"
     },
     "actions": {
       "accept": "Принять",
       "reject": "Отклонить",
-      "markRead": "Отметить как прочитанное",
-      "markUnread": "Отметить как непрочитанное",
+      "markRead": "Отметить прочитанным",
+      "markUnread": "Отметить непрочитанным",
       "assignCategory": "Назначить категорию",
-      "delete": "Удалить"
+      "delete": "Удалить",
+      "compose": "Написать",
+      "save": "Сохранить",
+      "copy": "Копировать",
+      "favorite": "Добавить в избранное",
+      "unfavorite": "Убрать из избранного"
     },
     "details": {
       "sender": "От",
       "received": "Получено",
       "body": "Сообщение",
       "actions": "Действия",
-      "selectItem": "Выберите сообщение, чтобы просмотреть детали.",
-      "selectItemDescription": "Выберите элемент в левой колонке, чтобы прочитать и ответить."
+      "selectItem": "Выберите сообщение для просмотра.",
+      "selectItemDescription": "Выберите элемент слева, чтобы прочитать и ответить."
     },
     "detail": {
-      "organisationBody": "Вас пригласили присоединиться к {organisation} на адрес {email}. Просмотрите приглашение и примите или отклоните его.",
-      "subuserBody": "Вас пригласили стать субпользователем сервера {server} на адрес {email}. Просмотрите запрос доступа и примите или отклоните его.",
+      "organisationBody": "Вас пригласили присоединиться к организации {organisation}. Приглашение отправлено на {email}. Ознакомьтесь и примите или отклоните его.",
+      "subuserBody": "Вас пригласили стать субпользователем сервера {server}. Приглашение отправлено на {email}. Ознакомьтесь с доступом и примите или отклоните его.",
       "unknownServer": "Неизвестный сервер",
       "unknownSender": "Неизвестный отправитель",
-      "emailFallback": "Письмо",
       "displayMetadata": "Показать метаданные",
       "hideMetadata": "Скрыть метаданные",
       "chooseView": "Выберите способ просмотра письма:",
+      "chooseViewFormat": "Выберите формат просмотра",
       "plainText": "Простой текст",
-      "htmlView": "HTML вид",
-      "raw": "Сырые данные",
-      "noPlainTextContent": "Нет простого текста",
+      "plainTextDescription": "Безопасно · Без внешнего контента · Рекомендуется",
+      "htmlView": "HTML-вид",
+      "htmlViewDescription": "Форматирование · Изображения заблокированы по умолчанию",
+      "raw": "RAW",
+      "noPlainTextContent": "Нет содержимого в простом тексте",
+      "preview": "Предпросмотр",
+      "openRaw": "Открыть RAW",
+      "plain": "Plain",
+      "html": "HTML",
       "metadataTitle": "Метаданные сообщения",
-      "metadataHint": "Показаны все поля метаданных сообщения. HTML-тело и предварительный просмотр простого текста скрыты для удобства чтения.",
+      "metadataHint": "Показаны все поля метаданных. HTML и текст письма скрыты для удобства чтения.",
       "virusDetected": "Обнаружен вирус",
-      "spamDetected": "Обнаружен спам"
+      "spamDetected": "Обнаружен спам",
+      "emailFallback": "Письмо",
+      "messageDetails": "Детали сообщения",
+      "attachmentsCount": "Вложения · {count}",
+      "category": "Категория",
+      "uncategorized": "Без категории",
+      "metadata": {
+        "headers": "заголовки",
+        "security": "безопасность",
+        "raw": "raw",
+        "fields": {
+          "from": "От",
+          "email": "Email",
+          "to": "Кому",
+          "messageId": "Message ID",
+          "subject": "Тема",
+          "date": "Дата",
+          "type": "Тип",
+          "category": "Категория",
+          "attachments": "Вложения",
+          "spam": "Спам",
+          "spamScore": "Оценка спама",
+          "virus": "Вирус",
+          "virusName": "Название вируса",
+          "senderIp": "IP отправителя",
+          "reverseDns": "Обратный DNS",
+          "spf": "SPF",
+          "priority": "Приоритет",
+          "dkim": "DKIM",
+          "dmarc": "DMARC",
+          "encryption": "Шифрование",
+          "authResults": "Результаты аутентификации",
+          "unknown": "Неизвестно",
+          "none": "Нет"
+        }
+      }
     },
     "confirm": {
       "deleteEmail": "Удалить это письмо? Это действие нельзя отменить."
     },
     "errors": {
       "failedAction": "Не удалось выполнить действие."
-    }
+    },
+    "filters": {
+      "favoritesOnly": "Только избранное",
+      "unreadOnly": "Только непрочитанные",
+      "all": "Все"
+    },
+    "typeLabels": {
+      "email": "Письмо",
+      "organisation": "Организация",
+      "server": "Сервер",
+      "notification": "Уведомление"
+    },
+    "security": {
+      "virusDetected": "Обнаружен вирус",
+      "virusLabel": "ВИРУС",
+      "spamLabel": "СПАМ",
+      "likelySpam": "Вероятно спам",
+      "score": "Оценка: {score}",
+      "noThreats": "Угроз не обнаружено",
+      "remoteImagesBlocked": "Внешние изображения заблокированы для конфиденциальности",
+      "showOnce": "Показать один раз",
+      "alwaysAllow": "Всегда разрешать от этого отправителя"
+    },
+    "sent": {
+      "queuedDescription": "Исходящие письма в очереди",
+      "sentDescription": "Отправленные исходящие письма",
+      "sentBadge": "Отправлено",
+      "queuedBadge": "В очереди",
+      "fromYou": "Вы"
+    },
+    "toolbar": {
+      "write": "Писать",
+      "preview": "Предпросмотр",
+      "markdownSupported": "Поддерживается Markdown",
+      "toIndent": "для отступа",
+      "wordCharCount": "{words} сл. · {chars} зн.",
+      "nothingToPreview": "Пока нечего просматривать…",
+      "linkText": "Текст ссылки",
+      "actions": {
+        "bold": "Жирный",
+        "italic": "Курсив",
+        "strikethrough": "Зачёркнутый",
+        "heading1": "Заголовок 1",
+        "heading2": "Заголовок 2",
+        "blockquote": "Цитата",
+        "bulletList": "Маркированный список",
+        "numberedList": "Нумерованный список",
+        "inlineCode": "Встроенный код",
+        "link": "Ссылка",
+        "divider": "Разделитель"
+      }
+    },
+    "toast": {
+      "emailSent": "Письмо отправлено",
+      "emailQueued": "Письмо в очереди",
+      "sentDescription": "Ваше сообщение успешно отправлено.",
+      "queuedDescription": "Ваше сообщение поставлено в очередь и будет доставлено в ближайшее время.",
+      "failedToSend": "Не удалось отправить",
+      "somethingWentWrong": "Что-то пошло не так."
+    },
+    "unknownOrganisation": "Неизвестная организация"
   },
   "panelHeader": {
     "search": "Поиск...",
@@ -4555,6 +4707,32 @@
       "vs": "против",
       "byVoter": "от {name}",
       "pagination": "Страница {page} из {total}"
+    },
+    "verification": {
+      "dateOfBirth": "Дата рождения",
+      "dateOfBirthHint": "Введите дату рождения для проверки возраста перед управлением серверами.",
+      "dateOfBirthLocked": "Дата рождения заблокирована после подтверждения личности и может быть изменена только службой поддержки.",
+      "ageVerificationNotice": "Пожалуйста, введите дату рождения ниже для завершения проверки возраста и продолжения управления серверами."
+    },
+    "feedback": {
+      "saved": "Отзыв сохранён!",
+      "thankYou": "Спасибо — ваш отзыв помогает нам улучшать EcliPanel.",
+      "updateButton": "Обновить отзыв",
+      "yourFeedback": "Ваш отзыв",
+      "enjoyingPrompt": "Нравится EcliPanel?",
+      "updatePrompt": "Обновите оценку и мысли ниже.",
+      "newPrompt": "Мы будем рады услышать ваше мнение. Оцените свой опыт ниже.",
+      "placeholder": "Расскажите подробнее (необязательно, до 250 слов)...",
+      "saving": "Сохранение...",
+      "updateAction": "Обновить отзыв",
+      "submitAction": "Отправить отзыв",
+      "selectRating": "Пожалуйста, выберите оценку",
+      "saveError": "Не удалось сохранить отзыв",
+      "veryPoor": "Очень плохо",
+      "poor": "Плохо",
+      "okay": "Нормально",
+      "good": "Хорошо",
+      "excellent": "Отлично"
     }
   },
   "serverDetailPage": {
@@ -6407,6 +6585,9 @@
     "general": "Общие",
     "theme": "Тема",
     "blogInfo": "Информация о блоге",
+      "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
+      "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
+      "roleOwner": "मालिक",
     "blogName": "Название блога",
     "visibility": "Видимость",
     "public": "Публичный",

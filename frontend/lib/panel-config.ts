@@ -709,6 +709,7 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   Calendar: "calendar",
   Chat: "chat",
   "Visual Editor": "visualEditor",
+  Blog: "blog",
 }
 
 export const NAV_BADGE_I18N_KEYS: Record<string, string> = {

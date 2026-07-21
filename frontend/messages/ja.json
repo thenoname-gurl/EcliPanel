@@ -42,7 +42,8 @@
       "subuserInvites": "サブユーザー招待",
       "mailbox": "メールボックス",
       "adminPanel": "スタッフポータル",
-      "tunnels": "トンネル"
+      "tunnels": "トンネル",
+      "blog": "ブログ"
     },
     "badges": {
       "new": "新規",
@@ -73,9 +74,48 @@
   "mailboxPage": {
     "title": "メールボックス",
     "description": "保留中の招待、通知、受信トレイアイテムを管理します。",
+    "tabs": {
+      "inbox": "受信トレイ",
+      "sent": "送信済み"
+    },
+    "compose": {
+      "newMessage": "新規メッセージ",
+      "from": "送信元:",
+      "to": "宛先",
+      "cc": "CC",
+      "bcc": "BCC",
+      "subject": "件名",
+      "subjectLabel": "件名",
+      "send": "送信",
+      "recipientPlaceholder": "recipient@example.com",
+      "ccPlaceholder": "cc@example.com",
+      "bccPlaceholder": "bcc@example.com",
+      "subjectPlaceholder": "件名",
+      "bodyPlaceholder": "メッセージを入力してください… Markdown対応です。",
+      "markdownReference": "Markdownリファレンス",
+      "queueStatus": {
+        "queuedCount": "{count} 件のメッセージがキューに入っています",
+        "noQueued": "現在キューに入っているメッセージはありません。",
+        "sentTodayCount": "本日 {count} 件送信済み",
+        "noSentToday": "本日はまだメッセージが送信されていません。"
+      },
+      "markdownRefItems": {
+        "bold": "太字",
+        "italic": "斜体",
+        "strikethrough": "打消し線",
+        "heading1": "見出し1",
+        "heading2": "見出し2",
+        "blockquote": "引用",
+        "inlineCode": "インラインコード",
+        "link": "リンク",
+        "divider": "区切り線",
+        "bulletList": "箇条書き",
+        "orderedList": "番号付きリスト"
+      }
+    },
     "sections": {
       "inbox": "受信トレイ",
-      "inboxDescription": "EcliPanelに関する重要な情報を見つけることができる場所です。",
+      "inboxDescription": "EcliPanelに関する重要なお知らせをすべて確認できる場所です。",
       "organisations": "組織への招待",
       "organisationsDescription": "組織に参加するための招待を承認または拒否します。",
       "organisationInviteFallback": "組織への招待",
@@ -92,7 +132,13 @@
     },
     "list": {
       "empty": "受信トレイは空です。",
-      "emptyDescription": "フィルターに一致するメッセージはありません。"
+      "emptyDescription": "フィルターに一致するメッセージはありません。",
+      "searchPlaceholder": "メッセージを検索…",
+      "loading": "メッセージを読み込み中…",
+      "noSentEmails": "送信済みメールはまだありません。",
+      "noSentEmailsHint": "最初のメールを送信するにはメッセージを作成してください。",
+      "resultsCount": "{count} 件の結果",
+      "clearFilters": "クリア"
     },
     "actions": {
       "accept": "承認",
@@ -100,40 +146,146 @@
       "markRead": "既読にする",
       "markUnread": "未読にする",
       "assignCategory": "カテゴリを割り当て",
-      "delete": "削除"
+      "delete": "削除",
+      "compose": "作成",
+      "save": "保存",
+      "copy": "コピー",
+      "favorite": "お気に入りに追加",
+      "unfavorite": "お気に入りから削除"
     },
     "details": {
-      "sender": "送信者",
+      "sender": "送信元",
       "received": "受信日時",
       "body": "メッセージ",
-      "actions": "アクション",
+      "actions": "操作",
       "selectItem": "詳細を表示するメッセージを選択してください。",
-      "selectItemDescription": "左側の受信トレイアイテムを選択して、読み取りと返信を行ってください。"
+      "selectItemDescription": "左側の受信トレイアイテムを選択して、メッセージの閲覧と返信を行ってください。"
     },
     "detail": {
-      "organisationBody": "{organisation}への招待がありました。招待は{email}に送信されました。招待を確認して承認または拒否してください。",
-      "subuserBody": "{server}のサーバーサブユーザーになるよう招待されました。招待は{email}に送信されました。アクセスリクエストを確認して承認または拒否してください。",
+      "organisationBody": "{organisation} への招待がありました。招待は {email} に送信されました。招待内容を確認し、承認または拒否してください。",
+      "subuserBody": "{server} のサーバーサブユーザーに招待されました。招待は {email} に送信されました。アクセスリクエストを確認し、承認または拒否してください。",
       "unknownServer": "不明なサーバー",
       "unknownSender": "不明な送信者",
       "displayMetadata": "メタデータを表示",
       "hideMetadata": "メタデータを非表示",
       "chooseView": "このメールの表示方法を選択してください：",
+      "chooseViewFormat": "表示形式を選択",
       "plainText": "プレーンテキスト",
+      "plainTextDescription": "安全 · 外部コンテンツなし · 推奨",
       "htmlView": "HTML表示",
-      "raw": "Raw",
+      "htmlViewDescription": "リッチレイアウト · 画像はデフォルトでブロック",
+      "raw": "RAW",
       "noPlainTextContent": "プレーンテキストの内容はありません",
+      "preview": "プレビュー",
+      "openRaw": "RAWを開く",
+      "plain": "プレーン",
+      "html": "HTML",
       "metadataTitle": "メッセージメタデータ",
-      "metadataHint": "すべてのメッセージメタデータフィールドを表示しています。本文のHTMLとプレーンテキストのプレビューは読みやすさのために非表示になっています。",
+      "metadataHint": "すべてのメッセージメタデータフィールドを表示しています。本文のHTMLとプレーンテキストのプレビューは読みやすさのため非表示になっています。",
       "virusDetected": "ウイルス検出",
       "spamDetected": "スパム検出",
-      "emailFallback": "メールメッセージ"
+      "emailFallback": "メールメッセージ",
+      "messageDetails": "メッセージ詳細",
+      "attachmentsCount": "添付ファイル · {count} 件",
+      "category": "カテゴリ",
+      "uncategorized": "未分類",
+      "metadata": {
+        "headers": "ヘッダー",
+        "security": "セキュリティ",
+        "raw": "RAW",
+        "fields": {
+          "from": "送信元",
+          "email": "メール",
+          "to": "宛先",
+          "messageId": "メッセージID",
+          "subject": "件名",
+          "date": "日付",
+          "type": "種類",
+          "category": "カテゴリ",
+          "attachments": "添付ファイル",
+          "spam": "スパム",
+          "spamScore": "スパムスコア",
+          "virus": "ウイルス",
+          "virusName": "ウイルス名",
+          "senderIp": "送信元IP",
+          "reverseDns": "リバースDNS",
+          "spf": "SPF",
+          "priority": "優先度",
+          "dkim": "DKIM",
+          "dmarc": "DMARC",
+          "encryption": "暗号化",
+          "authResults": "認証結果",
+          "unknown": "不明",
+          "none": "なし"
+        }
+      }
     },
     "confirm": {
       "deleteEmail": "このメールを削除しますか？この操作は元に戻せません。"
     },
     "errors": {
       "failedAction": "アクションの実行に失敗しました。"
-    }
+    },
+    "filters": {
+      "favoritesOnly": "お気に入りのみ",
+      "unreadOnly": "未読のみ",
+      "all": "すべて"
+    },
+    "typeLabels": {
+      "email": "メール",
+      "organisation": "組織",
+      "server": "サーバー",
+      "notification": "通知"
+    },
+    "security": {
+      "virusDetected": "ウイルス検出",
+      "virusLabel": "ウイルス",
+      "spamLabel": "スパム",
+      "likelySpam": "スパムの可能性あり",
+      "score": "スコア: {score}",
+      "noThreats": "脅威は検出されませんでした",
+      "remoteImagesBlocked": "プライバシー保護のためリモート画像はブロックされています",
+      "showOnce": "一度だけ表示",
+      "alwaysAllow": "この送信者を常に許可"
+    },
+    "sent": {
+      "queuedDescription": "送信待ちのメール",
+      "sentDescription": "送信済みメール",
+      "sentBadge": "送信済み",
+      "queuedBadge": "待機中",
+      "fromYou": "自分"
+    },
+    "toolbar": {
+      "write": "作成",
+      "preview": "プレビュー",
+      "markdownSupported": "Markdown対応",
+      "toIndent": "インデント",
+      "wordCharCount": "{words}語 · {chars}文字",
+      "nothingToPreview": "まだプレビューする内容がありません…",
+      "linkText": "リンクテキスト",
+      "actions": {
+        "bold": "太字",
+        "italic": "斜体",
+        "strikethrough": "打消し線",
+        "heading1": "見出し1",
+        "heading2": "見出し2",
+        "blockquote": "引用",
+        "bulletList": "箇条書き",
+        "numberedList": "番号付きリスト",
+        "inlineCode": "インラインコード",
+        "link": "リンク",
+        "divider": "区切り線"
+      }
+    },
+    "toast": {
+      "emailSent": "メール送信完了",
+      "emailQueued": "メールをキューに追加しました",
+      "sentDescription": "メッセージが正常に送信されました。",
+      "queuedDescription": "メッセージはキューに追加され、まもなく配信されます。",
+      "failedToSend": "送信に失敗しました",
+      "somethingWentWrong": "問題が発生しました。"
+    },
+    "unknownOrganisation": "不明な組織"
   },
   "panelHeader": {
     "search": "検索...",
@@ -4501,6 +4653,32 @@
       "vs": "対",
       "byVoter": "{name}による投票",
       "pagination": "{page} / {total}ページ"
+    },
+    "verification": {
+      "dateOfBirth": "生年月日",
+      "dateOfBirthHint": "サーバーを管理する前に、生年月日を入力して資格を確認してください。",
+      "dateOfBirthLocked": "本人確認後、生年月日はロックされ、サポートのみが変更できます。",
+      "ageVerificationNotice": "年齢確認を完了し、サーバー管理を続行するには、以下に生年月日を入力してください。"
+    },
+    "feedback": {
+      "saved": "フィードバックを保存しました！",
+      "thankYou": "ありがとうございます — お寄せいただいたご意見はEcliPanelの改善に役立ちます。",
+      "updateButton": "フィードバックを更新",
+      "yourFeedback": "あなたのフィードバック",
+      "enjoyingPrompt": "EcliPanelをお楽しみいただけていますか？",
+      "updatePrompt": "下記で評価と思いを更新してください。",
+      "newPrompt": "ぜひご意見をお聞かせください。以下で体験を評価してください。",
+      "placeholder": "詳細をお聞かせください（任意、250語まで）...",
+      "saving": "保存中...",
+      "updateAction": "フィードバックを更新",
+      "submitAction": "フィードバックを送信",
+      "selectRating": "評価を選択してください",
+      "saveError": "フィードバックの保存に失敗しました",
+      "veryPoor": "とても悪い",
+      "poor": "悪い",
+      "okay": "普通",
+      "good": "良い",
+      "excellent": "非常に良い"
     }
   },
   "serverDetailPage": {
@@ -6353,6 +6531,9 @@
     "general": "一般",
     "theme": "テーマ",
     "blogInfo": "ブログ情報",
+      "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
+      "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
+      "roleOwner": "मालिक",
     "blogName": "ブログ名",
     "visibility": "表示設定",
     "public": "公開",

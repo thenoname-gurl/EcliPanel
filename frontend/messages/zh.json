@@ -42,7 +42,8 @@
       "subuserInvites": "子用户邀请",
       "mailbox": "邮箱",
       "adminPanel": "员工门户",
-      "tunnels": "隧道"
+      "tunnels": "隧道",
+      "blog": "博客"
     },
     "badges": {
       "new": "新建",
@@ -72,13 +73,52 @@
   },
   "mailboxPage": {
     "title": "邮箱",
-    "description": "管理待处理的邀请、通知和收件箱项目。",
+    "description": "管理待处理的邀请、通知和收件箱邮件。",
+    "tabs": {
+      "inbox": "收件箱",
+      "sent": "已发送"
+    },
+    "compose": {
+      "newMessage": "新邮件",
+      "from": "发件人：",
+      "to": "收件人",
+      "cc": "抄送",
+      "bcc": "密送",
+      "subject": "主题",
+      "subjectLabel": "主题",
+      "send": "发送",
+      "recipientPlaceholder": "recipient@example.com",
+      "ccPlaceholder": "cc@example.com",
+      "bccPlaceholder": "bcc@example.com",
+      "subjectPlaceholder": "主题",
+      "bodyPlaceholder": "撰写邮件…支持 Markdown。",
+      "markdownReference": "Markdown 参考",
+      "queueStatus": {
+        "queuedCount": "当前已排队 {count} 封邮件",
+        "noQueued": "当前没有排队的邮件。",
+        "sentTodayCount": "今日已发送 {count} 封",
+        "noSentToday": "今日尚未发送邮件。"
+      },
+      "markdownRefItems": {
+        "bold": "粗体",
+        "italic": "斜体",
+        "strikethrough": "删除线",
+        "heading1": "一级标题",
+        "heading2": "二级标题",
+        "blockquote": "引用",
+        "inlineCode": "行内代码",
+        "link": "链接",
+        "divider": "分隔线",
+        "bulletList": "无序列表",
+        "orderedList": "有序列表"
+      }
+    },
     "sections": {
       "inbox": "收件箱",
       "inboxDescription": "在这里您可以找到所有与 EcliPanel 相关的重要信息。",
       "organisations": "组织邀请",
       "organisationsDescription": "接受或拒绝加入组织的邀请。",
-      "organisationInviteFallback": "Organisation invite",
+      "organisationInviteFallback": "组织邀请",
       "noOrganisationInvites": "没有待处理的组织邀请。",
       "serverSubusers": "服务器子用户邀请",
       "serverSubusersDescription": "接受或拒绝成为服务器子用户的邀请。",
@@ -86,13 +126,19 @@
       "notifications": "通知",
       "notificationsDescription": "系统通知和警报将显示在这里。",
       "notificationsEmpty": "暂无通知。",
-      "email": "邮箱",
-      "emailDescription": "传入的邮件将投递到您仅用于接收的 EcliPanel 邮箱。",
+      "email": "邮件",
+      "emailDescription": "发送到您仅用于接收的 EcliPanel 邮箱的邮件。",
       "emailEmpty": "暂无邮件。"
     },
     "list": {
       "empty": "您的收件箱为空。",
-      "emptyDescription": "没有匹配您筛选条件的消息。"
+      "emptyDescription": "没有匹配您筛选条件的邮件。",
+      "searchPlaceholder": "搜索邮件…",
+      "loading": "加载邮件中…",
+      "noSentEmails": "暂无已发送邮件。",
+      "noSentEmailsHint": "撰写一封邮件来发送您的第一封邮件。",
+      "resultsCount": "{count} 条结果",
+      "clearFilters": "清除"
     },
     "actions": {
       "accept": "接受",
@@ -100,14 +146,19 @@
       "markRead": "标记已读",
       "markUnread": "标记未读",
       "assignCategory": "分配分类",
-      "delete": "删除"
+      "delete": "删除",
+      "compose": "写邮件",
+      "save": "保存",
+      "copy": "复制",
+      "favorite": "添加到收藏",
+      "unfavorite": "取消收藏"
     },
     "details": {
       "sender": "发件人",
       "received": "接收时间",
-      "body": "消息",
+      "body": "内容",
       "actions": "操作",
-      "selectItem": "选择一条消息以查看详情。",
+      "selectItem": "选择一封邮件以查看详情。",
       "selectItemDescription": "选择左侧的一个收件箱项目来阅读和回复。"
     },
     "detail": {
@@ -118,22 +169,123 @@
       "displayMetadata": "显示元数据",
       "hideMetadata": "隐藏元数据",
       "chooseView": "选择查看此邮件的方式：",
+      "chooseViewFormat": "选择查看格式",
       "plainText": "纯文本",
+      "plainTextDescription": "安全 · 无外部内容 · 推荐",
       "htmlView": "HTML 视图",
+      "htmlViewDescription": "丰富排版 · 默认屏蔽图片",
       "raw": "原始数据",
       "noPlainTextContent": "没有纯文本内容",
-      "metadataTitle": "消息元数据",
-      "metadataHint": "显示所有消息元数据字段。为便于阅读，正文 HTML 和纯文本预览已隐藏。",
+      "preview": "预览",
+      "openRaw": "打开原始数据",
+      "plain": "纯文本",
+      "html": "HTML",
+      "metadataTitle": "邮件元数据",
+      "metadataHint": "显示所有邮件元数据字段。为便于阅读，正文 HTML 和纯文本预览已隐藏。",
       "virusDetected": "检测到病毒",
       "spamDetected": "检测到垃圾邮件",
-      "emailFallback": "邮件消息"
+      "emailFallback": "邮件消息",
+      "messageDetails": "邮件详情",
+      "attachmentsCount": "附件 · {count}",
+      "category": "分类",
+      "uncategorized": "未分类",
+      "metadata": {
+        "headers": "邮件头",
+        "security": "安全",
+        "raw": "原始数据",
+        "fields": {
+          "from": "发件人",
+          "email": "邮件地址",
+          "to": "收件人",
+          "messageId": "邮件 ID",
+          "subject": "主题",
+          "date": "日期",
+          "type": "类型",
+          "category": "分类",
+          "attachments": "附件",
+          "spam": "垃圾邮件",
+          "spamScore": "垃圾邮件评分",
+          "virus": "病毒",
+          "virusName": "病毒名称",
+          "senderIp": "发件人 IP",
+          "reverseDns": "反向 DNS",
+          "spf": "SPF",
+          "priority": "优先级",
+          "dkim": "DKIM",
+          "dmarc": "DMARC",
+          "encryption": "加密",
+          "authResults": "认证结果",
+          "unknown": "未知",
+          "none": "无"
+        }
+      }
     },
     "confirm": {
       "deleteEmail": "删除此邮件？此操作无法撤销。"
     },
     "errors": {
       "failedAction": "执行操作失败。"
-    }
+    },
+    "filters": {
+      "favoritesOnly": "仅收藏",
+      "unreadOnly": "仅未读",
+      "all": "全部"
+    },
+    "typeLabels": {
+      "email": "邮件",
+      "organisation": "组织",
+      "server": "服务器",
+      "notification": "通知"
+    },
+    "security": {
+      "virusDetected": "检测到病毒",
+      "virusLabel": "病毒",
+      "spamLabel": "垃圾邮件",
+      "likelySpam": "疑似垃圾邮件",
+      "score": "评分：{score}",
+      "noThreats": "未检测到威胁",
+      "remoteImagesBlocked": "出于隐私保护，远程图片已被屏蔽",
+      "showOnce": "显示一次",
+      "alwaysAllow": "始终允许此发件人"
+    },
+    "sent": {
+      "queuedDescription": "排队中的外发邮件",
+      "sentDescription": "已发送的外发邮件",
+      "sentBadge": "已发送",
+      "queuedBadge": "排队中",
+      "fromYou": "您"
+    },
+    "toolbar": {
+      "write": "撰写",
+      "preview": "预览",
+      "markdownSupported": "支持 Markdown",
+      "toIndent": "缩进",
+      "wordCharCount": "{words}字 · {chars}字符",
+      "nothingToPreview": "暂无内容可预览…",
+      "linkText": "链接文字",
+      "actions": {
+        "bold": "粗体",
+        "italic": "斜体",
+        "strikethrough": "删除线",
+        "heading1": "一级标题",
+        "heading2": "二级标题",
+        "blockquote": "引用",
+        "bulletList": "无序列表",
+        "numberedList": "有序列表",
+        "inlineCode": "行内代码",
+        "link": "链接",
+        "divider": "分隔线"
+      }
+    },
+    "toast": {
+      "emailSent": "邮件已发送",
+      "emailQueued": "邮件已排队",
+      "sentDescription": "您的邮件已成功发送。",
+      "queuedDescription": "您的邮件已排队，将很快发送。",
+      "failedToSend": "发送失败",
+      "somethingWentWrong": "出了些问题。"
+    },
+    "unknownOrganisation": "未知组织"
   },
   "panelHeader": {
     "search": "搜索...",
@@ -4499,9 +4651,35 @@
       "poor": "差",
       "okay": "一般",
       "good": "好",
-      "excellent": "非常好",
-      "helpsImprove": "您的反馈帮助我们改进面板。"
+      "excellent": "非常好"
     }
+  },
+  "verification": {
+    "dateOfBirth": "出生日期",
+    "dateOfBirthHint": "输入您的出生日期以验证资格，然后才能管理服务器。",
+    "dateOfBirthLocked": "身份验证后，您的出生日期已锁定，只能由支持人员更改。",
+    "ageVerificationNotice": "请在下方输入您的出生日期以完成年龄验证并继续使用服务器管理。"
+  },
+  "feedback": {
+    "saved": "反馈已保存！",
+    "thankYou": "谢谢 — 您的意见帮助我们改进 EcliPanel。",
+    "updateButton": "更新我的反馈",
+    "yourFeedback": "您的反馈",
+    "enjoyingPrompt": "您喜欢 EcliPanel 吗？",
+    "updatePrompt": "在下方更新您的评分和想法。",
+    "newPrompt": "我们很想听听您的想法。请在下方评价您的体验。",
+    "placeholder": "告诉我们更多（可选，最多250字）...",
+    "saving": "保存中...",
+    "updateAction": "更新反馈",
+    "submitAction": "提交反馈",
+    "selectRating": "请选择评分",
+    "saveError": "保存反馈失败",
+    "veryPoor": "非常差",
+    "poor": "差",
+    "okay": "一般",
+    "good": "好",
+    "excellent": "非常好",
+    "helpsImprove": "您的反馈帮助我们改进面板。"
   },
   "serverDetailPage": {
     "header": {
@@ -6353,6 +6531,9 @@
     "general": "常规",
     "theme": "主题",
     "blogInfo": "博客信息",
+      "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
+      "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
+      "roleOwner": "मालिक",
     "blogName": "博客名称",
     "visibility": "可见性",
     "public": "公开",

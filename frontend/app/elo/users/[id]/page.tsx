@@ -71,10 +71,10 @@ export default function EloUserProfile() {
         ) : !data ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
             <Star className="h-12 w-12 text-zinc-600" />
-            <p className="text-lg font-semibold text-zinc-300">{t("eloPage.profile.notFound")}</p>
-            <p className="text-sm text-zinc-500">{t("eloPage.profile.notFoundDescription")}</p>
+            <p className="text-lg font-semibold text-zinc-300">{t("profile.notFound")}</p>
+            <p className="text-sm text-zinc-500">{t("profile.notFoundDescription")}</p>
             <Link href="/">
-              <Button variant="outline" className="border-zinc-700 text-zinc-300">{t("eloPage.profile.backToDashboard")}</Button>
+              <Button variant="outline" className="border-zinc-700 text-zinc-300">{t("profile.backToDashboard")}</Button>
             </Link>
           </div>
         ) : (
@@ -96,11 +96,11 @@ export default function EloUserProfile() {
                   <div className="flex items-center gap-3 mt-1 text-sm text-zinc-400 flex-wrap">
                     <span className="flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" />
-                      {t("eloPage.profile.joined", { date: new Date(data.user.createdAt).toLocaleDateString() })}
+                      {t("profile.joined", { date: new Date(data.user.createdAt).toLocaleDateString() })}
                     </span>
                     {data.user.studentVerified && (
                       <Badge variant="outline" className="text-emerald-400 border-emerald-500/30 text-[10px]">
-                        {t("eloPage.profile.hackClub")}
+                        {t("profile.hackClub")}
                       </Badge>
                     )}
                   </div>
@@ -110,17 +110,17 @@ export default function EloUserProfile() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <StatBox icon={Trophy} label={t("eloPage.profile.projectsStat")} value={data.stats.totalProjects} />
-              <StatBox icon={Vote} label={t("eloPage.profile.votesCast")} value={data.stats.totalVotesCast} />
-              <StatBox icon={TrendingUp} label={t("eloPage.profile.highestElo")} value={data.stats.highestElo} />
-              <StatBox icon={MessageCircle} label={t("eloPage.profile.feedback")} value={data.stats.totalFeedbacks} />
+              <StatBox icon={Trophy} label={t("profile.projectsStat")} value={data.stats.totalProjects} />
+              <StatBox icon={Vote} label={t("profile.votesCast")} value={data.stats.totalVotesCast} />
+              <StatBox icon={TrendingUp} label={t("profile.highestElo")} value={data.stats.highestElo} />
+              <StatBox icon={MessageCircle} label={t("profile.feedback")} value={data.stats.totalFeedbacks} />
             </div>
 
             {/* Projects */}
             {data.projects.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
-                  {t("eloPage.profile.projectsCountTitle", { count: data.projects.length })}
+                  {t("profile.projectsCountTitle", { count: data.projects.length })}
                 </h2>
                 <div className="space-y-3">
                   {data.projects.map((p: any) => {
@@ -141,17 +141,17 @@ export default function EloUserProfile() {
                               <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{p.description}</p>
                             )}
                             <div className="flex items-center gap-3 mt-2 text-[11px] text-zinc-500">
-                              <span>{t("eloPage.profile.votesCount", { count: p.totalVotes })}</span>
+                              <span>{t("profile.votesCount", { count: p.totalVotes })}</span>
                               <span className="flex items-center gap-1">
                                 <TrendingUp className="h-3 w-3 text-emerald-500" />
-                                {t("eloPage.profile.wins", { count: p.wins })}
+                                {t("profile.wins", { count: p.wins })}
                               </span>
                               <span className="flex items-center gap-1">
                                 <TrendingDown className="h-3 w-3 text-red-500" />
-                                {t("eloPage.profile.losses", { count: p.losses })}
+                                {t("profile.losses", { count: p.losses })}
                               </span>
-                              <span>{t("eloPage.profile.resources", { cpu: res.cpu, memory: (res.memory / 1024).toFixed(1) })}</span>
-                              {p.demoUrl && <span className="text-violet-400">{t("eloPage.profile.hasDemo")}</span>}
+                              <span>{t("profile.resources", { cpu: res.cpu, memory: (res.memory / 1024).toFixed(1) })}</span>
+                              {p.demoUrl && <span className="text-violet-400">{t("profile.hasDemo")}</span>}
                             </div>
                           </div>
                           <div className="shrink-0 flex items-center gap-2">
@@ -162,7 +162,7 @@ export default function EloUserProfile() {
                                   </a>
                                 ) : (
                                   <span className="text-[10px] text-violet-400" title={p.demoUrl}>
-                                    {t("eloPage.profile.ip")}
+                                    {t("profile.ip")}
                                   </span>
                                 )
                               )}
@@ -184,14 +184,14 @@ export default function EloUserProfile() {
             {data.devlogs?.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-sm font-semibold text-zinc-300 uppercase tracking-wide mb-3">
-                  {t("eloPage.profile.recentDevlogs", { count: data.devlogs.length })}
+                  {t("profile.recentDevlogs", { count: data.devlogs.length })}
                 </h2>
                 <div className="space-y-2">
                   {data.devlogs.map((dl: any) => (
                     <div key={dl.id} className="border border-white/10 bg-white/[0.03] px-4 py-3">
                       <p className="text-sm text-white">{dl.title}</p>
                       <p className="text-[11px] text-zinc-500 mt-0.5">
-                        {t("eloPage.profile.projectNumber", { id: dl.projectId })} &middot; {new Date(dl.publishedAt).toLocaleDateString()}
+                        {t("profile.projectNumber", { id: dl.projectId })} &middot; {new Date(dl.publishedAt).toLocaleDateString()}
                       </p>
                     </div>
                   ))}
@@ -202,7 +202,7 @@ export default function EloUserProfile() {
             {data.projects.length === 0 && data.devlogs?.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <Star className="h-10 w-10 text-zinc-600 mb-3" />
-                <p className="text-sm text-zinc-500">{t("eloPage.profile.noProjects")}</p>
+                <p className="text-sm text-zinc-500">{t("profile.noProjects")}</p>
               </div>
             )}
           </>

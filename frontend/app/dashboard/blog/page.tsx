@@ -127,8 +127,8 @@ export default function BlogDashboardPage() {
         title={t("title", { defaultValue: "Blog" })}
         description={t("description", { defaultValue: "Write, publish, and share your story" })}
       />
-      <ScrollArea className="flex-1">
-        <div className="p-4 md:p-6 space-y-6 max-w-5xl">
+      <ScrollArea className="flex-1 overflow-x-hidden">
+        <div className="flex flex-col gap-5 p-3 sm:p-6 max-w-5xl mx-auto w-full pb-10 overflow-hidden">
           {/* Blog selector */}
           {blogList.length > 1 && (
             <div className="flex items-center gap-2">
@@ -213,14 +213,14 @@ export default function BlogDashboardPage() {
             <>
               {/* Blog info card */}
               <Card>
-                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-                  <div className="space-y-1">
-                    <CardTitle className="text-lg">{blog.name}</CardTitle>
+                <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 space-y-0 pb-2">
+                  <div className="space-y-1 min-w-0">
+                    <CardTitle className="text-lg truncate">{blog.name}</CardTitle>
                     <CardDescription>
                       {blog.description || t("noDescription", { defaultValue: "No description yet" })}
                     </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="outline" className="gap-1">
                       {visibilityIcon(blog.visibility)}
                       {blog.visibility}
@@ -234,7 +234,7 @@ export default function BlogDashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
                     <span>
                       {blog.publishedCount} {t("published", { defaultValue: "published" })}
                     </span>
@@ -242,10 +242,10 @@ export default function BlogDashboardPage() {
                       {blog.postCount - blog.publishedCount} {t("drafts", { defaultValue: "drafts" })}
                     </span>
                     <span>
-                      {blog.totalViews || 0} views
+                      {blog.totalViews || 0} {t("views", { defaultValue: "views" })}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 mt-3">
+                  <div className="flex flex-wrap items-center gap-2 mt-3">
                     <Link href="/dashboard/blog/settings">
                       <Button variant="outline" size="sm" className="gap-1">
                         <Settings className="h-3.5 w-3.5" />
@@ -267,13 +267,13 @@ export default function BlogDashboardPage() {
                     <Link href="/docs/blog-handbook">
                       <Button variant="outline" size="sm" className="gap-1">
                         <HelpCircle className="h-3.5 w-3.5" />
-                        Handbook
+                        {t("handbook", { defaultValue: "Handbook" })}
                       </Button>
                     </Link>
                     <Link href="/dashboard/blog/analytics">
                       <Button variant="outline" size="sm" className="gap-1">
                         <TrendingUp className="h-3.5 w-3.5" />
-                        Analytics
+                        {t("analytics", { defaultValue: "Analytics" })}
                       </Button>
                     </Link>
                   </div>
@@ -312,20 +312,20 @@ export default function BlogDashboardPage() {
                 <div className="space-y-3">
                   {posts.map((post) => (
                     <Card key={post.id} className="hover:bg-secondary/5 transition-colors">
-                      <CardContent className="flex items-center justify-between py-4">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-medium truncate" dangerouslySetInnerHTML={{ __html: renderTitleHtml(post.title) }} />
-                            <Badge variant={post.status === "published" ? "default" : "secondary"} className="text-[10px]">
+                      <CardContent className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 py-4">
+                        <div className="min-w-0 flex-1 w-full">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-sm font-medium truncate max-w-[200px] sm:max-w-xs" dangerouslySetInnerHTML={{ __html: renderTitleHtml(post.title) }} />
+                            <Badge variant={post.status === "published" ? "default" : "secondary"} className="text-[10px] shrink-0">
                               {post.status}
                             </Badge>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {new Date(post.createdAt).toLocaleDateString()}
-                            {post.excerpt && ` - ${post.excerpt.substring(0, 100)}`}
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                            <span suppressHydrationWarning>{new Date(post.createdAt).toLocaleDateString()}</span>
+                            {post.excerpt && <span className="hidden sm:inline"> — {post.excerpt.substring(0, 100)}</span>}
                           </p>
                         </div>
-                        <Link href={`/dashboard/blog/posts/${post.id}/edit`}>
+                        <Link href={`/dashboard/blog/posts/${post.id}/edit`} className="shrink-0">
                           <Button variant="ghost" size="sm" className="gap-1">
                             <Pencil className="h-3.5 w-3.5" />
                             {t("edit", { defaultValue: "Edit" })}
