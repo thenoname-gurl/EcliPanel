@@ -3,6 +3,7 @@ import { User } from '../models/user.entity';
 import { Passkey } from '../models/passkey.entity';
 import { Ticket } from '../models/ticket.entity';
 import { IDVerification } from '../models/idVerification.entity';
+import { StudentVerification } from '../models/studentVerification.entity';
 import { DeletionRequest } from '../models/deletionRequest.entity';
 import { OutboundEmail } from '../models/outboundEmail.entity';
 import { Node } from '../models/node.entity';
@@ -3721,6 +3722,88 @@ export async function adminRoutes(app: any, prefix = '') {
         },
       },
       detail: { summary: 'Delete files attached to a verification', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/student-verifications',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:student:verify');
+      if (adminErr !== true) return adminErr;
+      const verRepo = AppDataSource.getRepository(StudentVerification);
+      const userRepo = AppDataSource.getRepository(User);
+      const records = await verRepo.find({ order: { id: 'DESC' } });
+      const userIds = [...new Set(records.map(r => r.userId))];
+      const users = await userRepo.findBy({ id: In(userIds) });
+      const userMap: Record<number, Pick<User, 'firstName' | 'lastName' | 'email'>> = {};
+      for (const u of users) userMap[u.id] = { firstName: u.firstName, lastName: u.lastName, email: u.email };
+      return records.map(r => ({ ...r, user: userMap[r.userId] ?? null }));
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List student verification records', tags: ['Admin'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/student-verifications/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:student:verify');
+      if (adminErr !== true) return adminErr;
+      const verRepo = AppDataSource.getRepository(StudentVerification);
+      const userRepo = AppDataSource.getRepository(User);
+      const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!rec) { ctx.set.status = 404; return { error: ctx.t('common.notFound') }; }
+      const { status, adminNotes } = ctx.body as any;
+      if (!['verified', 'failed'].includes(status)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('common.statusMustBeVerifiedOrFailed') };
+      }
+      rec.status = status;
+      if (adminNotes !== undefined) rec.adminNotes = String(adminNotes);
+      if (status === 'verified') {
+        rec.verifiedAt = new Date();
+        await userRepo.update({ id: rec.userId }, { studentVerified: true, studentVerifiedAt: new Date() });
+      } else {
+        rec.verifiedAt = null;
+      }
+      await verRepo.save(rec);
+      return { success: true, rec };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({ status: t.String(), adminNotes: t.Optional(t.String()) }),
+        response: { 200: t.Object({ success: t.Boolean(), rec: t.Any() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+      },
+      detail: { summary: 'Approve or reject a student verification', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/student-verifications/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:student:verify');
+      if (adminErr !== true) return adminErr;
+      const verRepo = AppDataSource.getRepository(StudentVerification);
+      const rec = await verRepo.findOneBy({ id: Number(ctx.params.id) });
+      if (!rec) { ctx.set.status = 404; return { error: ctx.t('common.notFound') }; }
+      if (rec.proofUrl) {
+        const filepath = path.join(process.cwd(), rec.proofUrl);
+        try { await fs.promises.unlink(filepath); } catch { /* uwu */ }
+      }
+      await verRepo.remove(rec);
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: { 200: t.Object({ success: t.Boolean() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+      },
+      detail: { summary: 'Delete a student verification record', tags: ['Admin'] },
     }
   );
 

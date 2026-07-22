@@ -522,6 +522,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
           emailVerified: user.emailVerified ?? false,
           passkeyCount: 0,
           studentVerified: user.studentVerified || false,
+          studentVerifiedAt: user.studentVerifiedAt?.toISOString?.() || (user.studentVerifiedAt as any) || null,
           twoFactorEnabled: !!user.twoFactorEnabled,
           avatarUrl: user.avatarUrl || null,
           supportBanned: !!user.supportBanned,
@@ -2008,6 +2009,11 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
   app.get(
     prefix + '/auth/hackclub/start',
     async (ctx: AuthRouteContext) => {
+      const hackclubEnabled = await isFeatureEnabled('hackclubStudentAuth');
+      if (!hackclubEnabled) {
+        ctx.set.status = 503;
+        return { error: ctx.t('system.studentAuthDisabled') };
+      }
       const user = ctx.user;
       const state = await randomToken(16);
       await redisSet(`hackclub-student-state:${state}`, String(user.id), 600);
@@ -2048,6 +2054,11 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
   app.get(
     prefix + '/auth/hackclub/callback',
     async (ctx: AuthRouteContext) => {
+      const hackclubEnabled = await isFeatureEnabled('hackclubStudentAuth');
+      if (!hackclubEnabled) {
+        ctx.set.status = 503;
+        return { error: ctx.t('system.studentAuthDisabled') };
+      }
       const code = getQueryString(ctx.query, 'code', '');
       const state = getQueryString(ctx.query, 'state', '');
       if (!code || !state) {
@@ -2315,6 +2326,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
             emailVerified: user.emailVerified ?? false,
             passkeyCount,
             studentVerified: user.studentVerified || false,
+            studentVerifiedAt: user.studentVerifiedAt?.toISOString?.() || (user.studentVerifiedAt as any) || null,
             termsConsentVersion: user.termsConsentVersion || null,
             twoFactorEnabled: !!user.twoFactorEnabled,
             avatarUrl: user.avatarUrl || null,

@@ -562,8 +562,9 @@
     "mailboxSendFailed": "Unable to determine outgoing sender address for your mailbox",
     "githubOauthNotConfigured": "GitHub OAuth not configured",
     "githubClientIdNotConfigured": "GitHub client id not configured",
-    "hackclubOauthNotConfigured": "Hack Club OAuth not configured",
-    "hackclubClientIdNotConfigured": "Hack Club client id not configured",
+    "hackclubOauthNotConfigured": "Student OAuth not configured",
+    "hackclubClientIdNotConfigured": "Student OAuth client id not configured",
+    "studentAuthDisabled": "Student verification via this method is currently disabled",
     "captchaDisabled": "Feature 'captcha' is disabled",
     "captchaInvisibleDisabled": "Feature 'captchaInvisible' is disabled",
     "tunnelsNotAvailable": "Tunnels feature is not yet available to you",
@@ -792,6 +793,12 @@
     "ageEstimationFailed": "Failed to estimate age from the selfie. Please try again later.",
     "minAgeAttempts": "Users must be at least {minAge} years old. Attempts left: {remaining}.",
     "ageMismatch": "Estimated age {predictedAge} does not match your DOB age {age}. Please ensure your face is clearly visible in the selfie and try again."
+  },
+  "studentVerification": {
+    "existingPending": "You already have a pending student verification. Please wait for review.",
+    "proofRequired": "Proof of enrollment is required.",
+    "proofEmpty": "Proof file must not be empty.",
+    "uploadError": "Failed to process uploaded file: "
   },
   "notification": {
     "title": "Notification",

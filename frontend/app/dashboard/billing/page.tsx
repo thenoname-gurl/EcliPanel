@@ -581,7 +581,7 @@ export default function BillingPage() {
                         }}
                         className="mt-4 flex w-full items-center justify-center gap-2 border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
                        data-telemetry="billing:async">
-                        {t("currentSubscription.connect")} {HACKCLUB_STUDENT_ENABLED ? 'Hack Club' : 'GitHub'}
+                        {t("currentSubscription.verifyStudent")}
                         <ArrowRight className="h-3 w-3" />
                       </button>
                     )}
@@ -595,16 +595,26 @@ export default function BillingPage() {
                       </a>
                     )}
                     {!planCard.isActive && livePlanCards.length > 0 && planCard.type !== 'enterprise' && !(planCard.type === 'educational' && (HACKCLUB_STUDENT_ENABLED || GITHUB_STUDENT_ENABLED)) && (
-                      <button
-                        onClick={() => {
-                          const livePlan = livePlanCards.find((lp: any) => lp.key === planCard.key)
-                          setConfirmSwitch({ targetCard: planCard, targetPlan: livePlan })
-                        }}
-                        className="mt-4 flex w-full items-center justify-center gap-2 bg-primary py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                      >
-                        {t("currentSubscription.switchTo")} {planCard.name}
-                        <ArrowRight className="h-3 w-3" />
-                      </button>
+                      planCard.type === 'educational' && !currentUser?.studentVerified ? (
+                        <a
+                          href="/dashboard/student-benefits"
+                          className="mt-4 flex w-full items-center justify-center gap-2 border border-border bg-secondary/50 py-2 text-xs text-foreground transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+                        >
+                          {t("currentSubscription.verifyStudent")}
+                          <ArrowRight className="h-3 w-3" />
+                        </a>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const livePlan = livePlanCards.find((lp: any) => lp.key === planCard.key)
+                            setConfirmSwitch({ targetCard: planCard, targetPlan: livePlan })
+                          }}
+                          className="mt-4 flex w-full items-center justify-center gap-2 bg-primary py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                        >
+                          {t("currentSubscription.switchTo")} {planCard.name}
+                          <ArrowRight className="h-3 w-3" />
+                        </button>
+                      )
                     )}
                   </div>
                 )

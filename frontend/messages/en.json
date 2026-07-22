@@ -496,7 +496,7 @@
           "name": "Educational Portal",
           "price": "0,00 $/mo",
           "desc": "Perfect for students and their small projects!",
-          "cta": "Connect Hack Club",
+          "cta": "Verify Student Status",
           "features": [
             "3 Servers",
             "3 Ports per server",
@@ -1284,7 +1284,7 @@
       "edit": "Edit",
       "resourceScaling": "Resource Scaling",
       "resourceScalingDesc": "Resources scale linearly with your project's ELO rating",
-      "resourceFootnote": "Hack Club users get +20% bonus resources. Every 20 votes cast unlocks an additional ELO server slot.",
+      "resourceFootnote": "Verified students get +20% bonus resources. Every 20 votes cast unlocks an additional ELO server slot.",
       "eloProgression": "ELO Progression",
       "currentResources": "Current Resources",
       "previewHigherElo": "Preview at higher ELO",
@@ -1370,7 +1370,7 @@
       "eloUpdated": "ELO scores updated immediately.",
       "eloChange": "ELO change: {delta}",
       "nextPair": "Next Pair",
-      "hackClubBonus": " (+Hack Club bonus applied)",
+      "hackClubBonus": " (+Student bonus applied)",
       "voteFailed": "Vote failed",
       "feedbackRequired": "Feedback is required to vote.",
       "feedbackWordCount": "Feedback must be at least 20 words (currently {count}).",
@@ -1426,7 +1426,7 @@
       "notFoundDescription": "This ELO participant doesn't exist.",
       "backToDashboard": "Back to ELO Dashboard",
       "joined": "Joined {date}",
-      "hackClub": "Hack Club",
+      "hackClub": "Student",
       "projectsStat": "Projects",
       "votesCast": "Votes Cast",
       "highestElo": "Highest ELO",
@@ -1622,6 +1622,7 @@
       "tickets": "Tickets",
       "applications": "Applications",
       "kyc": "KYC",
+      "studentVerifications": "Student Verifications",
       "deletions": "Deletions",
       "nodes": "Nodes",
       "eggs": "Eggs",
@@ -2188,6 +2189,31 @@
       "downloadInvoice": "Download Invoice",
       "invoice": "Invoice"
     }
+  },
+  "adminStudentVerificationsTab": {
+    "header": {
+      "title": "Student Verifications",
+      "subtitle": "Review and manage manual student verification submissions",
+      "pending": "pending"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "approve": "Approve",
+      "reject": "Reject",
+      "delete": "Delete",
+      "viewProof": "View proof"
+    },
+    "proofTypes": {
+      "schoolEmail": "School Email",
+      "enrollmentDoc": "Enrollment Document",
+      "githubScreenshot": "GitHub Screenshot",
+      "other": "Other"
+    },
+    "states": {
+      "loading": "Loading student verifications...",
+      "noneFound": "No student verification submissions yet"
+    },
+    "deleteConfirm": "Delete this student verification record?"
   },
   "adminVerificationsTab": {
     "common": {
@@ -3884,6 +3910,69 @@
       }
     }
   },
+  "studentBenefits": {
+    "title": "Student Benefits",
+    "description": "Verify your student status to unlock free servers and bonus resources.",
+    "status": {
+      "verified": "Student Verified",
+      "verifiedDesc": "Your student status is confirmed. You have access to all student benefits.",
+      "pending": "Verification Pending",
+      "pendingDesc": "Your proof of enrollment is under review.",
+      "unverified": "Not Verified",
+      "unverifiedDesc": "Verify your student status to unlock free servers, bonus resources, and more.",
+      "active": "Active",
+      "viewBenefits": "View Benefits"
+    },
+    "oauth": {
+      "title": "Quick Verification",
+      "description": "Instantly verify using your existing student accounts.",
+      "hackclub": "Verify with Hack Club",
+      "github": "Verify with GitHub",
+      "noneAvailable": "No automatic verification methods are currently available. Please use manual verification below."
+    },
+    "manual": {
+      "title": "Manual Verification",
+      "description": "Upload proof of enrollment for manual review. You can submit your student ID, enrollment letter, school email, or a screenshot of your GitHub Student Pack.",
+      "proofTypeLabel": "Proof Type",
+      "enrollmentDoc": "Enrollment Document",
+      "schoolEmail": "School/University Email",
+      "githubScreenshot": "GitHub Student Pack Screenshot",
+      "other": "Other",
+      "proofLabel": "Proof of Enrollment",
+      "proofHint": "Upload your student ID, enrollment letter, or screenshot. Accepted: JPG, PNG, WebP, PDF.",
+      "selectFile": "Please select a proof file",
+      "submit": "Submit for Verification",
+      "submitted": "Student verification proof submitted for review!",
+      "emailInstruction": "Send us an email from your school or university email address:",
+      "emailCodeLabel": "Include this code in your email:",
+      "emailNote": "Include the code above and your account email in the message. Then click the button below so we know to expect your email.",
+      "emailSent": "I've Sent the Email",
+      "emailSubmitted": "Verification request recorded! We'll check for your email and verify your status within 1-2 business days."
+    },
+    "pending": {
+      "title": "Verification In Progress",
+      "description": "Your student verification is being reviewed by our team.",
+      "underReview": "Under Review",
+      "timeframe": "This usually takes 1-2 business days. You'll be notified by email when the review is complete."
+    },
+    "perks": {
+      "title": "Student Perks",
+      "description": "Benefits unlocked with your verified student status.",
+      "plan": "Plan",
+      "educationalPlan": "Educational",
+      "planInfo": "Free educational plan for verified students. Includes 3 servers with bonus resources, 1.1× ELO vote weight, and +20% resource bonus. Requires annual re-verification.",
+      "eloBonus": "ELO Resource Bonus",
+      "voteWeight": "Vote Weight",
+      "reverify": "Re-verification",
+      "annual": "Annual",
+      "daysLeft": "{days} days left",
+      "activePlan": "Your educational plan is active and student benefits are applied."
+    },
+    "errors": {
+      "oauthFailed": "Failed to start verification flow",
+      "submitFailed": "Failed to submit"
+    }
+  },
   "identityPage": {
     "header": {
       "title": "Identity Verification",
@@ -3898,8 +3987,9 @@
       "uploading": "Uploading...",
       "submitForVerification": "Submit for Verification",
       "verifySelfieAge": "Verify selfie age",
-      "connectHackClub": "Connect Hack Club",
-      "connectGithub": "Connect GitHub"
+      "connectHackClub": "Verify with Hack Club",
+      "connectGithub": "Verify with GitHub",
+      "verifyStudent": "Verify Student Status"
     },
     "messages": {
       "submittedForReview": "Verification submitted - your documents are under review."
@@ -3907,8 +3997,8 @@
     "errors": {
       "selectBothFiles": "Please select both files",
       "failed": "Failed",
-      "failedHackClubFlow": "Failed to start Hack Club flow",
-      "failedGithubFlow": "Failed to start GitHub flow"
+      "failedHackClubFlow": "Failed to start student verification flow",
+      "failedGithubFlow": "Failed to start GitHub verification flow"
     },
     "banner": {
       "completeTitle": "Verification Complete",
@@ -3944,10 +4034,9 @@
         "description": "Register a passkey or enable two-factor authentication"
       },
       "student": {
-        "title": "Student Verification",
+        "title": "Student Benefits",
         "verified": "Student status confirmed",
-        "connectHackClub": "Connect Hack Club to verify educational status",
-        "connectGithub": "Connect GitHub to verify educational status",
+        "verifyPrompt": "Verify your student status to unlock free servers and bonus resources",
         "comingSoon": "Student verification is coming soon"
       },
       "identityDocument": {
@@ -6104,6 +6193,7 @@
       "requestChange": "Request Change",
       "active": "Active",
       "connect": "Connect",
+      "verifyStudent": "Verify Student Status",
       "buyNow": "Buy Now",
       "contactSales": "Contact Sales",
       "cancelFirst": "Cancel your current plan before purchasing a new one",

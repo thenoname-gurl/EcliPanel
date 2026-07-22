@@ -69,6 +69,7 @@ export interface SafeUserResponse {
   emailVerified: boolean;
   passkeyCount: number;
   studentVerified: boolean;
+  studentVerifiedAt?: string | null;
   twoFactorEnabled: boolean;
   avatarUrl?: string | null;
   supportBanned: boolean;

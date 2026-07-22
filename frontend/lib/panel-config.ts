@@ -84,6 +84,10 @@ export const API_ENDPOINTS = {
   hackclubStudentCallback: "/api/auth/hackclub/callback",
   githubStudentStart: "/api/auth/github/start",
   githubStudentCallback: "/api/auth/github/callback",
+  studentVerification: "/api/student-verification",
+  studentVerificationStatus: "/api/student-verification/:id",
+  adminStudentVerifications: "/api/admin/student-verifications",
+  adminStudentVerificationDetail: "/api/admin/student-verifications/:id",
 
   // Users
   users: "/api/users",

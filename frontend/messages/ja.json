@@ -496,7 +496,7 @@
           "name": "教育ポータル",
           "price": "0,00 $/月",
           "desc": "学生とその小さなプロジェクトに最適！",
-          "cta": "Hack Clubに接続",
+          "cta": "学生ステータスを確認",
           "features": [
             "3サーバー",
             "サーバーあたり3ポート",
@@ -3616,6 +3616,69 @@
       }
     }
   },
+  "studentBenefits": {
+    "title": "学生特典",
+    "description": "学生ステータスを確認して無料サーバーとボーナスリソースを利用しましょう。",
+    "status": {
+      "verified": "学生確認済み",
+      "verifiedDesc": "学生ステータスが確認されました。すべての学生特典にアクセスできます。",
+      "pending": "確認待ち",
+      "pendingDesc": "在学証明書を審査中です。",
+      "unverified": "未確認",
+      "unverifiedDesc": "学生ステータスを確認して無料サーバーとボーナスリソースを利用しましょう。",
+      "active": "有効",
+      "viewBenefits": "特典を見る"
+    },
+    "oauth": {
+      "title": "クイック確認",
+      "description": "既存の学生アカウントを使用して即座に確認。",
+      "hackclub": "Hack Clubで確認",
+      "github": "GitHubで確認",
+      "noneAvailable": "現在、自動確認方法は利用できません。以下の手動確認をご利用ください。"
+    },
+    "manual": {
+      "title": "手動確認",
+      "description": "在学証明書をアップロードして手動審査を受けてください。学生証、在学証明書、学校メール、GitHub Student Packのスクリーンショットを提出できます。",
+      "proofTypeLabel": "証明タイプ",
+      "enrollmentDoc": "在学証明書",
+      "schoolEmail": "学校/大学のメール",
+      "githubScreenshot": "GitHub Student Pack スクリーンショット",
+      "other": "その他",
+      "proofLabel": "在学証明",
+      "proofHint": "学生証、在学証明書、またはスクリーンショットをアップロード。対応形式: JPG, PNG, WebP, PDF。",
+      "selectFile": "証明ファイルを選択してください",
+      "submit": "確認を送信",
+      "submitted": "学生確認の証明書が提出されました！",
+      "emailInstruction": "学校または大学のメールアドレスからメールを送信してください：",
+      "emailCodeLabel": "メールにこのコードを含めてください：",
+      "emailNote": "上記のコードとアカウントのメールアドレスを本文に含めてください。その後、下のボタンをクリックしてください。",
+      "emailSent": "メールを送信しました",
+      "emailSubmitted": "確認リクエストが記録されました！メールを確認し、1〜2営業日以内にステータスを更新します。"
+    },
+    "pending": {
+      "title": "確認進行中",
+      "description": "学生確認はチームによって審査中です。",
+      "underReview": "審査中",
+      "timeframe": "通常1〜2営業日かかります。審査完了時にメールで通知されます。"
+    },
+    "perks": {
+      "title": "学生特典",
+      "description": "確認済みの学生ステータスで利用可能な特典。",
+      "plan": "プラン",
+      "educationalPlan": "教育",
+      "planInfo": "確認済み学生向けの無料教育プラン。ボーナスリソース付き3サーバー、1.1倍のELO投票重み、+20%のリソースボーナスが含まれます。年次再確認が必要です。",
+      "eloBonus": "ELOリソースボーナス",
+      "voteWeight": "投票の重み",
+      "reverify": "再確認",
+      "annual": "年次",
+      "daysLeft": "残り{days}日",
+      "activePlan": "教育プランが有効で、学生特典が適用されています。"
+    },
+    "errors": {
+      "oauthFailed": "確認フローの開始に失敗しました",
+      "submitFailed": "送信に失敗しました"
+    }
+  },
   "identityPage": {
     "header": {
       "title": "本人確認",
@@ -3630,8 +3693,8 @@
       "uploading": "アップロード中...",
       "submitForVerification": "確認を送信",
       "verifySelfieAge": "自撮り年齢確認",
-      "connectHackClub": "Hack Clubに接続",
-      "connectGithub": "GitHubに接続"
+      "connectHackClub": "Hack Clubで確認",
+      "connectGithub": "GitHubで確認"
     },
     "messages": {
       "submittedForReview": "確認書類が送信されました - 書類は審査中です。"
@@ -3676,11 +3739,12 @@
         "description": "パスキーを登録するか二要素認証を有効にしてください"
       },
       "student": {
-        "title": "学生確認",
+        "title": "学生特典",
         "verified": "学生ステータスが確認されました",
-        "connectHackClub": "Hack Clubに接続して教育ステータスを確認",
-        "connectGithub": "GitHubに接続して教育ステータスを確認",
-        "comingSoon": "学生確認は近日公開予定です"
+        "connectHackClub": "Hack Clubで確認して学生特典を利用",
+        "connectGithub": "GitHubで確認して学生特典を利用",
+        "comingSoon": "学生確認は近日公開予定です",
+        "uploadProof": "在学証明書をアップロードして学生ステータスを確認"
       },
       "identityDocument": {
         "title": "身分証明書",
@@ -4458,7 +4522,7 @@
       "edit": "編集",
       "resourceScaling": "リソーススケーリング",
       "resourceScalingDesc": "リソースはプロジェクトのELOレーティングに比例してスケールします",
-      "resourceFootnote": "Hack Clubユーザーは+20%のボーナスリソースを取得。20票ごとに追加のELOサーバースロットが解除されます。",
+      "resourceFootnote": "確認済み学生は+20%のボーナスリソースを取得。20票ごとに追加のELOサーバースロットが解除されます。",
       "eloProgression": "ELO進行度",
       "currentResources": "現在のリソース",
       "previewHigherElo": "より高いELOでのプレビュー",
@@ -4544,7 +4608,7 @@
       "eloUpdated": "ELOスコアが即時に更新されました。",
       "eloChange": "ELO変動: {delta}",
       "nextPair": "次のペア",
-      "hackClubBonus": "（+Hack Clubボーナス適用）",
+      "hackClubBonus": "（+学生ボーナス適用）",
       "voteFailed": "投票に失敗しました",
       "feedbackRequired": "投票にはフィードバックが必要です。",
       "feedbackWordCount": "フィードバックは最低20単語必要です（現在{count}単語）。",
@@ -4600,7 +4664,7 @@
       "notFoundDescription": "このELO参加者は存在しません。",
       "backToDashboard": "ELOダッシュボードに戻る",
       "joined": "{date}に参加",
-      "hackClub": "Hack Club",
+      "hackClub": "学生",
       "projectsStat": "プロジェクト",
       "votesCast": "投票数",
       "highestElo": "最高ELO",

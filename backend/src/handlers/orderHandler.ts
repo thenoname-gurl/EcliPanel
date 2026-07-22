@@ -509,6 +509,10 @@ export async function orderRoutes(app: any, prefix = '') {
             if (plan) {
               const userEntity = await userRepo2.findOneBy({ id: user.id });
               if (userEntity) {
+                if (plan.type === 'educational' && !userEntity.studentVerified) {
+                  ctx.set.status = 403;
+                  return { error: 'Student verification required for educational plan. Please verify your student status first.' };
+                }
                 const limits: Record<string, number> = {};
                 if (plan.memory != null) limits.memory = plan.memory;
                 if (plan.disk != null) limits.disk = plan.disk;

@@ -29,11 +29,8 @@ import {
   KeyRound,
   Loader2,
   ExternalLink,
+  GraduationCap,
 } from "lucide-react"
-
-// Feature flags
-const HACKCLUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED === 'true';
-const GITHUB_STUDENT_ENABLED = process.env.NEXT_PUBLIC_GITHUB_STUDENT_ENABLED === 'true';
 
 // helper to derive step status from backend record
 function computeSteps(
@@ -49,7 +46,7 @@ function computeSteps(
   const base = [
     { id: 1, title: t("steps.email.title"), description: emailVerified ? t("steps.email.verified") : t("steps.email.verifyToContinue"), icon: FileText },
     { id: 2, title: t("steps.security.title"), description: t("steps.security.description"), icon: KeyRound },
-    { id: 3, title: t("steps.student.title"), description: studentVerified ? t("steps.student.verified") : HACKCLUB_STUDENT_ENABLED ? t("steps.student.connectHackClub") : GITHUB_STUDENT_ENABLED ? t("steps.student.connectGithub") : t("steps.student.comingSoon"), icon: User },
+    { id: 3, title: t("steps.student.title"), description: studentVerified ? t("steps.student.verified") : t("steps.student.verifyPrompt"), icon: GraduationCap },
     {
       id: 4,
       title: t("steps.identityDocument.title"),
@@ -345,40 +342,13 @@ export default function IdentityPage() {
                       {t("status.notApplicable")}
                     </Badge>
                   )}
-                  {/* student verification button */}
-                  {step.id === 3 && step.status === "available" && HACKCLUB_STUDENT_ENABLED && portalType !== 'educational' && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          const res: any = await apiFetch(API_ENDPOINTS.hackclubStudentStart, { method: 'GET' });
-                          if (res.redirect) {
-                            window.location.href = res.redirect;
-                          }
-                        } catch (e: any) {
-                          alert(e.message || t('errors.failedHackClubFlow'));
-                        }
-                      }}
-                      className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
-                     data-telemetry="identity:async">
-                      {t("actions.connectHackClub")}
-                    </button>
-                  )}
-                  {step.id === 3 && step.status === "available" && !HACKCLUB_STUDENT_ENABLED && GITHUB_STUDENT_ENABLED && portalType !== 'educational' && (
-                    <button
-                      onClick={async () => {
-                        try {
-                          const res: any = await apiFetch(API_ENDPOINTS.githubStudentStart, { method: 'GET' });
-                          if (res.redirect) {
-                            window.location.href = res.redirect;
-                          }
-                        } catch (e: any) {
-                          alert(e.message || t('errors.failedGithubFlow'));
-                        }
-                      }}
-                      className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20"
-                     data-telemetry="identity:async">
-                      {t("actions.connectGithub")}
-                    </button>
+                  {step.id === 3 && step.status === "available" && portalType !== 'educational' && (
+                    <a
+                      href="/dashboard/student-benefits"
+                      className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20 transition-colors"
+                     data-telemetry="identity:nav">
+                      {t("actions.verifyStudent")}
+                    </a>
                   )}
                   {step.status === "failed" && (
                     <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">
@@ -390,7 +360,7 @@ export default function IdentityPage() {
                       {t("status.uploadAbove")}
                     </Badge>
                   )}
-                  {step.status === "available" && step.id === 3 && !HACKCLUB_STUDENT_ENABLED && !GITHUB_STUDENT_ENABLED && (
+                  {step.status === "available" && step.id === 3 && portalType === 'educational' && (
                     <Badge variant="outline" className="border-muted/30 bg-muted/10 text-muted-foreground">
                       {t("status.comingSoon")}
                     </Badge>

@@ -496,7 +496,7 @@
           "name": "教育门户",
           "price": "0.00 美元/月",
           "desc": "非常适合学生及其小型项目！",
-          "cta": "连接 Hack Club",
+          "cta": "验证学生身份",
           "features": [
             "3 个服务器",
             "每个服务器 3 个端口",
@@ -1284,7 +1284,7 @@
       "edit": "编辑",
       "resourceScaling": "资源扩展",
       "resourceScalingDesc": "资源随您项目的 ELO 评分线性扩展",
-      "resourceFootnote": "Hack Club 用户获得 +20% 资源加成。每投出 20 票解锁一个额外的 ELO 服务器槽位。",
+      "resourceFootnote": "已验证学生获得 +20% 资源加成。每投出 20 票解锁一个额外的 ELO 服务器槽位。",
       "eloProgression": "ELO 增长",
       "currentResources": "当前资源",
       "previewHigherElo": "预览更高 ELO",
@@ -1370,7 +1370,7 @@
       "eloUpdated": "ELO 分数已立即更新。",
       "eloChange": "ELO 变化：{delta}",
       "nextPair": "下一对",
-      "hackClubBonus": "（+Hack Club 加成已应用）",
+      "hackClubBonus": "（+学生加成已应用）",
       "voteFailed": "投票失败",
       "feedbackRequired": "投票需要填写反馈。",
       "feedbackWordCount": "反馈至少需要 20 个字（当前 {count} 字）。",
@@ -1426,7 +1426,7 @@
       "notFoundDescription": "此 ELO 参与者不存在。",
       "backToDashboard": "返回 ELO 仪表盘",
       "joined": "加入于 {date}",
-      "hackClub": "Hack Club",
+      "hackClub": "学生",
       "projectsStat": "项目",
       "votesCast": "已投票数",
       "highestElo": "最高 ELO",
@@ -3884,6 +3884,69 @@
       }
     }
   },
+  "studentBenefits": {
+    "title": "学生特惠",
+    "description": "验证学生身份，解锁免费服务器和奖励资源。",
+    "status": {
+      "verified": "学生已验证",
+      "verifiedDesc": "学生身份已确认。您可以使用所有学生特惠。",
+      "pending": "验证待处理",
+      "pendingDesc": "您的在学证明正在审核中。",
+      "unverified": "未验证",
+      "unverifiedDesc": "验证学生身份，解锁免费服务器、奖励资源等。",
+      "active": "有效",
+      "viewBenefits": "查看特惠"
+    },
+    "oauth": {
+      "title": "快速验证",
+      "description": "使用现有学生账户即时验证。",
+      "hackclub": "通过 Hack Club 验证",
+      "github": "通过 GitHub 验证",
+      "noneAvailable": "目前没有可用的自动验证方式，请使用下方的手动验证。"
+    },
+    "manual": {
+      "title": "手动验证",
+      "description": "上传在学证明进行人工审核。可提交学生证、在学证明、学校邮箱或 GitHub Student Pack 截图。",
+      "proofTypeLabel": "证明类型",
+      "enrollmentDoc": "在学证明",
+      "schoolEmail": "学校/大学邮箱",
+      "githubScreenshot": "GitHub Student Pack 截图",
+      "other": "其他",
+      "proofLabel": "在学证明",
+      "proofHint": "上传学生证、在学证明或截图。支持格式：JPG、PNG、WebP、PDF。",
+      "selectFile": "请选择证明文件",
+      "submit": "提交验证",
+      "submitted": "学生验证证明已提交审核！",
+      "emailInstruction": "使用学校或大学邮箱发送邮件至：",
+      "emailCodeLabel": "在邮件中包含此验证码：",
+      "emailNote": "在邮件正文中包含上述验证码和您的账户邮箱，然后点击下方按钮。",
+      "emailSent": "我已发送邮件",
+      "emailSubmitted": "验证请求已记录！我们将检查您的邮件并在1-2个工作日内更新状态。"
+    },
+    "pending": {
+      "title": "验证进行中",
+      "description": "您的学生验证正在由团队审核。",
+      "underReview": "审核中",
+      "timeframe": "通常需要1-2个工作日。审核完成后将通过邮件通知。"
+    },
+    "perks": {
+      "title": "学生特权",
+      "description": "验证学生身份后解锁的特惠。",
+      "plan": "套餐",
+      "educationalPlan": "教育版",
+      "planInfo": "面向已验证学生的免费教育套餐。包含3台服务器（附奖励资源）、1.1倍ELO投票权重和+20%资源奖励。需每年重新验证。",
+      "eloBonus": "ELO资源奖励",
+      "voteWeight": "投票权重",
+      "reverify": "重新验证",
+      "annual": "每年",
+      "daysLeft": "剩余 {days} 天",
+      "activePlan": "教育套餐已激活，学生特惠已生效。"
+    },
+    "errors": {
+      "oauthFailed": "验证流程启动失败",
+      "submitFailed": "提交失败"
+    }
+  },
   "identityPage": {
     "header": {
       "title": "身份验证",
@@ -3898,8 +3961,8 @@
       "uploading": "上传中...",
       "submitForVerification": "提交验证",
       "verifySelfieAge": "验证自拍年龄",
-      "connectHackClub": "连接 Hack Club",
-      "connectGithub": "连接 GitHub"
+      "connectHackClub": "通过 Hack Club 验证",
+      "connectGithub": "通过 GitHub 验证"
     },
     "messages": {
       "submittedForReview": "验证已提交 - 您的文件正在审核中。"
@@ -3944,11 +4007,12 @@
         "description": "注册通行密钥或启用双重认证"
       },
       "student": {
-        "title": "学生验证",
+        "title": "学生特惠",
         "verified": "学生身份已确认",
-        "connectHackClub": "连接 Hack Club 以验证教育身份",
-        "connectGithub": "连接 GitHub 以验证教育身份",
-        "comingSoon": "学生验证即将推出"
+        "connectHackClub": "通过 Hack Club 验证以获取学生特惠",
+        "connectGithub": "通过 GitHub 验证以获取学生特惠",
+        "comingSoon": "学生验证即将推出",
+        "uploadProof": "上传在学证明以验证学生身份"
       },
       "identityDocument": {
         "title": "身份证件",

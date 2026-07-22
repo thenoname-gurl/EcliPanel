@@ -149,7 +149,7 @@ function VotingRules() {
     { label: "Account age", value: "7+ days" },
     { label: "Feedback", value: "20+ words" },
     { label: "Cooldown", value: "10 seconds" },
-    { label: "Vote weight", value: "1.0x (Hack Club 1.1x)" },
+    { label: "Vote weight", value: "1.0x (Student 1.1x)" },
     { label: "Slots", value: "1 base +1 per 20 votes" },
     { label: "Decay grace", value: "30 days" },
     { label: "Decay rate", value: "5% per day" },

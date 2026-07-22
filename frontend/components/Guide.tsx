@@ -82,7 +82,7 @@ const steps = [
         route: "/dashboard/identity",
         target: "[data-guide-id='identity-student']",
         helper:
-            "In Identity, click Connect Hack Club or GitHub for student plan.",
+            "In Identity, verify your student status for the educational plan.",
         icon: BadgeCheck,
     },
     {
@@ -234,7 +234,7 @@ const GUIDE_RU_TEXT: Record<string, string> = {
     "Set themes, tab size, and editor preferences.": "Настройте тему, размер табов и параметры редактора.",
     "Identity verification": "Проверка личности",
     "Connect student identity and optionally upload documents.": "Подключите студенческую идентификацию и при необходимости загрузите документы.",
-    "In Identity, click Connect Hack Club or GitHub for student plan.": "Во вкладке Идентификация нажмите подключение Hack Club или GitHub для студенческого плана.",
+    "In Identity, verify your student status for the educational plan.": "Во вкладке Идентификация подтвердите свой статус студента для образовательного плана.",
     "Account Activity": "Активность аккаунта",
     "Check your account activity and recent actions.": "Проверьте активность аккаунта и последние действия.",
     "Review your account activity and recent actions.": "Просмотрите активность аккаунта и недавние действия.",

@@ -136,6 +136,11 @@ const VerificationsTab = dynamic(() => import("./tabs/VerificationsTab"), {
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading verifications tab...</div>,
 })
 
+const StudentVerificationsTab = dynamic(() => import("./tabs/StudentVerificationsTab"), {
+  ssr: false,
+  loading: () => <div className="text-sm text-muted-foreground p-4">Loading student verifications tab...</div>,
+})
+
 const OutboundEmailsTab = dynamic(() => import("./tabs/OutboundEmailsTab"), {
   ssr: false,
   loading: () => <div className="text-sm text-muted-foreground p-4">Loading outbound emails...</div>,
@@ -988,6 +993,7 @@ export default function AdminPanel() {
     { value: 'tickets', label: t('tabs.tickets'), feature: 'ticketing', permissions: ['tickets:read', 'tickets:ban', 'tickets:delete', 'admin:ticket:staff'] },
     { value: 'applications', label: t('tabs.applications'), feature: 'applications', permissions: ['applications:manage'] },
     { value: 'verifications', label: t('tabs.kyc'), permissions: ['idverification:read'] },
+    { value: 'studentVerifications', label: t('tabs.studentVerifications'), permissions: ['admin:student:verify'] },
     { value: 'deletions', label: t('tabs.deletions'), permissions: ['deletions:write'] },
     { value: 'nodes', label: t('tabs.nodes'), permissions: ['nodes:read'] },
     { value: 'tunnels', label: t('tabs.tunnels'), feature: 'tunnels', permissions: ['tunnels:read', 'admin:tunnels:read'] },
@@ -5519,6 +5525,10 @@ remote: ${panelUrl}`
               </div>
             </TabsContent>
             {/* ═══════════════ DELETION REQUESTS ══════════════════════════════ */}
+            <TabsContent value="studentVerifications" className="mt-4">
+              <StudentVerificationsTab />
+            </TabsContent>
+
             <TabsContent value="deletions" className="mt-4">
               <div className="flex flex-col gap-4">
 

@@ -5,6 +5,7 @@ import { sessionRoutes } from '../handlers/sessionHandler';
 import { authRoutes } from '../handlers/authHandler';
 import { logRoutes } from '../handlers/logHandler';
 import { idVerificationRoutes } from '../handlers/idVerificationHandler';
+import { studentVerificationRoutes } from '../handlers/studentVerificationHandler';
 import { deletionRoutes } from '../handlers/deletionHandler';
 import { roleRoutes } from '../handlers/roleHandler';
 import { organisationRoutes } from '../handlers/organisationHandler';
@@ -141,6 +142,7 @@ export function registerRoutes(app: any) {
   logRoutes(app, '/api');
   deletionRoutes(app, '/api');
   idVerificationRoutes(app, '/api');
+  studentVerificationRoutes(app, '/api');
   roleRoutes(app, '/api');
   organisationRoutes(app, '/api');
   orderRoutes(app, '/api');

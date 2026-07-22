@@ -110,6 +110,7 @@ export const AppDataSource = new DataSource({
     require('../models/couponUse.entity').CouponUse,
     require('../models/userLog.entity').UserLog,
     require('../models/idVerification.entity').IDVerification,
+    require('../models/studentVerification.entity').StudentVerification,
     require('../models/legalDocument.entity').LegalDocument,
     require('../models/deletionRequest.entity').DeletionRequest,
     require('../models/exportJob.entity').ExportJob,

@@ -38,8 +38,8 @@ const FEATURES = [
   },
   {
     icon: <Gift className="w-7 h-7" />,
-    title: "Hack Club Bonus",
-    body: "+20% bonus resources and 1.1× vote weight for Hack Club members.",
+    title: "Student Bonus",
+    body: "+20% bonus resources and 1.1× vote weight for verified students.",
   },
 ];
 

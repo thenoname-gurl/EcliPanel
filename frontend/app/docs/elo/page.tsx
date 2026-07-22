@@ -17,7 +17,7 @@ ELO servers use a modified ELO rating algorithm (the same math behind chess rank
 | 5000 | 500% | 10 GB | 200 GB |
 | 12000 (max) | 1200% | 24 GB | 500 GB |
 
-**Hack Club users** receive a +20% resource bonus on top of their ELO-calculated resources.
+**Verified students** receive a +20% resource bonus on top of their ELO-calculated resources.
 
 ## Creating an ELO server
 
@@ -47,7 +47,7 @@ Voting uses **pairwise comparison** — you see two projects side by side and pi
 ### Weighted voting
 
 - Standard users: **1.0×** vote weight  
-- **Hack Club members**: **1.1×** vote weight  
+- **Verified students**: **1.1×** vote weight
 - Beating a higher-ranked project transfers more ELO points  
 - Rankings stabilize over time as more votes accumulate
 
