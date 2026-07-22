@@ -376,9 +376,16 @@ app.decorate('log', console)
   .use(helmet({
     contentSecurityPolicy: {
       directives: {
+        'default-src': ["'self'"],
         'script-src': ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net"],
         'style-src': ["'self'", "'unsafe-inline'", "https:"],
+        'img-src': ["'self'", "data:", "https:"],
+        'font-src': ["'self'", "data:"],
         'connect-src': ["'self'", "https://cdn.jsdelivr.net"],
+        'frame-src': ["'self'"],
+        'object-src': ["'none'"],
+        'base-uri': ["'self'"],
+        'form-action': ["'self'"],
       },
     },
   }))
@@ -425,19 +432,29 @@ app.error((rawCtx: unknown) => {
     status = ctx.code;
   }
 
-  if (status === 404) {
-    const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
-    return new Response(JSON.stringify({ error: 'Route not found' }), {
-      status: 404,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Allow-Headers':
-          'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token',
-        'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control',
-      },
+  const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Headers':
+      'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token',
+    'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control',
+  };
+
+  const securityHeaders = {
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'no-referrer',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  };
+
+  const makeErrorResponse = (body: object, statusCode: number) =>
+    new Response(JSON.stringify(body), {
+      status: statusCode,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders, ...securityHeaders },
     });
+
+  if (status === 404) {
+    return makeErrorResponse({ error: 'Route not found' }, 404);
   }
 
   const log = app.log || console;
@@ -466,34 +483,11 @@ app.error((rawCtx: unknown) => {
       // skip
     }
 
-    const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
-    return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': origin,
-        'Access-Control-Allow-Credentials': 'true',
-        'Access-Control-Allow-Headers':
-          'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token',
-        'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control',
-      },
-    });
+    return makeErrorResponse({ error: 'Internal server error' }, 500);
   }
 
   app.log?.warn?.({ err: ctx.error, url: ctx.request.url, status }, 'Request error');
-
-  const origin = (ctx.request as Request)?.headers?.get?.('origin') || '*';
-  return new Response(JSON.stringify({ error: 'Request error' }), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Credentials': 'true',
-      'Access-Control-Allow-Headers':
-        'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token',
-      'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control',
-    },
-  });
+  return makeErrorResponse({ error: 'Request error' }, status);
 });
 
 declare module 'elysia' {

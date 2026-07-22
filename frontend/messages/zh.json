@@ -1408,7 +1408,8 @@
     },
     "badges": {
       "highRanked": "高排名",
-      "veteran": "资深用户"
+      "veteran": "资深用户",
+      "wellMade": "此项目已被托管工作人员标记为优秀作品"
     },
     "project": {
       "demo": "演示",

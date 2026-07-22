@@ -58,6 +58,9 @@ export class EloProject {
   @Column('json', { nullable: true })
   screenshots?: string[];
 
+  @Column({ default: false })
+  isWellMade: boolean;
+
   @Column({ nullable: true, type: 'datetime' })
   lastActiveAt?: Date;
 

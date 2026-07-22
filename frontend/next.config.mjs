@@ -6,6 +6,7 @@ const wingsBase = process.env.NEXT_PUBLIC_WINGS_BASE || "http://localhost:8080";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig = {
+  poweredByHeader: false,
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -49,6 +50,20 @@ const nextConfig = {
     NEXT_PUBLIC_API_BASE: process.env.NEXT_PUBLIC_API_BASE || backendUrl,
   },
   async headers() {
+    const BE = "https://backend.ecli.app";
+    const csp = [
+      `default-src 'self' ${BE}`,
+      `script-src 'self' ${BE} 'unsafe-inline' 'unsafe-eval'`,
+      `style-src 'self' ${BE} 'unsafe-inline' https:`,
+      "img-src * data: blob:",
+      `font-src 'self' ${BE} data: https://fonts.gstatic.com`,
+      `connect-src *`,
+      `frame-src 'self' ${BE}`,
+      "object-src 'none'",
+      "base-uri 'self'",
+      `form-action 'self' ${BE}`,
+    ].join("; ");
+
     return [
       {
         source: "/assets/:path*",
@@ -71,8 +86,13 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: [
+          { key: "Content-Security-Policy", value: csp },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-DNS-Prefetch-Control", value: "on" },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
       },
     ];

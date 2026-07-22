@@ -9513,6 +9513,7 @@ export async function adminRoutes(app: any, prefix = '') {
           ownerEmail: owner?.email,
           serverName: cfg?.name,
           serverStatus: cfg?.suspended ? 'suspended' : cfg ? 'active' : 'orphaned',
+          isWellMade: p.isWellMade,
           lastActiveAt: p.lastActiveAt,
           createdAt: p.createdAt,
         };
@@ -9560,6 +9561,7 @@ export async function adminRoutes(app: any, prefix = '') {
         ownerEmail: owner?.email,
         serverName: cfg?.name,
         serverStatus: cfg?.suspended ? 'suspended' : cfg ? 'active' : 'orphaned',
+        isWellMade: project.isWellMade,
         devlogCount: devlogs.length,
         totalVoteRecords: voteCount,
       };
@@ -9589,11 +9591,12 @@ export async function adminRoutes(app: any, prefix = '') {
       if (body.githubUrl !== undefined) project.githubUrl = String(body.githubUrl).trim() || null;
       if (body.demoUrl !== undefined) project.demoUrl = String(body.demoUrl).trim() || null;
       if (body.screenshots !== undefined) project.screenshots = Array.isArray(body.screenshots) ? body.screenshots : null;
+      if (body.isWellMade !== undefined) project.isWellMade = Boolean(body.isWellMade);
 
       await eloProjectRepo().save(project);
       await syncEloResources(project);
 
-      return { id: project.id, eloScore: project.eloScore, kFactor: project.kFactor };
+      return { id: project.id, eloScore: project.eloScore, kFactor: project.kFactor, isWellMade: project.isWellMade };
     },
     {
       beforeHandle: [authenticate, authorize('admin:access')],

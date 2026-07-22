@@ -32,6 +32,7 @@ import {
   Image as ImageIcon,
   MessageCircle,
   FileText,
+  Flame,
 } from "lucide-react"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
@@ -273,12 +274,17 @@ export default function EloVotePage() {
                     <div className="p-4 sm:p-5 flex-1 flex flex-col gap-3">
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
-                          <Link
-                            href={`/dashboard/elo/projects/${project.id}`}
-                            className="text-base font-semibold text-foreground hover:text-primary transition-colors"
-                          >
-                            {project.title}
-                          </Link>
+                          <div className="flex items-center gap-1.5">
+                            <Link
+                              href={`/dashboard/elo/projects/${project.id}`}
+                              className="text-base font-semibold text-foreground hover:text-primary transition-colors"
+                            >
+                              {project.title}
+                            </Link>
+                            {project.isWellMade && (
+                              <span title={t("badges.wellMade")} className="shrink-0"><Flame className="h-4 w-4 text-orange-500" /></span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             {project.githubUrl && (
                               <a

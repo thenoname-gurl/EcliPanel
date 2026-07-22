@@ -54,7 +54,7 @@ export async function syncEloResources(project: EloProject) {
 
   const owner = await AppDataSource.getRepository(User).findOneBy({ id: project.userId });
   const isHackClub = owner?.studentVerified || false;
-  const resources = calculateEloResources(project.eloScore, isHackClub);
+  const resources = calculateEloResources(project.eloScore, isHackClub, project.isWellMade);
 
   cfg.memory = resources.memory;
   cfg.disk = resources.disk;
@@ -168,7 +168,7 @@ export async function eloRoutes(app: any, prefix = '') {
       });
 
       const owner = await userRepo().findOneBy({ id: project.userId });
-      const resources = calculateEloResources(project.eloScore, owner?.studentVerified || false);
+      const resources = calculateEloResources(project.eloScore, owner?.studentVerified || false, project.isWellMade);
 
       return {
         id: project.id,
@@ -187,6 +187,7 @@ export async function eloRoutes(app: any, prefix = '') {
         githubUrl: project.githubUrl,
         screenshots: project.screenshots,
         demoUrl: project.demoUrl,
+        isWellMade: project.isWellMade,
         resources,
         ownerName: owner ? (owner.displayName || `${owner.firstName} ${owner.lastName}`) : 'Unknown',
         devlogs: devlogs.map(d => ({
@@ -481,6 +482,7 @@ export async function eloRoutes(app: any, prefix = '') {
           githubUrl: a.githubUrl,
           eloScore: a.eloScore,
           totalVotes: a.totalVotes,
+          isWellMade: a.isWellMade,
           ownerName: ownerA ? (ownerA.displayName || `${ownerA.firstName} ${ownerA.lastName}`) : 'Unknown',
           devlogs: devlogsA,
         },
@@ -495,6 +497,7 @@ export async function eloRoutes(app: any, prefix = '') {
           githubUrl: b.githubUrl,
           eloScore: b.eloScore,
           totalVotes: b.totalVotes,
+          isWellMade: b.isWellMade,
           ownerName: ownerB ? (ownerB.displayName || `${ownerB.firstName} ${ownerB.lastName}`) : 'Unknown',
           devlogs: devlogsB,
         },
@@ -779,6 +782,7 @@ export async function eloRoutes(app: any, prefix = '') {
           wins: p.wins,
           losses: p.losses,
           winRate: p.totalVotes > 0 ? Math.round((p.wins / p.totalVotes) * 100) : 0,
+          isWellMade: p.isWellMade,
           ownerName: owner ? (owner.displayName || `${owner.firstName} ${owner.lastName}`) : 'Unknown',
         };
       });
@@ -992,7 +996,7 @@ export async function eloRoutes(app: any, prefix = '') {
             await eloProjectRepo().remove(p);
             return null;
           }
-          const resources = calculateEloResources(p.eloScore, ctx.user?.studentVerified || false);
+          const resources = calculateEloResources(p.eloScore, ctx.user?.studentVerified || false, p.isWellMade);
           return {
             id: p.id,
             serverId: p.serverId,
@@ -1007,6 +1011,7 @@ export async function eloRoutes(app: any, prefix = '') {
             maxSkipTokens: p.maxSkipTokens,
             githubUrl: p.githubUrl,
             demoUrl: p.demoUrl,
+            isWellMade: p.isWellMade,
             orphanedAt: p.orphanedAt,
             screenshots: p.screenshots,
             serverName: cfg.name,
@@ -1212,7 +1217,7 @@ export async function eloRoutes(app: any, prefix = '') {
       });
 
       const enriched = await Promise.all(projects.map(async p => {
-        const resources = calculateEloResources(p.eloScore, user.studentVerified || false);
+        const resources = calculateEloResources(p.eloScore, user.studentVerified || false, p.isWellMade);
         return {
           id: p.id,
           serverId: p.serverId,
@@ -1224,6 +1229,7 @@ export async function eloRoutes(app: any, prefix = '') {
           losses: p.losses,
           githubUrl: p.githubUrl,
           demoUrl: p.demoUrl,
+          isWellMade: p.isWellMade,
           screenshots: p.screenshots?.slice(0, 1) || null,
           resources,
           createdAt: p.createdAt,

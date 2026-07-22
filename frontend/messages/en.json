@@ -1408,7 +1408,8 @@
     },
     "badges": {
       "highRanked": "High Ranked",
-      "veteran": "Veteran"
+      "veteran": "Veteran",
+      "wellMade": "This project was marked as well done by hosting staff"
     },
     "project": {
       "demo": "Demo",

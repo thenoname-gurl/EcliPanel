@@ -23,6 +23,7 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  Flame,
 } from "lucide-react"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
@@ -123,7 +124,12 @@ export default function PublicEloProjectProfile() {
               <div className="flex flex-col sm:flex-row items-start gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <h1 className="text-2xl font-bold text-white">{project.title}</h1>
+                    <div className="flex items-center gap-1.5">
+                      <h1 className="text-2xl font-bold text-white">{project.title}</h1>
+                      {project.isWellMade && (
+                        <span title={t("badges.wellMade")} className="shrink-0"><Flame className="h-5 w-5 text-orange-500" /></span>
+                      )}
+                    </div>
                     <EloBadge score={project.eloScore} />
                   </div>
                   <div className="flex items-center gap-3 mt-2 text-sm text-zinc-400 flex-wrap">

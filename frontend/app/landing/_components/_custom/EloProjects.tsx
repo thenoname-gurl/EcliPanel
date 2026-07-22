@@ -9,6 +9,7 @@ import {
   TrendingDown,
   Swords,
   Shield,
+  Flame,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -24,6 +25,7 @@ interface ProjectEntry {
   winRate: number;
   ownerName: string;
   description?: string | null;
+  isWellMade?: boolean;
 }
 
 function RankCard({
@@ -46,9 +48,14 @@ function RankCard({
           #{project.rank}
         </div>
         <div className="min-w-0">
-          <Link href={`/elo/projects/${project.id}`} className="text-white text-lg font-bold leading-tight truncate hover:text-primary transition-colors">
-            {project.title}
-          </Link>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Link href={`/elo/projects/${project.id}`} className="text-white text-lg font-bold leading-tight truncate hover:text-primary transition-colors">
+              {project.title}
+            </Link>
+            {project.isWellMade && (
+              <span title="This project was marked as well done by hosting staff" className="shrink-0"><Flame className="h-4 w-4 text-orange-500" /></span>
+            )}
+          </div>
           <p className="text-white/40 text-xs font-mono mt-0.5">{project.eloScore} ELO</p>
         </div>
       </div>

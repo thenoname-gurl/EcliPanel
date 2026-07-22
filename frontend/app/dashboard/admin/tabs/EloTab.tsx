@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -35,6 +36,7 @@ import {
   Users,
   BarChart3,
   AlertTriangle,
+  Flame,
 } from "lucide-react"
 
 type SubTab = "projects" | "votes" | "reports" | "voters"
@@ -44,51 +46,26 @@ export default function EloTab({ ctx: _ctx }: { ctx: any }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-1 border-b border-border/50 pb-1">
-        <button
-          onClick={() => setTab("projects")}
-          className={`px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5 ${
-            tab === "projects"
-              ? "text-foreground border-b-2 border-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Trophy className="h-3.5 w-3.5" />
-          Projects
-        </button>
-        <button
-          onClick={() => setTab("votes")}
-          className={`px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5 ${
-            tab === "votes"
-              ? "text-foreground border-b-2 border-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <BarChart3 className="h-3.5 w-3.5" />
-          Votes
-        </button>
-        <button
-          onClick={() => setTab("reports")}
-          className={`px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5 ${
-            tab === "reports"
-              ? "text-foreground border-b-2 border-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Flag className="h-3.5 w-3.5" />
-          Reports
-        </button>
-        <button
-          onClick={() => setTab("voters")}
-          className={`px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5 ${
-            tab === "voters"
-              ? "text-foreground border-b-2 border-primary"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <AlertTriangle className="h-3.5 w-3.5" />
-          Voters
-        </button>
+      <div className="flex items-center gap-1 border-b border-border/50 pb-1 overflow-x-auto">
+        {([
+          { key: "projects", icon: Trophy, label: "Projects" },
+          { key: "votes", icon: BarChart3, label: "Votes" },
+          { key: "reports", icon: Flag, label: "Reports" },
+          { key: "voters", icon: AlertTriangle, label: "Voters" },
+        ] as const).map(({ key, icon: Icon, label }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key as SubTab)}
+            className={`px-3 py-2 text-xs font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+              tab === key
+                ? "text-foreground border-b-2 border-primary"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        ))}
       </div>
 
       {tab === "projects" && <ProjectsPanel />}
@@ -100,6 +77,7 @@ export default function EloTab({ ctx: _ctx }: { ctx: any }) {
 }
 
 function ProjectsPanel() {
+  const t = useTranslations("eloPage")
   const [projects, setProjects] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
@@ -205,6 +183,18 @@ function ProjectsPanel() {
     }
   }
 
+  const handleToggleWellMade = async (p: any) => {
+    try {
+      await apiFetch(`/api/admin/elo/${p.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ isWellMade: !p.isWellMade }),
+      })
+      fetchProjects(page, search)
+    } catch {
+      // ignore
+    }
+  }
+
   const handleDelete = async () => {
     if (!deleteTarget) return
     try {
@@ -220,20 +210,20 @@ function ProjectsPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <span className="text-sm text-muted-foreground">
           {total} ELO project{total !== 1 ? "s" : ""}
         </span>
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 border border-border/50 bg-secondary/30 px-2 py-1">
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1 border border-border/50 bg-secondary/30 px-2 py-1 flex-1 sm:flex-none">
+            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder="Search by name or server ID..."
-              className="bg-transparent border-0 text-sm text-foreground outline-none w-48 placeholder:text-muted-foreground/50"
+              placeholder="Search..."
+              className="bg-transparent border-0 text-sm text-foreground outline-none w-full sm:w-48 placeholder:text-muted-foreground/50"
             />
           </div>
           <Button size="sm" variant="outline" onClick={handleSearch}>
@@ -258,8 +248,9 @@ function ProjectsPanel() {
           <p className="text-xs text-muted-foreground">Create an ELO-enabled server to see it here.</p>
         </div>
       ) : (
-        <div className="border border-border/50 overflow-x-auto">
-          <table className="w-full text-sm">
+        <>
+        <div className="border border-border/50 overflow-x-auto hidden lg:block">
+          <table className="w-full text-sm min-w-[700px]">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/20">
                 <th className="text-left px-4 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">ID</th>
@@ -280,8 +271,13 @@ function ProjectsPanel() {
                 <tr key={p.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                   <td className="px-4 py-3 text-xs text-muted-foreground">#{p.id}</td>
                   <td className="px-4 py-3">
-                    <p className="text-sm font-medium text-foreground truncate max-w-[160px]">{p.title}</p>
-                    <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[160px]">{p.serverId}</p>
+                    <div className="flex items-center gap-1">
+                      {p.isWellMade && <span title={t("badges.wellMade")} className="shrink-0"><Flame className="h-3.5 w-3.5 text-orange-500" /></span>}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate max-w-[140px]">{p.title}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[140px]">{p.serverId}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     {Array.isArray(p.screenshots) && p.screenshots.length > 0 ? (
@@ -350,6 +346,13 @@ function ProjectsPanel() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <button
+                        onClick={() => handleToggleWellMade(p)}
+                        className={`border p-1.5 transition-colors ${p.isWellMade ? 'bg-orange-500/20 border-orange-500/50 text-orange-500 hover:bg-orange-500/30' : 'border-border/50 bg-secondary/30 text-muted-foreground hover:text-orange-500 hover:bg-secondary/60'}`}
+                        title={p.isWellMade ? "Remove well-made badge" : "Mark as well-made (+25% resources)"}
+                      >
+                        <Flame className="h-3.5 w-3.5" />
+                      </button>
+                      <button
                         onClick={() => handleEdit(p)}
                         className="border border-border/50 bg-secondary/30 p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
                         title="Edit"
@@ -377,6 +380,110 @@ function ProjectsPanel() {
             </tbody>
           </table>
         </div>
+
+        <div className="flex flex-col gap-3 lg:hidden">
+          {projects.map((p) => (
+            <div key={p.id} className="border border-border/50 bg-card overflow-hidden">
+              <div className="flex items-start gap-3 p-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    {p.isWellMade && <span title={t("badges.wellMade")} className="shrink-0"><Flame className="h-4 w-4 text-orange-500" /></span>}
+                    <p className="text-sm font-semibold text-foreground truncate">{p.title}</p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className="text-xs text-muted-foreground font-mono">#{p.id}</span>
+                    <span className="text-xs font-semibold tabular-nums">{p.eloScore} ELO</span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${
+                        p.serverStatus === "suspended"
+                          ? "text-destructive border-destructive/30"
+                          : p.serverStatus === "orphaned"
+                            ? "text-amber-500 border-amber-500/30"
+                            : "text-emerald-500 border-emerald-500/30"
+                      }`}
+                    >
+                      {p.serverStatus}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Owner</p>
+                  <p className="text-xs text-foreground truncate">{p.ownerName}</p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">K-Factor</p>
+                  <p className="text-xs text-foreground tabular-nums">{p.kFactor}</p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Votes</p>
+                  <p className="text-xs text-foreground tabular-nums">{p.totalVotes}</p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">W / L</p>
+                  <p className="text-xs tabular-nums">
+                    <span className="text-emerald-500">{p.wins}</span>
+                    <span className="text-muted-foreground"> / </span>
+                    <span className="text-red-500">{p.losses}</span>
+                  </p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Skips</p>
+                  <p className="text-xs text-foreground tabular-nums">{p.skipTokensRemaining}/{p.maxSkipTokens}</p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Screenshots</p>
+                  <p className="text-xs text-muted-foreground">
+                    {Array.isArray(p.screenshots) ? p.screenshots.length : 0}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center border-t border-border divide-x divide-border">
+                <button
+                  onClick={() => handleToggleWellMade(p)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs transition-colors ${p.isWellMade ? 'text-orange-500 bg-orange-500/10' : 'text-muted-foreground hover:text-orange-500 hover:bg-secondary/40'}`}
+                >
+                  <Flame className="h-3.5 w-3.5" />
+                  <span>{p.isWellMade ? "Well Made" : "Well Made"}</span>
+                </button>
+                <button
+                  onClick={() => handleEdit(p)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => setResetTarget(p)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-amber-500 hover:text-amber-400 hover:bg-secondary/40 transition-colors"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  <span>Reset</span>
+                </button>
+                <button
+                  onClick={() => setDeleteTarget(p)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-destructive hover:text-destructive/80 hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+          ))}
+          {projects.length === 0 && (
+            <div className="border border-border/50 bg-card px-4 py-12">
+              <div className="flex flex-col items-center gap-2">
+                <Trophy className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No ELO projects found</p>
+              </div>
+            </div>
+          )}
+        </div>
+        </>
       )}
 
       {totalPages > 1 && (
@@ -405,12 +512,12 @@ function ProjectsPanel() {
 
       {/* Edit Dialog */}
       <Dialog open={editProject !== null} onOpenChange={(open) => { if (!open) setEditProject(null) }}>
-        <DialogContent className="border-border bg-card max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="border-border bg-card max-w-[95vw] sm:max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-foreground">Edit ELO Project</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-3">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs text-muted-foreground">ELO Score</Label>
                 <Input
@@ -608,18 +715,18 @@ function VotesPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <span className="text-sm text-muted-foreground">{total} vote{total !== 1 ? "s" : ""}</span>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 border border-border/50 bg-secondary/30 px-2 py-1">
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1 border border-border/50 bg-secondary/30 px-2 py-1 flex-1 sm:flex-none">
+            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder="Search voter ID..."
-              className="bg-transparent border-0 text-sm text-foreground outline-none w-32 placeholder:text-muted-foreground/50"
+              className="bg-transparent border-0 text-sm text-foreground outline-none w-full sm:w-32 placeholder:text-muted-foreground/50"
             />
           </div>
           <Button size="sm" variant="outline" onClick={handleSearch}>
@@ -641,8 +748,9 @@ function VotesPanel() {
           <p className="text-sm text-muted-foreground">No votes recorded yet.</p>
         </div>
       ) : (
-        <div className="border border-border/50 overflow-x-auto">
-          <table className="w-full text-sm">
+        <>
+        <div className="border border-border/50 overflow-x-auto hidden lg:block">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/20">
                 <th className="text-left px-3 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">ID</th>
@@ -720,6 +828,83 @@ function VotesPanel() {
             </tbody>
           </table>
         </div>
+
+        <div className="flex flex-col gap-3 lg:hidden">
+          {votes.map((v) => (
+            <div key={v.id} className="border border-border/50 bg-card overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/dashboard/elo/users/${v.voterId}`}
+                      className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                    >
+                      {v.voterName}
+                    </Link>
+                    <p className="text-[10px] text-muted-foreground">Voter #{v.voterId} · Vote #{v.id}</p>
+                  </div>
+                  <Badge variant="outline" className={
+                    v.winnerIsA
+                      ? "text-emerald-500 border-emerald-500/30 text-[10px]"
+                      : "text-blue-500 border-blue-500/30 text-[10px]"
+                  }>
+                    {v.winnerIsA ? v.projectATitle : v.projectBTitle} won
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Project A</p>
+                  <Link href={`/dashboard/elo/projects/${v.projectAId}`} className="text-xs text-foreground hover:text-primary transition-colors truncate block">
+                    {v.projectATitle}
+                  </Link>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Project B</p>
+                  <Link href={`/dashboard/elo/projects/${v.projectBId}`} className="text-xs text-foreground hover:text-primary transition-colors truncate block">
+                    {v.projectBTitle}
+                  </Link>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">ELO Δ A</p>
+                  <p className={`text-xs font-mono tabular-nums ${v.eloDeltaA > 0 ? "text-emerald-500" : "text-red-500"}`}>
+                    {v.eloDeltaA > 0 ? "+" : ""}{Math.round(v.eloDeltaA)}
+                  </p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">ELO Δ B</p>
+                  <p className={`text-xs font-mono tabular-nums ${v.eloDeltaB > 0 ? "text-emerald-500" : "text-red-500"}`}>
+                    {v.eloDeltaB > 0 ? "+" : ""}{Math.round(v.eloDeltaB)}
+                  </p>
+                </div>
+                <div className="bg-card px-4 py-2.5 col-span-2">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Date</p>
+                  <p className="text-xs text-muted-foreground">{new Date(v.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center border-t border-border">
+                <button
+                  onClick={() => handleDeleteVote(v.id)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            </div>
+          ))}
+          {votes.length === 0 && (
+            <div className="border border-border/50 bg-card px-4 py-12">
+              <div className="flex flex-col items-center gap-2">
+                <BarChart3 className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No votes recorded yet.</p>
+              </div>
+            </div>
+          )}
+        </div>
+        </>
       )}
 
       {totalPages > 1 && (
@@ -784,8 +969,8 @@ function ReportsPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm text-muted-foreground">{total} report{total !== 1 ? "s" : ""}</span>
           <div className="flex items-center gap-1 border-l border-border/50 pl-3 ml-1">
             {(["all", "open", "resolved"] as const).map((f) => (
@@ -820,8 +1005,9 @@ function ReportsPanel() {
           </p>
         </div>
       ) : (
-        <div className="border border-border/50 overflow-x-auto">
-          <table className="w-full text-sm">
+        <>
+        <div className="border border-border/50 overflow-x-auto hidden lg:block">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/20">
                 <th className="text-left px-3 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">ID</th>
@@ -911,6 +1097,87 @@ function ReportsPanel() {
             </tbody>
           </table>
         </div>
+
+        <div className="flex flex-col gap-3 lg:hidden">
+          {reports.map((r) => (
+            <div key={r.id} className="border border-border/50 bg-card overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/dashboard/elo/users/${r.reporterId}`}
+                      className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                    >
+                      {r.reporterName}
+                    </Link>
+                    <p className="text-[10px] text-muted-foreground">Reported · #{r.id}</p>
+                  </div>
+                  {r.resolvedAt ? (
+                    <Badge variant="outline" className="text-emerald-500 border-emerald-500/30 text-[10px]">
+                      <CheckCheck className="h-3 w-3 mr-1" />
+                      Resolved
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-amber-500 border-amber-500/30 text-[10px]">
+                      Open
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-foreground mt-2">{r.reason}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Target</p>
+                  <div className="flex items-center gap-1">
+                    <Badge variant="outline" className="text-[10px]">{r.targetType}</Badge>
+                    {r.targetType === "project" ? (
+                      <Link href={`/dashboard/elo/projects/${r.targetId}`} className="text-xs text-foreground hover:text-primary transition-colors">#{r.targetId}</Link>
+                    ) : (
+                      <Link href={`/dashboard/elo/users/${r.targetId}`} className="text-xs text-foreground hover:text-primary transition-colors">#{r.targetId}</Link>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Date</p>
+                  <p className="text-xs text-muted-foreground">{new Date(r.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {!r.resolvedAt && (
+                <div className="flex items-center border-t border-border">
+                  {r.targetType === "vote" && (
+                    <button
+                      onClick={() => handleDeleteVoteFromReport(r.targetId)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Delete Vote</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleResolve(r.id)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-emerald-500 hover:bg-emerald-500/10 transition-colors"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    <span>Dismiss</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+          {reports.length === 0 && (
+            <div className="border border-border/50 bg-card px-4 py-12">
+              <div className="flex flex-col items-center gap-2">
+                <Flag className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">
+                  {filter === "open" ? "No open reports." : filter === "resolved" ? "No resolved reports." : "No reports."}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+        </>
       )}
 
       {totalPages > 1 && (
@@ -977,18 +1244,18 @@ function VotersPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <span className="text-sm text-muted-foreground">{total} voter{total !== 1 ? "s" : ""}</span>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 border border-border/50 bg-secondary/30 px-2 py-1">
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="flex items-center gap-1 border border-border/50 bg-secondary/30 px-2 py-1 flex-1 sm:flex-none">
+            <Search className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder="Search name or ID..."
-              className="bg-transparent border-0 text-sm text-foreground outline-none w-32 placeholder:text-muted-foreground/50"
+              className="bg-transparent border-0 text-sm text-foreground outline-none w-full sm:w-32 placeholder:text-muted-foreground/50"
             />
           </div>
           <Button size="sm" variant="outline" onClick={handleSearch}>
@@ -1010,8 +1277,9 @@ function VotersPanel() {
           <p className="text-sm text-muted-foreground">No voters found.</p>
         </div>
       ) : (
-        <div className="border border-border/50 overflow-x-auto">
-          <table className="w-full text-sm">
+        <>
+        <div className="border border-border/50 overflow-x-auto hidden lg:block">
+          <table className="w-full text-sm min-w-[640px]">
             <thead>
               <tr className="border-b border-border/50 bg-secondary/20">
                 <th className="text-left px-3 py-2.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">ID</th>
@@ -1074,6 +1342,82 @@ function VotersPanel() {
             </tbody>
           </table>
         </div>
+
+        <div className="flex flex-col gap-3 lg:hidden">
+          {voters.map((v) => (
+            <div key={v.id} className="border border-border/50 bg-card overflow-hidden">
+              <div className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <Link
+                      href={`/dashboard/elo/users/${v.id}`}
+                      className="text-sm font-semibold text-foreground hover:text-primary transition-colors"
+                    >
+                      {v.name}
+                    </Link>
+                    <p className="text-[10px] text-muted-foreground">{v.email} · #{v.id}</p>
+                  </div>
+                  {v.voteWarnings > 0 && (
+                    <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px]">
+                      {v.voteWarnings} warn
+                    </Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-px bg-border/50 border-t border-border">
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Total Votes</p>
+                  <p className="text-sm font-semibold text-foreground tabular-nums">{v.totalVotes}</p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Today</p>
+                  <p className="text-sm font-semibold text-foreground tabular-nums">{v.votesToday}</p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Warnings</p>
+                  <p className="text-sm font-semibold tabular-nums">{v.voteWarnings}</p>
+                </div>
+                <div className="bg-card px-4 py-2.5">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">Slots</p>
+                  <p className="text-sm font-semibold text-foreground tabular-nums">{v.eloServerLimit}</p>
+                </div>
+              </div>
+
+              {(v.voteWarnings > 0 || v.votesToday > 0) && (
+                <div className="flex items-center border-t border-border divide-x divide-border">
+                  {v.voteWarnings > 0 && (
+                    <button
+                      onClick={() => handleResetWarnings(v.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-amber-500 hover:text-amber-400 hover:bg-secondary/40 transition-colors"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      <span>Reset Warnings</span>
+                    </button>
+                  )}
+                  {v.votesToday > 0 && (
+                    <button
+                      onClick={() => handleClearTodayVotes(v.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-destructive hover:bg-destructive/10 transition-colors"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span>Clear Today</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+          {voters.length === 0 && (
+            <div className="border border-border/50 bg-card px-4 py-12">
+              <div className="flex flex-col items-center gap-2">
+                <Users className="h-8 w-8 text-muted-foreground/40" />
+                <p className="text-sm text-muted-foreground">No voters found.</p>
+              </div>
+            </div>
+          )}
+        </div>
+        </>
       )}
 
       {totalPages > 1 && (

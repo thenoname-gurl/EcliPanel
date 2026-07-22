@@ -39,6 +39,7 @@ import {
   Edit,
   ChevronDown,
   ChevronUp,
+  Flame,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -419,6 +420,9 @@ export default function EloDashboard() {
                               >
                                 {project.title || project.serverName || t("dashboard.projectFallback", { id: project.id })}
                               </Link>
+                              {project.isWellMade && (
+                                <span title={t("badges.wellMade")} className="shrink-0"><Flame className="h-4 w-4 text-orange-500" /></span>
+                              )}
                               {project.githubUrl && (
                                 <a
                                   href={project.githubUrl}

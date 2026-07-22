@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { RolloutGuard } from "@/components/panel/rollout-guard"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
-import { Trophy, Loader2, ArrowLeft, Star } from "lucide-react"
+import { Trophy, Loader2, ArrowLeft, Star, Flame } from "lucide-react"
 import { useTranslations } from "next-intl"
 import Link from "next/link"
 
@@ -118,6 +118,9 @@ export default function EloLeaderboardPage() {
                             >
                               {entry.title}
                             </Link>
+                            {entry.isWellMade && (
+                              <span title={t("badges.wellMade")} className="shrink-0"><Flame className="h-3.5 w-3.5 text-orange-500" /></span>
+                            )}
                             {entry.githubUrl && (
                               <a
                                 href={entry.githubUrl}

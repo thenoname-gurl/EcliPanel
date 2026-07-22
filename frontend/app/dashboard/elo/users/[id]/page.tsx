@@ -133,7 +133,7 @@ export default function DashboardEloUserProfile() {
                   </h2>
                   <div className="space-y-3">
                     {data.projects.map((p: any) => {
-                      const res = calculateEloResources(p.eloScore, data.user.studentVerified)
+                      const res = calculateEloResources(p.eloScore, data.user.studentVerified, p.isWellMade)
                       return (
                         <Link
                           key={p.id}
