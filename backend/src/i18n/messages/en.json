@@ -1141,5 +1141,11 @@
     "contentflag": "Content flag",
     "mature": "Mature content",
     "political": "Political opinion"
+  },
+  "sunsetPolicy": {
+    "subject": "Your account is inactive - please log in to keep it",
+    "message": "Your EclipseSystems account has been inactive for more than one year. Please log in to keep your account active.",
+    "details": "If you do not log in, your account will be marked inactive and you will stop receiving product updates and non-essential emails. You can reactivate your account at any time by logging in.",
+    "actionText": "Log in now"
   }
 }

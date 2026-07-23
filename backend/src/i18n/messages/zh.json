@@ -676,6 +676,12 @@
       "updated": "您的身份验证状态已更新。",
       "statusVerified": "已验证",
       "statusFailed": "验证失败"
+    },
+    "sunsetPolicy": {
+      "subject": "您的账户已不活跃 — 请登录以保留账户",
+      "message": "您的 EclipseSystems 账户已超过一年不活跃。请登录以保持账户活跃。",
+      "details": "如果您不登录，您的账户将被标记为不活跃，您将停止接收产品更新和非必要邮件。您可以随时通过登录重新激活账户。",
+      "actionText": "立即登录"
     }
   },
   "plan": {

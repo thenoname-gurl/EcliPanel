@@ -61,7 +61,7 @@ export async function processPendingAdminBroadcastJobs() {
         const wants = user.settings?.notifications?.productUpdates;
         const enabled = job.force || (typeof wants === 'boolean' ? wants : false);
         if (!enabled) continue;
-        if (job.excludeSuspended && user.suspended) continue;
+        if (user.suspended || user.inactive) continue;
 
         try {
           await sendMail({

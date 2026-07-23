@@ -35,6 +35,7 @@ import {
   ChevronUp,
   Bug,
   Send,
+  RefreshCw,
 } from "lucide-react"
 
 function formatBytes(bytes: number) {
@@ -355,6 +356,29 @@ export default function SOCDashboard() {
       </div>
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6">
+          {user?.inactive && (
+            <div className="border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-foreground">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 text-amber-400 flex-shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-foreground">{t("warnings.inactiveTitle")}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{t("warnings.inactiveDescription")}</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        await apiFetch(API_ENDPOINTS.reactivate, { method: "POST" });
+                        window.location.reload();
+                      } catch {}
+                    }}
+                    className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 transition-colors"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    {t("warnings.reactivateNow")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {unhealthyNodes.length > 0 && (
             <div className="border border-destructive/30 bg-destructive/5 p-4 text-sm text-foreground">
               <div className="flex items-start gap-2">

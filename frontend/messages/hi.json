@@ -1265,7 +1265,10 @@
       "nodesIssueTitle": "कुछ नोड्स वर्तमान में समस्याओं का सामना कर रहे हैं",
       "nodeIssueDescription": "इस नोड पर सर्वर अनुपलब्ध या अनुत्तरदायी हो सकते हैं।",
       "nodesIssueDescription": "इन नोड्स पर सर्वर अनुपलब्ध या अनुत्तरदायी हो सकते हैं: {nodes}।",
-      "learnMore": "/status पर अधिक जानें"
+      "learnMore": "/status पर अधिक जानें",
+      "inactiveTitle": "खाता निष्क्रिय के रूप में चिह्नित",
+      "inactiveDescription": "आपको उत्पाद अपडेट या गैर-आवश्यक ईमेल प्राप्त नहीं हो रहे हैं। आपका खाता पूरी तरह से उपयोग योग्य है।",
+      "reactivateNow": "अभी पुनः सक्रिय करें"
     },
     "securityFindings": {
       "title": "सुरक्षा निष्कर्ष",
@@ -1692,7 +1695,8 @@
       "active": "सक्रिय",
       "suspended": "निलंबित",
       "supportBanned": "सहायता प्रतिबंधित",
-      "banned": "प्रतिबंधित"
+      "banned": "प्रतिबंधित",
+      "inactive": "निष्क्रिय"
     },
     "states": {
       "loading": "उपयोगकर्ता लोड हो रहे हैं…",
@@ -1717,7 +1721,9 @@
       "requireReverify": "पुनः सत्यापन आवश्यक करें",
       "deleteAccount": "खाता हटाएं",
       "previous": "पिछला",
-      "next": "अगला"
+      "next": "अगला",
+      "markInactive": "निष्क्रिय चिह्नित करें",
+      "reactivate": "पुनः सक्रिय करें"
     }
   },
   "adminTicketsTab": {
@@ -6609,9 +6615,9 @@
     "general": "सामान्य",
     "theme": "थीम",
     "blogInfo": "ब्लॉग जानकारी",
-      "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
-      "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
-      "roleOwner": "मालिक",
+    "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
+    "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
+    "roleOwner": "मालिक",
     "blogName": "ब्लॉग का नाम",
     "visibility": "दृश्यता",
     "public": "सार्वजनिक",

@@ -2,7 +2,7 @@ import { AppDataSource } from '../config/typeorm';
 import { sendMail } from './mailService';
 import { User } from '../models/user.entity';
 import { DeletionRequest } from '../models/deletionRequest.entity';
-import { resolveLocale } from '../i18n/resolve';
+import { resolveLocale, tForUser } from '../i18n';
 import { getPanelUrl } from '../utils/url';
 
 /*
@@ -10,12 +10,7 @@ import { getPanelUrl } from '../utils/url';
  hence I will just add what they want to leave me alone..
 */
 const INACTIVITY_WARNING_DAYS = 365;
-const SUNSET_GRACE_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-function getNoticeDeadline(): Date {
-  return new Date(Date.now() + SUNSET_GRACE_DAYS * DAY_MS);
-}
 
 function buildLoginUrl() {
   return `${getPanelUrl()}/login`;
@@ -23,6 +18,14 @@ function buildLoginUrl() {
 
 export async function cancelPendingAutoSunsetDeletionRequest(user: User) {
   if (!AppDataSource.isInitialized) return;
+  if (user.inactive && user.sunsetNoticeSentAt) { // And we're risking again w spamhause crap yay
+    const userRepo = AppDataSource.getRepository(User);
+    user.inactive = false;
+    user.sunsetNoticeSentAt = undefined;
+    await userRepo.save(user);
+    return;
+  }
+
   const repo = AppDataSource.getRepository(DeletionRequest);
   const request = await repo.findOne({
     where: { userId: user.id, status: 'pending_deletion', autoSunset: true },
@@ -32,16 +35,17 @@ export async function cancelPendingAutoSunsetDeletionRequest(user: User) {
   request.status = 'cancelled';
   await repo.save(request);
 
+  const userRepo = AppDataSource.getRepository(User);
   user.deletionRequested = false;
   user.deletionApproved = false;
   user.pendingDeletionUntil = undefined;
   user.sunsetNoticeSentAt = undefined;
+  await userRepo.save(user);
 }
 
 export async function processSunsetPolicy() {
   if (!AppDataSource.isInitialized) return;
   const userRepo = AppDataSource.getRepository(User);
-  const reqRepo = AppDataSource.getRepository(DeletionRequest);
   const cutoff = new Date(Date.now() - INACTIVITY_WARNING_DAYS * DAY_MS);
 
   const users = await userRepo
@@ -49,6 +53,7 @@ export async function processSunsetPolicy() {
     .where('user.emailVerified = :verified', { verified: true })
     .andWhere('user.deletedAt IS NULL')
     .andWhere('user.suspended = false')
+    .andWhere('user.inactive = false')
     .andWhere('user.supportBanned = false')
     .andWhere('user.deletionRequested = false')
     .andWhere(
@@ -60,15 +65,12 @@ export async function processSunsetPolicy() {
   for (const user of users) {
     if (!user.email) continue;
 
-    const existing = await reqRepo.findOne({
-      where: { userId: user.id, status: 'pending_deletion', autoSunset: true },
-    });
-    if (existing) continue;
-
     const loginUrl = buildLoginUrl();
-    const subject = 'Your account is inactive - please log in to keep it';
-    const message = `Your EclipseSystems account has been inactive for more than one year. Please log in to keep your account active.`;
-    const details = `If you do not log in within 90 days, your account will be deleted automatically.`;
+    const t = tForUser(user);
+    const subject = t('email.sunsetPolicy.subject');
+    const message = t('email.sunsetPolicy.message');
+    const details = t('email.sunsetPolicy.details');
+    const actionText = t('email.sunsetPolicy.actionText');
 
     try {
       await sendMail({
@@ -80,7 +82,7 @@ export async function processSunsetPolicy() {
           title: subject,
           message,
           action_url: loginUrl,
-          action_text: 'Log in now',
+          action_text: actionText,
           details,
         },
         locale: resolveLocale({ user }),
@@ -94,21 +96,7 @@ export async function processSunsetPolicy() {
       continue;
     }
 
-    const scheduledDeletionAt = getNoticeDeadline();
-    const request = reqRepo.create({
-      userId: user.id,
-      status: 'pending_deletion',
-      requestedAt: new Date(),
-      approvedAt: new Date(),
-      scheduledDeletionAt,
-      idVerified: user.idVerified,
-      autoSunset: true,
-    });
-    await reqRepo.save(request);
-
-    user.deletionRequested = true;
-    user.deletionApproved = false;
-    user.pendingDeletionUntil = scheduledDeletionAt;
+    user.inactive = true;
     user.sunsetNoticeSentAt = new Date();
     await userRepo.save(user);
   }

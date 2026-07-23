@@ -1265,7 +1265,10 @@
       "nodesIssueTitle": "一部のノードで現在問題が発生しています",
       "nodeIssueDescription": "このノード上のサーバーは利用できないか、応答しない可能性があります。",
       "nodesIssueDescription": "これらのノード上のサーバーは利用できないか、応答しない可能性があります：{nodes}。",
-      "learnMore": "/statusで詳細を確認"
+      "learnMore": "/statusで詳細を確認",
+      "inactiveTitle": "アカウントは非アクティブに設定されています",
+      "inactiveDescription": "製品アップデートや不要なメールは配信されません。アカウントは引き続きご利用いただけます。",
+      "reactivateNow": "今すぐ再アクティブ化"
     },
     "securityFindings": {
       "title": "セキュリティ検出事項",
@@ -1692,7 +1695,8 @@
       "active": "アクティブ",
       "suspended": "停止中",
       "supportBanned": "サポート禁止",
-      "banned": "禁止"
+      "banned": "禁止",
+      "inactive": "非アクティブ"
     },
     "states": {
       "loading": "ユーザーを読み込み中…",
@@ -1717,7 +1721,9 @@
       "requireReverify": "再確認を要求",
       "deleteAccount": "アカウントを削除",
       "previous": "前",
-      "next": "次"
+      "next": "次",
+      "markInactive": "非アクティブに設定",
+      "reactivate": "再アクティブ化"
     }
   },
   "adminTicketsTab": {
@@ -6609,9 +6615,9 @@
     "general": "一般",
     "theme": "テーマ",
     "blogInfo": "ブログ情報",
-      "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
-      "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
-      "roleOwner": "मालिक",
+    "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
+    "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
+    "roleOwner": "मालिक",
     "blogName": "ブログ名",
     "visibility": "表示設定",
     "public": "公開",

@@ -467,6 +467,7 @@ export const API_ENDPOINTS = {
   // alias for current user
   me: "/api/users/me",
   sunsetConfirm: "/api/users/me/sunset-confirm",
+  reactivate: "/api/users/me/reactivate",
   termsConsent: "/api/users/me/terms-consent",
   userUpdate: "/api/users/:id",
   userFavorites: "/api/users/me/favorites",

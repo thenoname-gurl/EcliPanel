@@ -44,6 +44,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
     users,
     openEditUser,
     toggleSuspend,
+    toggleInactive,
     startExportJob,
     userExportJobId,
     exportJobs,
@@ -227,6 +228,8 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                       <div className="flex flex-col gap-1">
                         {user.suspended ? (
                           <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive">{t("status.suspended")}</Badge>
+                        ) : user.inactive ? (
+                          <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600">{t("status.inactive")}</Badge>
                         ) : (
                           <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600">{t("status.active")}</Badge>
                         )}
@@ -252,6 +255,15 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                             className={`p-1.5 transition-colors ${user.suspended ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400" : "text-muted-foreground hover:bg-destructive/10 hover:text-destructive"}`}
                           >
                             {user.suspended ? <CheckCircle className="h-3.5 w-3.5" /> : <Ban className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                        {canSuspendUser && (
+                          <button
+                            onClick={() => toggleInactive(user)}
+                            title={user.inactive ? t("actions.reactivate") : t("actions.markInactive")}
+                            className={`p-1.5 transition-colors ${user.inactive ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400" : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-400"}`}
+                          >
+                            {user.inactive ? <CheckCircle className="h-3.5 w-3.5" /> : <UserMinus className="h-3.5 w-3.5" />}
                           </button>
                         )}
                         <button onClick={() => startExportJob(user)} title={t("actions.startExportJob")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
@@ -330,6 +342,8 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                     </div>
                     {user.suspended ? (
                       <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-destructive shrink-0 text-[10px]">{t("status.suspended")}</Badge>
+                    ) : user.inactive ? (
+                      <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 shrink-0 text-[10px]">{t("status.inactive")}</Badge>
                     ) : (
                       <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 shrink-0 text-[10px]">{t("status.active")}</Badge>
                     )}

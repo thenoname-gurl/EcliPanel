@@ -405,6 +405,7 @@ interface AdminUser {
   emailVerified: boolean
   idVerified: boolean
   suspended: boolean
+  inactive?: boolean
   supportBanned?: boolean
   passkeyCount: number
   createdAt?: string
@@ -2292,6 +2293,15 @@ export default function AdminPanel() {
       body: JSON.stringify(body),
     })
     setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, suspended: nextSuspended } : u)))
+  }
+
+  async function toggleInactive(user: AdminUser) {
+    const nextInactive = !user.inactive
+    await apiFetch(`${API_ENDPOINTS.adminUsers}/${user.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ inactive: nextInactive }),
+    })
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, inactive: nextInactive } : u)))
   }
 
   async function deleteUser(user: AdminUser) {
@@ -4402,6 +4412,7 @@ remote: ${panelUrl}`
                     users,
                     openEditUser,
                     toggleSuspend,
+                    toggleInactive,
                     startExportJob,
                     userExportJobId,
                     exportJobs,
@@ -7461,8 +7472,8 @@ remote: ${panelUrl}`
                 <div><span className="text-muted-foreground">Role: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.role) : (viewUserProfile.role || "user")}</span></div>
                 <div><span className="text-muted-foreground">Tier: </span><span className="text-foreground">{privateMode ? redact(viewUserProfile.portalType) : viewUserProfile.portalType}</span></div>
                 <div><span className="text-muted-foreground">Status: </span>
-                  <span className={viewUserProfile.suspended ? "text-destructive" : "text-emerald-400"}>
-                    {viewUserProfile.suspended ? "Suspended" : "Active"}
+                  <span className={viewUserProfile.suspended ? "text-destructive" : viewUserProfile.inactive ? "text-amber-400" : "text-emerald-400"}>
+                    {viewUserProfile.suspended ? "Suspended" : viewUserProfile.inactive ? "Inactive" : "Active"}
                   </span>
                 </div>
                 <div><span className="text-muted-foreground">Email Verified: </span>
@@ -7843,11 +7854,11 @@ remote: ${panelUrl}`
                 </div>
               </div>
 
-              {/* Suspend / Unsuspend / Support Ban */}
+              {/* Suspend / Unsuspend / Inactive / Support Ban */}
               <div className="flex flex-col gap-3 border border-border bg-secondary/20 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-foreground">Account Status</p>
-                  <p className="text-xs text-muted-foreground">{viewUserProfile.suspended ? "This account is currently suspended." : "This account is active."}</p>
+                  <p className="text-xs text-muted-foreground">{viewUserProfile.suspended ? "This account is currently suspended." : viewUserProfile.inactive ? "This account is inactive." : "This account is active."}</p>
                   <p className="text-xs mt-1 font-medium" style={{ color: viewUserProfile.supportBanned ? "#dc2626" : "#16a34a" }}>
                     Support tickets: {viewUserProfile.supportBanned ? "BANNED" : "Allowed"}
                   </p>
@@ -7870,6 +7881,21 @@ remote: ${panelUrl}`
                     }}
                   >
                     {viewUserProfile.suspended ? <><CheckCircle className="h-3.5 w-3.5 mr-1.5" />Unsuspend</> : <><Ban className="h-3.5 w-3.5 mr-1.5" />Suspend</>}
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={viewUserProfile.inactive ? "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10" : "border-amber-500/30 text-amber-400 hover:bg-amber-500/10"}
+                    onClick={async () => {
+                      if (!viewUserDialog) return;
+                      await toggleInactive(viewUserDialog);
+                      const updated = !viewUserProfile.inactive;
+                      setViewUserProfile((p: any) => ({ ...p, inactive: updated }));
+                      setViewUserDialog((u) => (u ? { ...u, inactive: updated } : u));
+                    }}
+                  >
+                    {viewUserProfile.inactive ? <><CheckCircle className="h-3.5 w-3.5 mr-1.5" />Reactivate</> : <><UserMinus className="h-3.5 w-3.5 mr-1.5" />Mark Inactive</>}
                   </Button>
 
                   <Button

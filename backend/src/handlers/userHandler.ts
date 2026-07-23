@@ -109,6 +109,7 @@ const userSchema = t.Object({
   euIdVerificationDisabled: t.Optional(t.Boolean()),
   twoFactorEnabled: t.Boolean(),
   suspended: t.Boolean(),
+  inactive: t.Boolean(),
   deletionRequested: t.Boolean(),
   deletionApproved: t.Boolean(),
   avatarUrl: t.Optional(t.String()),
@@ -599,6 +600,28 @@ export async function userRoutes(app: any, prefix = '') {
         401: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Confirm sunset notice', tags: ['Users'] },
+    }
+  );
+
+  app.post(
+    prefix + '/users/me/reactivate',
+    async (ctx: any) => {
+      const requester = ctx.user as User;
+      if (!requester) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.notLoggedIn') };
+      }
+      const userRepo = AppDataSource.getRepository(User);
+      await userRepo.update(requester.id, { inactive: false });
+      return { success: true };
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Reactivate an inactive account', tags: ['Users'] },
     }
   );
 

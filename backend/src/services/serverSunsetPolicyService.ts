@@ -159,7 +159,7 @@ export async function requestServerSunsetNoticeForUser(params: {
   const user = await userRepo.findOneBy({ id: params.userId });
   if (!user) return { sent: false, reason: 'user_not_found' };
 
-  if (user.suspended || user.supportBanned || user.deletedAt) {
+  if (user.suspended || user.inactive || user.supportBanned || user.deletedAt) {
     return { sent: false, reason: 'user_ineligible' };
   }
 

@@ -2692,7 +2692,7 @@ export async function adminRoutes(app: any, prefix = '') {
       const adminErr = requireAdminPermission(ctx, 'admin:user:edit');
       if (adminErr !== true) return adminErr;
       const body = ctx.body as any;
-      if ('suspended' in body) {
+      if ('suspended' in body || 'inactive' in body) {
         const suspendErr = requireAdminPermission(ctx, 'users:suspend');
         if (suspendErr !== true) return suspendErr;
       }
@@ -2725,6 +2725,7 @@ export async function adminRoutes(app: any, prefix = '') {
         role,
         portalType,
         suspended,
+        inactive,
         limits,
         nodeId,
         supportBanned,
@@ -2792,6 +2793,7 @@ export async function adminRoutes(app: any, prefix = '') {
       if (portalType !== undefined) user.portalType = portalType;
       const wasSuspendedBefore = user.suspended === true;
       if (suspended !== undefined) user.suspended = suspended;
+      if (inactive !== undefined) user.inactive = inactive;
       if (nodeId !== undefined) user.nodeId = nodeId != null ? Number(nodeId) : (undefined as any);
       if (emailVerified !== undefined) user.emailVerified = !!emailVerified;
       if (idVerified !== undefined) user.idVerified = !!idVerified;
@@ -3017,6 +3019,7 @@ export async function adminRoutes(app: any, prefix = '') {
           role: t.Optional(t.String()),
           portalType: t.Optional(t.String()),
           suspended: t.Optional(t.Boolean()),
+          inactive: t.Optional(t.Boolean()),
           limits: t.Optional(t.Any()),
           nodeId: t.Optional(t.Any()),
           badges: t.Optional(t.Array(t.String())),

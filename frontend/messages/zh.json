@@ -1533,7 +1533,10 @@
       "nodesIssueTitle": "部分节点当前遇到问题",
       "nodeIssueDescription": "此节点上的服务器可能不可用或无响应。",
       "nodesIssueDescription": "以下节点上的服务器可能不可用或无响应：{nodes}。",
-      "learnMore": "在 /status 了解更多"
+      "learnMore": "在 /status 了解更多",
+      "inactiveTitle": "账户已标记为不活跃",
+      "inactiveDescription": "您将不会收到产品更新和非必要邮件。您的账户仍可正常使用。",
+      "reactivateNow": "立即重新激活"
     },
     "securityFindings": {
       "title": "安全发现",
@@ -1960,7 +1963,8 @@
       "active": "活跃",
       "suspended": "已暂停",
       "supportBanned": "支持封禁",
-      "banned": "已封禁"
+      "banned": "已封禁",
+      "inactive": "不活跃"
     },
     "states": {
       "loading": "加载用户中…",
@@ -1985,7 +1989,9 @@
       "requireReverify": "要求重新验证",
       "deleteAccount": "删除账户",
       "previous": "上一页",
-      "next": "下一页"
+      "next": "下一页",
+      "markInactive": "标记为不活跃",
+      "reactivate": "重新激活"
     }
   },
   "adminTicketsTab": {
@@ -6609,9 +6615,9 @@
     "general": "常规",
     "theme": "主题",
     "blogInfo": "博客信息",
-      "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
-      "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
-      "roleOwner": "मालिक",
+    "myBlogProfile": "मेरा ब्लॉग प्रोफ़ाइल",
+    "myBlogProfileDescription": "अपनी सार्वजनिक ब्लॉग पहचान प्रबंधित करें",
+    "roleOwner": "मालिक",
     "blogName": "博客名称",
     "visibility": "可见性",
     "public": "公开",

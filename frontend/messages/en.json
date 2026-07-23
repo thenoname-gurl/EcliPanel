@@ -1533,7 +1533,10 @@
       "nodesIssueTitle": "Some nodes are currently experiencing issues",
       "nodeIssueDescription": "Servers on this node may be unavailable or unresponsive.",
       "nodesIssueDescription": "Servers on these nodes may be unavailable or unresponsive: {nodes}.",
-      "learnMore": "Learn more at /status"
+      "learnMore": "Learn more at /status",
+      "inactiveTitle": "Account marked as inactive",
+      "inactiveDescription": "You are not receiving product updates or non-essential emails. Your account remains fully usable.",
+      "reactivateNow": "Reactivate now"
     },
     "securityFindings": {
       "title": "Security Findings",
@@ -1960,6 +1963,7 @@
     "status": {
       "active": "Active",
       "suspended": "Suspended",
+      "inactive": "Inactive",
       "supportBanned": "Support banned",
       "banned": "Banned"
     },
@@ -1980,6 +1984,8 @@
       "edit": "Edit",
       "suspend": "Suspend",
       "unsuspend": "Unsuspend",
+      "markInactive": "Mark Inactive",
+      "reactivate": "Reactivate",
       "startExportJob": "Start export job",
       "download": "Download",
       "deassignStudent": "Deassign student",

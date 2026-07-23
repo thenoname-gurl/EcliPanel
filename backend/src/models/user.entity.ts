@@ -305,6 +305,10 @@ export class User {
   @Column({ default: false })
   suspended: boolean;
 
+  @Index()
+  @Column({ default: false })
+  inactive: boolean;
+
   @Column({ default: false })
   supportBanned: boolean;
 

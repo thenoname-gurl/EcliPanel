@@ -52,6 +52,7 @@ export interface User {
   supportBanned?: boolean
   supportBanReason?: string | null
   suspended?: boolean
+  inactive?: boolean
   idVerified?: boolean
   euIdVerificationDisabled?: boolean
   settings?: Record<string, any>

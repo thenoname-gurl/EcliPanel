@@ -113,7 +113,7 @@ export async function executeEcliTool(name: string, args: any, userId: number, i
         const repo = AppDataSource.getRepository(User);
         const [rows, total] = await repo.findAndCount({ skip: ((args.page || 1) - 1) * (args.limit || 25), take: args.limit || 25, order: { createdAt: "DESC" as const } });
         await logAction(userId, "ai:user:list", undefined, "user", { count: total });
-        result = { users: rows.map((u: any) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, suspended: u.suspended })), total, page: args.page || 1 };
+        result = { users: rows.map((u: any) => ({ id: u.id, email: u.email, firstName: u.firstName, lastName: u.lastName, suspended: u.suspended, inactive: u.inactive })), total, page: args.page || 1 };
         break;
       }
       case "ecli_get_user": {
