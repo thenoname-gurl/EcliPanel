@@ -3989,7 +3989,8 @@
       "verifySelfieAge": "Verify selfie age",
       "connectHackClub": "Verify with Hack Club",
       "connectGithub": "Verify with GitHub",
-      "verifyStudent": "Verify Student Status"
+      "verifyStudent": "Verify Student Status",
+      "viewBenefits": "View Benefits"
     },
     "messages": {
       "submittedForReview": "Verification submitted - your documents are under review."

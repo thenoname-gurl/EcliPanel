@@ -342,6 +342,14 @@ export default function IdentityPage() {
                       {t("status.notApplicable")}
                     </Badge>
                   )}
+                  {step.id === 3 && step.status === "completed" && (
+                    <a
+                      href="/dashboard/student-benefits"
+                      className="border border-border px-3 py-1 text-xs text-foreground hover:bg-secondary/20 transition-colors"
+                     data-telemetry="identity:nav">
+                      {t("actions.viewBenefits")}
+                    </a>
+                  )}
                   {step.id === 3 && step.status === "available" && portalType !== 'educational' && (
                     <a
                       href="/dashboard/student-benefits"
