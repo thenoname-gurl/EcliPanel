@@ -791,8 +791,14 @@ export async function runSecurityScan(): Promise<ScanOutcome> {
     await repo.query(`
       DELETE f1 FROM security_finding f1
       INNER JOIN security_finding f2
-      ON f1.checkFingerprint = f2.checkFingerprint AND f1.id > f2.id
+      ON f1.checkFingerprint = f2.checkFingerprint
       WHERE f1.checkFingerprint IS NOT NULL
+        AND (
+          (f1.status = 'open' AND f2.status IN ('acknowledged','resolved','false_positive','internal_resolved'))
+          OR (f1.status = 'acknowledged' AND f2.status IN ('resolved','false_positive','internal_resolved'))
+          OR (f1.status = 'resolved' AND f2.status IN ('false_positive','internal_resolved'))
+          OR (f1.status = f2.status AND f1.id < f2.id)
+        )
     `);
   } catch (e) {
     console.warn('[securityScanner] Duplicate cleanup failed:', e);

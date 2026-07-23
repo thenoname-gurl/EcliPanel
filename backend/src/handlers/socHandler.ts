@@ -339,9 +339,9 @@ export async function socRoutes(app: any, prefix = '') {
         .createQueryBuilder('f')
         .select('f.severity', 'severity')
         .addSelect('COUNT(*)', 'count')
-        .where('f.status = :status', { status: 'open' })
+        .where('f.status = :socStatus', { socStatus: 'open' })
         .groupBy('f.severity');
-      if (scopeClause) summaryQb.andWhere(scopeClause, scopeParams);
+      if (scopeClause) summaryQb.andWhere(scopeClause, { ...scopeParams });
       if (ctx.query?.visibility === 'public') {
         summaryQb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
       } else if (ctx.query?.visibility === 'staff_only') {
@@ -457,10 +457,23 @@ export async function socRoutes(app: any, prefix = '') {
           const subuserRepo = AppDataSource.getRepository(ServerSubuser);
           const subuserEntries = await subuserRepo.find({ where: { userId: user.id } });
           const subuserUuids = subuserEntries.map((s: any) => s.serverUuid);
+
+          let orgMemberIds: number[] = [];
+          try {
+            const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
+            const memberships = await orgMemberRepo.find({ where: { userId: user.id } });
+            const orgIds = memberships.map((m: any) => m.organisationId);
+            if (orgIds.length > 0) {
+              const orgPeers = await orgMemberRepo.find({ where: { organisationId: In(orgIds) } });
+              orgMemberIds = [...new Set(orgPeers.map((m: any) => m.userId))];
+            }
+          } catch {}
+
           const ownCount = await cfgRepo.count({
             where: [
               { uuid: finding.serverId, userId: user.id },
               ...(subuserUuids.includes(finding.serverId) ? [{ uuid: finding.serverId }] : []),
+              ...(orgMemberIds.length ? [{ uuid: finding.serverId, userId: In(orgMemberIds) }] : []),
             ],
           });
           isOwnServer = ownCount > 0;
@@ -487,6 +500,21 @@ export async function socRoutes(app: any, prefix = '') {
         finding.resolvedByUserId = null as any;
       }
       await repo.save(finding);
+
+      if (finding.checkFingerprint) {
+        try {
+          await repo
+            .createQueryBuilder()
+            .update(SecurityFinding)
+            .set({
+              status: status as any,
+              resolvedAt: status === 'resolved' ? new Date() : (null as any),
+              resolvedByUserId: status === 'resolved' ? ctx.user?.id : (null as any),
+            })
+            .where('checkFingerprint = :fp AND id != :id', { fp: finding.checkFingerprint, id: finding.id })
+            .execute();
+        } catch {}
+      }
 
       void logAdminAction({ adminUserId: ctx.user?.id, action: `soc:finding:${status}`, targetId: String(id), targetType: 'finding', metadata: { title: finding.title, severity: finding.severity }, ipAddress: ctx.ip });
 
