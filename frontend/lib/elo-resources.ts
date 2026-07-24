@@ -1,8 +1,9 @@
-export function calculateEloResources(eloScore: number, isHackClub = false, isWellMade = false): {
+export function calculateEloResources(eloScore: number, isHackClub = false, isWellMade = false, isDisqualified = false): {
   memory: number
   disk: number
   cpu: number
 } {
+  if (isDisqualified) return { memory: 256, disk: 2048, cpu: 20 };
   const multiplier = Math.max(0.2, Math.min(12, eloScore / 1000));
 
   const apply = (base: number, min: number, max: number) => {

@@ -54,11 +54,21 @@ export async function syncEloResources(project: EloProject) {
 
   const owner = await AppDataSource.getRepository(User).findOneBy({ id: project.userId });
   const isHackClub = owner?.studentVerified || false;
-  const resources = calculateEloResources(project.eloScore, isHackClub, project.isWellMade);
+  const isDisqualified = project.moderationStatus === 'disqualified';
+  const resources = calculateEloResources(project.eloScore, isHackClub, project.isWellMade, isDisqualified);
 
   cfg.memory = resources.memory;
   cfg.disk = resources.disk;
   cfg.cpu = resources.cpu;
+
+  if (isDisqualified) {
+    cfg.suspended = true;
+    cfg.suspendedReason = 'This ELO project has been disqualified. Please back up your data and delete this server. If you believe this was in error, contact support.';
+  } else if (cfg.suspended && cfg.suspendedReason?.includes('ELO project has been disqualified')) {
+    cfg.suspended = false;
+    cfg.suspendedReason = null as any;
+  }
+
   await AppDataSource.getRepository(ServerConfig).save(cfg);
 
   try {
@@ -105,7 +115,7 @@ export async function eloRoutes(app: any, prefix = '') {
         { eloScore: 'DESC' };
 
       const [projects, total] = await eloProjectRepo().findAndCount({
-        where: { serverId: Not(IsNull()) } as any,
+        where: { serverId: Not(IsNull()), moderationStatus: Not('disqualified'), githubUrl: Not(IsNull()) } as any,
         order,
         skip: (page - 1) * per,
         take: per,
@@ -168,7 +178,7 @@ export async function eloRoutes(app: any, prefix = '') {
       });
 
       const owner = await userRepo().findOneBy({ id: project.userId });
-      const resources = calculateEloResources(project.eloScore, owner?.studentVerified || false, project.isWellMade);
+      const resources = calculateEloResources(project.eloScore, owner?.studentVerified || false, project.isWellMade, project.moderationStatus === 'disqualified');
 
       return {
         id: project.id,
@@ -188,6 +198,8 @@ export async function eloRoutes(app: any, prefix = '') {
         screenshots: project.screenshots,
         demoUrl: project.demoUrl,
         isWellMade: project.isWellMade,
+        moderationStatus: project.moderationStatus,
+        moderationNote: project.moderationNote,
         resources,
         ownerName: owner ? (owner.displayName || `${owner.firstName} ${owner.lastName}`) : 'Unknown',
         devlogs: devlogs.map(d => ({
@@ -408,15 +420,27 @@ export async function eloRoutes(app: any, prefix = '') {
         }
       }
 
-      const candidates = await eloProjectRepo()
+      const baseQ = () => eloProjectRepo()
         .createQueryBuilder('ep')
         .andWhere('ep.serverId IS NOT NULL')
         .andWhere('ep.demoUrl IS NOT NULL')
         .andWhere('ep.demoUrl != :empty', { empty: '' })
         .andWhere('ep.userId != :userId', { userId })
+        .andWhere('ep.moderationStatus != :disqualified', { disqualified: 'disqualified' })
+        .andWhere('ep.githubUrl IS NOT NULL')
+        .andWhere('ep.githubUrl != :emptyG', { emptyG: '' });
+
+      let candidates = await baseQ()
+        .andWhere('ep.moderationStatus != :fix', { fix: 'changes_requested' })
         .orderBy('RAND()')
         .limit(10)
         .getMany();
+      if (candidates.length < 2) {
+        candidates = await baseQ()
+          .orderBy('RAND()')
+          .limit(10)
+          .getMany();
+      }
 
       if (candidates.length < 2) {
         ctx.set.status = 404;
@@ -758,7 +782,7 @@ export async function eloRoutes(app: any, prefix = '') {
       const per = Math.min(100, Math.max(1, Number((ctx.query as any)?.per || 50)));
 
       const [projects, total] = await eloProjectRepo().findAndCount({
-        where: { serverId: Not(IsNull()) } as any,
+        where: { serverId: Not(IsNull()), moderationStatus: Not('disqualified'), githubUrl: Not(IsNull()) } as any,
         order: { eloScore: 'DESC' },
         skip: (page - 1) * per,
         take: per,
@@ -800,7 +824,7 @@ export async function eloRoutes(app: any, prefix = '') {
       const r = await requireEloRollout(ctx);
       if (r !== true) return r;
 
-      const projects = await eloProjectRepo().find({ where: { serverId: Not(IsNull()) } as any, select: { eloScore: true } as any });
+      const projects = await eloProjectRepo().find({ where: { serverId: Not(IsNull()), moderationStatus: Not('disqualified'), githubUrl: Not(IsNull()) } as any, select: { eloScore: true } as any });
       const scores = projects.map(p => p.eloScore);
       const total = scores.length;
       if (total === 0) return { averageElo: 1000, medianElo: 1000, totalProjects: 0 };
@@ -996,7 +1020,7 @@ export async function eloRoutes(app: any, prefix = '') {
             await eloProjectRepo().remove(p);
             return null;
           }
-          const resources = calculateEloResources(p.eloScore, ctx.user?.studentVerified || false, p.isWellMade);
+          const resources = calculateEloResources(p.eloScore, ctx.user?.studentVerified || false, p.isWellMade, p.moderationStatus === 'disqualified');
           return {
             id: p.id,
             serverId: p.serverId,
@@ -1012,6 +1036,8 @@ export async function eloRoutes(app: any, prefix = '') {
             githubUrl: p.githubUrl,
             demoUrl: p.demoUrl,
             isWellMade: p.isWellMade,
+            moderationStatus: p.moderationStatus,
+            moderationNote: p.moderationNote,
             orphanedAt: p.orphanedAt,
             screenshots: p.screenshots,
             serverName: cfg.name,
@@ -1217,7 +1243,7 @@ export async function eloRoutes(app: any, prefix = '') {
       });
 
       const enriched = await Promise.all(projects.map(async p => {
-        const resources = calculateEloResources(p.eloScore, user.studentVerified || false, p.isWellMade);
+        const resources = calculateEloResources(p.eloScore, user.studentVerified || false, p.isWellMade, p.moderationStatus === 'disqualified');
         return {
           id: p.id,
           serverId: p.serverId,

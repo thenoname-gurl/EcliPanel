@@ -14,6 +14,13 @@ import {
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import Link from "next/link"
@@ -93,6 +100,11 @@ function ProjectsPanel() {
   const [editGithubUrl, setEditGithubUrl] = useState("")
   const [editDemoUrl, setEditDemoUrl] = useState("")
   const [editScreenshots, setEditScreenshots] = useState<string[]>([])
+  const [editModerationStatus, setEditModerationStatus] = useState("active")
+  const [editModerationNote, setEditModerationNote] = useState("")
+  const [moderateProject, setModerateProject] = useState<any | null>(null)
+  const [moderateStatus, setModerateStatus] = useState("active")
+  const [moderateNote, setModerateNote] = useState("")
   const [saving, setSaving] = useState(false)
   const [resetTarget, setResetTarget] = useState<any | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
@@ -134,6 +146,8 @@ function ProjectsPanel() {
     setEditGithubUrl(p.githubUrl || "")
     setEditDemoUrl(p.demoUrl || "")
     setEditScreenshots(Array.isArray(p.screenshots) ? [...p.screenshots] : [])
+    setEditModerationStatus(p.moderationStatus || "active")
+    setEditModerationNote(p.moderationNote || "")
   }
 
   const handleAddScreenshot = () => {
@@ -161,9 +175,37 @@ function ProjectsPanel() {
           githubUrl: editGithubUrl || null,
           demoUrl: editDemoUrl || null,
           screenshots: editScreenshots.length > 0 ? editScreenshots : null,
+          moderationStatus: editModerationStatus,
+          moderationNote: editModerationNote || null,
         }),
       })
       setEditProject(null)
+      fetchProjects(page, search)
+    } catch {
+      // ignore
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleOpenModerate = (p: any) => {
+    setModerateProject(p)
+    setModerateStatus(p.moderationStatus || "active")
+    setModerateNote(p.moderationNote || "")
+  }
+
+  const handleModerateSave = async () => {
+    if (!moderateProject) return
+    setSaving(true)
+    try {
+      await apiFetch(`/api/admin/elo/${moderateProject.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          moderationStatus: moderateStatus,
+          moderationNote: moderateNote || null,
+        }),
+      })
+      setModerateProject(null)
       fetchProjects(page, search)
     } catch {
       // ignore
@@ -342,6 +384,22 @@ function ProjectsPanel() {
                     >
                       {p.serverStatus}
                     </Badge>
+                    <button
+                      onClick={() => handleOpenModerate(p)}
+                      title={p.moderationStatus && p.moderationStatus !== "active" ? `Status: ${p.moderationStatus}` : "Flag / Moderate"}
+                      className="ml-1"
+                    >
+                      <Badge
+                        variant="outline"
+                        className={`cursor-pointer ${
+                          p.moderationStatus === "disqualified" ? "text-destructive border-destructive/30"
+                          : p.moderationStatus === "changes_requested" ? "text-amber-500 border-amber-500/30"
+                          : "text-muted-foreground border-border/50"
+                        }`}
+                      >
+                        {p.moderationStatus === "disqualified" ? "DQ" : p.moderationStatus === "changes_requested" ? "Fix" : "Flag"}
+                      </Badge>
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
@@ -456,6 +514,17 @@ function ProjectsPanel() {
                 >
                   <Edit className="h-3.5 w-3.5" />
                   <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => handleOpenModerate(p)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs transition-colors ${
+                    p.moderationStatus === "disqualified" ? "text-destructive bg-destructive/10"
+                    : p.moderationStatus === "changes_requested" ? "text-amber-500 bg-amber-500/10"
+                    : "text-muted-foreground hover:text-amber-500 hover:bg-secondary/40"
+                  }`}
+                >
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  <span>{p.moderationStatus === "disqualified" ? "DQ" : p.moderationStatus === "changes_requested" ? "Fix" : "Flag"}</span>
                 </button>
                 <button
                   onClick={() => setResetTarget(p)}
@@ -592,6 +661,30 @@ function ProjectsPanel() {
               />
             </div>
             <div>
+              <Label className="text-xs text-muted-foreground">Moderation Status</Label>
+              <Select value={editModerationStatus} onValueChange={setEditModerationStatus}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="changes_requested">Changes Requested</SelectItem>
+                  <SelectItem value="disqualified">Disqualified</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {editModerationStatus !== "active" && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Moderation Note</Label>
+                <Textarea
+                  value={editModerationNote}
+                  onChange={(e) => setEditModerationNote(e.target.value)}
+                  className="mt-1 min-h-[60px]"
+                  placeholder="Explain what needs to be fixed..."
+                />
+              </div>
+            )}
+            <div>
               <Label className="text-xs text-muted-foreground">Screenshots</Label>
               <div className="mt-1 space-y-2">
                 {editScreenshots.map((url, idx) => (
@@ -630,6 +723,56 @@ function ProjectsPanel() {
             <Button onClick={handleSave} disabled={saving}>
               {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Moderate Dialog */}
+      <Dialog open={moderateProject !== null} onOpenChange={(open) => { if (!open) setModerateProject(null) }}>
+        <DialogContent className="border-border bg-card max-w-[95vw] sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Moderate: {moderateProject?.title}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Status</Label>
+              <Select value={moderateStatus} onValueChange={setModerateStatus}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="changes_requested">Changes Requested</SelectItem>
+                  <SelectItem value="disqualified">Disqualified</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {moderateStatus !== "active" && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Note (shown to user)</Label>
+                <Textarea
+                  value={moderateNote}
+                  onChange={(e) => setModerateNote(e.target.value)}
+                  className="mt-1 min-h-[80px]"
+                  placeholder={
+                    moderateStatus === "disqualified"
+                      ? "Explain why this project was disqualified..."
+                      : "Explain what changes are needed (invalid IP, broken link, missing screenshots, etc.)"
+                  }
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModerateProject(null)}>Cancel</Button>
+            <Button
+              onClick={handleModerateSave}
+              disabled={saving}
+              className={moderateStatus === "disqualified" ? "bg-destructive hover:bg-destructive/90" : ""}
+            >
+              {saving && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {moderateStatus === "disqualified" ? "Disqualify" : moderateStatus === "changes_requested" ? "Request Changes" : "Clear Flags"}
             </Button>
           </DialogFooter>
         </DialogContent>

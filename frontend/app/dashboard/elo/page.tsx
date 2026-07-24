@@ -40,6 +40,7 @@ import {
   ChevronDown,
   ChevronUp,
   Flame,
+  AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -444,6 +445,26 @@ export default function EloDashboard() {
                                 {project.serverStatus}
                               </Badge>
                             </div>
+                            {project.moderationStatus && project.moderationStatus !== "active" && (
+                              <div className={`mt-2 p-3 border text-xs flex items-start gap-2 ${
+                                project.moderationStatus === "disqualified"
+                                  ? "border-destructive/30 bg-destructive/10 text-destructive"
+                                  : "border-amber-500/30 bg-amber-500/10 text-amber-500"
+                              }`}>
+                                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                                <div>
+                                  <p className="font-semibold">
+                                    {project.moderationStatus === "disqualified" ? "Project Disqualified" : "Changes Requested"}
+                                  </p>
+                                  {project.moderationNote && (
+                                    <p className="mt-0.5 opacity-90">{project.moderationNote}</p>
+                                  )}
+                                  {project.moderationStatus === "disqualified" && (
+                                    <p className="mt-1 opacity-80">Your server has been suspended. Please back up your data and delete this server.</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                             <div className="flex items-center gap-2 mt-1.5">
                               {project.ownerAvatar && (
                                 <img

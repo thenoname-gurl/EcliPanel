@@ -29,7 +29,12 @@ export function calculateEloResources(
   eloScore: number,
   isHackClub: boolean = false,
   isWellMade: boolean = false,
+  isDisqualified: boolean = false,
 ): { memory: number; disk: number; cpu: number } {
+  if (isDisqualified) {
+    return { ...MIN_RESOURCES };
+  }
+
   const multiplier = Math.max(0.2, Math.min(12, eloScore / 1000));
 
   const apply = (base: number, min: number, max: number) => {

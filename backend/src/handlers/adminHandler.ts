@@ -9600,6 +9600,8 @@ export async function adminRoutes(app: any, prefix = '') {
           serverName: cfg?.name,
           serverStatus: cfg?.suspended ? 'suspended' : cfg ? 'active' : 'orphaned',
           isWellMade: p.isWellMade,
+          moderationStatus: p.moderationStatus,
+          moderationNote: p.moderationNote,
           lastActiveAt: p.lastActiveAt,
           createdAt: p.createdAt,
         };
@@ -9648,6 +9650,8 @@ export async function adminRoutes(app: any, prefix = '') {
         serverName: cfg?.name,
         serverStatus: cfg?.suspended ? 'suspended' : cfg ? 'active' : 'orphaned',
         isWellMade: project.isWellMade,
+        moderationStatus: project.moderationStatus,
+        moderationNote: project.moderationNote,
         devlogCount: devlogs.length,
         totalVoteRecords: voteCount,
       };
@@ -9678,11 +9682,57 @@ export async function adminRoutes(app: any, prefix = '') {
       if (body.demoUrl !== undefined) project.demoUrl = String(body.demoUrl).trim() || null;
       if (body.screenshots !== undefined) project.screenshots = Array.isArray(body.screenshots) ? body.screenshots : null;
       if (body.isWellMade !== undefined) project.isWellMade = Boolean(body.isWellMade);
+      if (body.moderationStatus !== undefined) {
+        const allowed = ['active', 'changes_requested', 'disqualified'];
+        if (allowed.includes(body.moderationStatus)) {
+          const wasDisqualified = project.moderationStatus === 'disqualified';
+          project.moderationStatus = body.moderationStatus;
+          if (body.moderationStatus === 'disqualified' && !wasDisqualified) {
+            project.disqualifiedAt = new Date();
+            project.disqualifiedBy = ctx.user.id;
+          } else if (body.moderationStatus !== 'disqualified') {
+            project.disqualifiedAt = null as any;
+            project.disqualifiedBy = null as any;
+          }
+        }
+      }
+      if (body.moderationNote !== undefined) project.moderationNote = String(body.moderationNote).trim() || null;
 
       await eloProjectRepo().save(project);
       await syncEloResources(project);
 
-      return { id: project.id, eloScore: project.eloScore, kFactor: project.kFactor, isWellMade: project.isWellMade };
+      // Todo #97611
+      if (body.moderationStatus !== undefined) {
+        try {
+          const owner = await AppDataSource.getRepository(User).findOneBy({ id: project.userId });
+          if (owner?.email) {
+            const note = project.moderationNote ? `\n\nAdmin note: ${project.moderationNote}` : '';
+            let subject = '';
+            let message = '';
+            if (body.moderationStatus === 'changes_requested') {
+              subject = `ELO Project "${project.title}" needs changes`;
+              message = `Your ELO project "${project.title}" has been flagged for review. An admin has requested changes to your project details (e.g., screenshots, GitHub link, IP address). Please update your project to keep it active in the ELO system.${note}`;
+            } else if (body.moderationStatus === 'disqualified') {
+              subject = `ELO Project "${project.title}" has been disqualified`;
+              message = `Your ELO project "${project.title}" has been disqualified. Your server has been suspended and its resources reduced to minimum. Please back up your data and delete this server. If you believe this was in error, contact support.${note}`;
+            } else if (body.moderationStatus === 'active') {
+              subject = `ELO Project "${project.title}" has been re-qualified`;
+              message = `Your ELO project "${project.title}" has been re-qualified and is now active in the ELO system. Your server resources have been restored.${note}`;
+            }
+            if (subject) {
+              await sendMail({
+                to: [owner.email],
+                from: process.env.MAIL_FROM || process.env.SMTP_USER || 'noreply@ecli.app',
+                subject,
+                template: 'notification',
+                vars: { title: subject, message, details: message },
+              });
+            }
+          }
+        } catch { /* shrugs */ }
+      }
+
+      return { id: project.id, eloScore: project.eloScore, kFactor: project.kFactor, isWellMade: project.isWellMade, moderationStatus: project.moderationStatus };
     },
     {
       beforeHandle: [authenticate, authorize('admin:access')],

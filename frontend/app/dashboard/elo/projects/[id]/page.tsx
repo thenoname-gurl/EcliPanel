@@ -27,6 +27,7 @@ import {
   ChevronUp,
   GitBranch,
   Flame,
+  AlertTriangle,
 } from "lucide-react"
 import Link from "next/link"
 import ReactMarkdown from "react-markdown"
@@ -104,7 +105,7 @@ export default function EloProjectProfile() {
       .finally(() => setVotesLoading(false))
   }, [id, votesPage])
 
-  const resources = project ? calculateEloResources(project.eloScore, false, project.isWellMade) : null
+  const resources = project ? calculateEloResources(project.eloScore, false, project.isWellMade, project.moderationStatus === 'disqualified') : null
 
   return (
     <RolloutGuard rolloutKey="elo_rating" fallback={null}>
@@ -198,6 +199,27 @@ export default function EloProjectProfile() {
                   )}
                 </div>
               </div>
+
+              {project.moderationStatus && project.moderationStatus !== "active" && (
+                <div className={`p-4 border text-sm flex items-start gap-3 ${
+                  project.moderationStatus === "disqualified"
+                    ? "border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border-amber-500/30 bg-amber-500/10 text-amber-500"
+                }`}>
+                  <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold">
+                      {project.moderationStatus === "disqualified" ? "This project has been disqualified" : "Changes requested by moderation"}
+                    </p>
+                    {project.moderationNote && (
+                      <p className="mt-1 opacity-90">{project.moderationNote}</p>
+                    )}
+                    {project.moderationStatus === "disqualified" && (
+                      <p className="mt-1 opacity-80">Server resources reduced to minimum and suspended. Owner should back up data and delete.</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Description */}
               {project.description && (

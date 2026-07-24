@@ -61,6 +61,18 @@ export class EloProject {
   @Column({ default: false })
   isWellMade: boolean;
 
+  @Column({ default: 'active' })
+  moderationStatus: string;
+
+  @Column({ nullable: true, type: 'text' })
+  moderationNote?: string;
+
+  @Column({ nullable: true, type: 'datetime' })
+  disqualifiedAt?: Date;
+
+  @Column({ nullable: true })
+  disqualifiedBy?: number;
+
   @Column({ nullable: true, type: 'datetime' })
   lastActiveAt?: Date;
 
