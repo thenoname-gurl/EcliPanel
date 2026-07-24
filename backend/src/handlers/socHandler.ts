@@ -20,6 +20,54 @@ import { existsSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { join } from 'path';
 
+async function getUserServerUuids(userId: number): Promise<string[]> {
+  const cfgRepo = AppDataSource.getRepository(ServerConfig);
+  const subRepo = AppDataSource.getRepository(ServerSubuser);
+
+  const [ownServers, subRows] = await Promise.all([
+    cfgRepo.find({ where: { userId } }),
+    subRepo.find({ where: { userId, accepted: true } }),
+  ]);
+
+  const uuids = new Set(ownServers.map(s => s.uuid));
+  for (const s of subRows) uuids.add(s.serverUuid);
+
+  try {
+    const omRepo = AppDataSource.getRepository(
+      require('../models/organisationMember.entity').OrganisationMember,
+    );
+    const memberships = await omRepo.find({ where: { userId } });
+    const orgIds = memberships.map(m => m.organisationId);
+    if (orgIds.length > 0) {
+      const peerMembers = await omRepo.find({
+        where: { organisationId: In(orgIds) },
+      });
+      const peerIds = [...new Set(peerMembers.map(m => m.userId))];
+      const peerServers = await cfgRepo.find({
+        where: { userId: In(peerIds) },
+      });
+      for (const ps of peerServers) uuids.add(ps.uuid);
+    }
+  } catch { /* erm */ }
+
+  return [...uuids];
+}
+
+async function applyUserScope(
+  qb: any,
+  userId: number,
+  serverUuids?: string[],
+): Promise<string[]> {
+  const uuids = serverUuids ?? (await getUserServerUuids(userId));
+  const ids = uuids.length > 0 ? uuids : ['__none__'];
+  qb.andWhere(
+    '(f.userId = :scopeUserId OR f.serverId IN (:...scopeServerIds))',
+    { scopeUserId: userId, scopeServerIds: ids },
+  );
+  qb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
+  return uuids;
+}
+
 async function buildWingsConfigPayload() {
   const psRepo = AppDataSource.getRepository(PanelSetting);
   const rows = await psRepo.find();
@@ -86,11 +134,8 @@ export async function socRoutes(app: any, prefix = '') {
         return JSON.parse(raw) as T;
       }
     } catch { }
-
     const data = await loader();
-    try {
-      await redisSet(key, JSON.stringify(data), ttlSeconds);
-    } catch { }
+    try { await redisSet(key, JSON.stringify(data), ttlSeconds); } catch { }
     return data;
   }
 
@@ -99,7 +144,6 @@ export async function socRoutes(app: any, prefix = '') {
     async (ctx: any) => {
       const user = ctx.user as any;
       const isAdmin = hasPermissionSync(ctx, 'soc:read');
-
       const cacheKey = isAdmin ? 'soc:overview:admin' : `soc:overview:user:${user.id}`;
 
       return withCache(cacheKey, 5, async () => {
@@ -112,14 +156,14 @@ export async function socRoutes(app: any, prefix = '') {
           const nodes = await nodeRepo.find();
 
           const nodeResults = await Promise.allSettled(
-            nodes.map(async n => {
+            nodes.map(async (n: any) => {
               try {
-                const base = (n as any).backendWingsUrl || n.url;
+                const base = n.backendWingsUrl || n.url;
                 const svc = new WingsApiService(base, n.token);
                 const res = await svc.getServers();
                 return { servers: Array.isArray(res.data) ? res.data : [] };
               } catch { return null; }
-            })
+            }),
           );
           const serverIds: string[] = [];
           for (const r of nodeResults) {
@@ -146,7 +190,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'SOC overview metrics', tags: ['SOC'] },
-    }
+    },
   );
 
   app.post(
@@ -178,21 +222,20 @@ export async function socRoutes(app: any, prefix = '') {
         403: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Submit SOC data point', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
     prefix + '/soc/plans',
     async (ctx: any) => {
       const planRepo = AppDataSource.getRepository(require('../models/plan.entity').Plan);
-      const plans = await planRepo.find();
-      return plans;
+      return planRepo.find();
     },
     {
       beforeHandle: authenticate,
       response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'List SOC plans', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -200,7 +243,7 @@ export async function socRoutes(app: any, prefix = '') {
     async (ctx: any) => {
       const userId = Number(ctx.params['id']);
       const repo = AppDataSource.getRepository(
-        require('../models/apiRequestLog.entity').ApiRequestLog
+        require('../models/apiRequestLog.entity').ApiRequestLog,
       );
       const data = await repo
         .createQueryBuilder('r')
@@ -215,7 +258,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'API usage by user', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -223,7 +266,7 @@ export async function socRoutes(app: any, prefix = '') {
     async (ctx: any) => {
       const orgId = Number(ctx.params['id']);
       const repo = AppDataSource.getRepository(
-        require('../models/apiRequestLog.entity').ApiRequestLog
+        require('../models/apiRequestLog.entity').ApiRequestLog,
       );
       const data = await repo
         .createQueryBuilder('r')
@@ -238,7 +281,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Array(t.Any()), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'API usage by organisation', tags: ['SOC'] },
-    }
+    },
   );
 
   const findingRepo = () => AppDataSource.getRepository(SecurityFinding);
@@ -248,6 +291,8 @@ export async function socRoutes(app: any, prefix = '') {
     async (ctx: any) => {
       const repo = findingRepo();
       const qb = repo.createQueryBuilder('f');
+      const user = ctx.user as any;
+      const isAdmin = hasPermissionSync(ctx, 'soc:read');
 
       if (ctx.query?.status && ctx.query.status !== 'all') {
         qb.andWhere('f.status = :status', { status: ctx.query.status });
@@ -278,53 +323,16 @@ export async function socRoutes(app: any, prefix = '') {
         qb.andWhere('f.visibility = :staffOnly', { staffOnly: 'staff_only' });
       }
 
-      const user = ctx.user as any;
       let scopeClause = '';
       let scopeParams: Record<string, any> = {};
 
-      if (user && !hasPermissionSync(ctx, 'soc:read')) {
-        qb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
-
-        const cfgRepo = AppDataSource.getRepository(ServerConfig);
-        const subuserRepo = AppDataSource.getRepository(ServerSubuser);
-
-        // Get user's own + subuser servers
-        const subuserEntries = await subuserRepo.find({ where: { userId: user.id } });
-        const subuserUuids = subuserEntries.map((s: any) => s.serverUuid);
-
-        // Get org member servers (user's organisations → all member userIds → their servers)
-        let orgMemberIds: number[] = [];
-        try {
-          const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-          const memberships = await orgMemberRepo.find({ where: { userId: user.id } });
-          const orgIds = memberships.map((m: any) => m.organisationId);
-          if (orgIds.length > 0) {
-            const orgPeers = await orgMemberRepo.find({ where: { organisationId: In(orgIds) } });
-            orgMemberIds = [...new Set(orgPeers.map((m: any) => m.userId))];
-          }
-        } catch {}
-
-        const ownServers = await cfgRepo.find({
-          where: [
-            { userId: user.id },
-            ...(subuserUuids.length ? [{ uuid: In(subuserUuids) }] : []),
-            ...(orgMemberIds.length ? [{ userId: In(orgMemberIds) }] : []),
-          ],
-        });
-        const allowedIds = ownServers.map((s: any) => s.uuid);
+      if (!isAdmin) {
+        const uuids = await getUserServerUuids(user.id);
+        const ids = uuids.length > 0 ? uuids : ['__none__'];
         scopeClause = '(f.userId = :scopeUserId OR f.serverId IN (:...scopeServerIds))';
-        scopeParams = {
-          scopeUserId: user.id,
-          scopeServerIds: allowedIds.length ? allowedIds : ['__none__'],
-        };
+        scopeParams = { scopeUserId: user.id, scopeServerIds: ids };
         qb.andWhere(scopeClause, scopeParams);
-      } else {
-        const cfgRepo = AppDataSource.getRepository(ServerConfig);
-        const adminServers = await cfgRepo.find({ where: { userId: user.id } });
-        const adminServerIds = adminServers.map((s: any) => s.uuid);
-        scopeClause = `(f.checkFingerprint NOT LIKE 'access_control_orphaned_%' AND f.checkFingerprint NOT LIKE 'access_control_admin_subuser_%' AND f.checkFingerprint NOT LIKE 'login_anomaly_newip_%') OR f.serverId IN (:...adminSrvIds)`;
-        scopeParams = { adminSrvIds: adminServerIds.length ? adminServerIds : ['__none__'] };
-        qb.andWhere(scopeClause, scopeParams);
+        qb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
       }
 
       qb.orderBy('f.detectedAt', 'DESC');
@@ -341,21 +349,19 @@ export async function socRoutes(app: any, prefix = '') {
         .addSelect('COUNT(*)', 'count')
         .where('f.status = :socStatus', { socStatus: 'open' })
         .groupBy('f.severity');
-      if (scopeClause) summaryQb.andWhere(scopeClause, { ...scopeParams });
+      if (scopeClause) summaryQb.andWhere(scopeClause, scopeParams);
       if (ctx.query?.visibility === 'public') {
         summaryQb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
       } else if (ctx.query?.visibility === 'staff_only') {
         summaryQb.andWhere('f.visibility = :staffOnly', { staffOnly: 'staff_only' });
       }
-      if (user && !hasPermissionSync(ctx, 'soc:read')) {
+      if (!isAdmin) {
         summaryQb.andWhere('f.visibility != :staffOnly', { staffOnly: 'staff_only' });
       }
       const summaryRows = await summaryQb.getRawMany();
 
       const summary: Record<string, number> = {};
-      for (const r of summaryRows) {
-        summary[String(r.severity)] = Number(r.count);
-      }
+      for (const r of summaryRows) summary[String(r.severity)] = Number(r.count);
 
       return { findings, total, page, perPage, summary };
     },
@@ -363,7 +369,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'List security findings with filters', tags: ['SOC'] },
-    }
+    },
   );
 
   app.post(
@@ -393,7 +399,14 @@ export async function socRoutes(app: any, prefix = '') {
         metadata: body.metadata,
       });
 
-      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:finding:external_submit', targetId: finding.serverId, targetType: 'server', metadata: { title: finding.title, severity: finding.severity, sourceName: finding.sourceName }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: 'soc:finding:external_submit',
+        targetId: finding.serverId,
+        targetType: 'server',
+        metadata: { title: finding.title, severity: finding.severity, sourceName: finding.sourceName },
+        ipAddress: ctx.ip,
+      });
 
       return { success: true, finding };
     },
@@ -406,14 +419,19 @@ export async function socRoutes(app: any, prefix = '') {
         403: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Submit external security finding (Wazuh/Fail2ban/etc)', tags: ['SOC'] },
-    }
+    },
   );
 
   app.post(
     prefix + '/soc/security-scan',
     async (ctx: any) => {
       const result = await runSecurityScan();
-      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:scan:run', metadata: { created: result.created, resolved: result.resolved }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: 'soc:scan:run',
+        metadata: { created: result.created, resolved: result.resolved },
+        ipAddress: ctx.ip,
+      });
       return { success: true, ...result };
     },
     {
@@ -429,7 +447,7 @@ export async function socRoutes(app: any, prefix = '') {
         403: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Run internal security scan on demand', tags: ['SOC'] },
-    }
+    },
   );
 
   app.put(
@@ -449,35 +467,12 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       const user = ctx.user as any;
-      if (user && !hasPermissionSync(ctx, 'soc:read')) {
+      const isAdmin = hasPermissionSync(ctx, 'soc:read');
+
+      if (!isAdmin) {
+        const uuids = await getUserServerUuids(user.id);
         const isOwner = finding.userId === user.id;
-        let isOwnServer = false;
-        if (finding.serverId) {
-          const cfgRepo = AppDataSource.getRepository(ServerConfig);
-          const subuserRepo = AppDataSource.getRepository(ServerSubuser);
-          const subuserEntries = await subuserRepo.find({ where: { userId: user.id } });
-          const subuserUuids = subuserEntries.map((s: any) => s.serverUuid);
-
-          let orgMemberIds: number[] = [];
-          try {
-            const orgMemberRepo = AppDataSource.getRepository(require('../models/organisationMember.entity').OrganisationMember);
-            const memberships = await orgMemberRepo.find({ where: { userId: user.id } });
-            const orgIds = memberships.map((m: any) => m.organisationId);
-            if (orgIds.length > 0) {
-              const orgPeers = await orgMemberRepo.find({ where: { organisationId: In(orgIds) } });
-              orgMemberIds = [...new Set(orgPeers.map((m: any) => m.userId))];
-            }
-          } catch {}
-
-          const ownCount = await cfgRepo.count({
-            where: [
-              { uuid: finding.serverId, userId: user.id },
-              ...(subuserUuids.includes(finding.serverId) ? [{ uuid: finding.serverId }] : []),
-              ...(orgMemberIds.length ? [{ uuid: finding.serverId, userId: In(orgMemberIds) }] : []),
-            ],
-          });
-          isOwnServer = ownCount > 0;
-        }
+        const isOwnServer = !!(finding.serverId && uuids.includes(finding.serverId));
         if (!isOwner && !isOwnServer) {
           ctx.set.status = 403;
           return { error: 'You can only update findings on your own servers' };
@@ -511,12 +506,22 @@ export async function socRoutes(app: any, prefix = '') {
               resolvedAt: status === 'resolved' ? new Date() : (null as any),
               resolvedByUserId: status === 'resolved' ? ctx.user?.id : (null as any),
             })
-            .where('checkFingerprint = :fp AND id != :id', { fp: finding.checkFingerprint, id: finding.id })
+            .where('checkFingerprint = :fp AND id != :id', {
+              fp: finding.checkFingerprint,
+              id: finding.id,
+            })
             .execute();
-        } catch {}
+        } catch { }
       }
 
-      void logAdminAction({ adminUserId: ctx.user?.id, action: `soc:finding:${status}`, targetId: String(id), targetType: 'finding', metadata: { title: finding.title, severity: finding.severity }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: `soc:finding:${status}`,
+        targetId: String(id),
+        targetType: 'finding',
+        metadata: { title: finding.title, severity: finding.severity },
+        ipAddress: ctx.ip,
+      });
 
       return { success: true, finding };
     },
@@ -528,10 +533,9 @@ export async function socRoutes(app: any, prefix = '') {
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
-        409: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Update security finding status', tags: ['SOC'] },
-    }
+    },
   );
 
   app.delete(
@@ -551,7 +555,14 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       await repo.remove(finding);
-      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:finding:force_delete', targetId: String(id), targetType: 'finding', metadata: { title: finding.title, severity: finding.severity, category: finding.category }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: 'soc:finding:force_delete',
+        targetId: String(id),
+        targetType: 'finding',
+        metadata: { title: finding.title, severity: finding.severity, category: finding.category },
+        ipAddress: ctx.ip,
+      });
       console.log(`[soc] Finding #${id} force-deleted by user #${ctx.user?.id}: ${finding.title}`);
       return { success: true };
     },
@@ -565,7 +576,7 @@ export async function socRoutes(app: any, prefix = '') {
         404: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Force delete a security finding (admin only)', tags: ['SOC'] },
-    }
+    },
   );
 
   app.post(
@@ -585,16 +596,13 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       const user = ctx.user as any;
-      const isAdmin = user && hasPermissionSync(ctx, 'soc:read');
+      const isAdmin = hasPermissionSync(ctx, 'soc:read');
 
       if (!isAdmin) {
-        let canEscalate = finding.userId === user?.id;
-        if (!canEscalate && finding.serverId) {
-          try {
-            const cfg = await AppDataSource.getRepository(ServerConfig).findOne({ where: { uuid: finding.serverId } });
-            canEscalate = cfg?.userId === user?.id;
-          } catch {}
-        }
+        const uuids = await getUserServerUuids(user.id);
+        const canEscalate =
+          finding.userId === user.id ||
+          (!!finding.serverId && uuids.includes(finding.serverId));
         if (!canEscalate) {
           ctx.set.status = 403;
           return { error: 'You can only escalate findings on your own servers' };
@@ -606,7 +614,9 @@ export async function socRoutes(app: any, prefix = '') {
       let ownerId = finding.userId;
       if (!ownerId && finding.serverId) {
         try {
-          const cfg = await AppDataSource.getRepository(ServerConfig).findOne({ where: { uuid: finding.serverId } });
+          const cfg = await AppDataSource.getRepository(ServerConfig).findOne({
+            where: { uuid: finding.serverId },
+          });
           ownerId = cfg?.userId ?? undefined;
         } catch { }
       }
@@ -628,7 +638,10 @@ export async function socRoutes(app: any, prefix = '') {
         userId: ownerId || user?.id || 0,
         subject: ticketSubject,
         message: ticketBody,
-        priority: finding.severity === 'critical' ? 'urgent' : finding.severity === 'high' ? 'high' : 'medium',
+        priority:
+          finding.severity === 'critical' ? 'urgent'
+          : finding.severity === 'high' ? 'high'
+          : 'medium',
         status: 'opened',
         department: 'technical',
         messages: [{ sender: 'staff', message: ticketBody, created: now }],
@@ -637,21 +650,39 @@ export async function socRoutes(app: any, prefix = '') {
 
       if (ownerId) {
         try {
-          const notifRepo = AppDataSource.getRepository(require('../models/notification.entity').Notification);
-          await notifRepo.save(notifRepo.create({
-            userId: ownerId, type: 'security_escalation',
-            title: `Security issue escalated: ${finding.title}`,
-            body: `A support ticket (#${savedTicket.id}) has been created. Staff will respond there.`,
-            url: `/dashboard/tickets/${savedTicket.id}`,
-          }));
+          const notifRepo = AppDataSource.getRepository(
+            require('../models/notification.entity').Notification,
+          );
+          await notifRepo.save(
+            notifRepo.create({
+              userId: ownerId,
+              type: 'security_escalation',
+              title: `Security issue escalated: ${finding.title}`,
+              body: `A support ticket (#${savedTicket.id}) has been created. Staff will respond there.`,
+              url: `/dashboard/tickets/${savedTicket.id}`,
+            }),
+          );
         } catch { }
       }
 
-      finding.metadata = { ...(finding.metadata || {}), escalated: true, escalatedAt: now.toISOString(), escalatedBy: user?.id, ticketId: savedTicket.id };
+      finding.metadata = {
+        ...(finding.metadata || {}),
+        escalated: true,
+        escalatedAt: now.toISOString(),
+        escalatedBy: user?.id,
+        ticketId: savedTicket.id,
+      };
       finding.status = 'acknowledged';
       await repo.save(finding);
 
-      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:finding:escalate', targetId: String(id), targetType: 'finding', metadata: { title: finding.title, ticketId: savedTicket.id }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: 'soc:finding:escalate',
+        targetId: String(id),
+        targetType: 'finding',
+        metadata: { title: finding.title, ticketId: savedTicket.id },
+        ipAddress: ctx.ip,
+      });
 
       return { success: true, finding, ticketId: savedTicket.id };
     },
@@ -665,7 +696,7 @@ export async function socRoutes(app: any, prefix = '') {
         404: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Escalate security finding to staff for evaluation', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -683,7 +714,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'Get current user SOC alert preferences', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -727,7 +758,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
       detail: { summary: 'Get admin SOC settings', tags: ['SOC'] },
-    }
+    },
   );
 
   app.put(
@@ -775,14 +806,24 @@ export async function socRoutes(app: any, prefix = '') {
         await repo.save(row);
       }
 
-      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:settings:update', metadata: { keys: Object.keys(updates) }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: 'soc:settings:update',
+        metadata: { keys: Object.keys(updates) },
+        ipAddress: ctx.ip,
+      });
       return { success: true };
     },
     {
       beforeHandle: authenticate,
-      response: { 200: t.Object({ success: t.Boolean() }), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      response: {
+        200: t.Object({ success: t.Boolean() }),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
       detail: { summary: 'Update admin SOC settings', tags: ['SOC'] },
-    }
+    },
   );
 
   const ruleRepo = () => AppDataSource.getRepository(DetectionRule);
@@ -801,10 +842,13 @@ export async function socRoutes(app: any, prefix = '') {
 
       if (!isAdmin) {
         const user = ctx.user as any;
-        const rules = await repo.createQueryBuilder('r')
+        const rules = await repo
+          .createQueryBuilder('r')
           .where('r.enabled = true')
-          .andWhere('(r.scope = :global OR (r.scope = :userScope AND r.scopeId = :uid) OR r.createdByUserId = :uid2)',
-            { global: 'global', userScope: 'user', uid: String(user?.id || ''), uid2: user?.id || 0 })
+          .andWhere(
+            '(r.scope = :global OR (r.scope = :userScope AND r.scopeId = :uid) OR r.createdByUserId = :uid2)',
+            { global: 'global', userScope: 'user', uid: String(user?.id || ''), uid2: user?.id || 0 },
+          )
           .orderBy('r.createdAt', 'DESC')
           .getMany();
         return { rules, total: rules.length };
@@ -817,7 +861,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'List detection rules (Wings-compatible polling)', tags: ['SOC'] },
-    }
+    },
   );
 
   app.post(
@@ -853,14 +897,21 @@ export async function socRoutes(app: any, prefix = '') {
       });
 
       await repo.save(rule);
-      void logAdminAction({ adminUserId: user.id, action: 'soc:rule:create', targetId: String(rule.id), targetType: 'detection_rule', metadata: { name: rule.name, severity: rule.severity }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: user.id,
+        action: 'soc:rule:create',
+        targetId: String(rule.id),
+        targetType: 'detection_rule',
+        metadata: { name: rule.name, severity: rule.severity },
+        ipAddress: ctx.ip,
+      });
       return { success: true, rule };
     },
     {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }) },
       detail: { summary: 'Create detection rule', tags: ['SOC'] },
-    }
+    },
   );
 
   app.put(
@@ -891,14 +942,21 @@ export async function socRoutes(app: any, prefix = '') {
       if (body.createsIncident !== undefined) rule.createsIncident = body.createsIncident === true;
 
       await repo.save(rule);
-      void logAdminAction({ adminUserId: user?.id, action: 'soc:rule:update', targetId: String(rule.id), targetType: 'detection_rule', metadata: { name: rule.name }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: user?.id,
+        action: 'soc:rule:update',
+        targetId: String(rule.id),
+        targetType: 'detection_rule',
+        metadata: { name: rule.name },
+        ipAddress: ctx.ip,
+      });
       return { success: true, rule };
     },
     {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
       detail: { summary: 'Update detection rule', tags: ['SOC'] },
-    }
+    },
   );
 
   app.delete(
@@ -916,14 +974,21 @@ export async function socRoutes(app: any, prefix = '') {
       }
 
       await repo.remove(rule);
-      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:rule:delete', targetId: String(id), targetType: 'detection_rule', metadata: { name: rule.name }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: 'soc:rule:delete',
+        targetId: String(id),
+        targetType: 'detection_rule',
+        metadata: { name: rule.name },
+        ipAddress: ctx.ip,
+      });
       return { success: true };
     },
     {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
       detail: { summary: 'Delete detection rule', tags: ['SOC'] },
-    }
+    },
   );
 
   app.post(
@@ -941,7 +1006,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Object({ matched: t.Boolean() }), 400: t.Object({ error: t.String() }) },
       detail: { summary: 'Test a rule against a sample event', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -961,7 +1026,7 @@ export async function socRoutes(app: any, prefix = '') {
         perPage: Number(perPage) || 50,
       });
 
-      const userIds = [...new Set(result.entries.map(e => e.adminUserId))];
+      const userIds = [...new Set(result.entries.map((e: any) => e.adminUserId))];
       const userMap: Record<number, any> = {};
       if (userIds.length > 0) {
         const User = require('../models/user.entity').User;
@@ -979,7 +1044,7 @@ export async function socRoutes(app: any, prefix = '') {
         }
       }
 
-      const entries = result.entries.map(e => ({
+      const entries = result.entries.map((e: any) => ({
         ...e,
         adminName: userMap[e.adminUserId]?.username || `User #${e.adminUserId}`,
         adminEmail: userMap[e.adminUserId]?.email || null,
@@ -992,7 +1057,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
       detail: { summary: 'List admin audit entries (read-only, immutable)', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -1009,7 +1074,7 @@ export async function socRoutes(app: any, prefix = '') {
         until: until ? new Date(until) : undefined,
       });
 
-      const userIds = [...new Set(rows.map(r => r.adminUserId))];
+      const userIds = [...new Set(rows.map((r: any) => r.adminUserId))];
       const userMap: Record<number, string> = {};
       if (userIds.length > 0) {
         const User = require('../models/user.entity').User;
@@ -1023,7 +1088,7 @@ export async function socRoutes(app: any, prefix = '') {
         }
       }
 
-      const report = rows.map(r => ({
+      const report = rows.map((r: any) => ({
         ...r,
         adminName: userMap[r.adminUserId] || `User #${r.adminUserId}`,
         totalMinutes: Math.round((r.totalMs / 60000) * 10) / 10,
@@ -1035,7 +1100,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
       detail: { summary: 'Admin time-spent report by action', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -1059,7 +1124,7 @@ export async function socRoutes(app: any, prefix = '') {
     {
       response: { 200: t.Any(), 403: t.Object({ error: t.String() }) },
       detail: { summary: 'Wings config poll — anti-abuse settings + detection rules', tags: ['Wings'] },
-    }
+    },
   );
 
   app.post(
@@ -1082,14 +1147,21 @@ export async function socRoutes(app: any, prefix = '') {
       node.pendingCommand = JSON.stringify(commands);
       await nodeRepo.save(node);
 
-      void logAdminAction({ adminUserId: ctx.user?.id, action: 'soc:wings:command', targetId: String(nodeId), targetType: 'node', metadata: { action, nodeName: node.name }, ipAddress: ctx.ip });
+      void logAdminAction({
+        adminUserId: ctx.user?.id,
+        action: 'soc:wings:command',
+        targetId: String(nodeId),
+        targetType: 'node',
+        metadata: { action, nodeName: node.name },
+        ipAddress: ctx.ip,
+      });
       return { success: true, message: `Command "${action}" queued for node "${node.name}". Will be delivered on next heartbeat.` };
     },
     {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
       detail: { summary: 'Queue a command for a Wings node (delivered via heartbeat)', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -1105,7 +1177,7 @@ export async function socRoutes(app: any, prefix = '') {
       const configPayload = await buildWingsConfigPayload();
       const currentVersion = await computeConfigVersion(configPayload);
 
-      const nodeStatus = nodes.map(n => {
+      const nodeStatus = nodes.map((n: any) => {
         const ageMs = n.lastHeartbeatAt ? now - n.lastHeartbeatAt.getTime() : 999999;
         const active = ageMs < 120_000;
         const synced = active && n.configVersion === currentVersion;
@@ -1127,7 +1199,7 @@ export async function socRoutes(app: any, prefix = '') {
       beforeHandle: authenticate,
       response: { 200: t.Any(), 403: t.Object({ error: t.String() }) },
       detail: { summary: 'Get Wings node config status', tags: ['SOC'] },
-    }
+    },
   );
 
   app.get(
@@ -1163,14 +1235,14 @@ export async function socRoutes(app: any, prefix = '') {
     {
       response: { 200: t.Any(), 404: t.Object({ error: t.String() }) },
       detail: { summary: 'Download Wings binary (one-line installer)', tags: ['Wings'] },
-    }
+    },
   );
 
   app.get(
     prefix + '/wings/install.sh',
     async (ctx: any) => {
       const host = process.env.PANEL_URL || process.env.FRONTEND_URL || 'localhost';
-      const baseUrl = host.replace(/\/$/, "");
+      const baseUrl = host.replace(/\/$/, '');
       const arch = '$(uname -m)';
 
       const script = `#!/bin/bash
@@ -1191,6 +1263,6 @@ echo "Run: wings --config /etc/pterodactyl/config.yml"
     {
       response: { 200: t.Any() },
       detail: { summary: 'One-line Wings install script', tags: ['Wings'] },
-    }
+    },
   );
 }
