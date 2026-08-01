@@ -3693,6 +3693,7 @@
     "security": {
       "changePassword": "Change Password",
       "currentPassword": "Current Password",
+      "currentPasswordRequired": "Enter your current password to change your email",
       "currentPasswordPlaceholder": "Enter current password",
       "newPassword": "New Password",
       "newPasswordPlaceholder": "New password",

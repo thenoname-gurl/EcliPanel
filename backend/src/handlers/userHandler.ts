@@ -1956,6 +1956,19 @@ export async function userRoutes(app: any, prefix = '') {
           ctx.set.status = 400;
           return { error: ctx.t('validation.invalidEmailAddress') };
         }
+        if (!isAdmin) {
+          const submittedCurrentPassword =
+            typeof payload.currentPassword === 'string' ? payload.currentPassword : undefined;
+          if (!submittedCurrentPassword) {
+            ctx.set.status = 400;
+            return { error: ctx.t('auth.passwordRequired') };
+          }
+          const validCurrent = await comparePassword(submittedCurrentPassword, user.passwordHash);
+          if (!validCurrent) {
+            ctx.set.status = 403;
+            return { error: ctx.t('auth.passwordInvalid') };
+          }
+        }
         user.email = newEmail;
         user.emailVerified = false;
         emailChanged = true;

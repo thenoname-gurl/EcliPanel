@@ -1564,6 +1564,13 @@ export default function SettingsPage() {
     const hasDob = user?.dateOfBirth != null && String(user?.dateOfBirth).trim() !== ''
     const dobLocked = hasDob && Boolean(user?.idVerified)
 
+    const emailChanged = form.email !== user?.email
+    if (emailChanged && !currentPassword) {
+      alert(t("security.errors.currentPasswordRequired"))
+      setSaving(false)
+      return
+    }
+
     try {
       await apiFetch(
         API_ENDPOINTS.userDetail.replace(":id", user?.id?.toString() ?? ""),
@@ -1576,7 +1583,8 @@ export default function SettingsPage() {
             lastName: form.lastName,
             title: form.title || undefined,
             gender: form.gender || undefined,
-            email: form.email,
+            email: emailChanged ? form.email : undefined,
+            currentPassword: emailChanged ? currentPassword : undefined,
             address: form.address,
             address2: form.address2 || undefined,
             phone: form.phone || undefined,
@@ -1817,6 +1825,16 @@ export default function SettingsPage() {
                     hint={t("profile.emailHint")}
                     maxLength={FIELD_MAX_LENGTHS.email}
                   />
+                  {form.email !== user?.email && (
+                    <FormInput
+                      label={t("security.currentPassword")}
+                      type={showCurrentPassword ? "text" : "password"}
+                      value={currentPassword}
+                      onChange={setCurrentPassword}
+                      icon={Lock}
+                      hint={t("security.currentPasswordRequired")}
+                    />
+                  )}
                 </div>
               </SettingsCard>
 
