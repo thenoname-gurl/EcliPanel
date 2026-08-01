@@ -4553,6 +4553,18 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       const truncate_directory = body.truncate_directory === true;
       const download_url = body.download_url;
       try {
+        try {
+          const bRepo = AppDataSource.getRepository(
+            require('../models/serverBackup.entity').ServerBackup
+          );
+          const bRec = await bRepo.findOneBy({ uuid: bid });
+          if (bRec && bRec.serverUuid && bRec.serverUuid !== id) {
+            ctx.set.status = 403;
+            return { error: ctx.t('common.forbidden') };
+          }
+        } catch (e) {
+          // skip
+        }
         const svc = await serviceFor(id);
         const res = await svc.restoreServerBackup(id, bid, {
           adapter,
@@ -4599,6 +4611,10 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             require('../models/serverBackup.entity').ServerBackup
           );
           const rec = await repo.findOneBy({ uuid: bid });
+          if (rec && rec.serverUuid && rec.serverUuid !== id) {
+            ctx.set.status = 403;
+            return { error: ctx.t('common.forbidden') };
+          }
           if (rec && rec.locked) {
             const force =
               (ctx.query && (ctx.query.force === '1' || ctx.query.force === 'true')) ||
