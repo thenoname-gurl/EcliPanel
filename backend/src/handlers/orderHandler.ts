@@ -436,7 +436,7 @@ export async function orderRoutes(app: any, prefix = '') {
 
       let effectiveAmount = amount != null ? Number(amount) : 0;
       const isQueuedForRenewal = activateMode === 'renewal';
-      const isFree = effectiveAmount === 0;
+      let isFree = false;
 
       let enrichedNotes = notes || undefined;
       if (isQueuedForRenewal) {
@@ -465,6 +465,7 @@ export async function orderRoutes(app: any, prefix = '') {
               const pricing = await getEffectivePrice(plan, user);
               if (pricing.regionalPrice != null) effectiveAmount = pricing.regionalPrice;
             } catch {}
+            isFree = effectiveAmount === 0;
             const itemDesc = description || plan.name;
             if (items) {
               try {
