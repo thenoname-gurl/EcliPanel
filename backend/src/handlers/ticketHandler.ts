@@ -1167,6 +1167,10 @@ Valid subpaths: /dashboard/*, /wings, /billing, /organisations, /docs, /ai, /inf
 
   app.get(prefix + '/tickets/stats', async (ctx: TicketContext) => {
     requireFeature(ctx, 'ticketing');
+    if (!hasPermissionSync(ctx, 'tickets:read') && !hasPermissionSync(ctx, 'admin:ticket:staff')) {
+      ctx.set.status = 403;
+      return { error: ctx.t('common.forbidden') };
+    }
 
     const allTickets = await repo.find({ take: 2000 });
     const nonSpam = allTickets.filter((ticketItem) => !ticketItem.aiMarkedSpam);

@@ -1,13 +1,26 @@
 import { AppDataSource } from '../config/typeorm';
 import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
+import { hasPermissionSync } from '../middleware/authorize';
 import { t } from 'elysia';
+
+function canManageSessions(ctx: any, targetUserId: number): boolean {
+  const user = ctx.user as any;
+  if (!user) return false;
+  if (user.role === '*' || user.role === 'rootAdmin') return true;
+  if (hasPermissionSync(ctx, 'users:write')) return true;
+  return Number(user.id) === Number(targetUserId);
+}
 
 export async function sessionRoutes(app: any, prefix = '') {
   app.post(
     prefix + '/sessions/logout',
     async (ctx: any) => {
       const { userId, sessionId } = ctx.body as { userId: number; sessionId: string };
+      if (!canManageSessions(ctx, userId)) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ id: userId });
       if (!user || !user.sessions) {
@@ -30,6 +43,10 @@ export async function sessionRoutes(app: any, prefix = '') {
     prefix + '/sessions/logout-all',
     async (ctx: any) => {
       const { userId } = ctx.body as { userId: number };
+      if (!canManageSessions(ctx, userId)) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ id: userId });
       if (!user) {
@@ -52,6 +69,10 @@ export async function sessionRoutes(app: any, prefix = '') {
     prefix + '/sessions/:userId',
     async (ctx: any) => {
       const userId = Number(ctx.params['userId']);
+      if (!canManageSessions(ctx, userId)) {
+        ctx.set.status = 403;
+        return { error: ctx.t('common.forbidden') };
+      }
       const userRepo = AppDataSource.getRepository(User);
       const user = await userRepo.findOneBy({ id: userId });
       if (!user) {

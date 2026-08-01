@@ -156,7 +156,16 @@ export function authorize(required: string) {
       'schedules:read', 'configuration:read', 'version:read',
       'logs:read', 'databases:read',
     ];
-    if (serverReadPerms.includes(required)) return;
+    if (serverReadPerms.includes(required)) {
+      const serverUuid =
+        ctx.params?.id ||
+        ctx.params?.serverId ||
+        ctx.request?.body?.serverUuid ||
+        ctx.request?.body?.id ||
+        ctx.query?.serverUuid ||
+        ctx.query?.server;
+      if (!serverUuid) return;
+    }
 
     if (isServerRelated && required !== 'servers:create') {
       try {
