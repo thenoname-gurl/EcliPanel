@@ -18,7 +18,7 @@ export class OutboundEmail {
   @Column()
   userId: number;
 
-  @ManyToOne(() => User, { nullable: false })
+  @ManyToOne(() => User, { nullable: false, createForeignKeyConstraints: false })
   user: User;
 
   @Column({ nullable: true })
@@ -63,7 +63,7 @@ export class OutboundEmail {
   @Column({ nullable: true })
   messageId?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ primary: true })
   createdAt: Date;
 
   @UpdateDateColumn()

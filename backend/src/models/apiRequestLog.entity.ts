@@ -21,6 +21,6 @@ export class ApiRequestLog {
   @Column('int')
   count: number;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', primary: true })
   timestamp: Date;
 }

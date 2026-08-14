@@ -68,7 +68,7 @@ export class SecurityFinding {
   @Index()
   checkFingerprint?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ primary: true })
   detectedAt: Date;
 
   @Column({ nullable: true })

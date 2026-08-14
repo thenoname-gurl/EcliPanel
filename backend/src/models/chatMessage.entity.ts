@@ -56,6 +56,6 @@ export class ChatMessage {
   @Column({ nullable: true })
   hiddenById: number | null;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ primary: true })
   createdAt: Date;
 }

@@ -17,7 +17,45 @@ async function run() {
   }
 
   const basicPerms = [
+    // Servers
     'servers:create',
+    'servers:read',
+    'servers:console',
+    'servers:power',
+
+    // API keys
+    'apikeys:create',
+
+    // Files
+    'files:write',
+    'files:read',
+
+    // Backups
+    'backups:create',
+    'backups:read',
+
+    // Schedules
+    'schedules:create',
+    'schedules:read',
+
+    // Configuration
+    'configuration:write',
+
+    // Server actions
+    'reinstall:execute',
+    'sync:execute',
+    'transfer:execute',
+    'version:read',
+
+    // Databases
+    'databases:read',
+
+    // Orders
+    'orders:read',
+    'orders:create',
+
+    // Plans
+    'plans:read',
   ];
 
   for (const pval of basicPerms) {
