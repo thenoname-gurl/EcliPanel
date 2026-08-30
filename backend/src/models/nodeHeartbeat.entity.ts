@@ -19,6 +19,6 @@ export class NodeHeartbeat {
   @Column({ nullable: true, type: 'varchar', length: 512 })
   errorMessage?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ primary: true })
   timestamp: Date;
 }

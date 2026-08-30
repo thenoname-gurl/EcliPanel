@@ -14,6 +14,6 @@ export class SocData {
   metrics: Record<string, any>;
 
   @Index()
-  @Column('datetime')
+  @Column('datetime', { primary: true })
   timestamp: Date;
 }

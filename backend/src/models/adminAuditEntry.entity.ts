@@ -34,7 +34,7 @@ export class AdminAuditEntry {
   @Column({ nullable: true, type: 'text' })
   ipAddress?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ primary: true })
   @Index()
   timestamp: Date;
 }

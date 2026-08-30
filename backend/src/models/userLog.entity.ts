@@ -32,7 +32,7 @@ export class UserLog {
   @Column({ nullable: true, type: 'text' })
   ipAddress?: string;
 
-  @Column('datetime')
+  @Column('datetime', { primary: true })
   @Index()
   timestamp: Date;
 }

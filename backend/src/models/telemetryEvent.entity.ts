@@ -31,6 +31,6 @@ export class TelemetryEvent {
   @Column({ type: 'simple-json', nullable: true })
   metadata?: Record<string, unknown>;
 
-  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', primary: true })
   timestamp: Date;
 }
