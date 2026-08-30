@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingBar } from "@/components/panel/shared"
+import { Skeleton } from "@/components/ui/skeleton"
 import React from "react"
 import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/api-client"
@@ -1022,9 +1024,10 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
           <div className="border-t border-border animate-in slide-in-from-top-2">
             <div className="p-5">
               {geoBlockMetricsLoading ? (
-                <div className="flex flex-col items-center justify-center gap-3 py-12">
-                  <Loader2 className="h-8 w-8 text-primary rounded-full animate-spin" />
-                  <p className="text-sm text-muted-foreground">{t("geoMetrics.loading")}</p>
+                <div className="space-y-3 py-6">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-2/3" />
                 </div>
               ) : geoBlockMetricsError ? (
                 <div className="flex items-start gap-3 border border-destructive/30 bg-destructive/10 px-4 py-3">
@@ -1089,12 +1092,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                                 </div>
                                 <div className="flex items-center gap-3">
                                   <span className="text-sm font-semibold text-foreground tabular-nums w-12">{stats.users}</span>
-                                  <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full transition-all"
-                                      style={{ width: `${Math.min(100, (stats.users / geoBlockMetrics.totalUsers) * 100)}%` }}
-                                    />
-                                  </div>
+                                  <LoadingBar value={geoBlockMetrics.totalUsers ? Math.min(100, (stats.users / geoBlockMetrics.totalUsers) * 100) : 0} className="flex-1" />
                                   <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">
                                     {((stats.users / geoBlockMetrics.totalUsers) * 100).toFixed(1)}%
                                   </span>

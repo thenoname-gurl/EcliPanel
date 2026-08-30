@@ -127,6 +127,34 @@ function enqueue(payload: TelemetryPayload) {
   else if (!globalTimer) { globalTimer = setTimeout(flush, FLUSH_INTERVAL); }
 }
 
+// Remote JS-error reporting: independent of analytics consent, because it is
+// the only way to diagnose client crashes (black pages) without a console.
+if (typeof window !== "undefined") {
+  const pushError = (label: string, stack: string, meta: Record<string, unknown>) => {
+    try {
+      globalBuffer.push({
+        event: "client_error",
+        category: "js_error",
+        label: String(label).slice(0, 200),
+        path: window.location.pathname,
+        metadata: { stack: String(stack).slice(0, 1000), ...meta },
+        timestamp: Date.now(),
+      });
+      void flush();
+    } catch {}
+  };
+  window.addEventListener("error", (e) => {
+    pushError(e.message || "window.onerror", e.error?.stack || "", {
+      url: e.filename || "",
+      line: e.lineno || 0,
+      col: e.colno || 0,
+    });
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    pushError(String(e.reason?.message || e.reason), e.reason?.stack || "", {});
+  });
+}
+
 export default function TelemetryProvider() {
   const pathname = usePathname();
   const lastPageview = useRef("");

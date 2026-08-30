@@ -61,6 +61,27 @@ export class Node {
   @Column({ nullable: true, type: 'text' })
   proxmoxBridge?: string;
 
+  @Column({ nullable: true, type: 'text' })
+  pbsUrl?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  pbsDatastore?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  pbsNamespace?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  pbsTokenId?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  pbsTokenSecret?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  pbsFingerprint?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  pbsBackupIdPrefix?: string;
+
   @OneToMany(() => ServerMapping, m => m.node)
   mappings: ServerMapping[];
 

@@ -289,6 +289,10 @@ export class User {
   @Column({ nullable: true })
   studentVerifiedUntil?: Date;
 
+  @Index()
+  @Column({ default: false })
+  luminosMember: boolean;
+
   @Column('json', { nullable: true })
   educationLimits?: Record<string, any>;
 

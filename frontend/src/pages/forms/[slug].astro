@@ -12,6 +12,6 @@ const { slug } = Astro.params;
 ---
 
 <BaseLayout>
-  <PageShell client:only="react" locale={locale} messages={messages} initialUser={initialUser} page="app" pathname={pathname} />
+  <PageShell client:load="react" locale={locale} messages={messages} initialUser={initialUser} page="app" pathname={pathname} />
   <script id="__astro_params" type="application/json">{JSON.stringify({ slug })}</script>
 </BaseLayout>

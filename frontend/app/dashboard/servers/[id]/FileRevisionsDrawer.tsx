@@ -1,5 +1,6 @@
 'use client';
 
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect, useCallback } from 'react';
 import { X, RotateCcw, Eye, ArrowLeftRight, Clock, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -90,8 +91,10 @@ export function FileRevisionsDrawer({ serverId, filePath, open, onClose, onResto
         {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-3 py-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-2/3" />
             </div>
           ) : revisions.length === 0 ? (
             <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">

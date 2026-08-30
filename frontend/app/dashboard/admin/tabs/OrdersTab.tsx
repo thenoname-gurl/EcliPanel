@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
 import { apiFetch } from "@/lib/api-client"
+import { getStepUpToken } from "@/lib/step-up"
 import { applyTax, formatMoney, resolveTaxRate, sanitizeCurrencyCode } from "@/lib/billing-display"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useTranslations } from "next-intl"
@@ -97,10 +98,10 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     editOrderOpen,
     setEditOrderOpen,
     editOrderTarget,
-    eoDescription,
-    setEoDescription,
-    eoAmount,
-    setEoAmount,
+    eoItems,
+    setEoItems,
+    eoTaxRate,
+    setEoTaxRate,
     eoPlanId,
     setEoPlanId,
     eoNotes,
@@ -109,12 +110,20 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
     setEoExpiresAt,
     eoStatus,
     setEoStatus,
+    eoNextRenewal,
+    setEoNextRenewal,
+    eoOrgId,
+    setEoOrgId,
     eoError,
     submitEditOrder,
     eoLoading,
   } = ctx
 
   const currencyCode = sanitizeCurrencyCode(panelSettings?.billingCurrency || "USD")
+  const eoTotal = eoItems.reduce((acc: number, it: any) => acc + Math.max(1, Number(it.quantity) || 1) * (Number(it.price) || 0), 0)
+  function updateLine(idx: number, patch: Record<string, any>) {
+    setEoItems((prev: any[]) => prev.map((x: any, i: number) => (i === idx ? { ...x, ...patch } : x)))
+  }
   const [issueUserCountry, setIssueUserCountry] = useState<string>("")
 
   useEffect(() => {
@@ -215,7 +224,11 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
   async function handleDownloadInvoice(order: any) {
     try {
       const url = API_ENDPOINTS.adminOrderInvoice.replace(":id", String(order.id))
-      const res = await fetch(url, { credentials: "include" })
+      const stepUp = getStepUpToken()
+      const res = await fetch(url, {
+        credentials: "include",
+        headers: stepUp ? { "x-stepup-token": stepUp } : undefined,
+      })
       if (!res.ok) throw new Error("Download failed")
       const blob = await res.blob()
       const a = document.createElement("a")
@@ -325,7 +338,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="border border-border bg-card hidden md:block">
+          <div className="border border-border bg-card hidden xl:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -393,6 +406,9 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                           <span className="text-sm font-semibold text-foreground">
                             {formatMoney(Number(order.amount ?? 0), currencyCode)}
                           </span>
+                          {order.nextRenewalAmount != null && Number(order.nextRenewalAmount) !== Number(order.amount ?? 0) && (
+                            <p className="text-[10px] text-primary mt-0.5">{t("table.nextRenewal")}: {formatMoney(Number(order.nextRenewalAmount), currencyCode)}</p>
+                          )}
                         </td>
                         <td className="px-4 py-3">
                           <Badge variant="outline" className={`text-xs capitalize ${sc.class}`}>
@@ -503,7 +519,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
           </div>
 
           {/* Mobile Card View */}
-          <div className="flex flex-col gap-3 md:hidden">
+          <div className="flex flex-col gap-3 xl:hidden">
             {adminOrders.map((order: any) => {
               const statusConfig: Record<string, { class: string; dot: string; borderTint: string }> = {
                 active: { class: "text-emerald-600", dot: "bg-emerald-400", borderTint: "border-emerald-500/20" },
@@ -558,6 +574,9 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                     <div className="bg-card px-3 py-2.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.amount")}</p>
                       <p className="text-sm font-bold text-foreground">{formatMoney(Number(order.amount ?? 0), currencyCode)}</p>
+                      {order.nextRenewalAmount != null && Number(order.nextRenewalAmount) !== Number(order.amount ?? 0) && (
+                        <p className="text-[10px] text-primary mt-0.5">{t("table.nextRenewal")}: {formatMoney(Number(order.nextRenewalAmount), currencyCode)}</p>
+                      )}
                     </div>
                     <div className="bg-card px-3 py-2.5">
                       <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-0.5">{t("table.created")}</p>
@@ -592,7 +611,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         ) : (
                           <CheckCircle className="h-3.5 w-3.5" />
                         )}
-                        <span>{t("actions.confirm")}</span>
+                        <span className="hidden sm:inline">{t("actions.confirm")}</span>
                       </button>
                       <button
                         onClick={() => handleRejectPayment(order)}
@@ -604,7 +623,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         ) : (
                           <XCircle className="h-3.5 w-3.5" />
                         )}
-                        <span>{t("actions.reject")}</span>
+                        <span className="hidden sm:inline">{t("actions.reject")}</span>
                       </button>
                       </>
                     )}
@@ -619,7 +638,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         ) : (
                           <Ban className="h-3.5 w-3.5" />
                         )}
-                        <span>{t("actions.suspendUser")}</span>
+                        <span className="hidden sm:inline">{t("actions.suspendUser")}</span>
                       </button>
                     )}
                     {canUpdateOrders && (
@@ -628,7 +647,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
                       >
                         <Edit className="h-3.5 w-3.5" />
-                        <span>{t("actions.edit")}</span>
+                        <span className="hidden sm:inline">{t("actions.edit")}</span>
                       </button>
                     )}
                     {order.status === "active" && canUpdateOrders && (
@@ -637,7 +656,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
                       >
                         <XCircle className="h-3.5 w-3.5" />
-                        <span>{t("actions.cancel")}</span>
+                        <span className="hidden sm:inline">{t("actions.cancel")}</span>
                       </button>
                     )}
                     <button
@@ -645,7 +664,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
                     >
                       <FileDown className="h-3.5 w-3.5" />
-                      <span>{t("actions.invoice")}</span>
+                      <span className="hidden sm:inline">{t("actions.invoice")}</span>
                     </button>
                     <button
                       onClick={() => deleteOrder(order)}
@@ -728,7 +747,7 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
             <input placeholder={t("issueDialog.descriptionPlaceholder")} value={ioDesc} onChange={(e) => setIoDesc(e.target.value)}
               className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("issueDialog.planOptional")}</label>
               <select value={ioPlanId} onChange={(e) => setIoPlanId(e.target.value)}
@@ -840,29 +859,87 @@ export default function OrdersTab({ ctx }: { ctx: any }) {
         </DialogHeader>
         <div className="flex flex-col gap-3 py-2">
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.description")}</label>
-            <input value={eoDescription} onChange={(e) => setEoDescription(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
-          </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.amount", { currency: currencyCode })}</label>
-              <input type="number" value={eoAmount} onChange={(e) => setEoAmount(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.lineItems")}</label>
+            <div className="flex flex-col gap-2">
+              {eoItems.map((it: any, idx: number) => (
+                <div key={idx} className="flex flex-col gap-2 border-b border-border/50 pb-2 last:border-0 last:pb-0 sm:flex-row sm:items-center sm:border-0 sm:pb-0">
+                  <textarea
+                    value={it.description}
+                    onChange={(e) => updateLine(idx, { description: e.target.value })}
+                    placeholder={t("editDialog.lineDescriptionPlaceholder")}
+                    rows={2}
+                    className="w-full min-w-0 resize-y border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 sm:flex-1"
+                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number" min="1" step="1" value={it.quantity}
+                      onChange={(e) => updateLine(idx, { quantity: e.target.value })}
+                      title={t("editDialog.qty")}
+                      className="w-16 shrink-0 border border-border bg-secondary/50 px-2 py-2 text-sm text-foreground outline-none focus:border-primary/50 sm:w-14"
+                    />
+                    <input
+                      type="number" step="0.01" value={it.price}
+                      onChange={(e) => updateLine(idx, { price: e.target.value })}
+                      title={t("editDialog.price")}
+                      className="min-w-0 flex-1 border border-border bg-secondary/50 px-2 py-2 text-sm text-foreground outline-none focus:border-primary/50 sm:w-20 sm:flex-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setEoItems((prev: any[]) => prev.filter((_: any, i: number) => i !== idx))}
+                      title={t("editDialog.removeLine")}
+                      className="ml-auto p-1.5 text-muted-foreground hover:text-destructive transition-colors shrink-0 sm:ml-0"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setEoItems((prev: any[]) => [...prev, { description: "", quantity: "1", price: "0" }])}
+                className="flex items-center gap-1.5 self-start text-xs text-primary hover:text-primary/80"
+              >
+                <Plus className="h-3.5 w-3.5" /> {t("editDialog.addLine")}
+              </button>
             </div>
-            <div className="flex-1">
+            <p className="text-xs text-muted-foreground">
+              {t("editDialog.total", { total: formatMoney(eoTotal, currencyCode) })}
+            </p>
+            <p className="text-xs text-muted-foreground">{t("editDialog.fields.invoiceHint")}</p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="sm:flex-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.taxRate")}</label>
+              <input type="number" min="0" max="100" step="0.01" value={eoTaxRate} onChange={(e) => setEoTaxRate(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              <p className="text-xs text-muted-foreground mt-1">{t("editDialog.taxHint")}</p>
+            </div>
+            <div className="sm:flex-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.planId")}</label>
               <input value={eoPlanId} onChange={(e) => setEoPlanId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="sm:flex-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.nextRenewal")}</label>
+              <input type="number" min="0" step="0.01" value={eoNextRenewal} onChange={(e) => setEoNextRenewal(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              <p className="text-xs text-muted-foreground mt-1">{t("editDialog.fields.nextRenewalHint")}</p>
+            </div>
+            <div className="sm:flex-1">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.orgId")}</label>
+              <input value={eoOrgId} onChange={(e) => setEoOrgId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
+              <p className="text-xs text-muted-foreground mt-1">{t("editDialog.fields.orgIdHint")}</p>
             </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.notes")}</label>
             <input value={eoNotes} onChange={(e) => setEoNotes(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none" />
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="sm:flex-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.expiresAt")}</label>
               <input type="date" value={eoExpiresAt?.split("T")?.[0] || eoExpiresAt} onChange={(e) => setEoExpiresAt(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
             </div>
-            <div className="flex-1">
+            <div className="sm:flex-1">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.status")}</label>
               <input value={eoStatus} onChange={(e) => setEoStatus(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none w-full" />
             </div>

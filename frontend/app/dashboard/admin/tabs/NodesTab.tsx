@@ -9,11 +9,56 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Edit, FileCode, HardDrive, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react"
+import { Edit, FileCode, HardDrive, Loader2, Plus, RefreshCw, Trash2, DatabaseBackup } from "lucide-react"
 import { useTranslations } from "next-intl"
+import { useState } from "react"
+import { apiFetch } from "@/lib/api-client"
+import { API_ENDPOINTS } from "@/lib/panel-config"
 
 export default function NodesTab({ ctx }: { ctx: any }) {
   const t = useTranslations("adminNodesTab")
+  const [backupRunning, setBackupRunning] = useState<Record<number, boolean>>({})
+  const [backupResult, setBackupResult] = useState<{ nodeId: number; nodeName: string; status: string; progress: number; message: string; succeedCount?: number; errorCount?: number; servers?: Array<{ uuid: string; name: string; ok: boolean; error?: string }> } | null>(null)
+  const [backupResultOpen, setBackupResultOpen] = useState(false)
+
+  async function runBackupAll(node: any) {
+    if (!node?.pbsUrl) {
+      alert("Configure PBS on this node first (Edit → Proxmox Backup Server).")
+      return
+    }
+    setBackupRunning((p) => ({ ...p, [node.id]: true }))
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}/backup-all-servers`, { method: "POST" })
+      const opId = res.operationId
+      if (res.status === "completed") {
+        setBackupResult({ nodeId: node.id, nodeName: node.name, ...res })
+        setBackupResultOpen(true)
+        setBackupRunning((p) => ({ ...p, [node.id]: false }))
+        return
+      }
+      const poll = async () => {
+        try {
+          const status = await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}/backup-status/${opId}`)
+          if (status.status === "running") {
+            setTimeout(poll, 2000)
+          } else {
+            setBackupResult({ nodeId: node.id, nodeName: node.name, ...status })
+            setBackupResultOpen(true)
+            setBackupRunning((p) => ({ ...p, [node.id]: false }))
+          }
+        } catch {
+          setBackupResult({ nodeId: node.id, nodeName: node.name, status: "failed", progress: 0, message: "Status check failed" })
+          setBackupResultOpen(true)
+          setBackupRunning((p) => ({ ...p, [node.id]: false }))
+        }
+      }
+      setTimeout(poll, 2000)
+    } catch (e: any) {
+      setBackupResult({ nodeId: node.id, nodeName: node.name, status: "failed", progress: 0, message: e?.message || "Request failed" })
+      setBackupResultOpen(true)
+      setBackupRunning((p) => ({ ...p, [node.id]: false }))
+    }
+  }
   const {
     nodes,
     forceRefreshTab,
@@ -65,6 +110,20 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     setAddNodeProxmoxStorage,
     addNodeProxmoxBridge,
     setAddNodeProxmoxBridge,
+    addNodePbsUrl,
+    setAddNodePbsUrl,
+    addNodePbsDatastore,
+    setAddNodePbsDatastore,
+    addNodePbsNamespace,
+    setAddNodePbsNamespace,
+    addNodePbsTokenId,
+    setAddNodePbsTokenId,
+    addNodePbsTokenSecret,
+    setAddNodePbsTokenSecret,
+    addNodePbsFingerprint,
+    setAddNodePbsFingerprint,
+    addNodePbsBackupIdPrefix,
+    setAddNodePbsBackupIdPrefix,
     buildWingsConfig,
     addNodeIpv6Subnet,
     setAddNodeIpv6Subnet,
@@ -94,6 +153,20 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     setEditNodeDeploymentsDisabled,
     editNodeDeploymentNotice,
     setEditNodeDeploymentNotice,
+    editNodePbsUrl,
+    setEditNodePbsUrl,
+    editNodePbsDatastore,
+    setEditNodePbsDatastore,
+    editNodePbsNamespace,
+    setEditNodePbsNamespace,
+    editNodePbsTokenId,
+    setEditNodePbsTokenId,
+    editNodePbsTokenSecret,
+    setEditNodePbsTokenSecret,
+    editNodePbsFingerprint,
+    setEditNodePbsFingerprint,
+    editNodePbsBackupIdPrefix,
+    setEditNodePbsBackupIdPrefix,
     saveEditNode,
     editNodeLoading,
     heartbeatDialogNode,
@@ -176,7 +249,12 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                     <Badge variant="outline" className={`text-xs ${providerColors[node.provider || 'wings']}`}>{node.provider || 'wings'}</Badge>
                     <Badge variant="outline" className={`text-xs ${typeColors[node.nodeType] || typeColors.free}`}>{typeLabel[node.nodeType] || node.nodeType}</Badge>
                     {node.deploymentsDisabled && <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-600 text-xs">Disabled</Badge>}
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 flex-wrap justify-end">
+                      {(!node.provider || node.provider === 'wings') && node.pbsUrl && (
+                        <Button size="sm" variant="outline" onClick={() => runBackupAll(node)} disabled={backupRunning[node.id]} className="border-primary/40 text-primary h-7 px-2 text-xs gap-1" title="Back up all servers on this node to PBS">
+                          {backupRunning[node.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : <DatabaseBackup className="h-3 w-3" />} {t("actions.backupAll")}
+                        </Button>
+                      )}
                       <Button size="sm" variant="outline" onClick={() => openEditNode(node)} className="border-border h-7 px-2 text-xs gap-1"><Edit className="h-3 w-3" /> {t("actions.classify")}</Button>
                       {(!node.provider || node.provider === 'wings') && (
                         <Button size="sm" variant="outline" onClick={() => viewNodeConfig(node)} className="border-border h-7 px-2 text-xs gap-1" title={t("actions.viewWingsConfig")}><FileCode className="h-3 w-3" /></Button>
@@ -356,6 +434,60 @@ export default function NodesTab({ ctx }: { ctx: any }) {
                       className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
                   </div>
                 </div>
+                <div className="rounded-lg border border-border p-3 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proxmox Backup Server</span>
+                    <span className="text-[10px] text-muted-foreground/60">central PBS for Wings backups</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PBS URL</label>
+                      <input value={addNodePbsUrl} onChange={(e) => setAddNodePbsUrl(e.target.value)}
+                        className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                        placeholder="https://pbs.example.com:8007" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Datastore</label>
+                      <input value={addNodePbsDatastore} onChange={(e) => setAddNodePbsDatastore(e.target.value)}
+                        className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                        placeholder="eclipanel" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Token ID</label>
+                      <input value={addNodePbsTokenId} onChange={(e) => setAddNodePbsTokenId(e.target.value)}
+                        className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                        placeholder="wings@eclipanel!backup" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Token Secret</label>
+                      <input type="password" value={addNodePbsTokenSecret} onChange={(e) => setAddNodePbsTokenSecret(e.target.value)}
+                        className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                        placeholder="••••••••" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Namespace <span className="lowercase text-muted-foreground/60">(optional)</span></label>
+                      <input value={addNodePbsNamespace} onChange={(e) => setAddNodePbsNamespace(e.target.value)}
+                        className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                        placeholder="default" />
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Backup ID Prefix <span className="lowercase text-muted-foreground/60">(optional)</span></label>
+                      <input value={addNodePbsBackupIdPrefix} onChange={(e) => setAddNodePbsBackupIdPrefix(e.target.value)}
+                        className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                        placeholder="wings-" />
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">TLS Fingerprint <span className="lowercase text-muted-foreground/60">(optional)</span></label>
+                    <input value={addNodePbsFingerprint} onChange={(e) => setAddNodePbsFingerprint(e.target.value)}
+                      className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                      placeholder="aa:bb:cc:…" />
+                  </div>
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("addDialog.fields.authToken")}</label>
                   <div className="flex gap-2">
@@ -494,6 +626,60 @@ export default function NodesTab({ ctx }: { ctx: any }) {
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">IPv6 Reserved Count</label>
               <input type="number" min="0" value={editNodeIpv6ReservedCount} onChange={(e) => setEditNodeIpv6ReservedCount(e.target.value)}
                 className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+            </div>
+            <div className="rounded-lg border border-border p-3 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proxmox Backup Server</span>
+                <span className="text-[10px] text-muted-foreground/60">central PBS for Wings backups</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">PBS URL</label>
+                  <input value={editNodePbsUrl} onChange={(e) => setEditNodePbsUrl(e.target.value)}
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder="https://pbs.example.com:8007" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Datastore</label>
+                  <input value={editNodePbsDatastore} onChange={(e) => setEditNodePbsDatastore(e.target.value)}
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder="eclipanel" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Token ID</label>
+                  <input value={editNodePbsTokenId} onChange={(e) => setEditNodePbsTokenId(e.target.value)}
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder="wings@eclipanel!backup" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Token Secret <span className="lowercase text-muted-foreground/60">(leave blank to keep)</span></label>
+                  <input type="password" value={editNodePbsTokenSecret} onChange={(e) => setEditNodePbsTokenSecret(e.target.value)}
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder="••••••••" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Namespace <span className="lowercase text-muted-foreground/60">(optional)</span></label>
+                  <input value={editNodePbsNamespace} onChange={(e) => setEditNodePbsNamespace(e.target.value)}
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder="default" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Backup ID Prefix <span className="lowercase text-muted-foreground/60">(optional)</span></label>
+                  <input value={editNodePbsBackupIdPrefix} onChange={(e) => setEditNodePbsBackupIdPrefix(e.target.value)}
+                    className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                    placeholder="wings-" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">TLS Fingerprint <span className="lowercase text-muted-foreground/60">(optional)</span></label>
+                <input value={editNodePbsFingerprint} onChange={(e) => setEditNodePbsFingerprint(e.target.value)}
+                  className="border border-border bg-secondary/50 px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary/50"
+                  placeholder="aa:bb:cc:…" />
+              </div>
             </div>
             <div className="flex flex-col gap-1.5 border border-border bg-secondary/20 p-3">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Deployments</label>
@@ -639,6 +825,46 @@ export default function NodesTab({ ctx }: { ctx: any }) {
         )}
         <DialogFooter>
           <Button variant="outline" onClick={() => { setViewConfigNode(null); setViewConfigToken("") }} className="border-border">{t("actions.close")}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={backupResultOpen} onOpenChange={setBackupResultOpen}>
+      <DialogContent className="border-border bg-card sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-foreground flex items-center gap-2">
+            <DatabaseBackup className="h-4 w-4 text-muted-foreground" />
+            Backup result — {backupResult?.nodeName}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-3 py-1 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Status</span>
+            <span className={`font-medium ${backupResult?.status === "completed" ? "text-green-500" : "text-red-500"}`}>{backupResult?.status}</span>
+          </div>
+          {(backupResult?.succeedCount != null || backupResult?.errorCount != null) && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Servers</span>
+              <span className="font-medium">{backupResult?.succeedCount ?? 0} ok / {backupResult?.errorCount ?? 0} failed</span>
+            </div>
+          )}
+          <div className="h-2 rounded-full bg-muted/30 overflow-hidden">
+            <div className="h-full bg-primary transition-all" style={{ width: `${backupResult?.progress || 0}%` }} />
+          </div>
+          {backupResult?.message && <p className="text-xs text-muted-foreground">{backupResult.message}</p>}
+          {Array.isArray(backupResult?.servers) && backupResult.servers.length > 0 && (
+            <div className="border border-border rounded-md divide-y divide-border max-h-40 overflow-y-auto">
+              {backupResult.servers.map((s) => (
+                <div key={s.uuid} className="flex items-center justify-between gap-2 px-2 py-1 text-xs">
+                  <span className="min-w-0 truncate">{s.name}</span>
+                  <span className={`shrink-0 font-mono ${s.ok ? "text-green-500" : "text-red-500"}`} title={s.error || ""}>{s.ok ? "OK" : "FAIL"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setBackupResultOpen(false)} className="border-border">{t("actions.close")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

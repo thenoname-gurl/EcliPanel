@@ -1,0 +1,2390 @@
+{
+  "version": 1,
+  "questions": [
+    {
+      "id": 1,
+      "category": "computing",
+      "question": "What does CPU stand for?",
+      "options": [
+        "Computer Personal Unit",
+        "Central Processing Unit",
+        "Core Processing Unit",
+        "Central Program Utility"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 2,
+      "category": "computing",
+      "question": "How many bits are in a byte?",
+      "options": [
+        "64",
+        "4",
+        "16",
+        "8"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 3,
+      "category": "computing",
+      "question": "What does RAM stand for?",
+      "options": [
+        "Random Access Memory",
+        "Rapid Active Memory",
+        "Run All Memory",
+        "Readily Accessible Memory"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 4,
+      "category": "computing",
+      "question": "In binary, what is the value of 1010?",
+      "options": [
+        "9",
+        "8",
+        "12",
+        "10"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 5,
+      "category": "computing",
+      "question": "Which of these is an operating system?",
+      "options": [
+        "Chrome",
+        "Photoshop",
+        "Linux",
+        "MySQL"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 6,
+      "category": "computing",
+      "question": "What does URL stand for?",
+      "options": [
+        "Uniform Resource Locator",
+        "Unique Resource Library",
+        "Unified Reference Locator",
+        "Universal Read Link"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 7,
+      "category": "computing",
+      "question": "Who originally created the Linux kernel?",
+      "options": [
+        "Richard Stallman",
+        "Linus Torvalds",
+        "Bill Gates",
+        "Steve Jobs"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 8,
+      "category": "computing",
+      "question": "What is the main role of a GPU?",
+      "options": [
+        "Accelerating graphics and parallel computation",
+        "Powering the Wi-Fi antenna",
+        "Storing files",
+        "Handling network traffic"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 9,
+      "category": "computing",
+      "question": "Which language is primarily used for styling web pages?",
+      "options": [
+        "SQL",
+        "Python",
+        "HTML",
+        "CSS"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 10,
+      "category": "computing",
+      "question": "What does HTML stand for?",
+      "options": [
+        "HighText Machine Language",
+        "HyperText Markup Language",
+        "Home Tool Markup Language",
+        "Hyperlink Transfer Markup Language"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 11,
+      "category": "computing",
+      "question": "Which protocol is used to send email?",
+      "options": [
+        "SNMP",
+        "SSH",
+        "FTP",
+        "SMTP"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 12,
+      "category": "computing",
+      "question": "What does HTTP status code 404 mean?",
+      "options": [
+        "Unauthorized",
+        "Redirect",
+        "Server error",
+        "Not Found"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 13,
+      "category": "computing",
+      "question": "In boolean logic, what is the value of FALSE in most programming languages?",
+      "options": [
+        "1",
+        "undefined",
+        "0",
+        "null"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 14,
+      "category": "computing",
+      "question": "Which of these is a version control system?",
+      "options": [
+        "Docker",
+        "Jenkins",
+        "Git",
+        "Nginx"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 15,
+      "category": "computing",
+      "question": "What does SSD stand for?",
+      "options": [
+        "Solid State Drive",
+        "Super Speed Disk",
+        "Serial Standard Drive",
+        "System Storage Device"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 16,
+      "category": "computing",
+      "question": "Which company originally developed the Java programming language?",
+      "options": [
+        "Microsoft",
+        "Sun Microsystems",
+        "IBM",
+        "Apple"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 17,
+      "category": "computing",
+      "question": "What number base does hexadecimal use?",
+      "options": [
+        "8",
+        "12",
+        "16",
+        "10"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 18,
+      "category": "computing",
+      "question": "What does the term 'open source' mean?",
+      "options": [
+        "Software that is always free of charge",
+        "Software whose source code is publicly available",
+        "Software with no security updates",
+        "Software that only runs in browsers"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 19,
+      "category": "computing",
+      "question": "What does JSON stand for?",
+      "options": [
+        "Java Standard Object Notation",
+        "JavaScript Object Notation",
+        "Joint System Output Notation",
+        "JavaScript Ordered Numbers"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 20,
+      "category": "computing",
+      "question": "Which of these is NOT a programming language?",
+      "options": [
+        "Go",
+        "Rust",
+        "Python",
+        "HTML"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 21,
+      "category": "computing",
+      "question": "What is 'the cloud' in computing terms?",
+      "options": [
+        "Servers accessed over the internet",
+        "A weather prediction system",
+        "Wireless charging",
+        "A type of antivirus"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 22,
+      "category": "computing",
+      "question": "Which chip architecture do most Android phones use?",
+      "options": [
+        "SPARC",
+        "x86",
+        "PowerPC",
+        "ARM"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 23,
+      "category": "computing",
+      "question": "What is a web browser?",
+      "options": [
+        "A search engine",
+        "Software used to access and view websites",
+        "A type of email client",
+        "A programming tool"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 24,
+      "category": "computing",
+      "question": "In Python, which function outputs text to the console?",
+      "options": [
+        "print()",
+        "echo()",
+        "log()",
+        "write()"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 25,
+      "category": "computing",
+      "question": "Which of these is a database management system?",
+      "options": [
+        "PostgreSQL",
+        "React",
+        "Webpack",
+        "Figma"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 26,
+      "category": "computing",
+      "question": "What does API stand for?",
+      "options": [
+        "Advanced Program Index",
+        "Automated Process Integration",
+        "Application Protocol Internet",
+        "Application Programming Interface"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 27,
+      "category": "computing",
+      "question": "Which type of memory loses its contents when the power is turned off?",
+      "options": [
+        "SSD",
+        "ROM",
+        "HDD",
+        "RAM"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 28,
+      "category": "computing",
+      "question": "What is the maximum unsigned value of one byte?",
+      "options": [
+        "127",
+        "255",
+        "256",
+        "1024"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 29,
+      "category": "computing",
+      "question": "Which keyboard shortcut copies the selection in most operating systems?",
+      "options": [
+        "Ctrl+X",
+        "Ctrl+P",
+        "Ctrl+C",
+        "Ctrl+Z"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 30,
+      "category": "computing",
+      "question": "What does DNS do?",
+      "options": [
+        "Blocks malicious websites",
+        "Speeds up file downloads",
+        "Translates domain names into IP addresses",
+        "Encrypts web traffic"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 31,
+      "category": "computing",
+      "question": "What does a compiler do?",
+      "options": [
+        "Runs code line by line",
+        "Translates source code into machine code",
+        "Compresses files",
+        "Manages memory at runtime"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 32,
+      "category": "computing",
+      "question": "Which of these is an input device?",
+      "options": [
+        "Monitor",
+        "Speaker",
+        "Keyboard",
+        "Printer"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 33,
+      "category": "computing",
+      "question": "What does GUI stand for?",
+      "options": [
+        "Graphical User Interface",
+        "General User Input",
+        "Global Utility Index",
+        "Graphics Unit Integration"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 34,
+      "category": "computing",
+      "question": "Which company develops the Windows operating system?",
+      "options": [
+        "IBM",
+        "Microsoft",
+        "Google",
+        "Apple"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 35,
+      "category": "computing",
+      "question": "What is a pixel?",
+      "options": [
+        "A unit of network speed",
+        "A file compression method",
+        "A type of processor",
+        "The smallest element of a digital image"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 36,
+      "category": "computing",
+      "question": "Which of these is a markup language?",
+      "options": [
+        "C++",
+        "XML",
+        "JavaScript",
+        "Ruby"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 37,
+      "category": "computing",
+      "question": "What is the kernel of an operating system?",
+      "options": [
+        "The user interface",
+        "The core component managing hardware and processes",
+        "A security firewall",
+        "The file manager"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 38,
+      "category": "computing",
+      "question": "Which unit is commonly used to measure file size?",
+      "options": [
+        "Pixels",
+        "Hertz",
+        "Lumens",
+        "Megabyte"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 39,
+      "category": "computing",
+      "question": "What does VPN stand for?",
+      "options": [
+        "Virtual Protocol Navigator",
+        "Verified Public Network",
+        "Very Protected Node",
+        "Virtual Private Network"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 40,
+      "category": "computing",
+      "question": "Which of these is an open-source web browser?",
+      "options": [
+        "Safari",
+        "Edge",
+        "Firefox",
+        "Opera GX"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 41,
+      "category": "computing",
+      "question": "In JavaScript, what does the === operator check?",
+      "options": [
+        "Equality without type coercion",
+        "Assignment",
+        "Inequality",
+        "Memory address equality"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 42,
+      "category": "computing",
+      "question": "Which of these companies makes CPUs?",
+      "options": [
+        "Seagate",
+        "Samsung",
+        "AMD",
+        "Corsair"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 43,
+      "category": "computing",
+      "question": "What does 'formatting' a drive do?",
+      "options": [
+        "Prepares it with a filesystem, erasing data",
+        "Encrypts its contents",
+        "Defragments it",
+        "Makes it bootable"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 44,
+      "category": "computing",
+      "question": "What is a container (like Docker)?",
+      "options": [
+        "A network isolation tool",
+        "A lightweight package running an app with its dependencies",
+        "A virtual machine with an OS",
+        "A backup file"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 45,
+      "category": "computing",
+      "question": "Which of these best describes latency?",
+      "options": [
+        "The delay before data transfer begins",
+        "The maximum transfer speed",
+        "The amount of data lost",
+        "The size of the buffer"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 46,
+      "category": "networking",
+      "question": "What does IP stand for?",
+      "options": [
+        "Internet Protocol",
+        "Interface Pack",
+        "Integrated Processor",
+        "Internal Port"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 47,
+      "category": "networking",
+      "question": "Which port is the default for HTTPS?",
+      "options": [
+        "80",
+        "443",
+        "22",
+        "8080"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 48,
+      "category": "networking",
+      "question": "What does a firewall do?",
+      "options": [
+        "Amplifies the Wi-Fi signal",
+        "Filters network traffic based on rules",
+        "Converts analog to digital signals",
+        "Stores DNS records"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 49,
+      "category": "networking",
+      "question": "Which device routes traffic between networks?",
+      "options": [
+        "Hub",
+        "Modem",
+        "Router",
+        "Switch"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 50,
+      "category": "networking",
+      "question": "What does LAN stand for?",
+      "options": [
+        "Large Area Network",
+        "Local Area Network",
+        "Linked Access Node",
+        "Logical Address Number"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 51,
+      "category": "networking",
+      "question": "What is a MAC address?",
+      "options": [
+        "A hardware address assigned to a network interface",
+        "An Apple account identifier",
+        "A Wi-Fi password",
+        "A type of encryption key"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 52,
+      "category": "networking",
+      "question": "Which protocol is traditionally used for file transfers?",
+      "options": [
+        "FTP",
+        "SMTP",
+        "DNS",
+        "DHCP"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 53,
+      "category": "networking",
+      "question": "What does a Wi-Fi router use instead of cables?",
+      "options": [
+        "Infrared light",
+        "Radio waves",
+        "Ultrasound",
+        "Bluetooth only"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 54,
+      "category": "networking",
+      "question": "What is bandwidth?",
+      "options": [
+        "The maximum data transfer capacity of a connection",
+        "The signal strength of a router",
+        "The physical width of a cable",
+        "The number of devices on a network"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 55,
+      "category": "networking",
+      "question": "Which protocol automatically assigns IP addresses on a network?",
+      "options": [
+        "ARP",
+        "DHCP",
+        "ICMP",
+        "DNS"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 56,
+      "category": "networking",
+      "question": "What does WAN stand for?",
+      "options": [
+        "Wired Area Network",
+        "Web Application Node",
+        "Wide Area Network",
+        "Wireless Access Network"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 57,
+      "category": "networking",
+      "question": "What is a server?",
+      "options": [
+        "The fastest computer on a network",
+        "A computer that provides services to other computers",
+        "A backup hard drive",
+        "A special type of router"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 58,
+      "category": "networking",
+      "question": "What is IPv4 address length?",
+      "options": [
+        "16 bits",
+        "32 bits",
+        "64 bits",
+        "128 bits"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 59,
+      "category": "networking",
+      "question": "Which of these is an example of a domain name?",
+      "options": [
+        "192.168.1.1",
+        "example.com",
+        "mailto:support@example.com",
+        "https"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 60,
+      "category": "security",
+      "question": "What does HTTPS add over plain HTTP?",
+      "options": [
+        "Faster loading",
+        "Better search ranking",
+        "Compression",
+        "Encryption of the connection"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 61,
+      "category": "security",
+      "question": "Which of these is a strong password?",
+      "options": [
+        "123456",
+        "password",
+        "Xk9!mQ2#wL",
+        "admin"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 62,
+      "category": "security",
+      "question": "What is phishing?",
+      "options": [
+        "Spamming email inboxes with ads",
+        "Stealing Wi-Fi passwords with antennas",
+        "A type of virus that eats files",
+        "Tricking people into revealing sensitive information"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 63,
+      "category": "security",
+      "question": "What does 2FA stand for?",
+      "options": [
+        "Two-Factor Authentication",
+        "Twice-Formatted Account",
+        "Total File Access",
+        "Two-File Archive"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 64,
+      "category": "security",
+      "question": "Which of these is a symmetric encryption algorithm?",
+      "options": [
+        "RSA",
+        "AES",
+        "MD5",
+        "SHA-256"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 65,
+      "category": "security",
+      "question": "What is malware?",
+      "options": [
+        "Hardware that fails randomly",
+        "Software designed to harm or exploit",
+        "An outdated driver",
+        "A type of browser extension"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 66,
+      "category": "security",
+      "question": "What is a security vulnerability?",
+      "options": [
+        "A feature that is hard to use",
+        "A weakness that can be exploited by attackers",
+        "A password that is too short",
+        "An unpatched operating system only"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 67,
+      "category": "security",
+      "question": "Your bank emails you asking for your password. What should you do?",
+      "options": [
+        "Click the link and enter it",
+        "Ignore it and contact the bank through official channels",
+        "Reply with your password",
+        "Forward it to friends"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 68,
+      "category": "security",
+      "question": "What is ransomware?",
+      "options": [
+        "Malware that locks data until a payment is made",
+        "Ads that pop up constantly",
+        "Software that tracks browsing",
+        "A worm that spreads via USB"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 69,
+      "category": "security",
+      "question": "What does a VPN primarily protect?",
+      "options": [
+        "The privacy of your internet traffic",
+        "Your computer from viruses",
+        "Your screen from being watched",
+        "Your files from deletion"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 70,
+      "category": "security",
+      "question": "Which is an example of social engineering?",
+      "options": [
+        "Brute-forcing a password",
+        "Calling an employee while impersonating IT support",
+        "Exploiting an unpatched bug",
+        "Installing a keylogger"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 71,
+      "category": "security",
+      "question": "What is a DDoS attack?",
+      "options": [
+        "Encrypting a database",
+        "Overwhelming a service with a flood of traffic",
+        "Stealing login cookies",
+        "Deleting a server's data"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 72,
+      "category": "security",
+      "question": "What is a security patch?",
+      "options": [
+        "A temporary firewall rule",
+        "An update that fixes vulnerabilities",
+        "A new password policy",
+        "A backup restore"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 73,
+      "category": "security",
+      "question": "What is encryption?",
+      "options": [
+        "Deleting data permanently",
+        "Splitting data into chunks",
+        "Scrambling data so only authorized parties can read it",
+        "Copying data to another device"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 74,
+      "category": "security",
+      "question": "Public-key cryptography uses...",
+      "options": [
+        "The same key to encrypt and decrypt",
+        "A pair of keys: one public, one private",
+        "Only a password",
+        "A physical token"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 75,
+      "category": "security",
+      "question": "What is a botnet?",
+      "options": [
+        "An automated customer service system",
+        "A group of friendly bots on a forum",
+        "A cluster of gaming servers",
+        "A network of compromised computers controlled by an attacker"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 76,
+      "category": "science",
+      "question": "Which planet is closest to the Sun?",
+      "options": [
+        "Mercury",
+        "Earth",
+        "Venus",
+        "Mars"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 77,
+      "category": "science",
+      "question": "Which gas do plants absorb during photosynthesis?",
+      "options": [
+        "Oxygen",
+        "Nitrogen",
+        "Carbon dioxide",
+        "Hydrogen"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 78,
+      "category": "science",
+      "question": "What is H2O?",
+      "options": [
+        "Hydrogen peroxide",
+        "Water",
+        "Salt",
+        "Methane"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 79,
+      "category": "science",
+      "question": "What is the largest planet in our solar system?",
+      "options": [
+        "Saturn",
+        "Neptune",
+        "Jupiter",
+        "Uranus"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 80,
+      "category": "science",
+      "question": "Which force keeps objects on the ground?",
+      "options": [
+        "Inertia",
+        "Friction",
+        "Gravity",
+        "Magnetism"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 81,
+      "category": "science",
+      "question": "What is the approximate speed of light?",
+      "options": [
+        "300,000 km per second",
+        "150,000 km per second",
+        "30,000 km per second",
+        "3,000 km per second"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 82,
+      "category": "science",
+      "question": "Which cells defend the body against infections?",
+      "options": [
+        "Red blood cells",
+        "White blood cells",
+        "Platelets",
+        "Stem cells"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 83,
+      "category": "science",
+      "question": "What is often called the powerhouse of the cell?",
+      "options": [
+        "Ribosome",
+        "Nucleus",
+        "Cell membrane",
+        "Mitochondria"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 84,
+      "category": "science",
+      "question": "How many planets are in our solar system?",
+      "options": [
+        "8",
+        "10",
+        "9",
+        "7"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 85,
+      "category": "science",
+      "question": "What element has the chemical symbol Fe?",
+      "options": [
+        "Fermium",
+        "Fluorine",
+        "Francium",
+        "Iron"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 86,
+      "category": "science",
+      "question": "What is the study of living organisms called?",
+      "options": [
+        "Chemistry",
+        "Ecology only",
+        "Geology",
+        "Biology"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 87,
+      "category": "science",
+      "question": "What is the nearest star to Earth?",
+      "options": [
+        "Alpha Centauri",
+        "Sirius",
+        "The Sun",
+        "Proxima Centauri"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 88,
+      "category": "science",
+      "question": "What does DNA carry?",
+      "options": [
+        "Oxygen through the body",
+        "Genetic information",
+        "Electrical signals",
+        "Nutrients to cells"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 89,
+      "category": "science",
+      "question": "Which gas makes up most of Earth's atmosphere?",
+      "options": [
+        "Nitrogen",
+        "Carbon dioxide",
+        "Argon",
+        "Oxygen"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 90,
+      "category": "science",
+      "question": "What is a black hole?",
+      "options": [
+        "A region with gravity so strong that nothing escapes",
+        "A star that stopped glowing",
+        "A dark nebula",
+        "A collapsed moon"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 91,
+      "category": "science",
+      "question": "What is photosynthesis?",
+      "options": [
+        "Plants breathing at night",
+        "The release of oxygen at noon",
+        "Converting sunlight into chemical energy",
+        "Plants absorbing water through roots"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 92,
+      "category": "science",
+      "question": "What is the boiling point of water at sea level?",
+      "options": [
+        "110°C",
+        "120°C",
+        "90°C",
+        "100°C"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 93,
+      "category": "science",
+      "question": "Which of these is a mammal?",
+      "options": [
+        "Shark",
+        "Penguin",
+        "Whale",
+        "Crocodile"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 94,
+      "category": "science",
+      "question": "What is a light-year?",
+      "options": [
+        "The age of a star",
+        "The distance light travels in one year",
+        "The time light takes to orbit Earth",
+        "A unit of stellar brightness"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 95,
+      "category": "science",
+      "question": "What is the atomic number of hydrogen?",
+      "options": [
+        "8",
+        "2",
+        "16",
+        "1"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 96,
+      "category": "history",
+      "question": "Who wrote 'Romeo and Juliet'?",
+      "options": [
+        "William Shakespeare",
+        "Charles Dickens",
+        "Mark Twain",
+        "Jane Austen"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 97,
+      "category": "history",
+      "question": "In which year did World War II end?",
+      "options": [
+        "1943",
+        "1948",
+        "1950",
+        "1945"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 98,
+      "category": "history",
+      "question": "Who was the first human to walk on the Moon?",
+      "options": [
+        "Buzz Aldrin",
+        "Yuri Gagarin",
+        "Neil Armstrong",
+        "Michael Collins"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 99,
+      "category": "history",
+      "question": "Which civilization built the Colosseum?",
+      "options": [
+        "Persians",
+        "Greeks",
+        "Romans",
+        "Egyptians"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 100,
+      "category": "history",
+      "question": "What did the Berlin Wall separate?",
+      "options": [
+        "East Berlin from West Berlin",
+        "East Germany from West Germany only",
+        "Germany from Poland",
+        "Germany from Austria"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 101,
+      "category": "history",
+      "question": "Who is credited with inventing the telephone?",
+      "options": [
+        "Alexander Graham Bell",
+        "Thomas Edison",
+        "Nikola Tesla",
+        "Guglielmo Marconi"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 102,
+      "category": "history",
+      "question": "Which ancient civilization is famous for building pyramids?",
+      "options": [
+        "Ancient Greeks",
+        "Ancient Egyptians",
+        "Aztecs only",
+        "Sumerians"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 103,
+      "category": "history",
+      "question": "What was the Renaissance?",
+      "options": [
+        "The discovery of the Americas",
+        "The invention of the steam engine",
+        "A period of renewed art, science, and learning in Europe",
+        "A series of wars in Europe"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 104,
+      "category": "history",
+      "question": "Who developed the theory of evolution by natural selection?",
+      "options": [
+        "Gregor Mendel",
+        "Isaac Newton",
+        "Charles Darwin",
+        "Louis Pasteur"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 105,
+      "category": "history",
+      "question": "What was the capital of the Byzantine Empire?",
+      "options": [
+        "Rome",
+        "Athens",
+        "Constantinople",
+        "Alexandria"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 106,
+      "category": "history",
+      "question": "What was the Cold War?",
+      "options": [
+        "A war fought in Antarctica",
+        "Tension and rivalry between the US and the Soviet Union",
+        "A trade embargo on cold climates",
+        "A series of winter battles"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 107,
+      "category": "history",
+      "question": "In which year was the ARPANET (the early internet) first connected?",
+      "options": [
+        "1989",
+        "1969",
+        "1959",
+        "1979"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 108,
+      "category": "history",
+      "question": "Who painted the Mona Lisa?",
+      "options": [
+        "Caravaggio",
+        "Raphael",
+        "Michelangelo",
+        "Leonardo da Vinci"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 109,
+      "category": "history",
+      "question": "Who is credited with popularizing the printing press in Europe?",
+      "options": [
+        "Johannes Gutenberg",
+        "Marco Polo",
+        "Leonardo da Vinci",
+        "Galileo Galilei"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 110,
+      "category": "history",
+      "question": "Who was the first woman in space?",
+      "options": [
+        "Sally Ride",
+        "Valentina Tereshkova",
+        "Mae Jemison",
+        "Christa McAuliffe"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 111,
+      "category": "geography",
+      "question": "What is the largest ocean on Earth?",
+      "options": [
+        "Atlantic",
+        "Indian",
+        "Pacific",
+        "Arctic"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 112,
+      "category": "geography",
+      "question": "What is the capital of Japan?",
+      "options": [
+        "Tokyo",
+        "Nagoya",
+        "Osaka",
+        "Kyoto"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 113,
+      "category": "geography",
+      "question": "Which country is the largest by land area?",
+      "options": [
+        "China",
+        "Canada",
+        "USA",
+        "Russia"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 114,
+      "category": "geography",
+      "question": "What is the longest river in the world?",
+      "options": [
+        "Amazon",
+        "Mississippi",
+        "Nile",
+        "Yangtze"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 115,
+      "category": "geography",
+      "question": "On which continent is the Sahara desert?",
+      "options": [
+        "Australia",
+        "Asia",
+        "South America",
+        "Africa"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 116,
+      "category": "geography",
+      "question": "What is the highest mountain above sea level?",
+      "options": [
+        "K2",
+        "Kangchenjunga",
+        "Mount Everest",
+        "Kilimanjaro"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 117,
+      "category": "geography",
+      "question": "How many continents are there?",
+      "options": [
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 118,
+      "category": "geography",
+      "question": "Most of the Amazon rainforest lies in which country?",
+      "options": [
+        "Peru",
+        "Colombia",
+        "Venezuela",
+        "Brazil"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 119,
+      "category": "geography",
+      "question": "What is the capital of Australia?",
+      "options": [
+        "Sydney",
+        "Melbourne",
+        "Canberra",
+        "Perth"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 120,
+      "category": "geography",
+      "question": "What is the largest hot desert in the world?",
+      "options": [
+        "Gobi",
+        "Kalahari",
+        "Sahara",
+        "Arabian"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 121,
+      "category": "logic",
+      "question": "What is 7 × 8?",
+      "options": [
+        "54",
+        "56",
+        "58",
+        "64"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 122,
+      "category": "logic",
+      "question": "If all A are B, and all B are C, what must be true?",
+      "options": [
+        "All C are A",
+        "All A are C",
+        "Some B are not A",
+        "No A is C"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 123,
+      "category": "logic",
+      "question": "What is the next number: 2, 4, 8, 16, ...?",
+      "options": [
+        "30",
+        "36",
+        "32",
+        "24"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 124,
+      "category": "logic",
+      "question": "How many sides does a hexagon have?",
+      "options": [
+        "5",
+        "8",
+        "6",
+        "7"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 125,
+      "category": "logic",
+      "question": "What is 15% of 200?",
+      "options": [
+        "15",
+        "25",
+        "30",
+        "35"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 126,
+      "category": "logic",
+      "question": "At 3:00, what is the angle between the clock hands?",
+      "options": [
+        "120 degrees",
+        "45 degrees",
+        "90 degrees",
+        "60 degrees"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 127,
+      "category": "logic",
+      "question": "Which of these numbers is prime?",
+      "options": [
+        "27",
+        "17",
+        "15",
+        "21"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 128,
+      "category": "logic",
+      "question": "What is 2 to the power of 10?",
+      "options": [
+        "1024",
+        "4096",
+        "2048",
+        "512"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 129,
+      "category": "logic",
+      "question": "A shirt costs $50 and is 20% off. What is the sale price?",
+      "options": [
+        "$38",
+        "$42",
+        "$40",
+        "$35"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 130,
+      "category": "logic",
+      "question": "What is the missing number: 1, 1, 2, 3, 5, 8, ...?",
+      "options": [
+        "10",
+        "11",
+        "12",
+        "13"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 131,
+      "category": "culture",
+      "question": "How many keys does a standard piano have?",
+      "options": [
+        "76",
+        "88",
+        "96",
+        "104"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 132,
+      "category": "culture",
+      "question": "What is the currency of Japan?",
+      "options": [
+        "Ringgit",
+        "Won",
+        "Yen",
+        "Yuan"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 133,
+      "category": "culture",
+      "question": "How many players are on a football (soccer) team on the pitch?",
+      "options": [
+        "10",
+        "9",
+        "12",
+        "11"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 134,
+      "category": "culture",
+      "question": "Who is often called the father of modern computing?",
+      "options": [
+        "Alan Turing",
+        "Steve Wozniak",
+        "Dennis Ritchie",
+        "Bill Gates"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 135,
+      "category": "culture",
+      "question": "What is the smallest country in the world?",
+      "options": [
+        "Monaco",
+        "Vatican City",
+        "San Marino",
+        "Liechtenstein"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 136,
+      "category": "culture",
+      "question": "Which novel begins with 'Call me Ishmael'?",
+      "options": [
+        "Treasure Island",
+        "Moby Dick",
+        "The Old Man and the Sea",
+        "20,000 Leagues Under the Sea"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 137,
+      "category": "culture",
+      "question": "Which language has the most native speakers?",
+      "options": [
+        "English",
+        "Hindi",
+        "Mandarin Chinese",
+        "Spanish"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 138,
+      "category": "culture",
+      "question": "Which of these is a chess piece?",
+      "options": [
+        "Knight",
+        "General",
+        "Joker",
+        "Pawn king"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 139,
+      "category": "culture",
+      "question": "What is the main ingredient of chocolate?",
+      "options": [
+        "Hazelnut",
+        "Caramel",
+        "Cocoa",
+        "Sugar only"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 140,
+      "category": "culture",
+      "question": "In which sport is a shuttlecock used?",
+      "options": [
+        "Tennis",
+        "Table tennis",
+        "Badminton",
+        "Squash"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 141,
+      "category": "geo",
+      "question": "Which country is the city of Osaka in?",
+      "options": [
+        "China",
+        "Thailand",
+        "Japan",
+        "South Korea"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 142,
+      "category": "geo",
+      "question": "The Great Barrier Reef lies off the coast of which country?",
+      "options": [
+        "Philippines",
+        "Indonesia",
+        "Australia",
+        "Brazil"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 143,
+      "category": "geo",
+      "question": "Which city is home to the Golden Gate Bridge?",
+      "options": [
+        "San Diego",
+        "Los Angeles",
+        "San Francisco",
+        "Seattle"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 144,
+      "category": "geo",
+      "question": "The Taj Mahal is located in which city?",
+      "options": [
+        "Jaipur",
+        "Agra",
+        "Delhi",
+        "Mumbai"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 145,
+      "category": "geo",
+      "question": "Which country is the island of Crete part of?",
+      "options": [
+        "Turkey",
+        "Italy",
+        "Greece",
+        "Cyprus"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 146,
+      "category": "geo",
+      "question": "Machu Picchu sits in which mountain range?",
+      "options": [
+        "Andes",
+        "Rockies",
+        "Alps",
+        "Himalayas"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 147,
+      "category": "geo",
+      "question": "Which country has Reykjavik as its capital?",
+      "options": [
+        "Finland",
+        "Denmark",
+        "Norway",
+        "Iceland"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 148,
+      "category": "geo",
+      "question": "The pyramids of Giza stand on the outskirts of which city?",
+      "options": [
+        "Cairo",
+        "Luxor",
+        "Alexandria",
+        "Aswan"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 149,
+      "category": "geo",
+      "question": "Which country do the Galapagos Islands belong to?",
+      "options": [
+        "Ecuador",
+        "Chile",
+        "Colombia",
+        "Peru"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 150,
+      "category": "geo",
+      "question": "The island of Madagascar lies off the coast of which country?",
+      "options": [
+        "Tanzania",
+        "Kenya",
+        "South Africa",
+        "Mozambique"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 151,
+      "category": "geo",
+      "question": "Which river flows through Baghdad?",
+      "options": [
+        "Euphrates",
+        "Nile",
+        "Tigris",
+        "Jordan"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 152,
+      "category": "geo",
+      "question": "The Grand Canyon is in which US state?",
+      "options": [
+        "Arizona",
+        "Colorado",
+        "Utah",
+        "Nevada"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 153,
+      "category": "geo",
+      "question": "Which country is the city of Marrakesh in?",
+      "options": [
+        "Tunisia",
+        "Morocco",
+        "Algeria",
+        "Egypt"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 154,
+      "category": "geo",
+      "question": "The Angkor Wat temple complex is in which country?",
+      "options": [
+        "Vietnam",
+        "Thailand",
+        "Cambodia",
+        "Myanmar"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 155,
+      "category": "geo",
+      "question": "Which city is famous for the Brandenburg Gate?",
+      "options": [
+        "Berlin",
+        "Hamburg",
+        "Munich",
+        "Cologne"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 156,
+      "category": "osint",
+      "question": "What does OSINT stand for?",
+      "options": [
+        "Open System Integration",
+        "Online Security Intelligence",
+        "Open Source Intelligence",
+        "Operational Search Index"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 157,
+      "category": "osint",
+      "question": "What does a WHOIS record of a domain contain?",
+      "options": [
+        "Registration and owner details",
+        "Email content",
+        "Page rankings",
+        "Server logs"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 158,
+      "category": "osint",
+      "question": "Which of these is a text encoding often used in OSINT puzzles?",
+      "options": [
+        "BMP",
+        "ASCII-7",
+        "Base64",
+        "UTF-16LE"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 159,
+      "category": "osint",
+      "question": "What does an IP geolocation lookup reveal?",
+      "options": [
+        "The owner's full address",
+        "The approximate location of an IP address",
+        "The device model",
+        "The IP's password"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 160,
+      "category": "osint",
+      "question": "Which search operator narrows results to a single site?",
+      "options": [
+        "file:",
+        "inurl:",
+        "site:",
+        "link:"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 161,
+      "category": "osint",
+      "question": "What does the Wayback Machine do?",
+      "options": [
+        "Archives historical snapshots of web pages",
+        "Blocks malicious websites",
+        "Speeds up page loads",
+        "Translates web pages"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 162,
+      "category": "osint",
+      "question": "What is Shodan a search engine for?",
+      "options": [
+        "Social media posts",
+        "Internet-connected devices",
+        "Academic papers",
+        "Recipes"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 163,
+      "category": "osint",
+      "question": "What is metadata?",
+      "options": [
+        "Encrypted passwords",
+        "A type of database",
+        "Data about data, like file details",
+        "Fake accounts"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 164,
+      "category": "osint",
+      "question": "Which HTTP header reveals the software a server runs?",
+      "options": [
+        "Cache-Control",
+        "Server",
+        "Accept",
+        "Cookie"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 165,
+      "category": "osint",
+      "question": "What does geocoding convert?",
+      "options": [
+        "A domain into an IP only",
+        "An address into coordinates",
+        "A photo into text",
+        "Coordinates into weather"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 166,
+      "category": "chess",
+      "question": "How many squares are on a chessboard?",
+      "options": [
+        "100",
+        "48",
+        "64",
+        "81"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 167,
+      "category": "chess",
+      "question": "Which piece moves diagonally any distance?",
+      "options": [
+        "Bishop",
+        "Pawn",
+        "Knight",
+        "Rook"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 168,
+      "category": "chess",
+      "question": "What is it called when the king is under attack?",
+      "options": [
+        "Checkmate",
+        "En passant",
+        "Check",
+        "Stalemate"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 169,
+      "category": "chess",
+      "question": "Which piece moves in an L-shape?",
+      "options": [
+        "Knight",
+        "King",
+        "Bishop",
+        "Queen"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 170,
+      "category": "chess",
+      "question": "What does castling involve?",
+      "options": [
+        "Trading queens",
+        "Promoting a pawn",
+        "Blocking with the bishop",
+        "Moving the king and a rook together"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 171,
+      "category": "chess",
+      "question": "How many pawns does each player start with?",
+      "options": [
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "correctIndex": 2
+    },
+    {
+      "id": 172,
+      "category": "chess",
+      "question": "What is checkmate?",
+      "options": [
+        "A time forfeit",
+        "A king in check with no legal escape",
+        "A pawn reaching the last rank",
+        "A draw offer"
+      ],
+      "correctIndex": 1
+    },
+    {
+      "id": 173,
+      "category": "chess",
+      "question": "Which of these is a famous chess opening?",
+      "options": [
+        "The Silent Bishop",
+        "The Long Castle",
+        "The Double Rook",
+        "The Sicilian Defence"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 174,
+      "category": "chess",
+      "question": "Which piece is worth the most points?",
+      "options": [
+        "Queen",
+        "Bishop",
+        "Rook",
+        "Knight"
+      ],
+      "correctIndex": 0
+    },
+    {
+      "id": 175,
+      "category": "chess",
+      "question": "In chess notation, what does Nf3 mean?",
+      "options": [
+        "King castles to f3",
+        "Queen moves to f3",
+        "New game at f3",
+        "Knight moves to f3"
+      ],
+      "correctIndex": 3
+    },
+    {
+      "id": 176,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Tour_Eiffel_Wikimedia_Commons.jpg?width=800",
+      "options": [
+        "Switzerland",
+        "Netherlands",
+        "Belgium",
+        "France"
+      ],
+      "correctIndex": 3,
+      "lat": 48.85636,
+      "lng": 2.29743
+    },
+    {
+      "id": 177,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Colosseo_2020.jpg?width=800",
+      "options": [
+        "Italy",
+        "Spain",
+        "Turkey",
+        "Greece"
+      ],
+      "correctIndex": 0,
+      "lat": 41.8902,
+      "lng": 12.4922
+    },
+    {
+      "id": 178,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Taj_Mahal,_Agra,_India_edit3.jpg?width=800",
+      "options": [
+        "Bangladesh",
+        "Pakistan",
+        "India",
+        "Nepal"
+      ],
+      "correctIndex": 2,
+      "lat": 27.1751,
+      "lng": 78.0421
+    },
+    {
+      "id": 179,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/The_Great_Wall_of_China_at_Jinshanling-edit.jpg?width=800",
+      "options": [
+        "South Korea",
+        "Japan",
+        "China",
+        "Mongolia"
+      ],
+      "correctIndex": 2,
+      "lat": 40.6606,
+      "lng": 117.2328
+    },
+    {
+      "id": 180,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Statue_of_Liberty_7.jpg?width=800",
+      "options": [
+        "Mexico",
+        "Canada",
+        "the United States",
+        "France"
+      ],
+      "correctIndex": 2,
+      "lat": 40.6892,
+      "lng": -74.0445
+    },
+    {
+      "id": 181,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Sydney_Opera_House_-_Dec_2008.jpg?width=800",
+      "options": [
+        "New Zealand",
+        "Indonesia",
+        "South Africa",
+        "Australia"
+      ],
+      "correctIndex": 3,
+      "lat": -33.85257511,
+      "lng": 151.21072948
+    },
+    {
+      "id": 182,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/MtFuji_FujiCity.jpg?width=800",
+      "options": [
+        "Taiwan",
+        "China",
+        "South Korea",
+        "Japan"
+      ],
+      "correctIndex": 3,
+      "lat": 35.3606,
+      "lng": 138.7274
+    },
+    {
+      "id": 183,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/All_Gizah_Pyramids.jpg?width=800",
+      "options": [
+        "Sudan",
+        "Morocco",
+        "Israel",
+        "Egypt"
+      ],
+      "correctIndex": 3,
+      "lat": 29.97036111,
+      "lng": 31.12783333
+    },
+    {
+      "id": 184,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Clock_Tower_-_Palace_of_Westminster,_London_-_May_2007.jpg?width=800",
+      "options": [
+        "France",
+        "Ireland",
+        "Germany",
+        "the United Kingdom"
+      ],
+      "correctIndex": 3,
+      "lat": 51.50083333,
+      "lng": -0.12722222
+    },
+    {
+      "id": 185,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Stonehenge,_Wiltshire,_England.jpg?width=800",
+      "options": [
+        "the United Kingdom",
+        "Denmark",
+        "Scotland",
+        "Ireland"
+      ],
+      "correctIndex": 0,
+      "lat": 51.1789,
+      "lng": -1.8262
+    },
+    {
+      "id": 186,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Schloss_Neuschwanstein_2013.jpg?width=800",
+      "options": [
+        "Germany",
+        "Switzerland",
+        "Poland",
+        "Austria"
+      ],
+      "correctIndex": 0,
+      "lat": 47.55492778,
+      "lng": 10.74973889
+    },
+    {
+      "id": 187,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Cristo_Redentor_-_Rio_de_Janeiro,_Brasil.jpg?width=800",
+      "options": [
+        "Chile",
+        "Brazil",
+        "Colombia",
+        "Argentina"
+      ],
+      "correctIndex": 1,
+      "lat": -22.9519,
+      "lng": -43.2105
+    },
+    {
+      "id": 188,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Machu_Picchu,_Peru.jpg?width=800",
+      "options": [
+        "Peru",
+        "Ecuador",
+        "Chile",
+        "Bolivia"
+      ],
+      "correctIndex": 0,
+      "lat": -13.1642,
+      "lng": -72.5432
+    },
+    {
+      "id": 189,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Angkor_Wat_temple.jpg?width=800",
+      "options": [
+        "Thailand",
+        "Laos",
+        "Cambodia",
+        "Vietnam"
+      ],
+      "correctIndex": 2,
+      "lat": 13.4125,
+      "lng": 103.867
+    },
+    {
+      "id": 190,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Leaning_Tower_of_Pisa,_Italy.jpg?width=800",
+      "options": [
+        "Italy",
+        "Portugal",
+        "France",
+        "Greece"
+      ],
+      "correctIndex": 0,
+      "lat": 43.7229,
+      "lng": 10.3966
+    },
+    {
+      "id": 191,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Golden_Gate_Bridge_(cropped).jpg?width=800",
+      "options": [
+        "Australia",
+        "Japan",
+        "Canada",
+        "the United States"
+      ],
+      "correctIndex": 3,
+      "lat": 37.8199,
+      "lng": -122.4783
+    },
+    {
+      "id": 192,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Sagrada_Familia_2021.jpg?width=800",
+      "options": [
+        "Portugal",
+        "Italy",
+        "France",
+        "Spain"
+      ],
+      "correctIndex": 3,
+      "lat": 41.4036,
+      "lng": 2.1744
+    },
+    {
+      "id": 193,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Brandenburger_Tor_abends.jpg?width=800",
+      "options": [
+        "Czech Republic",
+        "Belgium",
+        "Germany",
+        "Austria"
+      ],
+      "correctIndex": 2,
+      "lat": 52.51634444,
+      "lng": 13.37845
+    },
+    {
+      "id": 194,
+      "category": "geo",
+      "question": "Where in the world is this?",
+      "imageUrl": "https://commons.wikimedia.org/wiki/Special:FilePath/Chichen_Itza_3.jpg?width=800",
+      "options": [
+        "Mexico",
+        "Guatemala",
+        "Peru",
+        "Brazil"
+      ],
+      "correctIndex": 0,
+      "lat": 20.68369444,
+      "lng": -88.56916667
+    }
+  ]
+}

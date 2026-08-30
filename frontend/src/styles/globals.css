@@ -228,6 +228,31 @@
     transform: rotate(360deg);
   }
 }
+@keyframes loading-bar-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(200%);
+  }
+}
+
+/* Animated triangle tessellation drifting downward — mirrors lazer's TrianglesV2
+   (used in the RankedPlay health bar): translucent equilateral triangles that
+   scroll vertically inside the fill. We animate background-position-y by exactly
+   one tile height so the repeat loops seamlessly. */
+@keyframes triangle-drift {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: 48px;
+  }
+}
+.animate-triangle-drift {
+  background-repeat: repeat;
+  animation: triangle-drift 2.8s linear infinite;
+}
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
@@ -286,6 +311,16 @@ html {
   select {
     font-size: 16px;
   }
+
+  /* Fix icon alignment in flex containers — Tailwind v4 baseline shift.
+     Kept inside @layer base so utilities (display:none / display:inline, e.g.
+     accordion +/− toggle) can override it — unlayered rules would win the
+     cascade and break display:block/none toggling. */
+  .flex svg,
+  .inline-flex svg {
+    flex-shrink: 0;
+    display: block;
+  }
 }
 
 .touch-target {
@@ -294,13 +329,6 @@ html {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-}
-
-/* Fix icon alignment in flex containers — Tailwind v4 baseline shift */
-.flex svg,
-.inline-flex svg {
-  flex-shrink: 0;
-  display: block;
 }
 
 .pb-safe {

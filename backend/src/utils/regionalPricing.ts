@@ -54,6 +54,11 @@ export async function calculateTax(
   return { taxRate: rate, taxAmount: tax };
 }
 
+export function applyMembershipDiscount(amount: number, user: User | null | undefined): number {
+  if (!user?.luminosMember || !(amount > 0)) return amount;
+  return Math.round(amount * 0.95 * 100) / 100;
+}
+
 function parseTaxRules(raw?: string | null): Record<string, number> {
   if (!raw) return {};
   const parsed: Record<string, number> = {};

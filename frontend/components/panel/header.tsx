@@ -1,6 +1,7 @@
 "use client"
 
-import { Bell, Search, Command, X } from "lucide-react"
+import { Bell, Search, Command, X, Sparkles } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import {
   PORTALS,
@@ -555,15 +556,34 @@ export function PanelHeader({
             {portal.name}
           </Badge>
 
+          {user?.luminosMember && (
+            <Badge
+              variant="outline"
+              className="hidden sm:flex border-amber-400/40 bg-amber-400/10 text-amber-500 text-[10px] sm:text-xs px-2 py-0.5"
+              title="Luminos Club"
+            >
+              <Sparkles className="mr-1 h-3 w-3" />
+              Luminos
+            </Badge>
+          )}
+
           <button
             ref={buttonRef}
             onClick={openNotifications}
             className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
-              <span className="absolute right-1.5 top-1.5 h-2 w-2 bg-primary animate-pulse" />
-            )}
+            <AnimatePresence>
+              {unreadCount > 0 && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.4 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.4 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 22 }}
+                  className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-primary"
+                />
+              )}
+            </AnimatePresence>
           </button>
 
           <NotificationDropdown

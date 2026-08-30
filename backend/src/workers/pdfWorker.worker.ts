@@ -1,4 +1,5 @@
 import PDFDocument from 'pdfkit';
+import { reconcileInvoiceItems } from '../utils/reconcileInvoice';
 
 function drawTableRow(
   doc: any,
@@ -181,6 +182,7 @@ self.addEventListener('message', async (ev: any) => {
     if (items.length === 0 && order.description) {
       items = [{ description: order.description, quantity: 1, price: Number(order.amount ?? 0) }];
     }
+    reconcileInvoiceItems(items, Number(order.amount));
 
     if (order.status === 'active' && order.servicePeriod?.months && order.servicePeriod.months <= 24) {
       const sp = order.servicePeriod;
@@ -248,7 +250,7 @@ self.addEventListener('message', async (ev: any) => {
     const amount = Number(order.amount ?? subtotal);
     const tax = Number(order.taxAmount ?? order.tax ?? 0);
     const discount = Number(order.discount ?? 0);
-    const total = subtotal + tax - discount;
+    const total = amount + tax - discount;
 
     doc.save();
     doc.moveTo(ML, curY).lineTo(ML + CW, curY).strokeColor('#e5e7eb').lineWidth(1).stroke();

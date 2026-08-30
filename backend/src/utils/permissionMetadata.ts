@@ -48,6 +48,7 @@ export const PERMISSION_METADATA: PermissionDefinition[] = [
   { value: 'plans:write', category: 'Plans', admin: true },
   { value: 'orders:read', category: 'Orders', admin: false },
   { value: 'orders:view', category: 'Orders', description: 'View order records', admin: true },
+  { value: 'admin:critical:finances', category: 'Finance', description: 'View finance balance (contract access only)', admin: true },
   { value: 'orders:issue', category: 'Orders', description: 'Issue orders', admin: true },
   { value: 'orders:update', category: 'Orders', description: 'Update orders', admin: true },
   { value: 'orders:delete', category: 'Orders', description: 'Delete orders', admin: true },

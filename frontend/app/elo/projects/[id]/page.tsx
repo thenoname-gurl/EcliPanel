@@ -1,5 +1,7 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -104,9 +106,7 @@ export default function PublicEloProjectProfile() {
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-          </div>
+          <RouteSkeleton />
         ) : !project ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
             <Star className="h-12 w-12 text-zinc-600" />
@@ -296,8 +296,10 @@ export default function PublicEloProjectProfile() {
                 {t("sections.voteHistory", { count: project.totalVotes })}
               </h2>
               {votesLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
+                <div className="space-y-3 py-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-2/3" />
                 </div>
               ) : votes.length === 0 ? (
                 <p className="text-sm text-zinc-500 py-4 text-center">{t("states.noVotes")}</p>

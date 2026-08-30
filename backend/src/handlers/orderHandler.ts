@@ -13,6 +13,7 @@ import PDFDocument from 'pdfkit';
 import stream from 'stream';
 import path from 'path';
 import { generateInvoicePdf } from '../workers/pdfWorker';
+import { reconcileInvoiceItems } from '../utils/reconcileInvoice';
 
 async function resolvePaymentMethodLabel(methodId: string): Promise<string | null> {
   if (!methodId) return null;
@@ -219,6 +220,7 @@ export async function renderInvoicePdf(order: Order): Promise<Buffer> {
             const desc = order.description || order.items || 'Order';
             items = [{ description: desc, quantity: 1, price: Number(order.amount ?? 0) }];
           }
+          reconcileInvoiceItems(items, Number(order.amount ?? 0));
 
           curY = Math.max(fY, bY) + 24;
           doc.moveTo(50, curY).lineTo(545, curY).strokeColor('#e5e7eb').lineWidth(0.8).stroke();
@@ -437,6 +439,8 @@ export async function orderRoutes(app: any, prefix = '') {
       const isQueuedForRenewal = activateMode === 'renewal';
 
       let effectiveAmount: number;
+      let membershipDiscounted = false;
+      let membershipOriginalAmount: number | undefined;
       let enrichedItems = items;
 
       if (planId != null) {
@@ -466,6 +470,15 @@ export async function orderRoutes(app: any, prefix = '') {
           const pricing = await getEffectivePrice(plan, user);
           if (pricing.regionalPrice != null) effectiveAmount = pricing.regionalPrice;
         } catch {}
+        try {
+          const { applyMembershipDiscount } = require('../utils/regionalPricing');
+          const discounted = applyMembershipDiscount(effectiveAmount, user);
+          if (discounted !== effectiveAmount) {
+            membershipOriginalAmount = effectiveAmount;
+            effectiveAmount = discounted;
+            membershipDiscounted = true;
+          }
+        } catch {}
         const itemDesc = description || plan.name;
         if (items) {
           try {
@@ -490,8 +503,17 @@ export async function orderRoutes(app: any, prefix = '') {
           if (Number.isFinite(v) && v >= 0) addonPrice = v;
         } catch {}
         effectiveAmount = addonPrice;
+        try {
+          const { applyMembershipDiscount } = require('../utils/regionalPricing');
+          const discounted = applyMembershipDiscount(effectiveAmount, user);
+          if (discounted !== effectiveAmount) {
+            membershipOriginalAmount = effectiveAmount;
+            effectiveAmount = discounted;
+            membershipDiscounted = true;
+          }
+        } catch {}
         enrichedItems = JSON.stringify([
-          { description: 'DNS Management Add-on (monthly)', quantity: 1, price: addonPrice },
+          { description: 'DNS Management Add-on (monthly)', quantity: 1, price: effectiveAmount },
         ]);
       } else {
         ctx.set.status = 400;
@@ -500,6 +522,9 @@ export async function orderRoutes(app: any, prefix = '') {
 
       const isFree = effectiveAmount === 0;
       let enrichedNotes = notes || undefined;
+      if (membershipDiscounted) {
+        enrichedNotes = enrichedNotes ? `${enrichedNotes}; luminos_discount:true` : 'luminos_discount:true';
+      }
       if (isQueuedForRenewal) {
         enrichedNotes = enrichedNotes
           ? `${enrichedNotes}; queue_for_renewal:true`
@@ -522,6 +547,7 @@ export async function orderRoutes(app: any, prefix = '') {
         orgId,
         items: enrichedItems,
         amount: effectiveAmount,
+        originalAmount: membershipOriginalAmount,
         taxAmount: orderTaxAmount,
         taxRate: orderTaxRate,
         description,

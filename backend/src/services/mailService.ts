@@ -30,10 +30,11 @@ function normalizeFromHeader(from: nodemailer.SendMailOptions['from']) {
   const defaultName = process.env.SMTP_FROM_NAME || process.env.MAIL_FROM_NAME || 'EclipseSystems';
   const fallback = `${quoteName(defaultName)} <${buildDefaultFromAddress()}>`;
 
-  if (!from) return fallback;
+  const effective = from ?? buildDefaultFromAddress();
+  if (!effective) return fallback;
 
-  if (typeof from === 'string') {
-    const trimmed = from.trim();
+  if (typeof effective === 'string') {
+    const trimmed = effective.trim();
     if (!trimmed) return fallback;
     if (trimmed.startsWith('"') && trimmed.includes('<')) return trimmed;
     if (trimmed.includes('<') && trimmed.includes('>')) return trimmed;
@@ -41,13 +42,13 @@ function normalizeFromHeader(from: nodemailer.SendMailOptions['from']) {
     return fallback;
   }
 
-  if (Array.isArray(from)) {
-    if (from.length === 0) return fallback;
-    return normalizeFromHeader(from[0]);
+  if (Array.isArray(effective)) {
+    if (effective.length === 0) return fallback;
+    return normalizeFromHeader(effective[0]);
   }
 
-  if (typeof from === 'object') {
-    const addrObj = from as { address?: string; name?: string };
+  if (typeof effective === 'object') {
+    const addrObj = effective as { address?: string; name?: string };
     const address = addrObj.address?.trim() || buildDefaultFromAddress();
     const name = addrObj.name?.trim() || defaultName;
     return `${quoteName(name)} <${address}>`;
@@ -154,6 +155,9 @@ export async function sendMail(
 ) {
   if (options.template) {
     options.html = await renderReactTemplate(options.template, options.vars || {}, options.locale);
+    if (!options.subject && options.vars?.title) {
+      options.subject = String(options.vars.title);
+    }
   }
 
   options.from = normalizeFromHeader(options.from);

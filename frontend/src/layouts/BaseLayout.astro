@@ -2,8 +2,8 @@
 import "../styles/globals.css";
 import { detectLocale } from "../../components/shims/i18n-server";
 import { THEMES } from "../../lib/themes";
-import { API_ENDPOINTS } from "../../lib/panel-config";
 import { getPageSeo } from "../lib/seo";
+import { getSessionForRequest } from "../lib/page-data";
 
 interface Props {
   title?: string;
@@ -74,17 +74,10 @@ let themeName: string | null = null;
 const cookieHeader = Astro.request.headers.get("cookie") || "";
 if (cookieHeader && backendBase) {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1500);
-    const res = await fetch(`${backendBase}${API_ENDPOINTS.session}`, {
-      headers: { cookie: cookieHeader },
-      signal: controller.signal,
-    });
-    clearTimeout(timeout);
-    if (res.ok) {
-      const data = await res.json();
-      themeName = data?.user?.settings?.theme?.name || null;
-    }
+    // Reuses the per-request memoized session fetch from page-data.ts so this
+    // page load hits /api/auth/session once, not twice (getPageData also calls it).
+    const user = await getSessionForRequest(cookieHeader);
+    themeName = user?.settings?.theme?.name || null;
   } catch {
     // not logged in
   }

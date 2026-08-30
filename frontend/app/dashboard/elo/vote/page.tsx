@@ -1,5 +1,6 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
 import { useEffect, useState, useCallback } from "react"
 import { PanelHeader } from "@/components/panel/header"
 import { PageLayout } from "@/components/panel/shared"
@@ -239,9 +240,7 @@ export default function EloVotePage() {
           </Link>
 
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <RouteSkeleton />
           ) : error ? (
             <section className="border border-destructive/30 bg-destructive/10 p-6 text-center">
               <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-3" />

@@ -1,5 +1,7 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
@@ -120,9 +122,7 @@ export default function EloProjectProfile() {
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto w-full min-w-0 box-border">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <RouteSkeleton />
           ) : !project ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
               <div className="h-16 w-16 bg-secondary/50 flex items-center justify-center">
@@ -348,8 +348,10 @@ export default function EloProjectProfile() {
                   {t("voteHistory", { count: project.totalVotes })}
                 </h2>
                 {votesLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div className="space-y-3 py-2">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-2/3" />
                   </div>
                 ) : votes.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-4 text-center">{t("noVotes")}</p>

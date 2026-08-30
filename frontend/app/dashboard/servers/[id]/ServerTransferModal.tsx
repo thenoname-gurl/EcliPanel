@@ -1,5 +1,6 @@
 "use client"
 
+import { LoadingBar } from "@/components/panel/shared"
 import { useState, useEffect } from "react"
 import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
@@ -315,9 +316,7 @@ export function ServerTransferModal({ serverId, server, open, onClose }: Props) 
           ) : (
             /* Progress view */
             <div className="space-y-3">
-              <div className="h-3 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary transition-all duration-500 rounded-full" style={{ width: `${pct}%` }} />
-              </div>
+              <LoadingBar value={pct} />
               <p className="text-xs text-muted-foreground text-center">{pct}% complete</p>
               {progress && (
                 <div className="grid grid-cols-2 gap-2 text-xs">

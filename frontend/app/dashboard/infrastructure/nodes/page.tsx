@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTranslations } from "next-intl"
 import { useAuth } from "@/hooks/useAuth"
-import { PageLayout } from "@/components/panel/shared"
+import { LoadingBar, PageLayout } from "@/components/panel/shared"
 import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -983,12 +983,7 @@ export default function InfraNodesPage() {
                 <p className="text-sm font-medium text-foreground">{rebootResult.message || "Rebooting..."}</p>
                 <p className="text-xs text-muted-foreground mt-1">Progress: {rebootResult.progress || 0}%</p>
               </div>
-              <div className="w-full bg-secondary/50 rounded-full h-2 overflow-hidden">
-                <div
-                  className="h-full bg-primary rounded-full transition-all duration-500"
-                  style={{ width: `${rebootResult.progress || 0}%` }}
-                />
-              </div>
+              <LoadingBar value={Number(rebootResult.progress) || 0} />
               <p className="text-xs text-muted-foreground">
                 {rebootResult.totalServers} total on node &middot; {rebootResult.onlineCount} running
               </p>

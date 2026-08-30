@@ -1,5 +1,6 @@
 'use client';
 
+import { LoadingBar } from "@/components/panel/shared"
 import { useState, useEffect, useCallback } from 'react';
 import { HardDrive, Plus, RotateCcw, Lock, Unlock, Trash2, Loader2, Layers, ChevronDown, ChevronRight, X, Check } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
@@ -185,9 +186,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
         </div>
         {inProgress && (
           <div className="space-y-1">
-            <div className="h-2 bg-border rounded-full overflow-hidden">
-              <div className="h-full bg-primary transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, Number(backup.progress) || 0))}%` }} />
-            </div>
+            <LoadingBar value={Number(backup.progress) || 0} />
             <p className="text-[10px] text-muted-foreground">{t('backups.progress', { value: Math.round(Number(backup.progress) || 0) })}</p>
           </div>
         )}

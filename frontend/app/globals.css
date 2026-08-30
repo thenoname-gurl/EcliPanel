@@ -47,7 +47,7 @@
   --chart-3: #10b981;
   --chart-4: #f59e0b;
   --chart-5: #ef4444;
-  --radius: 0.75rem;
+  --radius: 0.5rem;
   --glow: #9CA3AF40;
   --glow-strong: #9CA3AF;
   --success: #10b981;
@@ -158,6 +158,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, var(--glow) 0%, transparent 60%);
+    background-attachment: fixed;
   }
 }
 

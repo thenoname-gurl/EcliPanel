@@ -1,5 +1,6 @@
 "use client"
 
+import { Skeleton } from "@/components/ui/skeleton"
 import { useEffect, useState, useRef, lazy, Suspense, useCallback } from "react"
 import { useTranslations, useLocale } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
@@ -263,7 +264,7 @@ function EditorLoadingFallback() {
   const t = useTranslations("serverMonacoEditor")
   return (
     <div className="flex flex-col items-center justify-center h-full w-full bg-[#1e1e1e]">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mb-3" />
+      <Skeleton className="h-8 w-40 mb-3" />
       <p className="text-sm text-muted-foreground">{t("states.loadingEditor")}</p>
     </div>
   )

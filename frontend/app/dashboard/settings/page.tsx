@@ -6,6 +6,7 @@ import { FeedbackSettingsCard } from "@/components/panel/feedback-settings-card"
 import { YourDataSection } from "@/components/panel/your-data-section"
 import { useEffect, useState, useRef, useCallback } from "react"
 import { apiFetch } from "@/lib/api-client"
+import { debugLog, getDebugEnabled, setDebugEnabled } from "@/lib/debug-console"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { useAuth } from "@/hooks/useAuth"
 import { Badge } from "@/components/ui/badge"
@@ -341,6 +342,12 @@ function PasskeyManager() {
         method: "POST",
         body: JSON.stringify({}),
       })
+      debugLog("log", "addPasskey: origin=" + window.location.origin +
+        " rpId=" + opts.rp?.id +
+        " secureContext=" + String(window.isSecureContext) +
+        " hasCredentials=" + String(!!navigator.credentials) +
+        " residentKey=" + String(opts.authenticatorSelection?.residentKey) +
+        " excludeCredentials=" + ((opts.excludeCredentials || []).length))
       const publicKeyOptions: PublicKeyCredentialCreationOptions = {
         ...opts,
         challenge: base64urlToBuffer(opts.challenge),
@@ -378,7 +385,9 @@ function PasskeyManager() {
       }
       load()
     } catch (e: any) {
-      alert(t("passkeys.errors.failedRegister") + ": " + (e.message || t("messages.unknown")))
+      const detail = e?.name ? `${e.name}: ${e.message || ""}`.trim() : e?.message
+      debugLog("error", "addPasskey: " + (detail || JSON.stringify(e)))
+      alert(t("passkeys.errors.failedRegister") + ": " + (detail || t("messages.unknown")))
     } finally {
       setRegistering(false)
     }
@@ -1182,6 +1191,9 @@ export default function SettingsPage() {
   const t = useTranslations("settingsPage")
   const locale = useLocale()
   const searchParams = useSearchParams()
+  const [debugEnabled, setDebugEnabledState] = useState<boolean>(() =>
+    typeof window !== "undefined" ? getDebugEnabled() : false
+  )
   const [activeTab, setActiveTab] = useState<string>(
     () => searchParams.get("tab") || "profile"
   )
@@ -1600,11 +1612,13 @@ export default function SettingsPage() {
   }, [])
 
   const selectedCountryTaxRate = resolveTaxRate(billingTaxRules, form.billingCountry)
-  const userBadges = Array.isArray((user as any)?.settings?.badges)
-    ? ((user as any).settings.badges as string[])
-    : Array.isArray((user as any)?.settings?.gambling?.badges)
-    ? ((user as any).settings.gambling.badges as string[])
-    : []
+  // Union of both badge sources: settings.badges and gambling.badges. Some
+  // writers (gambling, exam rewards) update only one of the two, so showing
+  // one source would hide badges stored in the other.
+  const userBadges = Array.from(new Set([
+    ...(Array.isArray((user as any)?.settings?.badges) ? ((user as any).settings.badges as string[]) : []),
+    ...(Array.isArray((user as any)?.settings?.gambling?.badges) ? ((user as any).settings.gambling.badges as string[]) : []),
+  ]))
 
   const formatDocumentDate = (value: string | undefined | null) => {
     if (!value) return null
@@ -1743,7 +1757,7 @@ export default function SettingsPage() {
       label: t("tabs.documents"),
       guideId: "settings-documents",
     },
-    { value: "api", icon: Code, label: t("tabs.api"), count: apiKeys.length },
+    { value: "api", icon: Code, label: t("tabs.advanced"), count: apiKeys.length },
     {
       value: "appearance",
       icon: Palette,
@@ -2467,6 +2481,27 @@ export default function SettingsPage() {
           {/* API Tab */}
           {activeTab === "api" && (
             <div className="flex flex-col gap-4 md:gap-5 min-w-0 animate-in fade-in slide-in-from-bottom-3 duration-300">
+              <SettingsCard>
+                <h3 className="text-sm font-semibold text-foreground mb-1">
+                  {t("debug.title")}
+                </h3>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {t("debug.hint")}
+                </p>
+                <SettingRow
+                  title={t("debug.enableTitle")}
+                  description={t("debug.enableDescription")}
+                  action={
+                    <Switch
+                      checked={debugEnabled}
+                      onCheckedChange={(v) => {
+                        setDebugEnabled(Boolean(v))
+                        setDebugEnabledState(Boolean(v))
+                      }}
+                    />
+                  }
+                />
+              </SettingsCard>
               <SettingsCard>
                 <div className="flex items-center justify-between mb-4 gap-3 min-w-0">
                   <div className="min-w-0">

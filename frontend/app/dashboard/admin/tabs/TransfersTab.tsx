@@ -1,5 +1,6 @@
 "use client"
 
+import { LoadingBar } from "@/components/panel/shared"
 import { useEffect, useState } from "react"
 import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"

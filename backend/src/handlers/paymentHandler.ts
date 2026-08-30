@@ -10,6 +10,7 @@ import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import { sendMail } from '../services/mailService';
+import { recordOrderPayment } from '../services/sureFinanceService';
 import { createT, getMessages } from '../i18n';
 import { t } from 'elysia';
 
@@ -496,6 +497,7 @@ export async function paymentRoutes(app: any, prefix = '') {
       }
 
       await orderRepo.save(order);
+      recordOrderPayment(order).catch(() => {});
 
       try {
         const userRepo = AppDataSource.getRepository(User);

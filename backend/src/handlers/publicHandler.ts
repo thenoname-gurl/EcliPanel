@@ -43,7 +43,10 @@ export async function publicRoutes(app: any, prefix = '') {
     prefix + '/public/status',
     async (ctx: any) => {
       return withRedisCache('public:status:v1', 15, async () => {
-        const nodes = await nodeRepo().find();
+        // Nodes temp-disabled from deployments (deploymentsDisabled) are excluded
+        // from the public health/status count so a maintenance node doesn't inflate
+        // the "offline" figure visitors see.
+        const nodes = await nodeRepo().find({ where: { deploymentsDisabled: false } });
         const total = nodes.length;
         const now = new Date();
 
@@ -157,6 +160,14 @@ export async function publicRoutes(app: any, prefix = '') {
         const apiRepo = AppDataSource.getRepository(ApiRequestLog);
         const nodeServerPrefix = 'node:%';
 
+        // Nodes temp-disabled from deployments are excluded from the public traffic
+        // figure so their maintenance traffic doesn't count toward the advertised total.
+        const hiddenNodes = await nodeRepo().find({
+          where: { deploymentsDisabled: true },
+          select: { id: true },
+        });
+        const hiddenNodeIds = new Set(hiddenNodes.map(n => `node:${n.id}`));
+
         const [recentRows, requestRow, totalUsers] = await Promise.all([
           socRepo
             .createQueryBuilder('soc')
@@ -218,6 +229,8 @@ export async function publicRoutes(app: any, prefix = '') {
         let nodeTrafficBytes = 0;
 
         for (const sid of serverIds) {
+          if (hiddenNodeIds.has(sid)) continue;
+
           const rows = rowsByServerId[sid] ?? [];
           const before = firstBeforeByServer.get(sid);
 

@@ -16,7 +16,7 @@ let iu = null;
 const ch = Astro.request.headers.get("cookie") || "";
 if (ch && bb) {
   try {
-    const c = new AbortController(); const to = setTimeout(() => c.abort(), 1500);
+    const c = new AbortController(); const to = setTimeout(() => c.abort(), 10000);
     const r = await fetch(`${bb}${API_ENDPOINTS.session}`, { headers: { cookie: ch }, signal: c.signal });
     clearTimeout(to);
     if (r.ok) { const d = await r.json(); iu = d?.user || null; }
@@ -25,5 +25,5 @@ if (ch && bb) {
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
-  <PageShell client:only="react" locale={locale} messages={messages} initialUser={iu} page="landing" pathname={Astro.url.pathname} />
+  <PageShell client:load="react" locale={locale} messages={messages} initialUser={iu} page="landing" pathname={Astro.url.pathname} />
 </BaseLayout>

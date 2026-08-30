@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from "./panel-config";
+import { getStepUpToken, hasStepUpUi, stepUpDebug, triggerStepUp } from "./step-up";
 
 const DEFAULT_API_TIMEOUT = 10000
 const DEFAULT_API_RETRIES = 2
@@ -42,7 +43,54 @@ function formatRateLimitMessage(retryAfter?: string | number | null) {
   return "You’re doing that too often. Please wait a moment and try again."
 }
 
+// Concurrency cap + in-flight dedupe for idempotent GETs. Many dashboard
+// components fire the same GET in parallel on mount; without this every one
+// becomes its own network round-trip. Only plain GETs (no body, no step-up/sudo
+// token that could carry different auth) are coalesced. Mutations bypass this
+// entirely. This is the single choke point so all callers benefit.
+const _inflight = new Map<string, Promise<any>>();
+const _queue: Array<() => void> = [];
+const _MAX_CONCURRENT = 8;
+let _running = 0;
+function _pump() {
+  while (_running < _MAX_CONCURRENT && _queue.length) {
+    _running++;
+    _queue.shift()!();
+  }
+}
+
 export async function apiFetch(
+  path: string,
+  options: Omit<RequestInit, 'body'> & { body?: any; timeout?: number; retries?: number } = {}
+): Promise<any> {
+  const method = String(options.method ?? 'GET').toUpperCase()
+  const isDedupeCandidate = method === 'GET' && !options.body && !options.timeout
+  if (isDedupeCandidate) {
+    // Full path incl. query is the dedup key: ?page=1 and ?page=2 are different data.
+    const key = path
+    const inflight = _inflight.get(key)
+    if (inflight) return inflight
+    const p = (async () => {
+      try {
+        await new Promise<void>((res) => { _queue.push(res); _pump(); })
+        const value = await apiFetchRaw(path, options)
+        _inflight.delete(key)
+        return value
+      } catch (e) {
+        _inflight.delete(key)
+        throw e
+      } finally {
+        _running = Math.max(0, _running - 1)
+        _pump()
+      }
+    })()
+    _inflight.set(key, p)
+    return p
+  }
+  return apiFetchRaw(path, options)
+}
+
+async function apiFetchRaw(
   path: string,
   options: Omit<RequestInit, 'body'> & { body?: any; timeout?: number; retries?: number } = {}
 ): Promise<any> {
@@ -134,6 +182,11 @@ export async function apiFetch(
           headers['x-csrf-token'] = csrfToken;
         }
       }
+
+      const stepUpToken = getStepUpToken();
+      if (stepUpToken) {
+        headers['x-stepup-token'] = stepUpToken;
+      }
     } catch (err) {
       console.warn('[apiFetch] localStorage access blocked', err);
     }
@@ -190,6 +243,27 @@ export async function apiFetch(
               .join('; ');
           } else if (!hasMessage) {
             msg = JSON.stringify(json);
+          }
+
+          const stepUpCode = json?.code ?? res.headers.get('x-stepup-code');
+
+          if (
+            res.status === 403 &&
+            attempt <= 1 &&
+            hasStepUpUi() &&
+            (stepUpCode === 'STEPUP_REQUIRED' || stepUpCode === 'PASSKEY_REQUIRED')
+          ) {
+            try {
+              stepUpDebug('apiFetch: STEPUP required for ' + url + ' — waiting for passkey');
+              const fresh = await triggerStepUp();
+              stepUpDebug('apiFetch: stepup resolved ' + (fresh ? 'with token — retrying' : 'null'));
+              if (fresh) {
+                headers['x-stepup-token'] = fresh;
+                return execute(attempt + 1);
+              }
+            } catch (e: any) {
+              stepUpDebug('apiFetch: stepup branch failed ' + (e?.message || e));
+            }
           }
 
           if (res.status === 403 && attempt <= 2 && (msg.toLowerCase().includes('csrf') || msg.toLowerCase().includes('token'))) {

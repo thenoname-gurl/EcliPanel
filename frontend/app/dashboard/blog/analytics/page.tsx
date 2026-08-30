@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { PanelHeader } from "@/components/panel/header"
-import { PageLayout } from "@/components/panel/shared"
+import { LoadingBar, PageLayout } from "@/components/panel/shared"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { FeatureGuard } from "@/components/panel/feature-guard"
 import { Button } from "@/components/ui/button"
@@ -126,12 +126,7 @@ export default function BlogAnalyticsPage() {
                             {post.viewCount} views
                           </Badge>
                         </div>
-                        <div className="h-2 bg-muted rounded-full mt-1 overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all"
-                            style={{ width: `${(post.viewCount / maxViews) * 100}%` }}
-                          />
-                        </div>
+                        <LoadingBar value={maxViews > 0 ? (post.viewCount / maxViews) * 100 : 0} className="mt-1" />
                       </div>
                     </div>
                   ))}

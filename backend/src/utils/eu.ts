@@ -105,6 +105,7 @@ export async function getGeoBlockRulesWithDefaults(): Promise<Record<string, num
 import { AppDataSource } from '../config/typeorm';
 import { PanelSetting } from '../models/panelSetting.entity';
 import { IDVerification } from '../models/idVerification.entity';
+import { redisDel, withRedisCache } from '../config/redis';
 
 export function isEUCountry(country?: string | null): boolean {
   if (!country) return false;
@@ -118,57 +119,61 @@ export function isEUIdVerificationDisabledForCountry(country?: string | null): b
 }
 
 export async function getGeoBlockRules(): Promise<Record<string, number>> {
-  try {
-    const repo = AppDataSource.getRepository(PanelSetting);
-    const setting = await repo.findOneBy({ key: 'geoBlockCountries' });
-    if (!setting || !setting.value) return {};
-    const raw = setting.value;
-    const result: Record<string, number> = {};
-    const entries = raw
-      .split(/[,\n\r]+/)
-      .map(x => x.trim())
-      .filter(Boolean);
-    for (const e of entries) {
-      const parts = e.split(/[:=;]/).map(y => y.trim());
-      if (parts.length !== 2) continue;
-      const country = parts[0].toLowerCase();
-      const level = Number(parts[1]);
-      if (!country) continue;
-      if (!Number.isNaN(level) && level >= 0 && level <= 5) {
-        result[country] = level;
+  return withRedisCache('eu:geo-block-rules:v1', 30, async () => {
+    try {
+      const repo = AppDataSource.getRepository(PanelSetting);
+      const setting = await repo.findOneBy({ key: 'geoBlockCountries' });
+      if (!setting || !setting.value) return {};
+      const raw = setting.value;
+      const result: Record<string, number> = {};
+      const entries = raw
+        .split(/[,\n\r]+/)
+        .map(x => x.trim())
+        .filter(Boolean);
+      for (const e of entries) {
+        const parts = e.split(/[:=;]/).map(y => y.trim());
+        if (parts.length !== 2) continue;
+        const country = parts[0].toLowerCase();
+        const level = Number(parts[1]);
+        if (!country) continue;
+        if (!Number.isNaN(level) && level >= 0 && level <= 5) {
+          result[country] = level;
+        }
       }
+      return result;
+    } catch {
+      return {};
     }
-    return result;
-  } catch {
-    return {};
-  }
+  });
 }
 
 export async function getCountryAgeRules(): Promise<Record<string, number>> {
-  try {
-    const repo = AppDataSource.getRepository(PanelSetting);
-    const setting = await repo.findOneBy({ key: 'countryAgeRules' });
-    if (!setting || !setting.value) return {};
-    const raw = setting.value;
-    const result: Record<string, number> = {};
-    const entries = raw
-      .split(/[,\n\r]+/)
-      .map(x => x.trim())
-      .filter(Boolean);
-    for (const e of entries) {
-      const parts = e.split(/[:=;]/).map(y => y.trim());
-      if (parts.length !== 2) continue;
-      const country = parts[0].toLowerCase();
-      const age = Number(parts[1]);
-      if (!country) continue;
-      if (!Number.isNaN(age) && age >= 0 && age <= 25) {
-        result[country] = age;
+  return withRedisCache('eu:country-age-rules:v1', 30, async () => {
+    try {
+      const repo = AppDataSource.getRepository(PanelSetting);
+      const setting = await repo.findOneBy({ key: 'countryAgeRules' });
+      if (!setting || !setting.value) return {};
+      const raw = setting.value;
+      const result: Record<string, number> = {};
+      const entries = raw
+        .split(/[,\n\r]+/)
+        .map(x => x.trim())
+        .filter(Boolean);
+      for (const e of entries) {
+        const parts = e.split(/[:=;]/).map(y => y.trim());
+        if (parts.length !== 2) continue;
+        const country = parts[0].toLowerCase();
+        const age = Number(parts[1]);
+        if (!country) continue;
+        if (!Number.isNaN(age) && age >= 0 && age <= 25) {
+          result[country] = age;
+        }
       }
+      return result;
+    } catch {
+      return {};
     }
-    return result;
-  } catch {
-    return {};
-  }
+  });
 }
 
 function isUKCountry(country?: string | null): boolean {
@@ -316,15 +321,28 @@ export async function requiresKyc(country?: string | null): Promise<boolean> {
   return false;
 }
 
+const KYC_VERIFIED_TTL_SECONDS = 60;
+const kycVerifiedCacheKey = (userId: number) => `idv:verified:${userId}`;
+
 export async function isKycVerified(userId: number): Promise<boolean> {
   try {
-    const record = await AppDataSource.getRepository(IDVerification).findOneBy({
-      userId,
-      status: 'verified' as any,
+    return await withRedisCache(kycVerifiedCacheKey(userId), KYC_VERIFIED_TTL_SECONDS, async () => {
+      const record = await AppDataSource.getRepository(IDVerification).findOneBy({
+        userId,
+        status: 'verified' as any,
+      });
+      return !!record;
     });
-    return !!record;
   } catch {
     return false;
+  }
+}
+
+export function clearKycVerifiedCache(userId: number): void {
+  try {
+    redisDel(kycVerifiedCacheKey(userId)).catch(() => {});
+  } catch {
+    /* cache failure buh */
   }
 }
 

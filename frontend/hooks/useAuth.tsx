@@ -46,6 +46,7 @@ export interface User {
   orgRole?: string
   emailVerified?: boolean
   studentVerified?: boolean
+  luminosMember?: boolean
   passkeyCount?: number
   twoFactorEnabled?: boolean
   avatarUrl?: string
@@ -309,13 +310,10 @@ export const AuthProvider = ({
         return { ok: true, user: data.user }
       }
 
+      // refreshUser(data.token) fetches /api/auth/session once and sets the user;
+      // the separate bare session fetch that used to follow was redundant. Use the
+      // returned session from refreshUser's state by reading it via a single call.
       await refreshUser(data.token)
-
-      const session = await apiFetch(API_ENDPOINTS.session, { method: "GET" })
-      if (session?.user) {
-        guideCheckPerformed.current = false
-        await checkAndPromptGuide(session.user)
-      }
 
       return { ok: true }
     } catch (error: any) {

@@ -201,6 +201,16 @@ export function getHostnameFromUrl(url: string): string {
   }
 }
 
+export function isHttpUrl(url: string): boolean {
+  if (typeof url !== 'string' || !url.trim()) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function isSubdomainOf(subdomain: string, parent: string): boolean {
   const normalizedSub = subdomain.startsWith('.') ? subdomain : `.${subdomain}`;
   const normalizedParent = parent.startsWith('.') ? parent : `.${parent}`;

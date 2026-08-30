@@ -33,6 +33,7 @@
 import { sha256Hex } from '../utils/bunCrypto';
 import { In } from 'typeorm';
 import { AppDataSource } from '../config/typeorm';
+import { redisGet, redisSet } from '../config/redis';
 import { Node } from '../models/node.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
 import { UserLog } from '../models/userLog.entity';
@@ -770,6 +771,17 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
         if (!uuid) continue;
         const cfg = await loadServerConfig(uuid, node.id);
         if (!cfg) continue;
+        if (String(evt.event ?? '') === 'server:crash.detected') {
+          const meta = (evt.metadata ?? {}) as Record<string, unknown>;
+          if (meta?.exit_code === 0) continue;
+          try {
+            const rateKey = `activity:crash:${uuid}`;
+            const lastSent = await redisGet(rateKey);
+            if (lastSent && Date.now() - Number(lastSent) < 1_800_000) continue;
+            await redisSet(rateKey, String(Date.now()), 1800);
+          } catch {}
+        }
+
         try {
           await createActivityLog({
             userId: cfg.userId,
@@ -1192,6 +1204,78 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
           environment: t.Record(t.String(), t.String()),
         }),
         401: t.Object({ errors: t.Array(t.Any()) }),
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/remote/backups/:uuid/pbs',
+    async ctx => {
+      const id = (ctx.params as Record<string, string>).uuid;
+      const backupRepo = AppDataSource.getRepository(
+        require('../models/serverBackup.entity').ServerBackup
+      );
+      let node: Node | null = ctx.wingNode || null;
+      let rec: { serverUuid?: string; createdAt?: Date } | null = null;
+      try {
+        rec = await backupRepo.findOneBy({ uuid: id });
+        if (rec?.serverUuid) {
+          const cfg = await AppDataSource.getRepository(ServerConfig).findOneBy({
+            uuid: rec.serverUuid,
+          });
+          if (cfg?.nodeId) {
+            const ownerNode = await AppDataSource.getRepository(Node).findOneBy({
+              id: cfg.nodeId,
+            });
+            if (ownerNode) node = ownerNode;
+          }
+        }
+      } catch (e) {
+        app.log?.warn?.({ err: e, backupUuid: id }, 'remote: failed to resolve node for PBS config');
+      }
+
+      if (!node?.pbsUrl || !node?.pbsDatastore || !node?.pbsTokenId || !node?.pbsTokenSecret) {
+        ctx.set.status = 404;
+        return { error: 'No PBS backup configuration for this node' };
+      }
+
+      const created = new Date(
+        rec?.createdAt instanceof Date ? rec.createdAt.getTime() : Date.now()
+      );
+      created.setSeconds(0, 0);
+
+      return {
+        url: node.pbsUrl,
+        datastore: node.pbsDatastore,
+        namespace: node.pbsNamespace || null,
+        token_id: node.pbsTokenId,
+        token_secret: node.pbsTokenSecret,
+        fingerprint: node.pbsFingerprint || null,
+        backup_id_prefix: node.pbsBackupIdPrefix || null,
+        server_uuid: rec?.serverUuid || null,
+        backup_created: created.toISOString(),
+      };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: {
+        summary: 'Get PBS backup configuration',
+        tags: ['Remote'],
+      },
+      response: {
+        200: t.Object({
+          url: t.String(),
+          datastore: t.String(),
+          namespace: t.Nullable(t.String()),
+          token_id: t.String(),
+          token_secret: t.String(),
+          fingerprint: t.Nullable(t.String()),
+          backup_id_prefix: t.Nullable(t.String()),
+          server_uuid: t.Nullable(t.String()),
+          backup_created: t.String(),
+        }),
+        401: t.Object({ errors: t.Array(t.Any()) }),
+        404: t.Object({ error: t.String() }),
       },
     }
   );

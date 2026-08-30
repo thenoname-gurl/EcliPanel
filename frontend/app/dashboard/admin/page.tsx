@@ -1,5 +1,6 @@
 "use client"
 
+import { Skeleton } from "@/components/ui/skeleton"
 import React from "react"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
@@ -95,6 +96,8 @@ import { API_ENDPOINTS } from "@/lib/panel-config"
 import type { AdminPlan, PanelSettings } from "@/types/admin"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
+import { getStepUpToken, registerStepUpUi, stepUpDebug, type StepUpUiState } from "@/lib/step-up"
+import PasskeyStepUpModal from "./PasskeyStepUpModal"
 import { applyTax, resolveTaxRate } from "@/lib/billing-display"
 import SearchableUserSelect from "@/components/SearchableUserSelect"
 import ReactMarkdown from "react-markdown";
@@ -110,197 +113,162 @@ import {
 
 const OverviewTab = dynamic(() => import("./tabs/OverviewTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading overview...</div>,
 })
 
 const UsersTab = dynamic(() => import("./tabs/UsersTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading users tab...</div>,
 })
 
 const OrganisationsTab = dynamic(() => import("./tabs/OrganisationsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading organisations tab...</div>,
 })
 
 const ServersTab = dynamic(() => import("./tabs/ServersTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading servers tab...</div>,
 })
 
 const TicketsTab = dynamic(() => import("./tabs/TicketsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading tickets tab...</div>,
 })
 
 const VerificationsTab = dynamic(() => import("./tabs/VerificationsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading verifications tab...</div>,
 })
 
 const StudentVerificationsTab = dynamic(() => import("./tabs/StudentVerificationsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading student verifications tab...</div>,
 })
 
 const OutboundEmailsTab = dynamic(() => import("./tabs/OutboundEmailsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading outbound emails...</div>,
 })
 
 const CompanyMailboxesTab = dynamic(() => import("./tabs/CompanyMailboxesTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading company mailboxes...</div>,
 })
 
 const DeletionsTab = dynamic(() => import("./tabs/DeletionsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading deletions tab...</div>,
 })
 
 const NodesTab = dynamic(() => import("./tabs/NodesTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading nodes tab...</div>,
 })
 
 const AegisTab = dynamic(() => import("./tabs/AegisTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading aegis tab...</div>,
 })
 
 const TunnelsTab = dynamic(() => import("./tabs/TunnelsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading tunnels tab...</div>,
 })
 
 const BackupConfigsTab = dynamic(() => import("./tabs/BackupConfigsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading backup configs...</div>,
 })
 
 const TransfersTab = dynamic(() => import("./tabs/TransfersTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading transfers...</div>,
 })
 
 const EggsTab = dynamic(() => import("./tabs/EggsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading eggs tab...</div>,
 })
 
 const AiTab = dynamic(() => import("./tabs/AiTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading AI tab...</div>,
 })
 
 const AnnouncementsTab = dynamic(() => import("./tabs/AnnouncementsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading announcements tab...</div>,
 })
 
 const FraudTab = dynamic(() => import("./tabs/FraudTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading fraud tab...</div>,
 })
 
 const AntiAbuseTab = dynamic(() => import("./tabs/AntiAbuseTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading anti-abuse tab...</div>,
 })
 
 const RolesTab = dynamic(() => import("./tabs/RolesTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading roles tab...</div>,
 })
 
 const LogsTab = dynamic(() => import("./tabs/LogsTab"), {
   ssr: false,
-  loading: () => null,
 })
 
 const AuditLogsTab = dynamic(() => import("./tabs/AuditLogsTab"), {
   ssr: false,
-  loading: () => null,
 })
 
 const SocTab = dynamic(() => import("./tabs/SocTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading SOC tab...</div>,
 })
 
 const OauthTab = dynamic(() => import("./tabs/OauthTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading OAuth tab...</div>,
 })
 
 const PlansTab = dynamic(() => import("./tabs/PlansTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading plans tab...</div>,
 })
 
 const OrdersTab = dynamic(() => import("./tabs/OrdersTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading orders tab...</div>,
 })
 
 const PaymentMethodsTab = dynamic(() => import("./tabs/PaymentMethodsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading payment methods tab...</div>,
 })
 
 const CouponsTab = dynamic(() => import("./tabs/CouponsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading coupons tab...</div>,
 })
 
 const ShortUrlsTab = dynamic(() => import("./tabs/ShortUrlsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading short URLs tab...</div>,
 })
 
 const SettingsTab = dynamic(() => import("./tabs/SettingsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading settings tab...</div>,
 })
 
 const DatabasesTab = dynamic(() => import("./tabs/DatabasesTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading databases tab...</div>,
 })
 
 const ExportJobsTab = dynamic(() => import("./tabs/ExportJobsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading export jobs tab...</div>,
 })
 
 const ApplicationsTab = dynamic(() => import("./tabs/ApplicationsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading applications tab...</div>,
 })
 
 const MetricsTab = dynamic(() => import("./tabs/MetricsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading metrics tab...</div>,
+})
+
+const FinancesTab = dynamic(() => import("./tabs/FinancesTab"), {
+  ssr: false,
 })
 
 const RolloutsTab = dynamic(() => import("./tabs/RolloutsTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading rollouts tab...</div>,
 })
 
 const FeedbackTab = dynamic(() => import("./tabs/FeedbackTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading feedback tab...</div>,
 })
 
 const EloTab = dynamic(() => import("./tabs/EloTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading ELO tab...</div>,
 })
 
 const ChatTab = dynamic(() => import("./tabs/ChatTab"), {
   ssr: false,
-  loading: () => <div className="text-sm text-muted-foreground p-4">Loading chat tab...</div>,
 })
 
 function EmailPreview({ title, message, details }: { title: string; message: string; details: string }) {
@@ -422,6 +390,7 @@ interface AdminUser {
   passkeyCount: number
   createdAt?: string
   studentVerified?: boolean
+  luminosMember?: boolean
   settings?: Record<string, any>
   dateOfBirth?: string | null
   parentId?: number | null
@@ -554,6 +523,7 @@ interface AdminServer {
   eggId?: number
   nodeName: string
   nodeId: number
+  orgId?: number | null
   // Wings configuration fields (when present)
   configuration?: {
     meta?: { description?: string }
@@ -584,11 +554,15 @@ interface AdminOrder {
   description?: string
   planId?: number
   amount: number
+  taxRate?: number
+  taxAmount?: number
   status: string
   notes?: string
   items?: string
   createdAt: string
   expiresAt?: string
+  orgId?: number | null
+  nextRenewalAmount?: number | null
 }
 
 interface AdminRole {
@@ -861,7 +835,14 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
     }
   }
 
-  if (loading) return <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 rounded-full animate-spin" />{tDb("states.loading")}</div>
+  if (loading) return (
+    <div className="space-y-3 p-4">
+      <Skeleton className="h-6 w-48" />
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-2/3" />
+    </div>
+  )
 
   return (
     <div className="space-y-4">
@@ -1014,6 +995,7 @@ export default function AdminPanel() {
     { value: 'organisations', label: t('tabs.organisations'), category: 'billing', permissions: ['org:read'] },
     { value: 'plans', label: t('tabs.plans'), category: 'billing', permissions: ['admin:plans:view', 'admin:plans:manage', 'admin:plans:delete', 'admin:plans:reapply', 'admin:plans:forcereapply'] },
     { value: 'orders', label: t('tabs.orders'), category: 'billing', permissions: ['orders:view', 'orders:issue', 'orders:update', 'orders:delete'] },
+    { value: 'finances', label: 'Finances', category: 'billing', permissions: ['admin:critical:finances'] },
     { value: 'coupons', label: t('tabs.coupons') || 'Coupons', category: 'billing', permissions: ['admin:access'] },
     { value: 'payments', label: t('tabs.payments'), category: 'billing', permissions: ['admin:payment:manage'] },
     { value: 'soc', label: 'SOC', category: 'security', permissions: ['soc:read'] },
@@ -1068,7 +1050,7 @@ export default function AdminPanel() {
   const [eggs, setEggs] = useState<AdminEgg[]>([])
 
   // ── Loading flags ──
-  const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set())
+  const loadedTabsRef = useRef<Set<string>>(new Set())
   const [activeTab, setActiveTab] = useState("overview")
 
   // ── Filters ──
@@ -1119,7 +1101,10 @@ export default function AdminPanel() {
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
       if (token) {
-        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        const stepUp = getStepUpToken()
+        const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
+        if (stepUp) headers['x-stepup-token'] = stepUp
+        let res = await fetch(url, { headers })
         if (!res.ok) {
           setPreviewUrl(null)
           return
@@ -1199,6 +1184,38 @@ export default function AdminPanel() {
   const [confirmTitle, setConfirmTitle] = useState<string>("Confirm Action")
   const [confirmLoading, setConfirmLoading] = useState(false)
   const confirmResolveRef = useRef<((v: boolean) => void) | null>(null)
+
+  // ── Passkey step-up (every admin action must be authorized with a passkey)
+  const [stepUpOpen, setStepUpOpen] = useState(false)
+  const [stepUpState, setStepUpState] = useState<StepUpUiState | null>(null)
+  const [stepUpKey, setStepUpKey] = useState(0)
+  // Gate: removed — passkey step-up no longer gates admin routes. The sudo
+  // passkey flow (for sensitive PII/destructive actions) still triggers
+  // on-demand via the 403 retry path; no blocking entry gate is needed.
+  const [stepUpGateReady, setStepUpGateReady] = useState<boolean>(true)
+  const stepUpResolveRef = useRef<((token: string | null) => void) | null>(null)
+  const stepUpBusyRef = useRef(false)
+  const stepUpQueueRef = useRef<Array<{ state: StepUpUiState; resolve: (token: string | null) => void }>>([])
+
+  // Registered during render (not in an effect): child tab effects run before
+  // parent effects, so a cold page load would otherwise 403 on the first round
+  // of tab fetches with no step-up handler to retry them.
+  // The modal is serialized through a queue so a sudo prompt can't clobber an
+  // open step-up prompt (both would otherwise fight over the single resolve).
+  registerStepUpUi((state) => {
+    return new Promise((resolve) => {
+      if (stepUpBusyRef.current) {
+        stepUpQueueRef.current.push({ state, resolve })
+      } else {
+        stepUpBusyRef.current = true
+        setStepUpState(state)
+        setStepUpKey((k) => k + 1)
+        setStepUpOpen(true)
+        stepUpResolveRef.current = resolve
+      }
+    })
+  })
+  useEffect(() => () => registerStepUpUi(null), [])
 
   useEffect(() => {
     try {
@@ -1325,6 +1342,13 @@ export default function AdminPanel() {
   const [editNodeIpv6ReservedCount, setEditNodeIpv6ReservedCount] = useState("0")
   const [editNodeDeploymentsDisabled, setEditNodeDeploymentsDisabled] = useState(false)
   const [editNodeDeploymentNotice, setEditNodeDeploymentNotice] = useState("")
+  const [editNodePbsUrl, setEditNodePbsUrl] = useState("")
+  const [editNodePbsDatastore, setEditNodePbsDatastore] = useState("")
+  const [editNodePbsNamespace, setEditNodePbsNamespace] = useState("")
+  const [editNodePbsTokenId, setEditNodePbsTokenId] = useState("")
+  const [editNodePbsTokenSecret, setEditNodePbsTokenSecret] = useState("")
+  const [editNodePbsFingerprint, setEditNodePbsFingerprint] = useState("")
+  const [editNodePbsBackupIdPrefix, setEditNodePbsBackupIdPrefix] = useState("")
   const [editNodeLoading, setEditNodeLoading] = useState(false)
 
   // ── Plans state ──
@@ -1392,12 +1416,14 @@ export default function AdminPanel() {
   // ── Edit / Cancel / Delete Order ──
   const [editOrderOpen, setEditOrderOpen] = useState(false)
   const [editOrderTarget, setEditOrderTarget] = useState<AdminOrder | null>(null)
-  const [eoDescription, setEoDescription] = useState("")
-  const [eoAmount, setEoAmount] = useState("0")
+  const [eoItems, setEoItems] = useState<Array<Record<string, any>>>([])
+  const [eoTaxRate, setEoTaxRate] = useState("")
   const [eoPlanId, setEoPlanId] = useState("")
   const [eoNotes, setEoNotes] = useState("")
   const [eoExpiresAt, setEoExpiresAt] = useState("")
   const [eoStatus, setEoStatus] = useState("")
+  const [eoNextRenewal, setEoNextRenewal] = useState("")
+  const [eoOrgId, setEoOrgId] = useState("")
   const [eoLoading, setEoLoading] = useState(false)
   const [eoError, setEoError] = useState("")
 
@@ -1443,6 +1469,13 @@ export default function AdminPanel() {
   const [addNodeProxmoxNode, setAddNodeProxmoxNode] = useState("pve")
   const [addNodeProxmoxStorage, setAddNodeProxmoxStorage] = useState("local")
   const [addNodeProxmoxBridge, setAddNodeProxmoxBridge] = useState("vmbr0")
+  const [addNodePbsUrl, setAddNodePbsUrl] = useState("")
+  const [addNodePbsDatastore, setAddNodePbsDatastore] = useState("")
+  const [addNodePbsNamespace, setAddNodePbsNamespace] = useState("")
+  const [addNodePbsTokenId, setAddNodePbsTokenId] = useState("")
+  const [addNodePbsTokenSecret, setAddNodePbsTokenSecret] = useState("")
+  const [addNodePbsFingerprint, setAddNodePbsFingerprint] = useState("")
+  const [addNodePbsBackupIdPrefix, setAddNodePbsBackupIdPrefix] = useState("")
 
   // ── AI Model state ──
   const [aiModels, setAiModels] = useState<AdminAIModel[]>([])
@@ -1617,6 +1650,7 @@ export default function AdminPanel() {
   const [esName, setEsName] = useState("")
   const [esDesc, setEsDesc] = useState("")
   const [esUserId, setEsUserId] = useState("")
+  const [esOrgId, setEsOrgId] = useState("")
   const [esMemory, setEsMemory] = useState("")
   const [esDisk, setEsDisk] = useState("")
   const [esCpu, setEsCpu] = useState("")
@@ -1799,18 +1833,19 @@ export default function AdminPanel() {
       .finally(() => setHeartbeatDialogLoading(false))
   }, [heartbeatDialogNode, heartbeatDialogWindow]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Load stats on mount ──
+  // ── Load stats on mount (only after passkey step-up gate is ready) ──
   useEffect(() => {
+    if (!stepUpGateReady) return
     apiFetch(API_ENDPOINTS.adminStats)
       .then((d) => setStats(d))
       .catch(() => { })
-  }, [])
+  }, [stepUpGateReady])
 
   // ── Tab loader ──
   const loadTab = useCallback(
     async (tab: string) => {
-      if (loadedTabs.has(tab)) return
-      setLoadedTabs((prev) => new Set([...prev, tab]))
+      if (loadedTabsRef.current.has(tab)) return
+      loadedTabsRef.current.add(tab)
       try {
         if (tab === "users") {
           await fetchUsers(1, "")
@@ -1923,10 +1958,14 @@ export default function AdminPanel() {
           }
         }
       } catch (_e) {
-        // skip
+        // A failed load (e.g. cancelled passkey prompt) must not leave the tab
+        // permanently marked as loaded — allow a retry on the next tab switch.
+        // Ref only: touching state here would change loadTab's identity and
+        // re-fire the load effect in a loop.
+        loadedTabsRef.current.delete(tab)
       }
     },
-    [loadedTabs]
+    []
   )
 
   async function fetchExportJobs(limit = 150, status = "") {
@@ -2204,14 +2243,16 @@ export default function AdminPanel() {
   }, [searchParams, activeTab, visibleTabs])
 
   useEffect(() => {
+    if (!stepUpGateReady) return
     loadTab(activeTab)
-  }, [activeTab, loadTab])
+  }, [activeTab, loadTab, stepUpGateReady])
 
   // ── Load default tab on mount and honor ?viewUser=123 query ──
   useEffect(() => {
     const tab = searchParams.get("tab") || "overview"
     const viewUserId = Number(searchParams.get("viewUser") || "")
 
+    if (!stepUpGateReady) return
     if (viewUserQueryHandled) return
     if (!Number.isFinite(viewUserId) || viewUserId <= 0) return
 
@@ -2248,7 +2289,7 @@ export default function AdminPanel() {
     }
 
     openFromQuery()
-  }, [searchParams, privacyDialogOpen, users, viewUserQueryHandled]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, privacyDialogOpen, users, viewUserQueryHandled, stepUpGateReady]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const viewServerUuid = (searchParams.get("viewServer") || "").trim()
@@ -2348,6 +2389,21 @@ export default function AdminPanel() {
       body: JSON.stringify({ inactive: nextInactive }),
     })
     setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, inactive: nextInactive } : u)))
+  }
+
+  async function expelFromLuminos(user: AdminUser) {
+    if (!(await confirmAsync(`Expel ${user.firstName} ${user.lastName} from the Luminos Club? They will lose club access and have to retake the exam.`))) return
+    await apiFetch(API_ENDPOINTS.luminosExpel.replace(":userId", String(user.id)), {
+      method: "POST",
+    })
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, luminosMember: false } : u)))
+  }
+
+  async function assignToLuminos(user: AdminUser) {
+    await apiFetch(API_ENDPOINTS.luminosAssign.replace(":userId", String(user.id)), {
+      method: "POST",
+    })
+    setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, luminosMember: true } : u)))
   }
 
   async function deleteUser(user: AdminUser) {
@@ -2546,6 +2602,8 @@ export default function AdminPanel() {
         )
       )
       setEditUserDialog(null)
+    } catch (e: any) {
+      alert(e?.message || "Failed to save user")
     } finally {
       setEditLoading(false)
     }
@@ -2625,11 +2683,7 @@ export default function AdminPanel() {
   }
 
   function forceRefreshTab(tab: string) {
-    setLoadedTabs((prev) => {
-      const next = new Set(prev)
-      next.delete(tab)
-      return next
-    })
+    loadedTabsRef.current.delete(tab)
     setTimeout(() => loadTab(tab), 50)
   }
 
@@ -2729,6 +2783,7 @@ export default function AdminPanel() {
         ""
     )
     setEsUserId(String(mergedAny.owner || mergedAny.userId || ""))
+    setEsOrgId(String(mergedAny.orgId ?? srv.orgId ?? ""))
     setEsIgnoreAntiAbuse(Boolean(mergedAny.ignoreAntiAbuse ?? false))
     setEsMemory(String(cfgBuild.memory_limit ?? rootBuild.memory_limit ?? mergedAny.memory ?? ""))
     setEsDisk(String(cfgBuild.disk_space ?? rootBuild.disk_space ?? mergedAny.disk ?? ""))
@@ -2886,6 +2941,7 @@ export default function AdminPanel() {
           name: esName || undefined,
           description: esDesc || undefined,
           userId: esUserId ? Number(esUserId) : undefined,
+          orgId: esOrgId.trim() === "" ? null : Number(esOrgId),
           memory: esMemory ? Number(esMemory) : undefined,
           disk: esDisk ? Number(esDisk) : undefined,
           cpu: esCpu ? Number(esCpu) : undefined,
@@ -3091,6 +3147,44 @@ export default function AdminPanel() {
     }
   }
 
+  const [forceMigrateOpen, setForceMigrateOpen] = useState(false)
+  const [fmSourceNodeId, setFmSourceNodeId] = useState("")
+  const [fmTargetNodeId, setFmTargetNodeId] = useState("")
+  const [fmServers, setFmServers] = useState("")
+  const [fmLoading, setFmLoading] = useState(false)
+  const [fmError, setFmError] = useState("")
+  const [fmResult, setFmResult] = useState<any>(null)
+
+  async function forceMigrateServers() {
+    if (!fmSourceNodeId || !fmTargetNodeId) {
+      setFmError("Select both a source and a target node.")
+      return
+    }
+    setFmLoading(true)
+    setFmError("")
+    setFmResult(null)
+    try {
+      const servers = fmServers
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const result = await apiFetch(API_ENDPOINTS.adminServersForceMigrate, {
+        method: "POST",
+        body: JSON.stringify({
+          sourceNodeId: Number(fmSourceNodeId),
+          targetNodeId: Number(fmTargetNodeId),
+          servers: servers.length ? servers : undefined,
+        }),
+      })
+      setFmResult(result)
+      forceRefreshTab("servers")
+    } catch (e: any) {
+      setFmError(e.message)
+    } finally {
+      setFmLoading(false)
+    }
+  }
+
   function openCreateServer() {
     const defaultNode = nodes.find((n: any) => !n.deploymentsDisabled) || nodes[0]
     setCsNodeId(defaultNode ? String(defaultNode.id) : "")
@@ -3150,6 +3244,13 @@ export default function AdminPanel() {
     setEditNodeIpv6ReservedCount((node as any).ipv6ReservedCount != null ? String((node as any).ipv6ReservedCount) : "0")
     setEditNodeDeploymentsDisabled(Boolean((node as any).deploymentsDisabled))
     setEditNodeDeploymentNotice((node as any).deploymentNotice || "")
+    setEditNodePbsUrl((node as any).pbsUrl || "")
+    setEditNodePbsDatastore((node as any).pbsDatastore || "")
+    setEditNodePbsNamespace((node as any).pbsNamespace || "")
+    setEditNodePbsTokenId((node as any).pbsTokenId || "")
+    setEditNodePbsTokenSecret("")
+    setEditNodePbsFingerprint((node as any).pbsFingerprint || "")
+    setEditNodePbsBackupIdPrefix((node as any).pbsBackupIdPrefix || "")
   }
 
   async function saveEditNode() {
@@ -3168,6 +3269,13 @@ export default function AdminPanel() {
           ipv6ReservedCount: editNodeIpv6ReservedCount !== "" ? Number(editNodeIpv6ReservedCount) : null,
           deploymentsDisabled: editNodeDeploymentsDisabled,
           deploymentNotice: editNodeDeploymentNotice || null,
+          pbsUrl: editNodePbsUrl || null,
+          pbsDatastore: editNodePbsDatastore || null,
+          pbsNamespace: editNodePbsNamespace || null,
+          pbsTokenId: editNodePbsTokenId || null,
+          ...(editNodePbsTokenSecret ? { pbsTokenSecret: editNodePbsTokenSecret } : {}),
+          pbsFingerprint: editNodePbsFingerprint || null,
+          pbsBackupIdPrefix: editNodePbsBackupIdPrefix || null,
         }),
       })
       const updatedNode = result?.node ?? result
@@ -3383,12 +3491,29 @@ export default function AdminPanel() {
 
   function openEditOrder(order: AdminOrder) {
     setEditOrderTarget(order)
-    setEoDescription(order.description || "")
-    setEoAmount(String(order.amount ?? 0))
+    let lines: any[] = []
+    try {
+      const parsed = JSON.parse(order.items || "[]")
+      if (Array.isArray(parsed) && parsed.length > 0) lines = parsed
+    } catch {}
+    if (lines.length === 0) {
+      lines = [{ description: order.description || "Order", quantity: 1, price: Number(order.amount ?? 0) }]
+    }
+    setEoItems(
+      lines.map((it: any) => ({
+        ...it,
+        description: String(it.description ?? it.name ?? ""),
+        quantity: String(it.quantity ?? it.qty ?? 1),
+        price: String(it.price ?? it.unit_price ?? 0),
+      }))
+    )
+    setEoTaxRate(String(order.taxRate ?? 0))
     setEoPlanId(order.planId ? String(order.planId) : "")
     setEoNotes(order.notes || "")
     setEoExpiresAt(order.expiresAt || "")
     setEoStatus(order.status || "")
+    setEoNextRenewal(order.nextRenewalAmount != null ? String(order.nextRenewalAmount) : "")
+    setEoOrgId(order.orgId ? String(order.orgId) : "")
     setEoError("")
     setEditOrderOpen(true)
   }
@@ -3398,16 +3523,35 @@ export default function AdminPanel() {
     setEoLoading(true); setEoError("")
     try {
       const id = String(editOrderTarget.id)
+      const lines = eoItems
+        .map((it) => ({
+          ...it,
+          description: String(it.description ?? ""),
+          quantity: Math.max(1, Number(it.quantity) || 1),
+          price: Number(it.price) || 0,
+        }))
+        .filter((it) => it.description.trim() !== "" || it.price !== 0)
+      const amount = Math.round(lines.reduce((acc, it) => acc + it.quantity * it.price, 0) * 100) / 100
+      const rate = Math.max(0, Math.min(100, Number(eoTaxRate) || 0))
+      const taxChanged = rate !== Number(editOrderTarget.taxRate ?? 0)
+      const body: Record<string, any> = {
+        description: lines[0]?.description || undefined,
+        amount,
+        items: JSON.stringify(lines),
+        planId: eoPlanId ? Number(eoPlanId) : undefined,
+        notes: eoNotes || undefined,
+        expiresAt: eoExpiresAt || undefined,
+        status: eoStatus || undefined,
+        nextRenewalAmount: eoNextRenewal.trim() === "" ? null : Number(eoNextRenewal),
+        orgId: eoOrgId.trim() === "" ? null : Number(eoOrgId),
+      }
+      if (taxChanged) {
+        body.taxRate = rate
+        body.taxAmount = Number((amount * (rate / 100)).toFixed(2))
+      }
       const res = await apiFetch(API_ENDPOINTS.adminOrderDetail.replace(":id", id), {
         method: "PUT",
-        body: JSON.stringify({
-          description: eoDescription || undefined,
-          amount: eoAmount ? Number(eoAmount) : 0,
-          planId: eoPlanId ? Number(eoPlanId) : undefined,
-          notes: eoNotes || undefined,
-          expiresAt: eoExpiresAt || undefined,
-          status: eoStatus || undefined,
-        }),
+        body: JSON.stringify(body),
       })
       setAdminOrders((prev) => prev.map((o) => (o.id === editOrderTarget.id ? (res.order ?? res) : o)))
       setEditOrderOpen(false)
@@ -3504,7 +3648,12 @@ export default function AdminPanel() {
 
   async function deleteNode(node: AdminNode) {
     if (!(await confirmAsync(`Delete node "${node.name}"? All server mappings on this node will break.`))) return
-    await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
+    try {
+      await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
+    } catch (e: any) {
+      alert(e?.message || "Failed to delete node.")
+      return
+    }
     setNodes((prev) => prev.filter((n) => n.id !== node.id))
     apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
   }
@@ -3569,6 +3718,8 @@ remote: ${backendUrl}`
     setAddNodeProvider("wings")
     setAddNodeProxmoxHost(""); setAddNodeProxmoxTokenId(""); setAddNodeProxmoxSecret("")
     setAddNodeProxmoxRealm("pam"); setAddNodeProxmoxNode("pve"); setAddNodeProxmoxStorage("local"); setAddNodeProxmoxBridge("vmbr0")
+    setAddNodePbsUrl(""); setAddNodePbsDatastore(""); setAddNodePbsNamespace("")
+    setAddNodePbsTokenId(""); setAddNodePbsTokenSecret(""); setAddNodePbsFingerprint(""); setAddNodePbsBackupIdPrefix("")
   }
 
   async function generateAddNodeToken() {
@@ -3600,6 +3751,13 @@ remote: ${backendUrl}`
         body.ipv6Subnet = addNodeIpv6Subnet || undefined
         body.ipv6ExcludedPorts = addNodeIpv6ExcludedPorts || undefined
         body.ipv6ReservedCount = addNodeIpv6ReservedCount ? Number(addNodeIpv6ReservedCount) : undefined
+        body.pbsUrl = addNodePbsUrl || undefined
+        body.pbsDatastore = addNodePbsDatastore || undefined
+        body.pbsNamespace = addNodePbsNamespace || undefined
+        body.pbsTokenId = addNodePbsTokenId || undefined
+        body.pbsTokenSecret = addNodePbsTokenSecret || undefined
+        body.pbsFingerprint = addNodePbsFingerprint || undefined
+        body.pbsBackupIdPrefix = addNodePbsBackupIdPrefix || undefined
       }
       if (addNodeProvider === "proxmox") {
         body.proxmoxHost = addNodeProxmoxHost
@@ -4297,6 +4455,36 @@ remote: ${panelUrl}`
         </DialogContent>
       </Dialog>
 
+      {/* Passkey step-up for admin actions */}
+      <PasskeyStepUpModal
+        key={stepUpKey}
+        open={stepUpOpen}
+        state={stepUpState}
+        onResolve={(token) => {
+          const pending = stepUpResolveRef.current
+          stepUpResolveRef.current = null
+          const next = stepUpQueueRef.current.shift()
+          if (next) {
+            setStepUpState(next.state)
+            setStepUpKey((k) => k + 1)
+            stepUpResolveRef.current = next.resolve
+          } else {
+            setStepUpOpen(false)
+            stepUpBusyRef.current = false
+          }
+          if (pending) pending(token)
+          if (token) {
+            // A passkey authorization just succeeded — refetch the current tab
+            // (and clear the cache so other tabs reload when visited).
+            stepUpDebug('modal onResolve: token received, refetching tab ' + activeTab)
+            loadedTabsRef.current.clear()
+            loadTab(activeTab)
+          } else {
+            stepUpDebug('modal onResolve: cancelled (null)')
+          }
+        }}
+      />
+
       {/* Privacy check before exposing sensitive fields */}
       <Dialog open={privacyDialogOpen} onOpenChange={(open) => setPrivacyDialogOpen(open)}>
         <DialogContent className="border-border bg-card sm:max-w-md">
@@ -4518,6 +4706,8 @@ remote: ${panelUrl}`
                     openEditUser,
                     toggleSuspend,
                     toggleInactive,
+                    expelFromLuminos,
+                    assignToLuminos,
                     startExportJob,
                     userExportJobId,
                     exportJobs,
@@ -4634,6 +4824,8 @@ remote: ${panelUrl}`
                     setEsDesc,
                     esUserId,
                     setEsUserId,
+                    esOrgId,
+                    setEsOrgId,
                     esMemory,
                     setEsMemory,
                     esDisk,
@@ -4706,6 +4898,18 @@ remote: ${panelUrl}`
                     nodeHeartbeats,
                     resyncServer,
                     resyncingServer,
+                    forceMigrateOpen,
+                    setForceMigrateOpen,
+                    fmSourceNodeId,
+                    setFmSourceNodeId,
+                    fmTargetNodeId,
+                    setFmTargetNodeId,
+                    fmServers,
+                    setFmServers,
+                    fmLoading,
+                    fmError,
+                    fmResult,
+                    forceMigrateServers,
                   }}
                 />
               ) : null}
@@ -6033,6 +6237,20 @@ remote: ${panelUrl}`
                     setAddNodeProxmoxStorage,
                     addNodeProxmoxBridge,
                     setAddNodeProxmoxBridge,
+                    addNodePbsUrl,
+                    setAddNodePbsUrl,
+                    addNodePbsDatastore,
+                    setAddNodePbsDatastore,
+                    addNodePbsNamespace,
+                    setAddNodePbsNamespace,
+                    addNodePbsTokenId,
+                    setAddNodePbsTokenId,
+                    addNodePbsTokenSecret,
+                    setAddNodePbsTokenSecret,
+                    addNodePbsFingerprint,
+                    setAddNodePbsFingerprint,
+                    addNodePbsBackupIdPrefix,
+                    setAddNodePbsBackupIdPrefix,
                     addNodeIpv6Subnet,
                     setAddNodeIpv6Subnet,
                     addNodeIpv6ExcludedPorts,
@@ -6459,6 +6677,11 @@ remote: ${panelUrl}`
                 />
               ) : null}
             </TabsContent>
+            {/* ═════════════════ FINANCES ══════════════════════════════════════ */}
+            <TabsContent value="finances" className="mt-4">
+              {activeTab === "finances" ? <FinancesTab /> : null}
+            </TabsContent>
+
             {/* ═════════════════ ORDERS ══════════════════════════════════════ */}
             <TabsContent value="orders" className="mt-4">
               {activeTab === "orders" ? (
@@ -6517,10 +6740,10 @@ remote: ${panelUrl}`
                     editOrderOpen,
                     setEditOrderOpen,
                     editOrderTarget,
-                    eoDescription,
-                    setEoDescription,
-                    eoAmount,
-                    setEoAmount,
+                    eoItems,
+                    setEoItems,
+                    eoTaxRate,
+                    setEoTaxRate,
                     eoPlanId,
                     setEoPlanId,
                     eoNotes,
@@ -6529,6 +6752,10 @@ remote: ${panelUrl}`
                     setEoExpiresAt,
                     eoStatus,
                     setEoStatus,
+                    eoNextRenewal,
+                    setEoNextRenewal,
+                    eoOrgId,
+                    setEoOrgId,
                     eoError,
                     submitEditOrder,
                     eoLoading,
@@ -8075,6 +8302,8 @@ remote: ${panelUrl}`
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </AdminLayout>
   )
 }
+

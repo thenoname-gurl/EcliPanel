@@ -83,9 +83,8 @@ export class PasskeyService {
       attestationType: 'none',
       authenticatorSelection: {
         userVerification: 'preferred',
-        ...(settings.allowDiscoverable
-          ? { residentKey: 'required' as const, requireResidentKey: true }
-          : {}),
+        residentKey: 'required' as const,
+        requireResidentKey: true,
       },
     });
     return opts;
@@ -176,7 +175,11 @@ export class PasskeyService {
     return verification;
   }
 
-  static async generateAuthentication(userId: number | null, requestHost?: string) {
+  static async generateAuthentication(
+    userId: number | null,
+    requestHost?: string,
+    userVerification?: 'required' | 'preferred'
+  ) {
     const settings = await loadWebauthnSettings();
     const passkeyRepo = AppDataSource.getRepository(Passkey);
     const keys = userId
@@ -197,7 +200,7 @@ export class PasskeyService {
         type: 'public-key',
         transports: k.transports.split(',').filter(Boolean) as any,
       })),
-      userVerification: userId === null ? 'required' : 'preferred',
+      userVerification: userVerification ?? (userId === null ? 'required' : 'preferred'),
       rpID: selectedRPID,
     });
     return opts;
@@ -219,9 +222,11 @@ export class PasskeyService {
     const settings = await loadWebauthnSettings();
     const passkeyRepo = AppDataSource.getRepository(Passkey);
     const credID = base64url.encode(authenticationResponse.rawId);
-    let passkey = await passkeyRepo.findOne({ where: { credentialID: credID } });
+    let passkey = await passkeyRepo.findOne({ where: { credentialID: credID, user: { id: userId } } });
     if (!passkey) {
-      passkey = await passkeyRepo.findOne({ where: { credentialID: authenticationResponse.id } });
+      passkey = await passkeyRepo.findOne({
+        where: { credentialID: authenticationResponse.id, user: { id: userId } },
+      });
     }
     if (!passkey) throw new Error('Passkey not found');
     const selectedRPID = selectRpId(requestHost, settings);

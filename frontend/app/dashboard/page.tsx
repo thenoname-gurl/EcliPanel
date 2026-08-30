@@ -4,6 +4,8 @@ import { PanelHeader } from "@/components/panel/header"
 import { useEffect, useState, useCallback } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { StatCard, SectionHeader, UsageBar, PageLayout, StatGrid, AlertBanner, EmptyState, LoadingState } from "@/components/panel/shared"
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
+import { Skeleton } from "@/components/ui/skeleton"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
@@ -289,6 +291,17 @@ export default function SOCDashboard() {
     return <div className="p-8 text-center">{t("authInProgress")}</div>;
   }
 
+  // One loading screen for the whole page rather than stepping through skeleton →
+  // stats → activity. The server list is the slowest fetch; gate the page on it.
+  if (loading) {
+    return (
+      <div className="min-h-full w-full">
+        <PanelHeader title={t("header.title")} description={t("header.description")} />
+        <RouteSkeleton />
+      </div>
+    );
+  }
+
   const myServers = servers.filter((s) => s.userId == null || s.userId === user.id)
   const otherServers = servers.filter((s) => s.userId != null && s.userId !== user.id)
 
@@ -405,7 +418,8 @@ export default function SOCDashboard() {
             </AlertBanner>
           )}
 
-          {/* Stats Row */}
+          {/* Stats Row — show skeleton cards until the server list loads, so we
+              don't flash 0/0 / "—" / "Low" before the real numbers arrive. */}
           <StatGrid>
               <StatCard
               title={t("stats.yourServersOnline")}
@@ -420,10 +434,10 @@ export default function SOCDashboard() {
             />
             <StatCard
               title="THREAT LEVEL"
-              value={((findingsSummary.critical || 0) + (findingsSummary.high || 0)) > 0 ? "Elevated" : "Low"}
-              subtitle={((findingsSummary.critical || 0) + (findingsSummary.high || 0)) > 0
+              value={findingsLoading ? "…" : (((findingsSummary.critical || 0) + (findingsSummary.high || 0)) > 0 ? "Elevated" : "Low")}
+              subtitle={findingsLoading ? t("stats.loading") : (((findingsSummary.critical || 0) + (findingsSummary.high || 0)) > 0
                 ? `${findingsSummary.high || 0} high, ${findingsSummary.critical || 0} critical`
-                : "No open threats"}
+                : "No open threats")}
               icon={Shield}
             />
             <StatCard
@@ -658,6 +672,14 @@ export default function SOCDashboard() {
             <div className="border border-border bg-card p-5">
               <SectionHeader title={t("resourceSummary.title")} />
               <div className="mt-4 flex flex-col gap-3">
+                {loading ? (
+                  <div className="flex flex-col gap-3">
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-4 w-3/5" />
+                  </div>
+                ) : (<>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Cpu className="h-4 w-4" /><span>{t("resourceSummary.avgCpu")}</span>
@@ -682,6 +704,7 @@ export default function SOCDashboard() {
                   </div>
                   <span className="font-mono text-sm text-foreground">{onlineServers}/{totalServers}</span>
                 </div>
+                </>)}
               </div>
             </div>
 

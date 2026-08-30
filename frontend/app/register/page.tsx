@@ -1,5 +1,6 @@
 "use client";
 
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -936,7 +937,7 @@ export default function RegisterPage() {
                             <div className="relative rounded-lg overflow-hidden bg-background border border-white/20">
                               {captchaLoading ? (
                                 <div className="flex items-center justify-center h-24">
-                                  <Loader2 className="h-5 w-5 rounded-full animate-spin text-muted-foreground" />
+                                  <Skeleton className="h-6 w-32" />
                                 </div>
                               ) : captchaImage ? (
                                 <img

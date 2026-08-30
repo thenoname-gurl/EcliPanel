@@ -11,5 +11,5 @@ const { locale, messages, initialUser, pathname } = await getPageData(
 ---
 
 <BaseLayout>
-  <PageShell client:only="react" locale={locale} messages={messages} initialUser={initialUser} page="app" pathname={pathname} />
+  <PageShell client:load="react" locale={locale} messages={messages} initialUser={initialUser} page="app" pathname={pathname} />
 </BaseLayout>

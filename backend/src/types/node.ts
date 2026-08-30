@@ -39,6 +39,13 @@ export interface CreateNodeBody {
   proxmoxNode?: string;
   proxmoxStorage?: string;
   proxmoxBridge?: string;
+  pbsUrl?: string;
+  pbsDatastore?: string;
+  pbsNamespace?: string;
+  pbsTokenId?: string;
+  pbsTokenSecret?: string;
+  pbsFingerprint?: string;
+  pbsBackupIdPrefix?: string;
 }
 
 export interface UpdateNodeBody {
@@ -74,6 +81,13 @@ export interface UpdateNodeBody {
   proxmoxNode?: string;
   proxmoxStorage?: string;
   proxmoxBridge?: string;
+  pbsUrl?: string;
+  pbsDatastore?: string;
+  pbsNamespace?: string;
+  pbsTokenId?: string;
+  pbsTokenSecret?: string;
+  pbsFingerprint?: string;
+  pbsBackupIdPrefix?: string;
 }
 
 export type RebootOperation = {
@@ -93,5 +107,19 @@ export type RebootOperation = {
     start: string;
   }>;
   killedCount: number;
+  createdAt: number;
+};
+
+export type BackupOperation = {
+  id: string;
+  nodeId: number;
+  nodeName: string;
+  status: string;
+  progress: number;
+  message: string;
+  totalServers: number;
+  servers: Array<{ uuid: string; name: string; ok: boolean; error?: string; backupId?: string }>;
+  succeedCount: number;
+  errorCount: number;
   createdAt: number;
 };

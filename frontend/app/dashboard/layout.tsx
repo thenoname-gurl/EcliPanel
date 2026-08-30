@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { PanelSidebar } from "@/components/panel/sidebar";
@@ -26,6 +27,7 @@ export default function DashboardLayout({
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const reduceMotion = useReducedMotion();
   const isAnonChat = pathname?.startsWith("/dashboard/chat") && user === null;
 
   useEffect(() => {
@@ -72,7 +74,15 @@ export default function DashboardLayout({
         <CookieConsent />
         <div className={"flex-1 min-h-0"}>
           <SidebarContext.Provider value={{ show: showSidebar, toggle: () => setShowSidebar(s => !s) }}>
-            {children}
+            <motion.div
+              key={pathname}
+              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+              className="h-full w-full"
+            >
+              {children}
+            </motion.div>
           </SidebarContext.Provider>
         </div>
         <Footer dashboard hideOnPathname={hideFooter} />

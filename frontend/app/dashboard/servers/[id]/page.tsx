@@ -1,5 +1,7 @@
 "use client"
 
+import { LoadingBar } from "@/components/panel/shared"
+import { Skeleton } from "@/components/ui/skeleton"
 import { use, useEffect, useState, useRef, useCallback, useMemo, lazy, Suspense } from "react"
 import { createPortal } from "react-dom"
 import { motion, AnimatePresence } from "framer-motion"
@@ -1218,11 +1220,11 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 rounded-full animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">{t("states.loadingServer")}</p>
-        </div>
+      <div className="w-full space-y-3 p-4">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-4 w-2/3" />
       </div>
     )
   }
@@ -1253,9 +1255,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10 text-blue-500 mb-4">
               <Server className="h-8 w-8" />
             </div>
-            <h2 className="text-2xl font-semibold text-foreground mb-3">{t("transfer.transferringBanner")}</h2>
+            <h2 className="text-2xl font-semibold text-foreground mb-3">{t("dialogs.transfer.transferringBanner")}</h2>
             <p className="text-sm text-muted-foreground mb-3">
-              {t("transfer.transferringMessage")}
+              {t("dialogs.transfer.transferringMessage")}
             </p>
             <Button variant="outline" onClick={() => router.push("/dashboard/servers")}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back to Servers
@@ -3332,14 +3334,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
 
                 {inProgress && (
                   <div className="space-y-1">
-                    <div className="h-2 bg-border rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary transition-all duration-500"
-                        style={{
-                          width: `${Math.max(0, Math.min(100, Number(backup.progress) || 0))}%`,
-                        }}
-                      />
-                    </div>
+                    <LoadingBar value={Number(backup.progress) || 0} />
                     <p className="text-[10px] text-muted-foreground">
                       {t("backups.progress", { value: Math.round(Number(backup.progress) || 0) })}
                     </p>
@@ -4383,6 +4378,8 @@ function SettingsTab({
   const [diskSource, setDiskSource] = useState<"plan" | "node">("plan")
   const [cpuSource, setCpuSource] = useState<"plan" | "node">("plan")
   const [nodeResources, setNodeResources] = useState<{ memory?: number; disk?: number; cpu?: number }>({})
+  const [planPresets, setPlanPresets] = useState<{ planId: number; planName: string; memory?: number; disk?: number; cpu?: number }[]>([])
+  const [selectedPlanPreset, setSelectedPlanPreset] = useState<string>("")
   const [primaryAlloc, setPrimaryAlloc] = useState<any>(
     server?.allocations?.find((a: any) => a.is_default) || server?.allocations?.[0] || null
   )
@@ -4429,6 +4426,40 @@ function SettingsTab({
     setSwapLimit(Number(server?.build?.swap ?? 0))
     setIoWeight(Number(server?.build?.io_weight ?? 500))
   }, [server])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadPresets = async () => {
+      try {
+        const orders = await apiFetch(API_ENDPOINTS.orders)
+        const list = Array.isArray(orders) ? orders : []
+        const active = list
+          .filter((o: any) => o?.status === "active" && o?.planSpecs)
+          .sort((a: any, b: any) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          )
+        const seen = new Set<number>()
+        const presets: { planId: number; planName: string; memory?: number; disk?: number; cpu?: number }[] = []
+        for (const o of active) {
+          const pid = Number(o.planId)
+          if (!pid || seen.has(pid)) continue
+          seen.add(pid)
+          presets.push({
+            planId: pid,
+            planName: String(o.planName || `Plan #${pid}`),
+            memory: o.planSpecs.memory ?? undefined,
+            disk: o.planSpecs.disk ?? undefined,
+            cpu: o.planSpecs.cpu ?? undefined,
+          })
+        }
+        if (!cancelled) setPlanPresets(presets)
+      } catch {
+        // billing feature disabled or fetch failed — no presets
+      }
+    }
+    loadPresets()
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -4532,10 +4563,10 @@ function SettingsTab({
   const sftpUser = server.sftp?.username || (isKvm ? "root" : "—")
   const sftpCmd = isKvm
     ? `sftp root@${sftpHost} -P ${sftpPort}`
-    : `sftp ${server.sftp?.username}@${server.sftp?.host} -P ${server.sftp?.port}`
+    : `sftp -oUser=${server.sftp?.username} ${server.sftp?.host} -P ${server.sftp?.port}`
   const sshCmd = isKvm
     ? `ssh root@${sftpHost} -p ${sftpPort}`
-    : `ssh ${server.sftp?.username}@${server.sftp?.host} -p ${server.sftp?.port}`
+    : `ssh -l ${server.sftp?.username} ${server.sftp?.host} -p ${server.sftp?.port}`
 
   const filesTabSftpInfo = isKvm
     ? {
@@ -4859,6 +4890,40 @@ function SettingsTab({
                       </select>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {planPresets.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <label className="text-[10px] text-muted-foreground uppercase tracking-wide flex-shrink-0">
+                    {t("settings.applyPlanResources")}
+                  </label>
+                  <select
+                    value={selectedPlanPreset}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      setSelectedPlanPreset(val)
+                      if (!val) return
+                      const preset = planPresets.find((p) => String(p.planId) === val)
+                      if (!preset) return
+                      const clamp = (v: number | undefined, max: number | null | undefined) =>
+                        v != null ? (max != null ? Math.min(v, max) : v) : undefined
+                      const m = clamp(preset.memory, maxMemory)
+                      const d = clamp(preset.disk, maxDisk)
+                      const c = clamp(preset.cpu, maxCpu)
+                      if (m != null) setMemoryLimit(m)
+                      if (d != null) setDiskSpace(d)
+                      if (c != null) setCpuLimit(c)
+                    }}
+                    className="flex-1 border border-border bg-input px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  >
+                    <option value="">{t("settings.applyPlanResourcesCustom")}</option>
+                    {planPresets.map((p) => (
+                      <option key={p.planId} value={String(p.planId)}>
+                        {p.planName} · {p.memory ?? "—"} MB / {p.disk ?? "—"} MB / {p.cpu ?? "—"}%
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 

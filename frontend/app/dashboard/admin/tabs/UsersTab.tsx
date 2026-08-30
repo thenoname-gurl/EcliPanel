@@ -24,6 +24,7 @@ import {
   UserMinus,
   Users,
   GraduationCap,
+  Sparkles,
   X,
 } from "lucide-react"
 
@@ -46,6 +47,8 @@ export default function UsersTab({ ctx }: { ctx: any }) {
     openEditUser,
     toggleSuspend,
     toggleInactive,
+    expelFromLuminos,
+    assignToLuminos,
     startExportJob,
     userExportJobId,
     exportJobs,
@@ -272,6 +275,24 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                             className={`p-1.5 transition-colors ${user.inactive ? "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400" : "text-muted-foreground hover:bg-amber-500/10 hover:text-amber-400"}`}
                           >
                             {user.inactive ? <CheckCircle className="h-3.5 w-3.5" /> : <UserMinus className="h-3.5 w-3.5" />}
+                          </button>
+                        )}
+                        {canSuspendUser && user.luminosMember && (
+                          <button
+                            onClick={() => expelFromLuminos(user)}
+                            title={t("actions.expelLuminos")}
+                            className="p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {canSuspendUser && !user.luminosMember && (
+                          <button
+                            onClick={() => assignToLuminos(user)}
+                            title={t("actions.assignLuminos")}
+                            className="p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400 transition-colors"
+                          >
+                            <Sparkles className="h-3.5 w-3.5" />
                           </button>
                         )}
                         <button onClick={() => startExportJob(user)} title={t("actions.startExportJob")} className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">

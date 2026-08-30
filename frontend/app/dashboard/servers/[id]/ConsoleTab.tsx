@@ -1,5 +1,6 @@
 "use client"
 
+import { LoadingBar } from "@/components/panel/shared"
 import "@xterm/xterm/css/xterm.css"
 import { useRef, useState, useEffect, useCallback } from "react"
 import { useTranslations } from "next-intl"
@@ -913,24 +914,14 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
           {resources.cpu_absolute != null && (
             <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground">CPU</span>
-              <div className="w-24 h-1.5 bg-secondary/80 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min(resources.cpu_absolute, 100)}%` }}
-                />
-              </div>
+              <LoadingBar value={Math.min(resources.cpu_absolute, 100)} className="w-24" />
               <span className="font-mono text-muted-foreground tabular-nums">{Math.round(resources.cpu_absolute)}%</span>
             </div>
           )}
           {resources.memory_bytes != null && resources.memory_limit_bytes != null && (
             <div className="flex items-center gap-1.5">
               <span className="text-muted-foreground">RAM</span>
-              <div className="w-24 h-1.5 bg-secondary/80 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((resources.memory_bytes / resources.memory_limit_bytes) * 100, 100)}%` }}
-                />
-              </div>
+              <LoadingBar value={resources.memory_limit_bytes ? Math.min((resources.memory_bytes / resources.memory_limit_bytes) * 100, 100) : 0} className="w-24" />
               <span className="font-mono text-muted-foreground tabular-nums">
                 {formatBytes(resources.memory_bytes)} / {formatBytes(resources.memory_limit_bytes)}
               </span>
@@ -939,12 +930,7 @@ export function ConsoleTab({ serverId, installing: installingProp }: ConsoleTabP
           {resources.disk_bytes != null && resources.disk_limit_bytes != null && (
             <div className="flex items-center gap-1.5">
               <HardDrive className="h-3 w-3 text-muted-foreground" />
-              <div className="w-24 h-1.5 bg-secondary/80 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.min((resources.disk_bytes / resources.disk_limit_bytes) * 100, 100)}%` }}
-                />
-              </div>
+              <LoadingBar value={resources.disk_limit_bytes ? Math.min((resources.disk_bytes / resources.disk_limit_bytes) * 100, 100) : 0} className="w-24" />
               <span className="font-mono text-muted-foreground tabular-nums">
                 {formatBytes(resources.disk_bytes)} / {formatBytes(resources.disk_limit_bytes)}
               </span>

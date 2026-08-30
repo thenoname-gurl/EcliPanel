@@ -1,5 +1,6 @@
 "use client"
 
+import { Skeleton } from "@/components/ui/skeleton"
 import { use, useState, useEffect, useRef } from "react"
 import { useTranslations } from "next-intl"
 import ReactMarkdown from "react-markdown"
@@ -554,13 +555,10 @@ export default function TicketDetailPage({
     return (
       <div className="h-full flex flex-col overflow-hidden">
         <PanelHeader title={t("header.ticket")} />
-        <div className="flex flex-1 items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="h-6 w-6 rounded-full animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">
-              {t("states.loadingTicket")}
-            </p>
-          </div>
+        <div className="flex flex-1 flex-col gap-3 p-4">
+          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
         </div>
       </div>
     )

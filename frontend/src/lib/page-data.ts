@@ -11,6 +11,49 @@ function getBackendBaseUrl(): string {
   return url.replace(/\/+$/, "");
 }
 
+// SSR renders middleware authGuard, BaseLayout (theme), and page-data (initialUser)
+// on the same request, each doing its own round-trip to /api/auth/session. Memoize on
+// the raw cookie so one page load = one backend call, not three. The middleware resets
+// this per request (Astro SSR runs on one process), so nothing leaks across requests.
+let requestScope: Map<string, Promise<any | null | undefined>> = new Map();
+
+export function resetSessionCache() {
+  requestScope = new Map();
+}
+
+export function getSessionForRequest(cookieHeader: string): Promise<any | null | undefined> {
+  const cached = requestScope.get(cookieHeader);
+  if (cached) return cached;
+  const p = fetchSessionOnce(cookieHeader);
+  requestScope.set(cookieHeader, p);
+  return p;
+}
+
+// Returns the user, null when the session is definitively invalid (401),
+// or undefined when the backend could not be reached in time (transient).
+async function fetchSessionOnce(cookieHeader: string): Promise<any | null | undefined> {
+  const backendBase = getBackendBaseUrl();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const res = await fetch(safeUrl(backendBase, API_ENDPOINTS.session), {
+      headers: { cookie: cookieHeader },
+      signal: controller.signal,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data?.user || null;
+    }
+    if (res.status === 401) return null;
+    return undefined;
+  } catch (err: any) {
+    console.log(`[page-data] session fetch failed: ${err?.name || err?.message || err}`);
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export interface PageProps {
   locale: string;
   messages: Record<string, any>;
@@ -27,25 +70,11 @@ export async function getPageData(
   const messages = await loadMessages(locale);
 
   let initialUser: any = null;
-  const backendBase = getBackendBaseUrl();
   const cookieHeader = headers.get("cookie") || "";
 
-  if (cookieHeader && backendBase) {
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 1500);
-      const res = await fetch(safeUrl(backendBase, API_ENDPOINTS.session), {
-        headers: { cookie: cookieHeader },
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      if (res.ok) {
-        const data = await res.json();
-        initialUser = data?.user || null;
-      }
-    } catch {
-      // not logged in
-    }
+  if (cookieHeader) {
+    const first = await getSessionForRequest(cookieHeader);
+    initialUser = first !== undefined ? first : await getSessionForRequest(cookieHeader);
   }
 
   return { locale, messages, initialUser, pathname };

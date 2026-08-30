@@ -9,5 +9,5 @@ const { locale, messages, initialUser } = await getPageData(
 ---
 
 <BaseLayout title="Page Not Found — EclipseSystems" description="This page doesn't exist, but your next deployment could.">
-  <PageShell client:only="react" locale={locale} messages={messages} initialUser={initialUser} page="app" pathname={Astro.url.pathname} />
+  <PageShell client:load="react" locale={locale} messages={messages} initialUser={initialUser} page="app" pathname={Astro.url.pathname} />
 </BaseLayout>

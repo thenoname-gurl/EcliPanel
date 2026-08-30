@@ -1,5 +1,6 @@
 "use client"
 
+import { Skeleton } from "@/components/ui/skeleton"
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useTranslations } from "next-intl"
 import { apiFetch } from "@/lib/api-client"
@@ -3289,8 +3290,10 @@ function BookingsView({ onEventsChange }: { onEventsChange: () => void }) {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <div className="space-y-3 py-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-4 w-2/3" />
           </div>
         ) : schedules.length === 0 ? (
           <div className="text-center py-16 border border-dashed border-border/50 rounded-xl">

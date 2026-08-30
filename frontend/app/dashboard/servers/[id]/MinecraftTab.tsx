@@ -1,5 +1,6 @@
 "use client"
 
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { apiFetch } from "@/lib/api-client"
@@ -692,8 +693,10 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
       )}
 
       {isPlayerView && (loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        <div className="space-y-3 py-2">
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-2/3" />
         </div>
       ) : filteredPlayers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -1009,7 +1012,11 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
           <CollapsibleSection title={t("plugins.installed", { count: installedPlugins.length })} icon={Package} defaultOpen>
             <div className="space-y-2 pt-3">
               {loadingInstalled ? (
-                <div className="flex items-center justify-center py-4"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+                <div className="space-y-3 py-2">
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
               ) : installedPlugins.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-2">{t("plugins.noPlugins")}</p>
               ) : (
@@ -1101,7 +1108,11 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
           </div>
 
           {knownPlayersLoading ? (
-            <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            <div className="space-y-3 py-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
           ) : knownPlayers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-10 w-10 text-muted-foreground/30 mb-3" />
@@ -1260,7 +1271,11 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
       <Dialog open={previewSlug !== null} onOpenChange={(o) => { if (!o) { setPreviewSlug(null); setPreviewData(null) } }}>
         <DialogContent className="border-border bg-card max-w-[92vw] sm:max-w-lg max-h-[85vh] overflow-hidden">
           {previewLoading ? (
-            <div className="flex items-center justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+            <div className="space-y-3 py-2">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-4 w-2/3" />
+            </div>
           ) : previewData?._notFound ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="rounded-full bg-secondary/50 p-3 mb-3">

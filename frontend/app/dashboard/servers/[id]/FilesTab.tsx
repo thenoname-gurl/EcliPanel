@@ -1132,7 +1132,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
   )
 
   const sftpCommand = sftpInfo && sftpInfo.host && sftpInfo.port
-    ? `sftp ${sftpInfo.username || "root"}@${sftpInfo.host} -P ${sftpInfo.port}`
+    ? `sftp -oUser=${sftpInfo.username || "root"} ${sftpInfo.host} -P ${sftpInfo.port}`
     : ""
 
   const selectableFiles = useMemo(() => files.map(getFileName).filter(Boolean), [files])

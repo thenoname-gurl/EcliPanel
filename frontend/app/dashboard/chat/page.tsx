@@ -8,7 +8,7 @@ import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { isExternalUrlSync } from "@/lib/internal-domains"
-import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert, Phone } from "lucide-react"
+import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert, Phone, Sparkles } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import VoicePanel from "@/components/chat/VoicePanel"
 
@@ -48,7 +48,7 @@ function proxyImageUrl(url: string | null | undefined): string | undefined {
 
 interface Channel {
   id: number; slug: string; name: string; description: string | null
-  type: "community" | "public_anonymous"; createdById: number | null
+  type: "community" | "public_anonymous" | "club"; createdById: number | null
   isListed: boolean; isArchived: boolean; isMature: boolean; createdAt: string
   isMember?: boolean; myRole?: string | null; threadCount?: number; postCount?: number
 }
@@ -229,7 +229,9 @@ async function copyLink(path: string) {
 }
 
 function getChannelIcon(type: string) {
-  return type === "public_anonymous" ? Globe : Hash
+  if (type === "public_anonymous") return Globe
+  if (type === "club") return Sparkles
+  return Hash
 }
 
 export default function ChatPage() {
@@ -608,11 +610,15 @@ export default function ChatPage() {
   }
 
   const canPost = (c: Channel) =>
-    c.type === "public_anonymous" || (!!isLoggedIn && c.type === "community" && !!c.isMember)
+    c.type === "public_anonymous" ||
+    (!!isLoggedIn && c.type === "club" && !!user?.luminosMember) ||
+    (!!isLoggedIn && c.type === "community" && !!c.isMember)
 
   const canModerate = !!(isLoggedIn && user && hasPermission(user, 'chat:manage'))
 
-  const communityChannels = isLoggedIn ? channels.filter(c => c.type === "community") : []
+  // Club channels render as community-style boards; the server already filters
+  // them out of the lists for non-members.
+  const communityChannels = isLoggedIn ? channels.filter(c => c.type === "community" || c.type === "club") : []
   const publicChannels = channels.filter(c => c.type === "public_anonymous")
 
   function goToBoard(ch: Channel) {

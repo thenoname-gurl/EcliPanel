@@ -76,8 +76,8 @@ export class WingsApiService {
     return this.request('/deauthorize-user', { method: 'POST', body: data });
   }
 
-  async getServers() {
-    return this.request('/servers');
+  async getServers(opts: { timeoutMs?: number } = {}) {
+    return this.request('/servers', opts);
   }
 
   async getServer(serverId: string) {

@@ -50,6 +50,7 @@ import type { Plan } from '../models/plan.entity';
 import type { JsonObject } from '../types/common';
 import type { UserOrgMembership } from '../types/auth';
 import { Passkey } from '../models/passkey.entity';
+import { STEPUP_CODE_HEADER } from '../middleware/stepUp';
 import type { Locale } from '../i18n/config';
 const speakeasy = require('speakeasy');
 
@@ -58,7 +59,7 @@ interface AuthRouteApp {
     sign: (payload: JsonObject, options?: { expiresIn?: string | number }) => string;
   };
   pqJwt: {
-    signPqJwt: (payload: JsonObject) => string;
+    signPqJwt: (payload: JsonObject, expiresInSec?: number) => string;
   };
   post: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
   get: (path: string, handler: (ctx: AuthRouteContext) => unknown, config?: object) => unknown;
@@ -169,6 +170,11 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
     } catch {
       // buh
     }
+  }
+
+  function getSessionTokenTtlSec(): number {
+    const raw = Number(process.env.JWT_COOKIE_MAX_AGE);
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 30 * 24 * 60 * 60;
   }
 
   async function getUserOrgMemberships(userId: number): Promise<UserOrgMembership[]> {
@@ -455,10 +461,10 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       await userRepo.save(user);
 
       const token = ctx.app?.pqJwt?.signPqJwt
-        ? ctx.app.pqJwt.signPqJwt({ userId: user.id, sessionId })
+        ? ctx.app.pqJwt.signPqJwt({ userId: user.id, sessionId }, getSessionTokenTtlSec())
         : ctx.app?.jwt?.sign
-          ? ctx.app.jwt.sign({ userId: user.id, sessionId })
-          : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET);
+          ? ctx.app.jwt.sign({ userId: user.id, sessionId }, { expiresIn: getSessionTokenTtlSec() })
+          : require('jsonwebtoken').sign({ userId: user.id, sessionId }, process.env.JWT_SECRET, { expiresIn: getSessionTokenTtlSec() });
 
       try {
         const logRepo = AppDataSource.getRepository(UserLog);
@@ -810,8 +816,8 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
         await cancelPendingAutoSunsetDeletionRequest(user);
         await userRepo.save(user);
         const finalToken = app.pqJwt?.signPqJwt
-          ? app.pqJwt.signPqJwt({ userId: user.id, sessionId })
-          : app.jwt.sign({ userId: user.id, sessionId });
+          ? app.pqJwt.signPqJwt({ userId: user.id, sessionId }, getSessionTokenTtlSec())
+          : app.jwt.sign({ userId: user.id, sessionId }, { expiresIn: getSessionTokenTtlSec() });
         try {
           setAuthCookie(ctx, finalToken);
         } catch (e) {
@@ -1582,8 +1588,8 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
           ctx.log?.warn?.({ err }, 'failed to log passkey login event');
         }
         const token = app.pqJwt?.signPqJwt
-          ? app.pqJwt.signPqJwt({ userId: user.id, sessionId })
-          : app.jwt.sign({ userId: user.id, sessionId });
+          ? app.pqJwt.signPqJwt({ userId: user.id, sessionId }, getSessionTokenTtlSec())
+          : app.jwt.sign({ userId: user.id, sessionId }, { expiresIn: getSessionTokenTtlSec() });
         try {
           setAuthCookie(ctx, token);
         } catch (e) {
@@ -1611,6 +1617,237 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       },
     }
   );
+
+  // deprecated/unused
+  const STEPUP_TTL_SECONDS = (() => {
+    const raw = Number(process.env.ADMIN_STEPUP_TTL_SECONDS);
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 600;
+  })();
+
+  app.post(
+    prefix + '/auth/passkey/stepup-challenge',
+    async (ctx: AuthRouteContext) => {
+      const user = ctx.user;
+      const webauthn = await loadWebauthnSettings();
+      if (!webauthn.enabled) {
+        ctx.set.status = 403;
+        return { error: ctx.t('auth.passkeysDisabled') };
+      }
+      const passkeyRepo = AppDataSource.getRepository(Passkey);
+      const count = await passkeyRepo.count({ where: { user: { id: user.id } } });
+      if (count === 0) {
+        ctx.set.status = 403;
+        try {
+          (ctx.set.headers as any)[STEPUP_CODE_HEADER] = 'PASSKEY_REQUIRED';
+        } catch {}
+        return { error: ctx.t('auth.passkeyRequired'), code: 'PASSKEY_REQUIRED' };
+      }
+      const frontendHost = getFrontendHost(ctx);
+      const opts = await PasskeyService.generateAuthentication(user.id, frontendHost, 'required');
+      await redisSet(`passkey:stepup:${user.id}`, opts.challenge, webauthn.authenticationTimeoutSeconds);
+      return opts;
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Begin passkey step-up challenge',
+        description: 'Starts the passkey step-up process for an admin action.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeyStepUpChallenge',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/passkey/stepup-verify',
+    async (ctx: AuthRouteContext) => {
+      const user = ctx.user;
+      const { authenticationResponse } = asPasskeyLoginBody(ctx.body);
+      if (!authenticationResponse) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.noChallenge') };
+      }
+      const expected = await redisGet(`passkey:stepup:${user.id}`);
+      await redisDel(`passkey:stepup:${user.id}`);
+      if (!expected) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.noChallenge') };
+      }
+      const requestOrigin = String(
+        ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer || ''
+      ) || undefined;
+      const requestHost = getFrontendHost(ctx);
+      const ver = await PasskeyService.verifyAuthenticationResponse({
+        userId: user.id,
+        authenticationResponse,
+        expectedChallenge: String(expected),
+        requestHost,
+        requestOrigin,
+      });
+      if (!ver.verified) {
+        ctx.set.status = 401;
+        return { error: ctx.t('common.authenticationFailed') };
+      }
+      const sessionId = ctx.jwtPayload?.sessionId;
+      if (!sessionId) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
+      try {
+        const logRepo = AppDataSource.getRepository(UserLog);
+        await logRepo.save(
+          logRepo.create({
+            userId: user.id,
+            action: 'admin_stepup',
+            ipAddress: ctx.ip,
+            timestamp: new Date(),
+          })
+        );
+      } catch (err) {
+        ctx.log?.warn?.({ err }, 'failed to log passkey step-up event');
+      }
+      const stepupToken = app.pqJwt?.signPqJwt
+        ? app.pqJwt.signPqJwt({ userId: user.id, sessionId, stepup: true }, STEPUP_TTL_SECONDS)
+        : app.jwt.sign({ userId: user.id, sessionId, stepup: true }, { expiresIn: `${STEPUP_TTL_SECONDS}s` });
+      return { stepupToken, expiresIn: STEPUP_TTL_SECONDS };
+    },
+    {
+      beforeHandle: authenticate,
+      body: t.Object({ authenticationResponse: t.Any() }),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Complete passkey step-up verification',
+        description: 'Verifies the passkey step-up assertion and issues a short-lived step-up token.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeyStepUpVerify',
+      },
+    }
+  );
+
+  const SUDO_TTL_SECONDS = (() => {
+    const raw = Number(process.env.ADMIN_SUDO_TTL_SECONDS);
+    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 120;
+  })();
+
+  app.post(
+    prefix + '/auth/passkey/sudo-challenge',
+    async (ctx: AuthRouteContext) => {
+      const user = ctx.user;
+      const webauthn = await loadWebauthnSettings();
+      if (!webauthn.enabled) {
+        ctx.set.status = 403;
+        return { error: ctx.t('auth.passkeysDisabled') };
+      }
+      const passkeyRepo = AppDataSource.getRepository(Passkey);
+      const count = await passkeyRepo.count({ where: { user: { id: user.id } } });
+      if (count === 0) {
+        ctx.set.status = 403;
+        try {
+          (ctx.set.headers as any)[STEPUP_CODE_HEADER] = 'PASSKEY_REQUIRED';
+        } catch {}
+        return { error: ctx.t('auth.passkeyRequired'), code: 'PASSKEY_REQUIRED' };
+      }
+      const frontendHost = getFrontendHost(ctx);
+      const opts = await PasskeyService.generateAuthentication(user.id, frontendHost, 'required');
+      await redisSet(`passkey:sudo:${user.id}`, opts.challenge, webauthn.authenticationTimeoutSeconds);
+      return opts;
+    },
+    {
+      beforeHandle: authenticate,
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Begin passkey sudo challenge',
+        description: 'Starts the passkey sudo (fresh re-auth) process for a sensitive admin action.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeySudoChallenge',
+      },
+    }
+  );
+
+  app.post(
+    prefix + '/auth/passkey/sudo-verify',
+    async (ctx: AuthRouteContext) => {
+      const user = ctx.user;
+      const { authenticationResponse } = asPasskeyLoginBody(ctx.body);
+      if (!authenticationResponse) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.noChallenge') };
+      }
+      const expected = await redisGet(`passkey:sudo:${user.id}`);
+      await redisDel(`passkey:sudo:${user.id}`);
+      if (!expected) {
+        ctx.set.status = 400;
+        return { error: ctx.t('system.noChallenge') };
+      }
+      const requestOrigin = String(
+        ctx.headers?.origin || ctx.headers?.referer || ctx.headers?.Referrer || ''
+      ) || undefined;
+      const requestHost = getFrontendHost(ctx);
+      const ver = await PasskeyService.verifyAuthenticationResponse({
+        userId: user.id,
+        authenticationResponse,
+        expectedChallenge: String(expected),
+        requestHost,
+        requestOrigin,
+      });
+      if (!ver.verified) {
+        ctx.set.status = 401;
+        return { error: ctx.t('common.authenticationFailed') };
+      }
+      const sessionId = ctx.jwtPayload?.sessionId;
+      if (!sessionId) {
+        ctx.set.status = 401;
+        return { error: ctx.t('auth.unauthorized') };
+      }
+      try {
+        const logRepo = AppDataSource.getRepository(UserLog);
+        await logRepo.save(
+          logRepo.create({
+            userId: user.id,
+            action: 'admin_sudo',
+            ipAddress: ctx.ip,
+            timestamp: new Date(),
+          })
+        );
+      } catch (err) {
+        ctx.log?.warn?.({ err }, 'failed to log passkey sudo event');
+      }
+      const sudoToken = app.pqJwt?.signPqJwt
+        ? app.pqJwt.signPqJwt({ userId: user.id, sessionId, sudo: true }, SUDO_TTL_SECONDS)
+        : app.jwt.sign({ userId: user.id, sessionId, sudo: true }, { expiresIn: `${SUDO_TTL_SECONDS}s` });
+      return { sudoToken, expiresIn: SUDO_TTL_SECONDS };
+    },
+    {
+      beforeHandle: authenticate,
+      body: t.Object({ authenticationResponse: t.Any() }),
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Complete passkey sudo verification',
+        description: 'Verifies the sudo passkey assertion and issues a short-lived sudo token.',
+        tags: ['Auth'],
+        operationId: 'postAuthPasskeySudoVerify',
+      },
+    }
+  );
+
+  // end deprecated
 
   app.get(
     prefix + '/auth/passkeys',
@@ -1888,7 +2125,7 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       }
       const decoded = ctx.jwtPayload as { sessionId?: string } | undefined;
       const cacheKey = `auth:session:user:${user.id}:session:${decoded?.sessionId || 'none'}:v1`;
-      return withRedisCache(cacheKey, 8, async () => {
+      return withRedisCache(cacheKey, 60, async () => {
         const passkeyRepo = AppDataSource.getRepository(
           require('../models/passkey.entity').Passkey
         );

@@ -47,6 +47,7 @@ import {
   Archive,
   Receipt,
   Banknote,
+  Wallet,
   AlertTriangle,
   FileSearch,
   ScrollText,
@@ -83,6 +84,10 @@ export const API_ENDPOINTS = {
   health: "/health",
   passkeyAuthChallenge: "/api/auth/passkey/authenticate-challenge",
   passkeyAuthenticate: "/api/auth/passkey/authenticate",
+  passkeyStepupChallenge: "/api/auth/passkey/stepup-challenge",
+  passkeyStepupVerify: "/api/auth/passkey/stepup-verify",
+  passkeySudoChallenge: "/api/auth/passkey/sudo-challenge",
+  passkeySudoVerify: "/api/auth/passkey/sudo-verify",
   passkeyRegisterChallenge: "/api/auth/passkey/register-challenge",
   passkeyRegister: "/api/auth/passkey/register",
   passkeys: "/api/auth/passkeys",
@@ -107,6 +112,38 @@ export const API_ENDPOINTS = {
   adminStudentVerifications: "/api/admin/student-verifications",
   adminStudentVerificationDetail: "/api/admin/student-verifications/:id",
   adminStudentVerificationDeleteProof: "/api/admin/student-verifications/:id/proof",
+
+  // Luminos Club exam
+  luminosStatus: "/api/luminos/status",
+  luminosStart: "/api/luminos/start",
+  luminosSubmit: "/api/luminos/submit",
+  luminosEvents: "/api/luminos/events",
+  luminosEvent: "/api/luminos/events/:id",
+  luminosEventRsvp: "/api/luminos/events/:id/rsvp",
+  luminosGiveaways: "/api/luminos/giveaways",
+  luminosGiveaway: "/api/luminos/giveaways/:id",
+  luminosGiveawayEnter: "/api/luminos/giveaways/:id/enter",
+  luminosGiveawayDraw: "/api/luminos/giveaways/:id/draw",
+  luminosContests: "/api/luminos/contests",
+  luminosContest: "/api/luminos/contests/:id",
+  luminosContestSubmit: "/api/luminos/contests/:id/submit",
+  luminosContestWinner: "/api/luminos/contests/:id/winner",
+  luminosDaily: "/api/luminos/daily",
+  luminosDailySubmit: "/api/luminos/daily/submit",
+  luminosBounties: "/api/luminos/bounties",
+  luminosBounty: "/api/luminos/bounties/:id",
+  luminosBountyPublish: "/api/luminos/bounties/:id/publish",
+  luminosBountyFindings: "/api/luminos/bounties/:id/findings",
+  luminosBountyFinding: "/api/luminos/bounties/:id/findings/:fid",
+  luminosBountyFindingStatus: "/api/luminos/bounties/:id/findings/:fid/status",
+  luminosBountyFindingAward: "/api/luminos/bounties/:id/findings/:fid/award",
+  luminosBountyFindingTriage: "/api/luminos/bounties/:id/findings/:fid/triage",
+  luminosBountyFindingDisclosure: "/api/luminos/bounties/:id/findings/:fid/disclosure",
+  luminosBountyFindingComments: "/api/luminos/bounties/:id/findings/:fid/comments",
+  luminosPoints: "/api/luminos/points",
+  luminosPointsRedeem: "/api/luminos/points/redeem",
+  luminosExpel: "/api/luminos/expel/:userId",
+  luminosAssign: "/api/luminos/assign/:userId",
 
   // Users
   users: "/api/users",
@@ -525,6 +562,8 @@ export const API_ENDPOINTS = {
   adminProductUpdates: "/api/admin/product-updates",
   adminOrganisations: "/api/admin/organisations",
   adminServers: "/api/admin/servers",
+  adminServersForceMigrate: "/api/admin/servers/force-migrate",
+  adminFinances: "/api/admin/finances",
   adminCreateServer: "/api/admin/servers",
   adminDeleteServer: "/api/admin/servers/:id",
   adminServerPower: "/api/admin/servers/:id/power",
@@ -718,6 +757,7 @@ export interface NavItem {
   badge?: string
   requiredTier?: PortalTier
   feature?: FeatureFlag
+  permissions?: string[]
   children?: NavItem[]
 }
 
@@ -740,6 +780,7 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   "SOC Dashboard": "socDashboard",
   "Account Activity": "accountActivity",
   Organisations: "organisations",
+  "Luminos Club": "luminosClub",
   Servers: "servers",
   Mailbox: "mailbox",
   Nodes: "nodes",
@@ -785,6 +826,12 @@ export const NAVIGATION: NavSection[] = [
         href: "/dashboard/organisations",
         icon: Building2,
       },
+      {
+        label: "Luminos Club",
+        href: "/dashboard/luminos-club",
+        icon: Sparkles,
+        badge: "New",
+      },
     ],
   },
   {
@@ -799,7 +846,6 @@ export const NAVIGATION: NavSection[] = [
         label: "ELO",
         href: "/dashboard/elo",
         icon: Star,
-        badge: "New",
         feature: "elo",
       },
       {
@@ -964,6 +1010,7 @@ export const ADMIN_NAVIGATION: NavSection[] = [
       { label: "Organisations", href: "/dashboard/admin?tab=organisations", icon: Building2 },
       { label: "Plans", href: "/dashboard/admin?tab=plans", icon: CreditCard },
       { label: "Orders", href: "/dashboard/admin?tab=orders", icon: Receipt },
+      { label: "Finances", href: "/dashboard/admin?tab=finances", icon: Wallet, permissions: ["admin:critical:finances"] },
       { label: "Coupons", href: "/dashboard/admin?tab=coupons", icon: Ticket },
       { label: "Payments", href: "/dashboard/admin?tab=payments", icon: Banknote },
     ],

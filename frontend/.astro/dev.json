@@ -1,0 +1,13 @@
+{
+	"pid": 84049,
+	"port": 3999,
+	"url": "http://127.0.0.1:3999",
+	"urls": {
+		"local": [
+			"http://127.0.0.1:3999/"
+		],
+		"network": []
+	},
+	"background": true,
+	"startedAt": "2026-08-24T14:03:53.845Z"
+}

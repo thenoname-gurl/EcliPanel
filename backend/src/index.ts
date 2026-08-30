@@ -31,6 +31,7 @@ const HOST = process.env.HOST || '0.0.0.0';
     });
 
     await initApp();
+    await import('./handlers/chatHandler').then(m => m.ensureLuminosChannel()).catch(() => {});
     await (app as any).listen({ port: Number(PORT), host: String(HOST) });
     app.log.info(`Server listening at ${HOST}:${PORT}`);
   } catch (err) {

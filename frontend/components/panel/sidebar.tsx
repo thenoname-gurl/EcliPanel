@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import Image from "next/image"
+import { motion, useReducedMotion } from "framer-motion"
 import { usePathname, useSearchParams } from "next/navigation"
 import { useState, useEffect, useCallback, useMemo, forwardRef } from "react"
 import {
@@ -452,7 +453,16 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
     return source.map((section) => ({
       ...section,
       title: translateNavSection(section.title),
-      items: section.items.filter(inAdminPortal ? () => true : isItemVisible).map((item) => ({
+      items: section.items
+        .filter((item) => {
+          if (!inAdminPortal) return isItemVisible(item)
+          // Admin nav: hide items gated behind permissions the user lacks.
+          if (item.permissions?.length && user) {
+            return item.permissions.some((perm) => hasPermission(user, perm))
+          }
+          return true
+        })
+        .map((item) => ({
         ...item,
         label: translateNavLabel(item.label),
         badge:
@@ -508,25 +518,34 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
         data-telemetry={`nav:${item.label}`}
         className={cn(
           baseClasses,
+          "relative",
           active
-            ? "bg-primary/15 text-primary shadow-sm shadow-primary/5"
+            ? "text-primary"
             : "text-muted-foreground hover:bg-secondary hover:text-foreground"
         )}
       >
+        {/* Active pill glides between nav items via shared layoutId (SPA-feel). */}
+        {active && (
+          <motion.span
+            layoutId="sidebar-active"
+            className="absolute inset-0 -z-10 rounded-md bg-primary/15 shadow-sm shadow-primary/5"
+            transition={{ type: "spring", stiffness: 400, damping: 32 }}
+          />
+        )}
         <Icon
           className={cn(
-            "h-[18px] w-[18px] shrink-0 transition-colors",
+            "relative h-[18px] w-[18px] shrink-0 transition-colors",
             active && "text-primary"
           )}
         />
         {!isCollapsed && (
           <>
-            <span className="flex-1 truncate">{item.label}</span>
+            <span className="relative flex-1 truncate">{item.label}</span>
             {item.badge && (
               <Badge
                 variant="outline"
                 className={cn(
-                  "h-5 px-1.5 text-[10px] font-medium shrink-0",
+                  "relative h-5 px-1.5 text-[10px] font-medium shrink-0",
                   item.badge === "New"
                     ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
                     : item.badge === "Beta"

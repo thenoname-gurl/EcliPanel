@@ -45,6 +45,15 @@ function notifyListeners() {
   listeners.forEach((fn) => fn());
 }
 
+// Seed the store with the pathname the server actually rendered. Called once on
+// the client during SSR hydrate (AppRouter), and ignored otherwise. Without it,
+// usePathname() returns "/" during SSR, so the AppRouter SSR's the 404 component
+// for every route and then flashes to the real page on hydration.
+export function seedLocation(pathname: string) {
+  if (typeof window !== "undefined") return; // client nav always wins after hydrate
+  locationSnapshot.current = { pathname, search: "", hash: "" };
+}
+
 let subscribed = false;
 function ensureSubscribed() {
   if (typeof window === "undefined") return;

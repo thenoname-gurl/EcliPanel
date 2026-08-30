@@ -6,6 +6,7 @@ import { Node } from '../models/node.entity';
 import { schedule } from '../utils/cron';
 import { sendMail } from '../services/mailService';
 import { resolveLocale } from '../i18n/resolve';
+import { applyMembershipDiscount } from '../utils/regionalPricing';
 
 async function processRenewals() {
   if (!AppDataSource.isInitialized) return;
@@ -55,8 +56,16 @@ async function processRenewals() {
         }
       }
 
-      const renewalAmount = order.amount ?? plan.price ?? 0;
+      const priceChanged =
+        order.nextRenewalAmount != null && order.nextRenewalAmount !== (order.amount ?? plan.price ?? 0);
+      const renewalAmount = order.nextRenewalAmount ?? order.amount ?? plan.price ?? 0;
+      const finalAmount = applyMembershipDiscount(renewalAmount, user);
+      const membershipDiscounted = finalAmount !== renewalAmount;
+      const membershipOriginalAmount = membershipDiscounted ? renewalAmount : undefined;
       const isFree = renewalAmount === 0;
+      const baseDescription = (order.description || plan.name || 'Renewal')
+        .replace(/\s*\(Auto-Renewal\)/g, '')
+        .trim();
 
       if (isFree) {
         const oldExpiry = new Date(order.expiresAt);
@@ -119,22 +128,47 @@ async function processRenewals() {
         extensionDate.setDate(extensionDate.getDate() + 30);
 
         const renewalItems = JSON.stringify([
-          { description: order.description || plan.name || 'Renewal', quantity: 1, price: renewalAmount },
+          { description: baseDescription, quantity: 1, price: finalAmount },
         ]);
+
+        await orderRepo
+          .createQueryBuilder()
+          .update(Order)
+          .set({ status: 'cancelled' })
+          .where('userId = :userId AND planId = :planId AND status = :status', {
+            userId: order.userId,
+            planId: order.planId,
+            status: 'pending',
+          })
+          .andWhere('notes LIKE :autoNote', { autoNote: '%Auto-renewal of order #%' })
+          .execute();
+
+        let renewalTaxAmount = order.taxAmount ?? 0;
+        let renewalTaxRate = order.taxRate ?? 0;
+        if (membershipDiscounted) {
+          try {
+            const effectiveCountry = user.countryOverride || user.billingCountry || null;
+            if (effectiveCountry) {
+              const { calculateTax } = require('../utils/regionalPricing');
+              const tax = await calculateTax(finalAmount, effectiveCountry);
+              renewalTaxRate = tax.taxRate;
+              renewalTaxAmount = tax.taxAmount;
+            }
+          } catch {}
+        }
 
         const renewalOrder = orderRepo.create({
           userId: order.userId,
           orgId: (order as any).orgId || undefined,
-          description: `${order.description || plan.name} (Auto-Renewal)`,
+          description: `${baseDescription} (Auto-Renewal)`,
           planId: order.planId,
-          amount: renewalAmount,
-          taxAmount: order.taxAmount ?? 0,
-          taxRate: order.taxRate ?? 0,
+          amount: finalAmount,
+          originalAmount: membershipOriginalAmount,
+          taxAmount: renewalTaxAmount,
+          taxRate: renewalTaxRate,
           items: renewalItems,
           status: 'pending',
-          notes: (order as any).orgId
-            ? `org_order:${(order as any).orgId}; Auto-renewal of order #${order.id}`
-            : `Auto-renewal of order #${order.id}`,
+          notes: `${(order as any).orgId ? `org_order:${(order as any).orgId}; ` : ''}Auto-renewal of order #${order.id}${priceChanged ? `; custom amount ${renewalAmount} (admin override)` : ''}${membershipDiscounted ? '; luminos_discount:true' : ''}`,
           createdAt: new Date(),
           expiresAt: extensionDate,
         });
@@ -148,8 +182,8 @@ async function processRenewals() {
             template: 'notification',
             vars: {
               title: `Subscription Renewal Issued — ${plan.name}`,
-              message: `A renewal for your ${plan.name} subscription has been automatically issued. Order #${renewalOrder.id} — $${renewalAmount.toFixed(2)}. Please complete payment before it expires.`,
-              details: `Renewal Order: #${renewalOrder.id}\nPlan: ${plan.name}\nAmount: $${renewalAmount.toFixed(2)}\nStatus: Pending Payment\nPanel: ${panelUrl}`,
+              message: `A renewal for your ${plan.name} subscription has been automatically issued. Order #${renewalOrder.id} — $${finalAmount.toFixed(2)}. Please complete payment before it expires.${priceChanged ? ' The price has changed for this renewal. If you would prefer a different plan, you can switch anytime from the Billing page.' : ''}${membershipDiscounted ? ' Your Luminos Club 5% discount was applied.' : ''}`,
+              details: `Renewal Order: #${renewalOrder.id}\nPlan: ${plan.name}\nAmount: $${finalAmount.toFixed(2)}\nStatus: Pending Payment\nPanel: ${panelUrl}${priceChanged ? `\nPrice change: $${(order.amount ?? plan.price ?? 0).toFixed(2)} → $${finalAmount.toFixed(2)}\nSwitch plan: ${panelUrl}/dashboard/billing` : ''}`,
             },
             locale: resolveLocale({ user }),
           }).catch((e: any) => console.error('[renewalJob] failed to send renewal email', e));

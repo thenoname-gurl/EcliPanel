@@ -223,12 +223,25 @@ beforeAll(() => {
       ctx.userPermissions = ['*'];
       ctx.t = (key: string) => key;
     },
+    optionalAuth: async (ctx: Record<string, unknown>) => {
+      const request = ctx.request as Request;
+      const auth = request?.headers?.get?.('authorization');
+      if (auth) {
+        ctx.user = testUser;
+        ctx.userPermissions = ['*'];
+        ctx.t = (key: string) => key;
+      }
+    },
   }));
 
   mock.module('../../src/middleware/authorize', () => ({
     authorize: () => async () => {},
     hasPermissionSync: () => true,
     hasPermission: async () => true,
+  }));
+
+  mock.module('../../src/middleware/stepUp', () => ({
+    requirePasskeyStepUp: () => true,
   }));
 
   mock.module('../../src/config/redis', () => ({

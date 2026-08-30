@@ -9,6 +9,7 @@ import { In, IsNull, MoreThan } from 'typeorm';
 import { User } from '../models/user.entity';
 import { authenticate, optionalAuth } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
+import { verifyAnyToken } from '../utils/pqJwt';
 import { chatEmitter } from '../services/chatSocketService';
 import * as crypto from 'crypto';
 import * as fs from 'fs';
@@ -78,6 +79,52 @@ function posterId(ip: string): string {
 
 function isChatMod(ctx: any): boolean {
   return !!ctx.user?.id && hasPermissionSync(ctx, 'chat:manage');
+}
+
+function clubBlocked(ctx: any, channel: any): boolean {
+  return channel?.type === 'club' && !ctx.user?.luminosMember;
+}
+
+export async function ensureLuminosChannel(): Promise<void> {
+  const repo = AppDataSource.getRepository(ChatChannel);
+  const existing = await repo.findOneBy({ slug: 'luminos' });
+  if (existing) return;
+  await repo.save(
+    repo.create({
+      slug: 'luminos',
+      name: 'Luminos Club',
+      description: 'Members-only channel. Earned by passing the Luminos Exam.',
+      type: 'club',
+      isListed: true,
+    })
+  );
+}
+
+async function wsClubMember(ws: any): Promise<boolean> {
+  if (typeof ws.data?.luminosMember === 'boolean') return ws.data.luminosMember;
+  if (!ws.data?.userId) return false;
+  try {
+    const u = await AppDataSource.getRepository(User).findOneBy({ id: ws.data.userId });
+    ws.data.luminosMember = !!u?.luminosMember;
+  } catch {
+    ws.data.luminosMember = false;
+  }
+  return ws.data.luminosMember;
+}
+
+export async function handleChatSocketMessage(ws: any, message: any): Promise<void> {
+  try {
+    const data = JSON.parse(typeof message === 'string' ? message : message.toString());
+    if (data.type === 'subscribe' && data.channelId) {
+      const channelId = Number(data.channelId);
+      const channel = await AppDataSource.getRepository(ChatChannel).findOneBy({ id: channelId });
+      if (channel?.type === 'club' && !(await wsClubMember(ws))) {
+        try { ws.send(JSON.stringify({ type: 'error', error: 'luminos.membersOnlyChannel' })); } catch { }
+        return;
+      }
+      ws.data.channels.add(channelId);
+    } else if (data.type === 'unsubscribe' && data.channelId) ws.data.channels.delete(Number(data.channelId));
+  } catch { }
 }
 
 async function checkBan(ctx: any): Promise<string | null> {
@@ -160,6 +207,7 @@ export async function chatRoutes(app: any, prefix = '') {
     const type = ctx.query?.type as string | undefined;
     const qb = channelRepo().createQueryBuilder('c').where('c.isArchived = :archived', { archived: false });
     if (userId) qb.andWhere('(c.isListed = :listed OR c.createdById = :userId)', { listed: 1, userId });
+    if (!ctx.user?.luminosMember) qb.andWhere('c.type != :clubType', { clubType: 'club' });
     if (type) qb.andWhere('c.type = :type', { type });
     const channels = await qb.orderBy('c.createdAt', 'DESC').getMany();
     const channelIds = channels.map(c => c.id);
@@ -191,14 +239,15 @@ export async function chatRoutes(app: any, prefix = '') {
       });
     }
     return result;
-  }, { detail: { tags: ['Chat'], summary: 'List chat channels' } });
+  }, { beforeHandle: [optionalAuth], detail: { tags: ['Chat'], summary: 'List chat channels' } });
 
   app.get(prefix + '/chat/channels/all', async (ctx: any) => {
-    const channels = await channelRepo()
+    const qb = channelRepo()
       .createQueryBuilder('c')
       .where('c.isArchived = :archived', { archived: false })
-      .andWhere('c.isListed = :listed', { listed: 1 })
-      .orderBy('c.createdAt', 'DESC').getMany();
+      .andWhere('c.isListed = :listed', { listed: 1 });
+    if (!ctx.user?.luminosMember) qb.andWhere('c.type != :clubType', { clubType: 'club' });
+    const channels = await qb.orderBy('c.createdAt', 'DESC').getMany();
     const result: any[] = [];
     for (const c of channels) {
       const threadCount = await messageRepo().countBy({ channelId: c.id, parentId: IsNull() });
@@ -206,7 +255,7 @@ export async function chatRoutes(app: any, prefix = '') {
       result.push({ ...c, threadCount, postCount, isMember: true, myRole: null });
     }
     return result;
-  }, { detail: { tags: ['Chat'], summary: 'List all visible channels' } });
+  }, { beforeHandle: [optionalAuth], detail: { tags: ['Chat'], summary: 'List all visible channels' } });
 
   app.get(prefix + '/chat/public/channels', async (ctx: any) => {
     const channels = await channelRepo()
@@ -228,8 +277,12 @@ export async function chatRoutes(app: any, prefix = '') {
     const userId = ctx.user.id;
     const { name, description, type } = await ctx.body;
     if (!name || typeof name !== 'string' || name.trim().length === 0) { ctx.set.status = 400; return { error: ctx.t('chat.channel_name_is_required') }; }
-    const validTypes = ['community', 'public_anonymous'];
-    const channelType = type && validTypes.includes(type as string) ? type as string : 'community';
+    const validTypes = ['community', 'public_anonymous', 'club'];
+    let channelType = type && validTypes.includes(type as string) ? type as string : 'community';
+    if (channelType === 'club' && !isChatMod(ctx)) {
+      ctx.set.status = 403;
+      return { error: ctx.t('luminos.clubCreateForbidden') };
+    }
     const slug = generateSlug(name as string);
     const channel = channelRepo().create({ slug, name: (name as string).trim(), description: description ? (description as string).trim() : null, type: channelType, createdById: userId });
     await channelRepo().save(channel);
@@ -241,12 +294,13 @@ export async function chatRoutes(app: any, prefix = '') {
     const id = Number(ctx.params?.id);
     const channel = await channelRepo().findOneBy({ id });
     if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
+    if (clubBlocked(ctx, channel)) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
     const threadCount = await messageRepo().countBy({ channelId: id, parentId: IsNull() });
     const postCount = await messageRepo().countBy({ channelId: id });
     let isMember = false;
     if (ctx.user?.id) { const m = await memberRepo().findOneBy({ channelId: id, userId: ctx.user.id }); isMember = !!m; }
     return { ...channel, threadCount, postCount, isMember };
-  }, { detail: { tags: ['Chat'], summary: 'Get channel details' } });
+  }, { beforeHandle: [optionalAuth], detail: { tags: ['Chat'], summary: 'Get channel details' } });
 
   async function canManageChannel(ctx: any, channel: any): Promise<boolean> {
     const userId = ctx.user?.id;
@@ -294,6 +348,7 @@ export async function chatRoutes(app: any, prefix = '') {
     const channelId = Number(ctx.params?.id);
     const channel = await channelRepo().findOneBy({ id: channelId });
     if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
+    if (clubBlocked(ctx, channel)) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
     const mod = isChatMod(ctx);
     const page = Math.max(1, Number(ctx.query?.page) || 1);
     const limit = Math.min(Math.max(Number(ctx.query?.limit) || 20, 1), 50);
@@ -330,6 +385,7 @@ export async function chatRoutes(app: any, prefix = '') {
     if (op.isHidden && !mod) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
     const replies = await messageRepo().find({ where: { channelId, parentId: threadId, ...(mod ? {} : { isHidden: false }) }, order: { createdAt: 'ASC' }, take: 200 });
     const channel = await channelRepo().findOneBy({ id: channelId });
+    if (channel && clubBlocked(ctx, channel)) { ctx.set.status = 404; return { error: ctx.t('chat.thread_not_found') }; }
     const allIds = new Set([op.userId, ...replies.map(r => r.userId)].filter(Boolean));
     const staffCache = await batchStaffCheck([...allIds]);
     return { op: await enrichPost(ctx, op, staffCache), replies: await Promise.all(replies.map(r => enrichPost(ctx, r, staffCache))), channel: channel ? { id: channel.id, name: channel.name, slug: channel.slug, type: channel.type } : null };
@@ -344,6 +400,7 @@ export async function chatRoutes(app: any, prefix = '') {
       const membership = await memberRepo().findOneBy({ channelId, userId });
       if (!membership) { ctx.set.status = 403; return { error: ctx.t('chat.you_are_not_a_member') }; }
     }
+    if (clubBlocked(ctx, channel)) { ctx.set.status = 403; return { error: ctx.t('luminos.membersOnlyChannel') }; }
     if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: ctx.t('chat.please_wait_a_moment_before_posting_again') }; }
     const banErr = await checkBan(ctx);
     if (banErr) { ctx.set.status = 403; return { error: banErr }; }
@@ -426,6 +483,7 @@ export async function chatRoutes(app: any, prefix = '') {
       const m = await memberRepo().findOneBy({ channelId, userId });
       if (!m) { ctx.set.status = 403; return { error: ctx.t('chat.not_a_member') }; }
     }
+    if (clubBlocked(ctx, channel)) { ctx.set.status = 403; return { error: ctx.t('luminos.membersOnlyChannel') }; }
     if (!checkRateLimit(ctx)) { ctx.set.status = 429; return { error: ctx.t('chat.please_wait_a_moment_before_posting_again') }; }
     const banErr = await checkBan(ctx);
     if (banErr) { ctx.set.status = 403; return { error: banErr }; }
@@ -511,7 +569,11 @@ export async function chatRoutes(app: any, prefix = '') {
     const channelId = Number(ctx.params?.id); const userId = ctx.user.id;
     const channel = await channelRepo().findOneBy({ id: channelId });
     if (!channel) { ctx.set.status = 404; return { error: ctx.t('chat.channel_not_found') }; }
-    if (channel.type !== 'community') { ctx.set.status = 400; return { error: ctx.t('chat.can_only_join_community_channels') }; }
+    if (channel.type === 'club') {
+      if (!ctx.user?.luminosMember) { ctx.set.status = 403; return { error: ctx.t('luminos.joinClubDenied') }; }
+    } else if (channel.type !== 'community') {
+      ctx.set.status = 400; return { error: ctx.t('chat.can_only_join_community_channels') };
+    }
     const existing = await memberRepo().findOneBy({ channelId, userId });
     if (existing) return { success: true };
     const member = memberRepo().create({ channelId, userId, role: 'member' });
@@ -693,16 +755,27 @@ export async function chatRoutes(app: any, prefix = '') {
   });
 
   app.ws(prefix + '/ws/chat', {
+    upgrade(ctx: any) {
+      try {
+        const cookieName = process.env.JWT_COOKIE_NAME || 'token';
+        const cookie = ctx.headers?.cookie;
+        if (!cookie) return {};
+        const parts = String(cookie).split(';').map((s: string) => s.trim());
+        const pair = parts.find(p => p.startsWith(cookieName + '='));
+        if (!pair) return {};
+        const decoded = verifyAnyToken(pair.split('=')[1]) as any;
+        if (!decoded?.userId) return {};
+        return { userId: decoded.userId, luminosMember: undefined };
+      } catch {
+        return {};
+      }
+    },
     open(ws: any) {
       ws.data.channels = new Set<number>(); chatClients.add(ws);
       try { ws.send(JSON.stringify({ type: 'connected', timestamp: Date.now() })); } catch { }
     },
     message(ws: any, message: any) {
-      try {
-        const data = JSON.parse(typeof message === 'string' ? message : message.toString());
-        if (data.type === 'subscribe' && data.channelId) ws.data.channels.add(Number(data.channelId));
-        else if (data.type === 'unsubscribe' && data.channelId) ws.data.channels.delete(Number(data.channelId));
-      } catch { }
+      void handleChatSocketMessage(ws, message);
     },
     close(ws: any) { chatClients.delete(ws); try { ws.data.channels?.clear?.(); } catch {} },
     error(ws: any) { chatClients.delete(ws); try { ws.data.channels?.clear?.(); } catch {} },

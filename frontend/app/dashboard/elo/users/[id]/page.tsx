@@ -1,5 +1,6 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -71,9 +72,7 @@ export default function DashboardEloUserProfile() {
       <ScrollArea className="flex-1 overflow-x-hidden max-w-[100vw] box-border">
         <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto w-full min-w-0 box-border">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <RouteSkeleton />
           ) : !data ? (
             <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
               <div className="h-16 w-16 bg-secondary/50 flex items-center justify-center">

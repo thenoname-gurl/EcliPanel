@@ -1,5 +1,6 @@
 "use client"
 
+import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { apiFetch } from "@/lib/api-client"
@@ -370,7 +371,7 @@ export default function BookingPage() {
                   <div key={d} className="text-[9px] text-white/40 py-1 uppercase tracking-wider">{d}</div>
                 ))}
                 {slotsLoading ? (
-                  <div className="col-span-7 py-8 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-white/40" /></div>
+                  <div className="col-span-7 py-8 space-y-2"><Skeleton className="h-4 w-2/3 mx-auto" /><Skeleton className="h-4 w-1/2 mx-auto" /><Skeleton className="h-4 w-3/5 mx-auto" /></div>
                 ) : (
                   renderCalendar()
                 )}
@@ -400,7 +401,7 @@ export default function BookingPage() {
                 {selectedDate ? new Date(selectedDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : "Select a date"}
               </p>
               {slotsLoading ? (
-                <div className="py-8 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-white/40" /></div>
+                <div className="py-8 space-y-2"><Skeleton className="h-4 w-2/3 mx-auto" /><Skeleton className="h-4 w-1/2 mx-auto" /><Skeleton className="h-4 w-3/5 mx-auto" /></div>
               ) : selectedDate ? (
                 renderTimeSlots()
               ) : (

@@ -36,6 +36,7 @@ import { rolloutRoutes } from '../handlers/rolloutHandler';
 import { feedbackRoutes } from '../handlers/feedbackHandler';
 import { calendarRoutes } from '../handlers/calendarHandler';
 import { chatRoutes } from '../handlers/chatHandler';
+import { luminosRoutes } from '../handlers/luminosHandler';
 import { publicRoutes } from '../handlers/publicHandler';
 import { applicationRoutes } from '../handlers/applicationHandler';
 import { visualEditorRoutes } from '../handlers/visualEditorHandler';
@@ -181,6 +182,7 @@ export function registerRoutes(app: any) {
   eloRoutes(app, '/api');
   calendarRoutes(app, '/api');
   chatRoutes(app, '/api');
+  luminosRoutes(app, '/api');
   proxyRoutes(app, '/api');
   telemetryIngestRoutes(app, '/api');
   telemetryAdminRoutes(app, '/api');

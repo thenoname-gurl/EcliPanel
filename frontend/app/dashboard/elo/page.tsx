@@ -1,5 +1,6 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
 import { useTranslations } from "next-intl"
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
@@ -8,7 +9,7 @@ import { PanelHeader } from "@/components/panel/header"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { RolloutGuard } from "@/components/panel/rollout-guard"
-import { SectionHeader, PageLayout, EmptyState, LoadingState } from "@/components/panel/shared"
+import { LoadingBar, SectionHeader, PageLayout, EmptyState, LoadingState } from "@/components/panel/shared"
 import { API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
@@ -103,11 +104,8 @@ function EloProgression({ eloScore, isStudent, averageElo }: { eloScore: number;
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">
             {t("dashboard.eloProgression")}
           </p>
-          <div className="relative h-3 bg-secondary/30 border border-border/50 overflow-hidden">
-            <div
-              className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary/40 via-primary to-primary/40 transition-all duration-700"
-              style={{ width: `${pct}%` }}
-            />
+          <div className="relative h-3">
+            <LoadingBar value={pct} className="h-3" />
             {averageElo && (
               <div
                 className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/40 z-20"
@@ -367,9 +365,7 @@ export default function EloDashboard() {
             </div>
           )}
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-3">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <RouteSkeleton />
           ) : loadError ? null : (
             <>
               <div className="flex items-center gap-3 flex-wrap">

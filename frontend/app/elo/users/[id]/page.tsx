@@ -1,5 +1,6 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
 import { calculateEloResources } from "@/lib/elo-resources"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
@@ -64,9 +65,7 @@ export default function EloUserProfile() {
     <div className="min-h-screen bg-[#0a0a0f] text-white">
       <div className="max-w-4xl mx-auto px-4 py-8">
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-8 w-8 animate-spin text-violet-400" />
-          </div>
+          <RouteSkeleton />
         ) : !data ? (
           <div className="flex flex-col items-center justify-center py-20 text-center px-6 gap-4">
             <Star className="h-12 w-12 text-zinc-600" />

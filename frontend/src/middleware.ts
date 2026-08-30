@@ -1,4 +1,5 @@
 import { defineMiddleware, sequence } from "astro:middleware";
+import { getSessionForRequest, resetSessionCache } from "./lib/page-data";
 
 const BYPASS_PATHS = [
   "/api",
@@ -103,13 +104,12 @@ function canAccessAdmin(user: SessionUser | null): boolean {
 
 async function getSessionUser(request: Request): Promise<SessionUser | null> {
   if (!BACKEND_URL) return null;
+  // Reuses the per-request memoized session fetch (also used by page-data and
+  // BaseLayout) so a single page hit never issues >1 round-trip to the backend.
+  const cookie = request.headers.get("cookie") || "";
   try {
-    const res = await fetch(`${BACKEND_URL}/api/auth/session`, {
-      headers: { cookie: request.headers.get("cookie") || "" },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data?.user ?? null;
+    const user = await getSessionForRequest(cookie);
+    return user ?? null;
   } catch {
     return null;
   }
@@ -180,6 +180,9 @@ async function getCspTrustedOrigins(): Promise<string[]> {
 }
 
 const securityHeaders = defineMiddleware(async (_, next) => {
+  // Astro SSR runs on one process; reset the per-request session cache so each
+  // request gets a fresh session lookup instead of a stale cached user.
+  resetSessionCache();
   const response = await next();
 
   const trustedOrigins = await getCspTrustedOrigins();
@@ -205,7 +208,7 @@ const securityHeaders = defineMiddleware(async (_, next) => {
     "img-src * data: blob:",
     "font-src 'self' https://backend.ecli.app data: https://fonts.gstatic.com",
     `connect-src ${connectSources.join(" ")}`,
-    "frame-src 'self' https://backend.ecli.app https://mail.ecli.app",
+    "frame-src 'self' https://backend.ecli.app https://mail.ecli.app https://maps.google.com https://www.google.com",
     "worker-src 'self' blob:",
     "child-src 'self' blob: https://mail.ecli.app",
     "media-src 'self' https://backend.ecli.app data: blob:",
@@ -221,6 +224,12 @@ const securityHeaders = defineMiddleware(async (_, next) => {
   response.headers.set("X-DNS-Prefetch-Control", "on");
   response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // HTML pages must never be heuristically cached: they reference hashed
+  // chunks, and a stale shell loads broken JS after deploys.
+  const contentType = response.headers.get("content-type") || "";
+  if (contentType.includes("text/html")) {
+    response.headers.set("Cache-Control", "no-cache");
+  }
 
   return response;
 });

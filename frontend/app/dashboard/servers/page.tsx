@@ -511,6 +511,43 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled, preselectedOr
     bonusExpiresAt?: string | null
   } | null>(null)
   const [legalConfirmed, setLegalConfirmed] = useState(false)
+  const [planPresets, setPlanPresets] = useState<{ planId: number; planName: string; memory?: number; disk?: number; cpu?: number }[]>([])
+  const [selectedPlanPreset, setSelectedPlanPreset] = useState<string>("")
+
+  // Active plans as resource presets (billing-gated; fail silently).
+  useEffect(() => {
+    let cancelled = false
+    const loadPresets = async () => {
+      try {
+        const orders = await apiFetch(API_ENDPOINTS.orders)
+        const list = Array.isArray(orders) ? orders : []
+        const active = list
+          .filter((o: any) => o?.status === "active" && o?.planSpecs)
+          .sort((a: any, b: any) =>
+            new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+          )
+        const seen = new Set<number>()
+        const presets: { planId: number; planName: string; memory?: number; disk?: number; cpu?: number }[] = []
+        for (const o of active) {
+          const pid = Number(o.planId)
+          if (!pid || seen.has(pid)) continue
+          seen.add(pid)
+          presets.push({
+            planId: pid,
+            planName: String(o.planName || `Plan #${pid}`),
+            memory: o.planSpecs.memory ?? undefined,
+            disk: o.planSpecs.disk ?? undefined,
+            cpu: o.planSpecs.cpu ?? undefined,
+          })
+        }
+        if (!cancelled) setPlanPresets(presets)
+      } catch {
+        // billing feature disabled or fetch failed — no presets
+      }
+    }
+    loadPresets()
+    return () => { cancelled = true }
+  }, [])
 
   const rawPlanName = (user as any)?.portalType || user?.tier || "free"
   const planName = ["educational", "edu"].includes(String(rawPlanName).toLowerCase()) ? "educational" : String(rawPlanName).toLowerCase()
@@ -737,6 +774,21 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled, preselectedOr
   const maxDisk = diskSource === "node" ? nodeDisk : (limits?.disk ?? nodeDisk)
   const maxCpu = cpuSource === "node" ? nodeCpu : (limits?.cpu ?? nodeCpu)
   const hasLimits = maxMemory != null || maxDisk != null || maxCpu != null
+
+  const applyPlanPreset = (planId: string) => {
+    setSelectedPlanPreset(planId)
+    if (!planId) return
+    const preset = planPresets.find((p) => String(p.planId) === planId)
+    if (!preset) return
+    const clamp = (v: number | undefined, max: number | null) =>
+      v != null ? (max != null ? Math.min(v, max) : v) : undefined
+    const m = clamp(preset.memory, maxMemory)
+    const d = clamp(preset.disk, maxDisk)
+    const c = clamp(preset.cpu, maxCpu)
+    if (m != null) setMemory(m)
+    if (d != null) setDisk(d)
+    if (c != null) setCpu(c)
+  }
 
   useEffect(() => {
     if (maxMemory !== null) setMemory((prev) => Math.min(prev, maxMemory))
@@ -1056,6 +1108,27 @@ function NewServerModal({ onClose, onCreated, gamblingModeEnabled, preselectedOr
                     </select>
                     <p className="text-[11px] text-muted-foreground">{t("resources.standHint")}</p>
                   </div>
+                </div>
+              )}
+
+              {/* Plan resource presets */}
+              {planPresets.length > 0 && (
+                <div className="flex items-center gap-2 border border-border/30 bg-background/60 px-3 py-2">
+                  <Building2 className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{t("resources.planPresetLabel")}</span>
+                  <select
+                    className="flex-1 bg-transparent text-xs text-foreground outline-none cursor-pointer min-w-0"
+                    value={selectedPlanPreset}
+                    onChange={(e) => applyPlanPreset(e.target.value)}
+                    disabled={gamblingModeEnabled}
+                  >
+                    <option value="">{t("resources.planPresetCustom")}</option>
+                    {planPresets.map((p) => (
+                      <option key={p.planId} value={String(p.planId)}>
+                        {p.planName} · {p.memory ?? "—"} MB / {p.disk ?? "—"} MB / {p.cpu ?? "—"}%
+                      </option>
+                    ))}
+                  </select>
                 </div>
               )}
 

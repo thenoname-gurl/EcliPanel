@@ -62,6 +62,8 @@ export interface AdminOrder {
   notes?: string
   createdAt: string
   expiresAt?: string
+  orgId?: number | null
+  nextRenewalAmount?: number | null
 }
 
 export interface PanelSettings {

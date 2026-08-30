@@ -18,6 +18,9 @@ export class Order {
   @Column('float', { default: 0 })
   amount: number;
 
+  @Column('float', { nullable: true })
+  originalAmount?: number;
+
   @Column('float', { default: 0 })
   taxAmount: number;
 
@@ -76,6 +79,9 @@ export class Order {
 
   @Column({ nullable: true })
   billingType?: string;
+
+  @Column('float', { nullable: true })
+  nextRenewalAmount?: number;
 
   @Column({ nullable: true, type: 'datetime' })
   lifetimeBlockedAt?: Date;

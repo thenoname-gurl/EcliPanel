@@ -30,7 +30,7 @@ interface ChannelData {
   slug: string
   name: string
   description: string | null
-  type: "community" | "public_anonymous"
+  type: "community" | "public_anonymous" | "club"
   createdById: number | null
   isListed: boolean
   isArchived: boolean

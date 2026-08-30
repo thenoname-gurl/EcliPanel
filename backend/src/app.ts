@@ -397,8 +397,10 @@ app.use(
         'x-sftp-password',
         'x-path',
         'x-csrf-token',
+        'x-stepup-token',
+        'x-sudo-token',
       ],
-      exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control'],
+      exposeHeaders: ['Content-Type', 'Content-Length', 'Cache-Control', 'x-stepup-code'],
     })
   )
   .use(helmet({
@@ -467,8 +469,8 @@ app.error((rawCtx: unknown) => {
       ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' }
       : {}),
     'Access-Control-Allow-Headers':
-      'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token',
-    'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control',
+      'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token, x-stepup-token, x-sudo-token',
+    'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control, x-stepup-code, x-sudo-code',
   };
 
   const securityHeaders = {
@@ -535,6 +537,7 @@ declare module 'elysia' {
 }
 
 const _rateBuckets = new Map<string, { count: number; resetAt: number }>();
+const MAX_RATE_BUCKETS = 100_000;
 app.request(async (rawCtx: unknown) => {
   const ctx = rawCtx as unknown as AppRequestContext;
   const req: Request = ctx.request;
@@ -628,6 +631,22 @@ app.request(async (rawCtx: unknown) => {
     existing && now <= existing.resetAt
       ? (existing.count++, existing)
       : { count: 1, resetAt: now + 60_000 };
+  // Guard the in-memory rate map from unbounded growth (one entry per IP is fine,
+  // but a scanning/attacking source would otherwise pin it forever).
+  if (!existing && _rateBuckets.size >= MAX_RATE_BUCKETS) {
+    for (const [k, v] of _rateBuckets) {
+      if (now > v.resetAt) _rateBuckets.delete(k);
+    }
+    // still full? evict the single newest entry so a fresh IP can be tracked
+    if (_rateBuckets.size >= MAX_RATE_BUCKETS) {
+      let oldest: string | null = null;
+      let oldestReset = Infinity;
+      for (const [k, v] of _rateBuckets) {
+        if (v.resetAt < oldestReset) { oldestReset = v.resetAt; oldest = k; }
+      }
+      if (oldest !== null) _rateBuckets.delete(oldest);
+    }
+  }
   _rateBuckets.set(_rateLimitIP, bucket);
 
   if (bucket.count > 500) {
@@ -639,8 +658,8 @@ app.request(async (rawCtx: unknown) => {
         ...(origin && isAllowedCorsOrigin(origin)
           ? { 'Access-Control-Allow-Origin': origin, 'Access-Control-Allow-Credentials': 'true' }
           : {}),
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token',
-        'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, x-sftp-password, x-path, x-csrf-token, x-stepup-token, x-sudo-token',
+        'Access-Control-Expose-Headers': 'Content-Type, Content-Length, Cache-Control, x-stepup-code, x-sudo-code',
       },
     });
   }
@@ -1116,6 +1135,8 @@ export async function initApp() {
         }
       }
 
+      // Admins reading another user's mailbox attachments.
+
       const ext = path.extname(filepath).toLowerCase();
       const mimeTypes: Record<string, string> = {
         '.jpg': 'image/jpeg',
@@ -1257,6 +1278,8 @@ export async function initApp() {
         }
       }
 
+      // Admins reading another user's mailbox attachments.
+
       const ext = path.extname(filepath).toLowerCase();
       const mimeTypes: Record<string, string> = {
         '.jpg': 'image/jpeg',
@@ -1391,6 +1414,8 @@ export async function initApp() {
         });
       }
 
+      // Admins viewing another user's documents.
+
       const ext = path.extname(filepath).toLowerCase();
       const mimeTypes: Record<string, string> = {
         '.pdf': 'application/pdf',
@@ -1474,6 +1499,8 @@ export async function initApp() {
           headers: { 'Content-Type': 'application/json' },
         });
       }
+
+      // Admins viewing another user's documents.
 
       const ext = path.extname(filepath).toLowerCase();
       const mimeTypes: Record<string, string> = {

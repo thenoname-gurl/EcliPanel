@@ -68,6 +68,8 @@ export default function ServersTab({ ctx }: { ctx: any }) {
     setEsDesc,
     esUserId,
     setEsUserId,
+    esOrgId,
+    setEsOrgId,
     esMemory,
     setEsMemory,
     esDisk,
@@ -140,6 +142,18 @@ export default function ServersTab({ ctx }: { ctx: any }) {
     nodeHeartbeats,
     resyncServer,
     resyncingServer,
+    forceMigrateOpen,
+    setForceMigrateOpen,
+    fmSourceNodeId,
+    setFmSourceNodeId,
+    fmTargetNodeId,
+    setFmTargetNodeId,
+    fmServers,
+    setFmServers,
+    fmLoading,
+    fmError,
+    fmResult,
+    forceMigrateServers,
   } = ctx
 
   return (
@@ -197,6 +211,11 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               {syncingFromWings ? <Loader2 className="h-3.5 w-3.5 rounded-full animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               <span className="hidden sm:inline">{t("actions.syncFromWings")}</span>
               <span className="sm:hidden">{t("actions.sync")}</span>
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { loadTab("nodes"); setForceMigrateOpen(true) }} className="h-8 gap-1.5 border-amber-500/30 text-amber-600 hover:bg-amber-500/10">
+              <Server className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{t("actions.forceMigrate")}</span>
+              <span className="sm:hidden">{t("actions.migrate")}</span>
             </Button>
             <Button
               size="sm"
@@ -497,6 +516,11 @@ export default function ServersTab({ ctx }: { ctx: any }) {
               <input type="number" value={esUserId} onChange={(e) => setEsUserId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
             <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.orgId")}</label>
+              <input type="number" value={esOrgId} onChange={(e) => setEsOrgId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
+              <p className="text-xs text-muted-foreground">{t("editDialog.fields.orgIdHint")}</p>
+            </div>
+            <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.fields.memoryMb")}</label>
               <input type="number" min="128" value={esMemory} onChange={(e) => setEsMemory(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50" />
             </div>
@@ -727,6 +751,66 @@ export default function ServersTab({ ctx }: { ctx: any }) {
           <Button variant="outline" onClick={() => setCreateServerOpen(false)} className="border-border">{t("actions.cancel")}</Button>
           <Button onClick={submitCreateServer} disabled={csLoading || !csNodeId} className="bg-primary text-primary-foreground">
             {csLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.creating")}</> : t("actions.createServer")}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog open={forceMigrateOpen} onOpenChange={(open) => { if (!open && !fmLoading) setForceMigrateOpen(false) }}>
+      <DialogContent className="border-border bg-card sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-foreground">{t("forceMigrate.title")}</DialogTitle>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-2 text-sm text-muted-foreground">
+          <p>{t("forceMigrate.description")}</p>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("forceMigrate.sourceNode")}</label>
+              <select value={fmSourceNodeId} onChange={(e) => setFmSourceNodeId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                <option value="">{t("forceMigrate.selectNode")}</option>
+                {nodes.map((n: any) => <option key={n.id} value={String(n.id)}>{n.name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("forceMigrate.targetNode")}</label>
+              <select value={fmTargetNodeId} onChange={(e) => setFmTargetNodeId(e.target.value)} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50">
+                <option value="">{t("forceMigrate.selectNode")}</option>
+                {nodes.map((n: any) => <option key={n.id} value={String(n.id)}>{n.name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("forceMigrate.serversOptional")}</label>
+              <textarea
+                value={fmServers}
+                onChange={(e) => setFmServers(e.target.value)}
+                placeholder={t("forceMigrate.serversPlaceholder")}
+                rows={3}
+                className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground font-mono outline-none focus:border-primary/50"
+              />
+            </div>
+          </div>
+          {fmError && <p className="text-xs text-destructive">{fmError}</p>}
+          {fmResult && (
+            <div className="border border-border bg-secondary/30 p-3 text-xs">
+              <p className="font-medium text-foreground">{t("forceMigrate.result")}</p>
+              <p className="mt-1">
+                {t("forceMigrate.total")}: {fmResult.total} · {t("forceMigrate.migrated")}: {fmResult.migrated} · {t("forceMigrate.failed")}: {fmResult.failed}
+              </p>
+              {fmResult.failures?.length > 0 && (
+                <div className="mt-2">
+                  <p className="text-destructive font-medium">{t("forceMigrate.failedServers")}</p>
+                  <ul className="mt-1 list-disc pl-4">
+                    {fmResult.failures.map((f: string, i: number) => <li key={i} className="font-mono">{f}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setForceMigrateOpen(false)} disabled={fmLoading} className="border-border">{t("actions.cancel")}</Button>
+          <Button onClick={forceMigrateServers} disabled={fmLoading || !fmSourceNodeId || !fmTargetNodeId} className="bg-amber-600 text-white hover:bg-amber-500">
+            {fmLoading ? <><Loader2 className="h-3.5 w-3.5 rounded-full animate-spin mr-1" />{t("actions.migrating")}</> : t("forceMigrate.run")}
           </Button>
         </DialogFooter>
       </DialogContent>

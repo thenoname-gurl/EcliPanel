@@ -1,5 +1,6 @@
 "use client"
 
+import { LoadingBar } from "@/components/panel/shared"
 import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from "react"
 
 const MonacoEditor = lazy(() => import("@monaco-editor/react").then((m) => ({ default: m.default })))
@@ -437,11 +438,7 @@ function GuideOverlay({ open, onOpenChange, defs, onBuild }: {
           </button>
         </div>
         {/* Progress bar */}
-        <div className="w-full h-1 bg-muted/30 rounded-full mb-3 overflow-hidden">
-          <div className={`h-full rounded-full transition-all duration-300 ${completed ? "bg-green-500" : "bg-purple-500"}`}
-            style={{ width: completed ? "100%" : `${((step + 1) / tmpl.steps.length) * 100}%` }}
-          />
-        </div>
+        <LoadingBar value={completed ? 100 : ((step + 1) / tmpl.steps.length) * 100} className="mb-3" />
         {completed ? (
           <div className="py-1 text-center space-y-2">
             <CheckCircle className="h-8 w-8 mx-auto text-success" />

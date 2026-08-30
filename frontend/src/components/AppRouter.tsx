@@ -2,6 +2,8 @@
 
 import React, { Suspense } from "react";
 import { usePathname } from "@/components/shims/navigation";
+import { RouteSkeleton } from "@/components/ui/route-skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Loader = () => Promise<{ default: React.ComponentType<any> }>;
 type RouteMatch = { loader: Loader; params: Record<string, string> };
@@ -23,7 +25,6 @@ const staticRoutes: Record<string, Loader> = {
   "/elo": () => import("@/app/elo/page"),
   "/changelogs": () => import("@/app/changelogs/page"),
   "/contributors": () => import("@/app/contributors/page"),
-  "/aegis": () => import("@/app/aegis/page"),
   "/docs": () => import("@/app/docs/page"),
   "/docs/getting-started": () => import("@/app/docs/getting-started/page"),
   "/docs/server-management": () => import("@/app/docs/server-management/page"),
@@ -67,6 +68,7 @@ const staticRoutes: Record<string, Loader> = {
   "/dashboard/elo/leaderboard": () => import("@/app/dashboard/elo/leaderboard/page"),
   "/dashboard/elo/vote": () => import("@/app/dashboard/elo/vote/page"),
   "/dashboard/identity": () => import("@/app/dashboard/identity/page"),
+  "/dashboard/luminos-club": () => import("@/app/dashboard/luminos-club/page"),
   "/dashboard/infrastructure/nodes": () => import("@/app/dashboard/infrastructure/nodes/page"),
   "/dashboard/infrastructure/visual-editor": () => import("@/app/dashboard/infrastructure/visual-editor/page"),
   "/dashboard/mailbox": () => import("@/app/dashboard/mailbox/page"),
@@ -121,9 +123,20 @@ function matchRoute(pathname: string): RouteMatch | null {
 }
 
 function Loading() {
+  return <RouteSkeleton />;
+}
+
+// Neutral placeholder for public/auth pages (login, register, docs, etc.) so
+// the dashboard's header+stat-card skeleton never flashes on non-dashboard routes.
+function PublicLoading() {
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
+    <div className="flex min-h-[60vh] items-center justify-center p-6">
+      <div className="w-full max-w-sm space-y-4 rounded-lg border border-border bg-card p-6">
+        <Skeleton className="h-6 w-32" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-full" />
+      </div>
     </div>
   );
 }
@@ -131,7 +144,7 @@ function Loading() {
 function NotFound() {
   const LazyNotFound = React.lazy(() => import("@/app/not-found"));
   return (
-    <Suspense fallback={<Loading />}>
+    <Suspense fallback={<RouteSkeleton />}>
       <LazyNotFound />
     </Suspense>
   );
@@ -152,7 +165,7 @@ export default function AppRouter({ serverPathname }: { serverPathname?: string 
     }
     if (isDocs) {
       const LazyLayout = React.lazy(() => import("@/app/docs/layout"));
-      return <Suspense fallback={<Loading />}><LazyLayout>{children}</LazyLayout></Suspense>;
+      return <Suspense fallback={<PublicLoading />}><LazyLayout>{children}</LazyLayout></Suspense>;
     }
     return <>{children}</>;
   }
@@ -165,7 +178,7 @@ export default function AppRouter({ serverPathname }: { serverPathname?: string 
   const pageParams = match.params;
   const paramsProp = { params: Promise.resolve(pageParams) };
   return wrapLayout(
-    <Suspense fallback={<Loading />}><Page {...paramsProp} /></Suspense>,
+    <Suspense fallback={isDashboard ? <Loading /> : <PublicLoading />}><Page {...paramsProp} /></Suspense>,
     false
   );
 }

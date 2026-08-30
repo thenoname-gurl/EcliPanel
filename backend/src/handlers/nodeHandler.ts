@@ -18,7 +18,7 @@ import { WingsApiService } from '../services/wingsApiService';
 import { t } from 'elysia';
 import { errorMessage, sanitizeError } from '../utils/sanitizeError';
 import { randomHex } from '../utils/bunCrypto';
-import type { AuthenticatedHandlerContext, BaseHandlerContext, NodeApp, CreateNodeBody, UpdateNodeBody, RebootOperation } from '../types';
+import type { AuthenticatedHandlerContext, BaseHandlerContext, NodeApp, CreateNodeBody, UpdateNodeBody, RebootOperation, BackupOperation } from '../types';
 import type { OrganisationMember } from '../models/organisationMember.entity';
 
 const NODE_TYPES = ['free', 'paid', 'free_and_paid', 'enterprise'] as const;
@@ -64,7 +64,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       const adminErr = requireAdminCtx(ctx);
       if (adminErr !== true) return adminErr;
       const nodes = await nodeRepo().find({ relations: { organisation: true } });
-      const safe = nodes.map(({ rootUser: _ru, rootPassword: _rp, token: _t, ...rest }: Node) => rest);
+      const safe = nodes.map(({ rootUser: _ru, rootPassword: _rp, token: _t, pbsTokenSecret: _pbs, ...rest }: Node) => rest);
       return safe;
     },
     {
@@ -79,7 +79,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
   );
 
   function sanitizeNodes(nodes: Node[]) {
-    return nodes.map(({ rootUser: _ru, rootPassword: _rp, token: _t, ...rest }: Node) => rest);
+    return nodes.map(({ rootUser: _ru, rootPassword: _rp, token: _t, pbsTokenSecret: _pbs, ...rest }: Node) => rest);
   }
 
   app.get(
@@ -209,7 +209,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('node.notFound') };
       }
-      const { rootUser: _ru, rootPassword: _rp, token: _t, ...safe } = node;
+      const { rootUser: _ru, rootPassword: _rp, token: _t, pbsTokenSecret: _pbs, ...safe } = node;
       return safe;
     },
     {
@@ -230,7 +230,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       const adminErr = await authorize('nodes:create')(ctx);
       if (adminErr !== undefined) return adminErr;
       const body = ctx.body as CreateNodeBody;
-      const { name, url, token, nodeId, provider, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge } = body;
+      const { name, url, token, nodeId, provider, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge, pbsUrl, pbsDatastore, pbsNamespace, pbsTokenId, pbsTokenSecret, pbsFingerprint, pbsBackupIdPrefix } = body;
       if (!name || !url || !token) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.nameUrlTokenRequired') };
@@ -265,6 +265,13 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         if (proxmoxStorage) node.proxmoxStorage = proxmoxStorage;
         if (proxmoxBridge) node.proxmoxBridge = proxmoxBridge;
       }
+      if (pbsUrl !== undefined) node.pbsUrl = pbsUrl || undefined;
+      if (pbsDatastore !== undefined) node.pbsDatastore = pbsDatastore || undefined;
+      if (pbsNamespace !== undefined) node.pbsNamespace = pbsNamespace || undefined;
+      if (pbsTokenId !== undefined) node.pbsTokenId = pbsTokenId || undefined;
+      if (pbsTokenSecret !== undefined) node.pbsTokenSecret = pbsTokenSecret || undefined;
+      if (pbsFingerprint !== undefined) node.pbsFingerprint = pbsFingerprint || undefined;
+      if (pbsBackupIdPrefix !== undefined) node.pbsBackupIdPrefix = pbsBackupIdPrefix || undefined;
       if (nodeType && NODE_TYPES.includes(nodeType as typeof NODE_TYPES[number])) {
         node.nodeType = nodeType as typeof NODE_TYPES[number];
       }
@@ -339,6 +346,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         node.deploymentNotice = deploymentNotice || undefined;
       await nodeRepo().save(node);
       refreshAllSftpProxies().catch(() => {});
+      (node as unknown as Record<string, unknown>).pbsTokenSecret = undefined;
       return { success: true, node };
     },
     {
@@ -360,7 +368,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== undefined) return adminErr;
       const { id } = ctx.params as Record<string, string>;
       const body = ctx.body as UpdateNodeBody;
-      const { nodeId, url, nodeType, provider, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge } = body;
+      const { nodeId, url, nodeType, provider, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge, pbsUrl, pbsDatastore, pbsNamespace, pbsTokenId, pbsTokenSecret, pbsFingerprint, pbsBackupIdPrefix } = body;
 
       const node = await resolveNode(id);
       if (!node) {
@@ -475,6 +483,13 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (proxmoxNode !== undefined) node.proxmoxNode = proxmoxNode || undefined;
       if (proxmoxStorage !== undefined) node.proxmoxStorage = proxmoxStorage || undefined;
       if (proxmoxBridge !== undefined) node.proxmoxBridge = proxmoxBridge || undefined;
+      if (pbsUrl !== undefined) node.pbsUrl = pbsUrl || undefined;
+      if (pbsDatastore !== undefined) node.pbsDatastore = pbsDatastore || undefined;
+      if (pbsNamespace !== undefined) node.pbsNamespace = pbsNamespace || undefined;
+      if (pbsTokenId !== undefined) node.pbsTokenId = pbsTokenId || undefined;
+      if (pbsTokenSecret !== undefined) node.pbsTokenSecret = pbsTokenSecret || undefined;
+      if (pbsFingerprint !== undefined) node.pbsFingerprint = pbsFingerprint || undefined;
+      if (pbsBackupIdPrefix !== undefined) node.pbsBackupIdPrefix = pbsBackupIdPrefix || undefined;
       if (useSSL !== undefined) {
         node.useSSL = useSSL === true || useSSL === 'true';
         if (node.useSSL && node.url.toLowerCase().startsWith('http://')) {
@@ -505,6 +520,9 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         where: { id: Number(id) },
         relations: { organisation: true },
       });
+      if (updated) {
+        (updated as unknown as Record<string, unknown>).pbsTokenSecret = undefined;
+      }
       return { success: true, node: updated };
     },
     {
@@ -530,8 +548,30 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('node.notFound') };
       }
+      const cfgRepo = AppDataSource.getRepository(
+        require('../models/serverConfig.entity').ServerConfig
+      );
+      const serverCount = await cfgRepo.count({ where: { nodeId: node.id } });
+      if (serverCount > 0) {
+        ctx.set.status = 409;
+        return {
+          error: `Cannot delete node: ${serverCount} server(s) are still assigned to it. Use Force migrate to move them off first.`,
+        };
+      }
+      const mappingRepo = AppDataSource.getRepository(
+        require('../models/serverMapping.entity').ServerMapping
+      );
+      await mappingRepo.delete({ node: { id: node.id } });
       nodeService.invalidateNode(node.id);
-      await nodeRepo().remove(node);
+      try {
+        await nodeRepo().remove(node);
+      } catch (err: any) {
+        ctx.set.status = 409;
+        return {
+          error:
+            'Node could not be deleted — it is still referenced by other records. Remove dependent data first.',
+        };
+      }
       refreshAllSftpProxies().catch(() => {});
       return { success: true };
     },
@@ -542,6 +582,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         404: t.Object({ error: t.String() }),
+        409: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Delete node (admin only)', tags: ['Nodes'] },
     }
@@ -1230,6 +1271,170 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         404: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Get reboot operation status', tags: ['Nodes'] },
+    }
+  );
+
+  const backupOperations = new Map<string, BackupOperation>();
+  const BACKUP_OP_TTL = 5 * 60 * 1000;
+
+  setInterval(() => {
+    const now = Date.now();
+    for (const [id, op] of backupOperations) {
+      if (now - op.createdAt > BACKUP_OP_TTL) backupOperations.delete(id);
+    }
+  }, 60_000);
+
+  app.post(
+    prefix + '/nodes/:id/backup-all-servers',
+    async (ctx: BaseHandlerContext) => {
+      const adminErr = requireAdminCtx(ctx);
+      if (adminErr !== true) return adminErr;
+      const nodeId = Number(ctx.params.id);
+      if (!Number.isFinite(nodeId)) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.invalidNodeId') };
+      }
+      const node = await nodeRepo().findOneBy({ id: nodeId });
+      if (!node) {
+        ctx.set.status = 404;
+        return { error: ctx.t('node.notFound') };
+      }
+      if (!node.pbsUrl || !node.pbsDatastore || !node.pbsTokenId || !node.pbsTokenSecret) {
+        ctx.set.status = 400;
+        return {
+          error: 'This node has no PBS backup configuration. Set PBS connection fields on the node first.',
+        };
+      }
+
+      const cfgRepo = AppDataSource.getRepository(require('../models/serverConfig.entity').ServerConfig);
+      const configs = await cfgRepo.find({ where: { nodeId }, select: { uuid: true, name: true } });
+
+      const opId = crypto.randomUUID();
+      const op: BackupOperation = {
+        id: opId,
+        nodeId,
+        nodeName: node.name,
+        status: 'running',
+        progress: 0,
+        message: ctx.t('node.operationStarted'),
+        totalServers: configs.length,
+        servers: [],
+        succeedCount: 0,
+        errorCount: 0,
+        createdAt: Date.now(),
+      };
+      backupOperations.set(opId, op);
+
+      if (configs.length === 0) {
+        op.status = 'completed';
+        op.progress = 100;
+        op.message = 'No servers on this node';
+        return { operationId: opId, status: 'completed', message: 'No servers on this node' };
+      }
+
+      const base = node.backendWingsUrl || node.url;
+      const svc = new WingsApiService(base, node.token);
+      const backupRepo = AppDataSource.getRepository(
+        require('../models/serverBackup.entity').ServerBackup
+      );
+
+      (async () => {
+        try {
+          let done = 0;
+          for (const cfg of configs) {
+            const serverUuid = cfg.uuid;
+            const backupUuid = crypto.randomUUID();
+            try {
+              await backupRepo.save(
+                backupRepo.create({
+                  uuid: backupUuid,
+                  serverUuid,
+                  adapter: 'proxmox-backup-server',
+                  name: cfg.name || undefined,
+                })
+              );
+              await svc.createServerBackup(serverUuid, {
+                adapter: 'proxmox-backup-server',
+                uuid: backupUuid,
+                ignore: '',
+              });
+              op.servers.push({ uuid: serverUuid, name: cfg.name || serverUuid, ok: true, backupId: backupUuid });
+              op.succeedCount++;
+            } catch (e: unknown) {
+              const msg = errorMessage(e, 'Backup failed');
+              op.servers.push({ uuid: serverUuid, name: cfg.name || serverUuid, ok: false, error: msg });
+              op.errorCount++;
+            }
+            done++;
+            op.progress = Math.round((done / configs.length) * 100);
+          }
+          op.status = 'completed';
+          op.progress = 100;
+          op.message = 'Backup completed';
+        } catch (e: unknown) {
+          op.status = 'failed';
+          op.message = errorMessage(e, 'Unexpected error during backup');
+          op.progress = 100;
+        }
+      })();
+
+      return {
+        operationId: opId,
+        status: 'running',
+        totalServers: configs.length,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:servers:manage')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: {
+        summary: 'Create a PBS backup of every server on a node (async)',
+        tags: ['Nodes'],
+      },
+    }
+  );
+
+  app.get(
+    prefix + '/nodes/:id/backup-status/:operationId',
+    async (ctx: BaseHandlerContext) => {
+      const adminErr = requireAdminCtx(ctx);
+      if (adminErr !== true) return adminErr;
+      const op = backupOperations.get(ctx.params.operationId as string);
+      if (!op) {
+        ctx.set.status = 404;
+        return { error: ctx.t('node.operationNotFound') };
+      }
+      if (op.nodeId !== Number(ctx.params.id)) {
+        ctx.set.status = 404;
+        return { error: ctx.t('node.operationBelongsToDifferentNode') };
+      }
+      return {
+        operationId: op.id,
+        status: op.status,
+        progress: op.progress,
+        message: op.message,
+        totalServers: op.totalServers,
+        succeedCount: op.succeedCount,
+        errorCount: op.errorCount,
+        servers: op.servers,
+        createdAt: op.createdAt,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:servers:manage')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get backup operation status', tags: ['Nodes'] },
     }
   );
 

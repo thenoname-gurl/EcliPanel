@@ -1305,10 +1305,10 @@ echo "Run: wings --config /etc/pterodactyl/config.yml"
         const userRepo = AppDataSource.getRepository(User);
         const activeUsers = await userRepo
           .createQueryBuilder('u')
-          .select('u.id')
+          .select('u.id', 'id')
           .where('u.lastLoginAt >= :since', { since: thirtyDaysAgo })
-          .getMany();
-        const activeUserIds = new Set(activeUsers.map(u => u.id));
+          .getRawMany<{ id: number }>();
+        const activeUserIds = new Set(activeUsers.map(u => Number(u.id)));
         const cfgRepo = AppDataSource.getRepository(ServerConfig);
         const isAdmin = hasPermissionSync(ctx, 'soc:read');
         const serverFilter = isAdmin

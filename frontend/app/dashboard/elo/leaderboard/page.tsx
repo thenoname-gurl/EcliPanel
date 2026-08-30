@@ -1,5 +1,6 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
 import { useEffect, useState } from "react"
 import { PanelHeader } from "@/components/panel/header"
 import { PageLayout } from "@/components/panel/shared"
@@ -59,9 +60,7 @@ export default function EloLeaderboardPage() {
           </Link>
 
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <RouteSkeleton />
           ) : !data?.leaderboard?.length ? (
             <section className="border border-border/50 bg-card shadow-sm p-6 sm:p-8 text-center">
               <div className="flex flex-col items-center justify-center py-16 text-center px-6 gap-3">

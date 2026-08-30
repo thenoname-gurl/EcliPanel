@@ -171,36 +171,55 @@ async function checkNewIpLogins(): Promise<ScanCheckResult[]> {
       .andWhere('log.action LIKE :login', { login: '%login%' })
       .andWhere('log.ipAddress IS NOT NULL')
       .getRawMany();
+    if (recentLogins.length === 0) return results;
+    const userIds = [...new Set(recentLogins.map((r) => Number(r.userId)).filter(Boolean))];
+    const batchKey = new Map<string, { userId: number; ip: string }>();
+
+    const priorCounts: Record<string, number> = {};
+    const priorCountRows = await logRepo
+      .createQueryBuilder('log')
+      .select('log.userId', 'userId')
+      .addSelect('log.ipAddress', 'ipAddress')
+      .addSelect('COUNT(*) AS cnt')
+      .where('log.userId IN (:...uids)', { uids: userIds })
+      .andWhere('log.timestamp < :since', { since: oneHourAgo })
+      .groupBy('log.userId')
+      .addGroupBy('log.ipAddress')
+      .getRawMany();
+    for (const row of priorCountRows) {
+      const k = `${Number(row.userId)}|${row.ipAddress}`;
+      priorCounts[k] = Number(row.cnt);
+    }
+
+    const userDistinctIps: Record<number, number> = {};
+    const distinctRows = await logRepo
+      .createQueryBuilder('log')
+      .select('log.userId', 'userId')
+      .addSelect('COUNT(DISTINCT log.ipAddress) AS cnt')
+      .where('log.userId IN (:...uids)', { uids: userIds })
+      .andWhere('log.timestamp < :since', { since: oneHourAgo })
+      .groupBy('log.userId')
+      .getRawMany();
+    for (const row of distinctRows) {
+      userDistinctIps[Number(row.userId)] = Number(row.cnt);
+    }
 
     for (const login of recentLogins) {
       const userId = Number(login.userId);
       const ip = String(login.ipAddress);
-
-      const priorCount = await logRepo
-        .createQueryBuilder('log')
-        .where('log.userId = :uid', { uid: userId })
-        .andWhere('log.ipAddress = :ip', { ip })
-        .andWhere('log.timestamp < :since', { since: oneHourAgo })
-        .getCount();
-
+      if (!userId) continue;
+      const priorKey = `${userId}|${ip}`;
+      const priorCount = priorCounts[priorKey] ?? 0;
       if (priorCount === 0) {
-        const distinctIps = await logRepo
-          .createQueryBuilder('log')
-          .select('log.ipAddress')
-          .where('log.userId = :uid', { uid: userId })
-          .andWhere('log.ipAddress IS NOT NULL')
-          .andWhere('log.timestamp < :since', { since: oneHourAgo })
-          .groupBy('log.ipAddress')
-          .getRawMany();
-
-        if (distinctIps.length >= 3) {
+        const distinctIps = userDistinctIps[userId] ?? 0;
+        if (distinctIps >= 3) {
           results.push({
             category: 'login_anomaly',
             severity: 'low',
             title: `Login from new IP address`,
             description: `User #${userId} logged in from IP ${ip}, which has never been seen before for this account.`,
             userId,
-            metadata: { ip, priorDistinctIps: distinctIps.length },
+            metadata: { ip, priorDistinctIps: distinctIps },
             fingerprint: fp('login_anomaly', 'newip', userId, ip),
           });
         }
@@ -370,9 +389,12 @@ async function checkHighCpu(): Promise<ScanCheckResult[]> {
       .where('c.suspended = false')
       .getMany();
     const cpuLimits = new Map<string, number>();
+    const configServerIds: string[] = [];
     for (const c of allCfgs) {
       cpuLimits.set(c.uuid, Number(c.cpu) || 100);
+      configServerIds.push(c.uuid);
     }
+    if (configServerIds.length === 0) return results;
 
     const rows = await socRepo
       .createQueryBuilder('s')
@@ -380,7 +402,7 @@ async function checkHighCpu(): Promise<ScanCheckResult[]> {
       .addSelect('s.timestamp', 'timestamp')
       .addSelect("COALESCE(JSON_EXTRACT(s.metrics, '$.cpu_absolute'), JSON_EXTRACT(s.metrics, '$.cpu'), '0')", 'cpuVal')
       .where('s.timestamp >= :since', { since: twoMinAgo })
-      .andWhere('s.serverId NOT LIKE :nodePrefix', { nodePrefix: 'node:%' })
+      .andWhere('s.serverId IN (:...ids)', { ids: configServerIds })
       .orderBy('s.serverId', 'ASC')
       .addOrderBy('s.timestamp', 'DESC')
       .getRawMany();

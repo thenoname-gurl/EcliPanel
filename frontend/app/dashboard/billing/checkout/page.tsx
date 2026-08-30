@@ -1,5 +1,6 @@
 "use client"
 
+import { RouteSkeleton } from "@/components/ui/route-skeleton"
 import { PanelHeader } from "@/components/panel/header"
 import { SectionHeader } from "@/components/panel/shared"
 import { FeatureGuard } from "@/components/panel/feature-guard"
@@ -24,6 +25,7 @@ import {
   AlertTriangle,
   Tag,
   ExternalLink,
+  Sparkles,
 } from "lucide-react"
 
 export default function CheckoutPage() {
@@ -312,6 +314,19 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                {/* Luminos member discount */}
+                {Number(order.originalAmount) > 0 && Number(order.originalAmount) !== Number(order.amount) && (
+                  <div className="flex items-center justify-between border-t border-border pt-4 mt-2">
+                    <span className="text-success font-medium flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />
+                      {t("memberDiscount")}
+                    </span>
+                    <span className="text-muted-foreground">
+                      (-{formatMoney(Number(order.originalAmount) - Number(order.amount), normalizedCurrency)})
+                    </span>
+                  </div>
+                )}
+
                 {/* Coupon */}
                 {!appliedCoupon && order.status === "pending" && (
                   <div className="border-t border-border pt-4 mt-2">
@@ -402,9 +417,7 @@ export default function CheckoutPage() {
 
           {/* Loading */}
           {state === "loading" && (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <RouteSkeleton />
           )}
 
           {/* Method Selection */}

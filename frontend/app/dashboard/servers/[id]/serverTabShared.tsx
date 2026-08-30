@@ -2,8 +2,9 @@
 
 import { ReactNode, memo } from "react"
 import { useTranslations } from "next-intl"
-import { Loader2, AlertCircle, Info } from "lucide-react"
+import { AlertCircle, Info } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { LoadingBar } from "@/components/panel/shared"
 
 interface InfoRowProps {
   label: string
@@ -48,12 +49,6 @@ interface LoadingStateProps {
 
 export const LoadingState = memo(function LoadingState({ message = "Loading...", size = "md", className }: LoadingStateProps) {
   const t = useTranslations("serverTabShared")
-  const sizeClasses = {
-    sm: "h-4 w-4",
-    md: "h-5 w-5",
-    lg: "h-8 w-8"
-  }
-
   const paddingClasses = {
     sm: "py-6",
     md: "py-12",
@@ -61,12 +56,10 @@ export const LoadingState = memo(function LoadingState({ message = "Loading...",
   }
 
   return (
-    <div className={cn(
-      "flex flex-col items-center justify-center",
-      paddingClasses[size],
-      className
-    )}>
-      <Loader2 className={cn("rounded-full animate-spin text-muted-foreground mb-2", sizeClasses[size])} />
+    <div className={cn("flex flex-col gap-3 w-full", paddingClasses[size], className)}>
+      <Skeleton className="h-4 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-2/3" />
       <p className="text-sm text-muted-foreground">{message === "Loading..." ? t("loading") : message}</p>
     </div>
   )
@@ -236,15 +229,7 @@ export const ProgressStat = memo(function ProgressStat({
           {formatValue(value)}{unit} / {formatValue(max)}{unit}
         </span>
       </div>
-      <div className="h-2 rounded-full bg-secondary overflow-hidden">
-        <div 
-          className="h-full rounded-full transition-all duration-500"
-          style={{ 
-            width: `${percentage}%`,
-            backgroundColor: color
-          }} 
-        />
-      </div>
+      <LoadingBar value={value} max={max} color={color} dangerous />
       <p className="text-[10px] text-muted-foreground mt-1 text-right">
         {percentage.toFixed(1)}%
       </p>

@@ -10,6 +10,8 @@ import { OutboundEmail } from '../models/outboundEmail.entity';
 import { Node } from '../models/node.entity';
 import { Organisation } from '../models/organisation.entity';
 import { WingsApiService } from '../services/wingsApiService';
+import { recordOrderPayment, recordManualTransaction, getSureAccount, updateSureTransaction, deleteSureTransaction, retryFinanceLogRow, listSureTransactions } from '../services/sureFinanceService';
+import { unlink } from 'node:fs/promises';
 import { authenticate } from '../middleware/auth';
 import { hasPermissionSync, authorize } from '../middleware/authorize';
 import { renderEmailTemplate, sendMail } from '../services/mailService';
@@ -23,6 +25,7 @@ import { nodeService } from '../services/nodeService';
 import { loadWebauthnSettings } from '../services/passkeyService';
 import { getConfiguredFraudModels, runFraudScanForUser } from '../services/fraudService';
 import { t } from 'elysia';
+import { reconcileInvoiceItems } from '../utils/reconcileInvoice';
 import { createExportJob, getExportJob, listExportJobs } from '../services/exportJobService';
 import { ExportJob } from '../models/exportJob.entity';
 import { MailboxAccount } from '../models/mailboxAccount.entity';
@@ -66,6 +69,7 @@ import {
   getGeoBlockLevelFromRules,
   getGeoBlockLevel,
   clearKycCache,
+  clearKycVerifiedCache,
   getMinimumAgeForCountry,
 } from '../utils/eu';
 import { auditLog } from '../utils/auditLog';
@@ -1426,7 +1430,7 @@ export async function adminRoutes(app: any, prefix = '') {
           try {
             const base = (n as any).backendWingsUrl || n.url;
             const svc = new WingsApiService(base, n.token);
-            const res = await svc.getServers();
+            const res = await svc.getServers({ timeoutMs: 2500 });
             return (res.data || []).length;
           } catch {
             return null;
@@ -3856,6 +3860,7 @@ export async function adminRoutes(app: any, prefix = '') {
         await userRepo.update({ id: rec.userId }, { idVerified: false });
       }
       await verRepo.save(rec);
+      clearKycVerifiedCache(rec.userId);
       return { success: true, rec };
     },
     {
@@ -4622,7 +4627,7 @@ export async function adminRoutes(app: any, prefix = '') {
           try {
             const base = (n as any).backendWingsUrl || n.url;
             const svc = new WingsApiService(base, n.token);
-            const res = await svc.getServers();
+            const res = await svc.getServers({ timeoutMs: 4000 });
             const servers = res.data || [];
             return { node: n, servers };
           } catch {
@@ -4734,6 +4739,149 @@ export async function adminRoutes(app: any, prefix = '') {
         },
       },
       detail: { summary: 'List all servers across nodes', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/servers/force-migrate',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:servers:manage');
+      if (adminErr !== true) return adminErr;
+
+      const body = (ctx.body || {}) as Record<string, unknown>;
+      const sourceNodeId = body.sourceNodeId != null ? Number(body.sourceNodeId) : undefined;
+      const targetNodeId = body.targetNodeId != null ? Number(body.targetNodeId) : undefined;
+
+      if (!sourceNodeId || !targetNodeId) {
+        ctx.set.status = 400;
+        return { error: 'sourceNodeId and targetNodeId are required' };
+      }
+      if (sourceNodeId === targetNodeId) {
+        ctx.set.status = 400;
+        return { error: 'Source and target nodes must be different' };
+      }
+
+      const nodeRepo = AppDataSource.getRepository(Node);
+      const sourceNode = await nodeRepo.findOneBy({ id: sourceNodeId });
+      const targetNode = await nodeRepo.findOneBy({ id: targetNodeId });
+      if (!sourceNode || !targetNode) {
+        ctx.set.status = 404;
+        return { error: 'Source or target node not found' };
+      }
+      if (targetNode.provider !== 'wings') {
+        ctx.set.status = 400;
+        return { error: 'Target node must be a Wings node' };
+      }
+
+      const cfgRepo = AppDataSource.getRepository(ServerConfig);
+      let uuids: string[] | undefined;
+      if (Array.isArray(body.servers) && body.servers.length > 0) {
+        uuids = (body.servers as unknown[]).map(s => String(s)).filter(Boolean);
+      }
+      const query: any = { nodeId: sourceNodeId };
+      const configs = uuids && uuids.length > 0
+        ? await cfgRepo.find({ where: { ...query, uuid: In(uuids) } })
+        : await cfgRepo.find({ where: query });
+
+      if (configs.length === 0) {
+        return { success: true, migrated: 0, failed: 0, message: 'No servers on source node' };
+      }
+
+      const targetSvc = new WingsApiService(
+        targetNode.backendWingsUrl || targetNode.url,
+        targetNode.token,
+      );
+
+      let migrated = 0;
+      let failed = 0;
+      const failures: string[] = [];
+
+      for (const cfg of configs) {
+        const id = cfg.uuid;
+        try {
+          if (cfg.allocations && typeof cfg.allocations === 'object') {
+            cfg.allocations = {
+              ...(cfg.allocations as Record<string, any>),
+              default: undefined,
+              mappings: {},
+              fqdns: {},
+            };
+          } else {
+            cfg.allocations = { mappings: {}, fqdns: {} };
+          }
+          cfg.nodeId = targetNode.id;
+          cfg.destinationNodeId = undefined;
+          await cfgRepo.save(cfg);
+
+          await nodeService.unmapServer(id);
+          nodeService.invalidateNode(sourceNodeId);
+          await nodeService.mapServer(id, targetNode.id);
+          nodeService.invalidateNode(targetNode.id);
+
+          await targetSvc.createServer({
+            uuid: id,
+            start_on_completion: true,
+            skip_scripts: false,
+          });
+
+          migrated++;
+        } catch (e: unknown) {
+          failed++;
+          failures.push(id);
+          app.log?.error?.({ err: e, uuid: id }, 'force-migrate: server failed');
+        }
+      }
+
+      await createActivityLog({
+        userId: ctx.user?.id,
+        action: 'server:force-migrate:complete',
+        targetId: String(targetNode.id),
+        targetType: 'node',
+        metadata: {
+          sourceNodeId,
+          targetNodeId: targetNode.id,
+          total: configs.length,
+          migrated,
+          failed,
+          failures,
+        },
+        ipAddress: ctx.clientIP,
+      });
+
+      if (failed > 0) {
+        ctx.set.status = 207;
+        return {
+          success: migrated > 0,
+          total: configs.length,
+          migrated,
+          failed,
+          failures,
+          message: `Migrated ${migrated}, failed ${failed}`,
+        };
+      }
+      return { success: true, total: configs.length, migrated, failed: 0, failures: [] };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({
+          sourceNodeId: t.Optional(t.Number()),
+          targetNodeId: t.Optional(t.Number()),
+          servers: t.Optional(t.Array(t.String())),
+        }),
+        response: {
+          200: t.Any(),
+          207: t.Any(),
+          400: t.Object({ error: t.String() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: {
+        summary: 'Force migrate all (or selected) servers off a source node to a target Wings node',
+        tags: ['Admin'],
+      },
     }
   );
 
@@ -5019,6 +5167,7 @@ export async function adminRoutes(app: any, prefix = '') {
         name,
         description,
         userId,
+        orgId,
         memory,
         disk,
         cpu,
@@ -5046,6 +5195,18 @@ export async function adminRoutes(app: any, prefix = '') {
       if (name !== undefined) cfg.name = name;
       if (description !== undefined) cfg.description = description;
       if (userId !== undefined) cfg.userId = Number(userId);
+      if (orgId !== undefined) {
+        const parsedOrgId = orgId == null || orgId === '' ? null : Number(orgId);
+        if (parsedOrgId != null) {
+          const orgRepo = AppDataSource.getRepository(Organisation);
+          const org = await orgRepo.findOneBy({ id: parsedOrgId });
+          if (!org) {
+            ctx.set.status = 404;
+            return { error: ctx.t('organisation.notFound') };
+          }
+        }
+        cfg.orgId = parsedOrgId as any;
+      }
       if (memory !== undefined) {
         const pm = parseSizeToMB(memory);
         if (pm === null || pm < 0) {
@@ -5152,6 +5313,7 @@ export async function adminRoutes(app: any, prefix = '') {
           name: t.Optional(t.String()),
           description: t.Optional(t.String()),
           userId: t.Optional(t.Any()),
+          orgId: t.Optional(t.Any()),
           memory: t.Optional(t.Any()),
           disk: t.Optional(t.Any()),
           cpu: t.Optional(t.Any()),
@@ -8800,6 +8962,12 @@ export async function adminRoutes(app: any, prefix = '') {
           }
           await repo.save({ key, value });
           if (key === 'kycRequiredCountries') clearKycCache();
+          if (key === 'geoBlockCountries' || key === 'countryAgeRules') {
+            try {
+              await require('../config/redis').redisDel('eu:geo-block-rules:v1');
+              await require('../config/redis').redisDel('eu:country-age-rules:v1');
+            } catch { }
+          }
         }
       }
       if (body.portalDescriptions !== undefined) {
@@ -9089,6 +9257,531 @@ export async function adminRoutes(app: any, prefix = '') {
   );
 
   app.get(
+    prefix + '/admin/finances',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:critical:finances');
+      if (adminErr !== true) return adminErr;
+      const orderRepo = AppDataSource.getRepository(Order);
+      const paidStatuses = ['active', 'paid', 'completed'];
+      const pendingStatuses = ['pending', 'awaiting_payment', 'payment_sent'];
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+
+      const sum = async (statuses: string[], since?: string) => {
+        const qb = orderRepo
+          .createQueryBuilder('o')
+          .select('COALESCE(SUM(o.amount), 0)', 'total')
+          .where('o.status IN (:...statuses)', { statuses });
+        if (since) qb.andWhere('o.createdAt >= :since', { since });
+        const raw = await qb.getRawOne();
+        return Number(raw?.total ?? 0) || 0;
+      };
+
+      const [totalPaid, paidLast30, pendingAwaiting, paidCount] = await Promise.all([
+        sum(paidStatuses),
+        sum(paidStatuses, thirtyDaysAgo),
+        sum(pendingStatuses),
+        orderRepo
+          .createQueryBuilder('o')
+          .where('o.status IN (:...statuses)', { statuses: paidStatuses })
+          .getCount(),
+      ]);
+
+      const sure = await getSureAccount();
+
+      let usdPlnRate: number | null = null;
+      try {
+        const r = await fetch('https://api.frankfurter.app/latest?from=USD&to=PLN', {
+          signal: AbortSignal.timeout(5000),
+        });
+        if (r.ok) {
+          const j = (await r.json()) as any;
+          usdPlnRate = Number(j?.rates?.PLN) || null;
+        }
+      } catch {}
+
+      const history = await AppDataSource.getRepository(
+        require('../models/financeLog.entity').FinanceLog
+      )
+        .createQueryBuilder('f')
+        .orderBy('f.createdAt', 'DESC')
+        .take(30)
+        .getMany();
+
+      const sureLast30Raw = await AppDataSource.getRepository(
+        require('../models/financeLog.entity').FinanceLog
+      )
+        .createQueryBuilder('f')
+        .select("COALESCE(SUM(CASE WHEN f.nature = 'income' THEN f.amount ELSE 0 END), 0)", 'income')
+        .addSelect("COALESCE(SUM(CASE WHEN f.nature = 'expense' THEN f.amount ELSE 0 END), 0)", 'expense')
+        .where('f.status = :status', { status: 'sent' })
+        .andWhere('f.createdAt >= :since', { since: thirtyDaysAgo })
+        .getRawOne();
+
+      return {
+        sure: sure
+          ? {
+              name: sure.name ?? null,
+              balanceCents: sure.balance_cents ?? 0,
+              currency: sure.currency ?? null,
+              updatedAt: sure.updated_at ?? null,
+            }
+          : null,
+        sureEnabled: sure != null,
+        usdPlnRate,
+        sureLast30: {
+          income: Number(sureLast30Raw?.income ?? 0) || 0,
+          expense: Number(sureLast30Raw?.expense ?? 0) || 0,
+        },
+        panel: { totalPaid, paidLast30, pendingAwaiting, paidCount },
+        history: history.map((f) => ({
+          id: f.id,
+          orderId: f.orderId ?? null,
+          externalId: f.externalId,
+          amount: f.amount,
+          currency: f.currency || 'USD',
+          nature: f.nature,
+          name: f.name,
+          notes: f.notes ?? null,
+          status: f.status,
+          error: f.error ?? null,
+          invoicePath: f.invoicePath ?? null,
+          createdAt: f.createdAt,
+        })),
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Object({
+          sure: t.Any(),
+          sureEnabled: t.Boolean(),
+          usdPlnRate: t.Any(),
+          sureLast30: t.Object({ income: t.Number(), expense: t.Number() }),
+          panel: t.Object({
+            totalPaid: t.Number(),
+            paidLast30: t.Number(),
+            pendingAwaiting: t.Number(),
+            paidCount: t.Number(),
+          }),
+          history: t.Array(t.Any()),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Finance overview: Sure balance and panel order totals (admin)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/finances/sure-transactions',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:critical:finances');
+      if (adminErr !== true) return adminErr;
+      const params: Record<string, string> = {};
+      for (const key of ['page', 'per_page', 'category_id', 'merchant_id', 'start_date', 'end_date', 'min_amount', 'max_amount', 'type', 'search']) {
+        const v = (ctx.query as any)?.[key];
+        if (v !== undefined && v !== '') params[key] = String(v);
+      }
+      const allRows: any[] = [];
+      const seenIds = new Set<string>();
+      let summary = { income: 0, expense: 0, count: 0 };
+      const first = await listSureTransactions({ ...params, page: '1', per_page: '100' });
+      if (!first.ok) {
+        ctx.set.status = 502;
+        return { error: 'sure transaction list unavailable' };
+      }
+      const absorb = (rows: any[]): number => {
+        let added = 0;
+        for (const r of rows) {
+          const id = String(r.id ?? '');
+          if (id && !seenIds.has(id)) {
+            seenIds.add(id);
+            allRows.push(r);
+            added++;
+          }
+        }
+        return added;
+      };
+      absorb(first.rows);
+      let page = 2;
+      while (page <= 100) {
+        const next = await listSureTransactions({ ...params, page: String(page), per_page: '100' });
+        if (!next.ok) break;
+        if (absorb(next.rows) === 0) break;
+        if (allRows.length >= 10000) break;
+        page++;
+      }
+      for (const r of allRows) {
+        const cents = Number(r.amount_cents ?? 0);
+        if (r.classification === 'expense') summary.expense += cents / 100;
+        else {
+          summary.income += cents / 100;
+          summary.count++;
+        }
+      }
+      const rows = allRows;
+      const logRepo = AppDataSource.getRepository(
+        require('../models/financeLog.entity').FinanceLog
+      );
+      const local = await logRepo
+        .createQueryBuilder('f')
+        .where('f.externalId IS NOT NULL')
+        .getMany();
+      const byExternal = new Map(local.map((l) => [l.externalId, l]));
+      return {
+        summary,
+        transactions: rows.map((r: any) => {
+          const localRow = byExternal.get(String(r.external_id ?? ''));
+          return {
+            id: r.id ?? null,
+            date: r.date ?? r.created_at ?? null,
+            amount: Number(r.amount_cents ?? 0) / 100,
+            currency: r.currency ?? null,
+            nature: r.classification === 'expense' ? 'expense' : 'income',
+            name: r.name ?? r.description ?? '',
+            notes: r.notes ?? null,
+            status: 'sent',
+            error: null,
+            invoicePath: localRow?.invoicePath ?? null,
+            invoiceLocalId: localRow?.id ?? null,
+            createdAt: r.created_at ?? r.date ?? null,
+            externalId: r.external_id ?? null,
+            source: r.source ?? null,
+            account: r.account?.name ?? null,
+            category: r.category?.name ?? r.category ?? null,
+            categoryId: r.category?.id ?? null,
+            merchant: r.merchant?.name ?? r.merchant ?? null,
+            merchantId: r.merchant?.id ?? null,
+            tags: Array.isArray(r.tags)
+              ? r.tags.map((tg: any) => (typeof tg === 'string' ? tg : tg?.name ?? tg?.label ?? null)).filter(Boolean)
+              : [],
+            transfer: r.transfer ?? null,
+            updatedAt: r.updated_at ?? null,
+            local: localRow
+              ? {
+                  id: localRow.id,
+                  orderId: localRow.orderId ?? null,
+                  externalId: localRow.externalId,
+                  status: localRow.status,
+                  error: localRow.error ?? null,
+                  sureTransactionId: localRow.sureTransactionId ?? null,
+                }
+              : null,
+          };
+        }),
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Object({
+          transactions: t.Array(t.Any()),
+          summary: t.Object({ income: t.Number(), expense: t.Number(), count: t.Number() }),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        502: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'List transactions from Sure', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/finances/manual',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:critical:finances');
+      if (adminErr !== true) return adminErr;
+      const { amount, nature, name, notes, invoiceBase64 } = ctx.body as any;
+      const parsedAmount = Number(amount);
+      if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+        ctx.set.status = 422;
+        return { error: 'amount must be a positive number' };
+      }
+      if (nature !== 'income' && nature !== 'expense') {
+        ctx.set.status = 422;
+        return { error: 'nature must be income or expense' };
+      }
+      if (!name || !String(name).trim()) {
+        ctx.set.status = 422;
+        return { error: 'name is required' };
+      }
+      const id = await recordManualTransaction({
+        amount: parsedAmount,
+        nature,
+        name: String(name).trim(),
+        notes: notes ? String(notes).trim() : null,
+        invoiceBase64: invoiceBase64 || null,
+      });
+      if (id == null) {
+        ctx.set.status = 502;
+        return { error: 'finance tracking is not configured (MISIU_FINANCE_API_KEY)' };
+      }
+      return { success: true, id };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        body: t.Object({
+          amount: t.Number(),
+          nature: t.String(),
+          name: t.String(),
+          notes: t.Optional(t.String()),
+          invoiceBase64: t.Optional(t.String()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), id: t.Number() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          422: t.Object({ error: t.String() }),
+          502: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Manually log a finance transaction', tags: ['Admin'] },
+    }
+  );
+
+  app.patch(
+    prefix + '/admin/finances/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:critical:finances');
+      if (adminErr !== true) return adminErr;
+      const repo = AppDataSource.getRepository(
+        require('../models/financeLog.entity').FinanceLog
+      );
+      const paramId = String(ctx.params.id);
+      const isNumericId = /^\d+$/.test(paramId);
+      const row = isNumericId
+        ? await repo.findOneBy({ id: Number(paramId) })
+        : await repo.findOneBy({ sureTransactionId: paramId });
+      const sureId = row?.sureTransactionId ?? (isNumericId ? null : paramId);
+      if (!row && !sureId) {
+        ctx.set.status = 404;
+        return { error: 'transaction not found' };
+      }
+      const { amount, name, notes, nature, invoiceBase64, date, currency, categoryId, merchantId, tagIds } = ctx.body as any;
+
+      if (amount !== undefined && (!Number.isFinite(Number(amount)) || Number(amount) <= 0)) {
+        ctx.set.status = 422;
+        return { error: 'amount must be a positive number' };
+      }
+      if (nature !== undefined && nature !== 'income' && nature !== 'expense') {
+        ctx.set.status = 422;
+        return { error: 'nature must be income or expense' };
+      }
+      if (name !== undefined && !String(name).trim()) {
+        ctx.set.status = 422;
+        return { error: 'name cannot be empty' };
+      }
+      if (date !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(date))) {
+        ctx.set.status = 422;
+        return { error: 'date must be YYYY-MM-DD' };
+      }
+
+      let sureOk = true;
+      let sureErr: string | null = null;
+      if (sureId) {
+        const patch: Record<string, unknown> = {};
+        if (amount !== undefined) patch.amount = Number(amount);
+        if (name !== undefined) patch.name = String(name).trim();
+        if (notes !== undefined) patch.notes = String(notes);
+        if (nature !== undefined) patch.nature = nature;
+        if (date !== undefined) patch.date = String(date);
+        if (currency !== undefined) patch.currency = String(currency).toUpperCase();
+        if (categoryId !== undefined) patch.category_id = categoryId ? String(categoryId) : null;
+        if (merchantId !== undefined) patch.merchant_id = merchantId ? String(merchantId) : null;
+        if (tagIds !== undefined) {
+          const list = Array.isArray(tagIds)
+            ? tagIds
+            : String(tagIds).split(',').map((s: string) => s.trim()).filter(Boolean);
+          patch.tag_ids = list;
+        }
+        if (Object.keys(patch).length > 0) {
+          const status = await updateSureTransaction(sureId, patch);
+          sureOk = status >= 200 && status < 300;
+          if (!sureOk) sureErr = `gateway HTTP ${status}`;
+        }
+      }
+
+      if (row) {
+        if (amount !== undefined) row.amount = Number(amount);
+        if (name !== undefined) row.name = String(name).trim();
+        if (notes !== undefined) row.notes = notes ? String(notes) : (null as any);
+        if (nature !== undefined) row.nature = nature;
+        if (invoiceBase64) {
+          const { storeInvoiceForRow } = require('../services/sureFinanceService');
+          const path = await storeInvoiceForRow(row.id, invoiceBase64);
+          if (path) row.invoicePath = path;
+        }
+        if (!sureOk) {
+          row.status = 'failed';
+          row.error = sureErr;
+        } else if (row.sureTransactionId && row.status === 'failed') {
+          row.status = 'sent';
+          row.error = null as any;
+        }
+        await repo.save(row);
+      } else if (!sureOk) {
+        ctx.set.status = 502;
+        return { error: sureErr || 'gateway update failed' };
+      }
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        body: t.Object({
+          amount: t.Optional(t.Number()),
+          name: t.Optional(t.String()),
+          notes: t.Optional(t.String()),
+          nature: t.Optional(t.String()),
+          invoiceBase64: t.Optional(t.String()),
+          date: t.Optional(t.String()),
+          currency: t.Optional(t.String()),
+          categoryId: t.Optional(t.Any()),
+          merchantId: t.Optional(t.Any()),
+          tagIds: t.Optional(t.Any()),
+        }),
+        response: {
+          200: t.Object({ success: t.Boolean(), row: t.Any() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+          422: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Edit a logged finance transaction (admin, contract access)', tags: ['Admin'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/finances/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:critical:finances');
+      if (adminErr !== true) return adminErr;
+      const repo = AppDataSource.getRepository(
+        require('../models/financeLog.entity').FinanceLog
+      );
+      const paramId = String(ctx.params.id);
+      const isNumericId = /^\d+$/.test(paramId);
+      const row = isNumericId
+        ? await repo.findOneBy({ id: Number(paramId) })
+        : await repo.findOneBy({ sureTransactionId: paramId });
+      const sureId = row?.sureTransactionId ?? (isNumericId ? null : paramId);
+      if (!row && !sureId) {
+        ctx.set.status = 404;
+        return { error: 'transaction not found' };
+      }
+      if (sureId) {
+        await deleteSureTransaction(sureId);
+      }
+      if (row) {
+        if (row.invoicePath) {
+          unlink(`uploads/${row.invoicePath}`).catch(() => {});
+        }
+        await repo.remove(row);
+      }
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Delete a logged finance transaction (admin, contract access)', tags: ['Admin'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/finances/:id/retry',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:critical:finances');
+      if (adminErr !== true) return adminErr;
+      const repo = AppDataSource.getRepository(
+        require('../models/financeLog.entity').FinanceLog
+      );
+      const row = await repo.findOneBy({ id: Number(ctx.params.id) });
+      if (!row) {
+        ctx.set.status = 404;
+        return { error: 'transaction not found' };
+      }
+      const { status } = await retryFinanceLogRow({
+        id: row.id,
+        amount: row.amount,
+        nature: row.nature,
+        name: row.name,
+        notes: row.notes ?? null,
+        externalId: row.externalId,
+      });
+      if (status === -1 || !(status >= 200 && status < 300)) {
+        ctx.set.status = 502;
+        return { error: `gateway HTTP ${status}` };
+      }
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      schema: {
+        params: t.Object({ id: t.String() }),
+        response: {
+          200: t.Object({ success: t.Boolean() }),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+          404: t.Object({ error: t.String() }),
+          502: t.Object({ error: t.String() }),
+        },
+      },
+      detail: { summary: 'Retry a failed finance transaction (admin, contract access)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/finances/invoice/:id',
+    async ctx => {
+      const adminErr = requireAdminPermission(ctx, 'admin:critical:finances');
+      if (adminErr !== true) return adminErr;
+      const row = await AppDataSource.getRepository(
+        require('../models/financeLog.entity').FinanceLog
+      ).findOneBy({ id: Number(ctx.params.id) });
+      if (!row?.invoicePath) {
+        ctx.set.status = 404;
+        return { error: 'invoice not found' };
+      }
+      try {
+        const buf = await Bun.file(`uploads/${row.invoicePath}`).arrayBuffer();
+        const ext = String(row.invoicePath).split('.').pop()?.toLowerCase();
+        const mime = ext === 'pdf' ? 'application/pdf' : ext === 'jpg' ? 'image/jpeg' : 'image/png';
+        return new Response(buf as any, {
+          status: 200,
+          headers: {
+            'Content-Type': mime,
+            'Content-Disposition': `attachment; filename="finance-${row.id}.${ext}"`,
+          },
+        });
+      } catch {
+        ctx.set.status = 404;
+        return { error: 'invoice not found' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('admin:access')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Download uploaded finance invoice (admin, contract access)', tags: ['Admin'] },
+    }
+  );
+
+  app.get(
     prefix + '/admin/orders',
     async ctx => {
       const adminErr = requireAdminPermission(ctx, 'orders:view');
@@ -9310,9 +10003,58 @@ export async function adminRoutes(app: any, prefix = '') {
         ctx.set.status = 404;
         return { error: ctx.t('order.notFound') };
       }
-      const { status, notes, expiresAt, description, amount, planId, items, userId } =
+      const { status, notes, expiresAt, description, amount, planId, items, userId, taxRate, taxAmount, nextRenewalAmount, orgId } =
         ctx.body as any;
+      const prevStatus = order.status;
       if (status !== undefined) order.status = status;
+      if (nextRenewalAmount !== undefined) {
+        order.nextRenewalAmount = nextRenewalAmount == null || nextRenewalAmount === '' ? (null as any) : Number(nextRenewalAmount);
+      }
+      if (orgId !== undefined) {
+        const prevOrgId = order.orgId;
+        const parsedOrgId = orgId == null || orgId === '' ? null : Number(orgId);
+        if (parsedOrgId != null) {
+          const orgRepo = AppDataSource.getRepository(Organisation);
+          const org = await orgRepo.findOneBy({ id: parsedOrgId });
+          if (!org) {
+            ctx.set.status = 404;
+            return { error: ctx.t('organisation.notFound') };
+          }
+        }
+        order.orgId = parsedOrgId as any;
+        const withoutMarker = String(order.notes || '').replace(/org_order:\d+;?\s*/g, '').trim();
+        order.notes = parsedOrgId != null
+          ? (withoutMarker ? `org_order:${parsedOrgId}; ${withoutMarker}` : `org_order:${parsedOrgId};`)
+          : (withoutMarker || null) as any;
+        if (parsedOrgId != null && prevOrgId == null && order.status === 'active' && order.planId) {
+          const remaining = await orderRepo.find({
+            where: { userId: order.userId, status: 'active', orgId: null as any },
+          });
+          if (remaining.length === 0) {
+            const userRepo = AppDataSource.getRepository(User);
+            const planRepo = AppDataSource.getRepository(Plan);
+            const u = await userRepo.findOneBy({ id: order.userId });
+            if (u && u.portalType !== 'educational') {
+              const freePlan = await planRepo.findOneBy({ type: 'free', isDefault: true });
+              const fp = freePlan || await planRepo.findOneBy({ type: 'free' });
+              u.portalType = 'free';
+              u.limits = {
+                memory: fp?.memory ?? 1024,
+                disk: fp?.disk ?? 10240,
+                cpu: fp?.cpu ?? 1,
+                serverLimit: fp?.serverLimit ?? 1,
+                databases: fp?.databases ?? 1,
+                backups: fp?.backups ?? 1,
+                portCount: fp?.portCount ?? 1,
+                tunnelPortCount: fp?.tunnelPortCount ?? 1,
+                emailSendDailyLimit: fp?.emailSendDailyLimit ?? 3,
+                emailSendQueueLimit: fp?.emailSendQueueLimit ?? 3,
+              };
+              await userRepo.save(u);
+            }
+          }
+        }
+      }
       if (notes !== undefined) {
         const orgMarker = String(order.notes || '').match(/org_order:\d+;?/)?.[0] || '';
         order.notes = orgMarker ? `${orgMarker.endsWith(';') ? orgMarker : orgMarker + ';'}${notes}` : notes;
@@ -9322,6 +10064,41 @@ export async function adminRoutes(app: any, prefix = '') {
       if (amount !== undefined) order.amount = Number(amount || 0);
       if (planId !== undefined) order.planId = planId != null ? Number(planId) : (null as any);
       if (items !== undefined) order.items = items;
+      if (taxRate !== undefined) order.taxRate = Number(taxRate || 0);
+      if (taxAmount !== undefined) order.taxAmount = Number(taxAmount || 0);
+      if (items !== undefined && amount === undefined) {
+        try {
+          const parsed = JSON.parse(order.items);
+          if (Array.isArray(parsed)) {
+            const sum = parsed.reduce(
+              (acc: number, it: any) =>
+                acc + Math.max(1, Number(it.quantity ?? it.qty ?? 1)) * Number(it.price ?? it.unit_price ?? 0),
+              0
+            );
+            order.amount = Math.round(sum * 100) / 100;
+          }
+        } catch {}
+      }
+      if (items === undefined && (description !== undefined || amount !== undefined)) {
+        let parsed: any[] = [];
+        try { parsed = JSON.parse(order.items || '[]'); } catch { parsed = []; }
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (description !== undefined) parsed[0].description = description;
+          order.items = JSON.stringify(reconcileInvoiceItems(parsed, Number(order.amount)));
+        }
+      }
+      if (amount !== undefined && taxRate === undefined && taxAmount === undefined) {
+        try {
+          const u = await AppDataSource.getRepository(User).findOneBy({ id: order.userId });
+          const country = u?.countryOverride || u?.billingCountry || null;
+          if (country) {
+            const { calculateTax } = require('../utils/regionalPricing');
+            const tax = await calculateTax(Number(order.amount), country);
+            order.taxRate = tax.taxRate;
+            order.taxAmount = tax.taxAmount;
+          }
+        } catch {}
+      }
       if (userId !== undefined) {
         const userRepo = AppDataSource.getRepository(User);
         const u = await userRepo.findOneBy({ id: Number(userId) });
@@ -9343,6 +10120,12 @@ export async function adminRoutes(app: any, prefix = '') {
           }
         } catch (_e) { }
       }
+      if (status !== undefined && isActivated) {
+        const wasActivated = ['active', 'paid', 'completed'].includes(String(prevStatus || '').toLowerCase());
+        if (!wasActivated) {
+          recordOrderPayment(order).catch(() => {});
+        }
+      }
 
       return { success: true, order };
     },
@@ -9358,6 +10141,10 @@ export async function adminRoutes(app: any, prefix = '') {
           amount: t.Optional(t.Number()),
           planId: t.Optional(t.Any()),
           items: t.Optional(t.String()),
+          taxRate: t.Optional(t.Number()),
+          taxAmount: t.Optional(t.Number()),
+          nextRenewalAmount: t.Optional(t.Any()),
+          orgId: t.Optional(t.Any()),
           userId: t.Optional(t.Any()),
         }),
         response: {
