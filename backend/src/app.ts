@@ -591,7 +591,7 @@ app.request(async (rawCtx: unknown) => {
     }
   }
 
-  const effectiveIP: string = cfIPv6 || cfIP || remoteAddr || xForwardedFor || xRealIP || 'unknown';
+  const effectiveIP: string = cfIPv6 || cfIP || xForwardedFor || xRealIP || remoteAddr || 'unknown';
 
   try {
     ctx.ip = effectiveIP;
@@ -756,6 +756,8 @@ app.afterHandle(async (rawCtx: { request: Request; response?: unknown }) => {
       res.headers.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
     } else if (path.startsWith('/api/plans') || path.startsWith('/api/eggs')) {
       res.headers.set('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
+    } else if (path.startsWith('/api/')) {
+      res.headers.set('Cache-Control', 'private, no-store');
     }
 
     if (path.startsWith('/api/')) {

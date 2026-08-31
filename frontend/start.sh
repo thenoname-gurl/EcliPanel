@@ -6,7 +6,7 @@ if [ -f .env ]; then
   source .env
   set +a
 fi
-export BACKEND_URL=${BACKEND_URL:-https://backend.ecli.app}
+export BACKEND_URL=${BACKEND_URL:-http://localhost:3432}
 export NODE_ENV=production
 export HOST=0.0.0.0
 

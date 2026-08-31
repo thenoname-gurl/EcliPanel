@@ -47,6 +47,10 @@ export const ALL: APIRoute = async ({ request, params }) => {
     if (contentType) headers.set("content-type", contentType);
     const origin = request.headers.get("origin");
     if (origin) headers.set("origin", origin);
+    for (const h of ["cf-connecting-ip", "cf-connecting-ipv6", "x-forwarded-for", "x-real-ip", "x-csrf-token", "x-api-key", "x-forwarded-proto", "x-forwarded-host", "host"]) {
+      const v = request.headers.get(h);
+      if (v) headers.set(h, v);
+    }
 
     const ct = request.headers.get("content-type") || "";
     const isMultipart = ct.includes("multipart/form-data");
@@ -63,8 +67,13 @@ export const ALL: APIRoute = async ({ request, params }) => {
 
     const resHeaders = new Headers();
     res.headers.forEach((value, key) => {
+      if (key.toLowerCase() === "set-cookie") return;
       resHeaders.set(key, value);
     });
+    const setCookies = res.headers.getSetCookie?.();
+    if (setCookies && setCookies.length) {
+      for (const c of setCookies) resHeaders.append("set-cookie", c);
+    }
 
     return new Response(res.body, {
       status: res.status,
