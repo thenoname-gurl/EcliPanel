@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useState, useEffect, useCallback } from "react"
 import { apiFetch } from "@/lib/api-client"
@@ -290,7 +291,7 @@ export default function RolloutsTab() {
       setRollouts((prev) => prev.filter((r) => r.id !== id))
       setDeleteConfirm(null)
     } catch (e: any) {
-      alert(e?.message || "Failed to delete rollout")
+      toast.error(e?.message || "Failed to delete rollout")
     }
   }
 
@@ -318,7 +319,7 @@ export default function RolloutsTab() {
           : r
       ))
     } catch (e: any) {
-      alert(e?.message || "Failed to add override")
+      toast.error(e?.message || "Failed to add override")
     }
   }
 
@@ -344,7 +345,7 @@ export default function RolloutsTab() {
         return next
       })
     } catch (e: any) {
-      alert(e?.message || "Failed to add override")
+      toast.error(e?.message || "Failed to add override")
     }
   }
 
@@ -360,7 +361,7 @@ export default function RolloutsTab() {
           : r
       ))
     } catch (e: any) {
-      alert(e?.message || "Failed to remove override")
+      toast.error(e?.message || "Failed to remove override")
     }
   }
 
@@ -381,7 +382,7 @@ export default function RolloutsTab() {
           : r
       ))
     } catch (e: any) {
-      alert(e?.message || "Failed to update override treatment")
+      toast.error(e?.message || "Failed to update override treatment")
     }
   }
 

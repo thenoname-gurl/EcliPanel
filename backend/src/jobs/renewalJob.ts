@@ -84,19 +84,19 @@ async function processRenewals() {
             await userRepo.save(user);
           } else {
             const existingLimits = (user as any).limits || {};
-            if (plan.memory != null) existingLimits.memory = plan.memory;
-            if (plan.disk != null) existingLimits.disk = plan.disk;
-            if (plan.cpu != null) existingLimits.cpu = plan.cpu;
-            if (plan.serverLimit != null) existingLimits.serverLimit = plan.serverLimit;
-            if (plan.databases != null) existingLimits.databases = plan.databases;
-            if (plan.backups != null) existingLimits.backups = plan.backups;
-            if (plan.emailSendDailyLimit != null) existingLimits.emailSendDailyLimit = plan.emailSendDailyLimit;
-            if (plan.emailSendQueueLimit != null) existingLimits.emailSendQueueLimit = plan.emailSendQueueLimit;
-            if (plan.portCount != null) {
+            if (plan.memory != null && existingLimits.memory == null) existingLimits.memory = plan.memory;
+            if (plan.disk != null && existingLimits.disk == null) existingLimits.disk = plan.disk;
+            if (plan.cpu != null && existingLimits.cpu == null) existingLimits.cpu = plan.cpu;
+            if (plan.serverLimit != null && existingLimits.serverLimit == null) existingLimits.serverLimit = plan.serverLimit;
+            if (plan.databases != null && existingLimits.databases == null) existingLimits.databases = plan.databases;
+            if (plan.backups != null && existingLimits.backups == null) existingLimits.backups = plan.backups;
+            if (plan.emailSendDailyLimit != null && existingLimits.emailSendDailyLimit == null) existingLimits.emailSendDailyLimit = plan.emailSendDailyLimit;
+            if (plan.emailSendQueueLimit != null && existingLimits.emailSendQueueLimit == null) existingLimits.emailSendQueueLimit = plan.emailSendQueueLimit;
+            if (plan.portCount != null && existingLimits.portCount == null) {
               existingLimits.portCount = plan.portCount;
               existingLimits.portsPerServer = plan.portCount;
             }
-            if (plan.tunnelPortCount != null) existingLimits.tunnelPortCount = plan.tunnelPortCount;
+            if (plan.tunnelPortCount != null && existingLimits.tunnelPortCount == null) existingLimits.tunnelPortCount = plan.tunnelPortCount;
             user.limits = existingLimits;
 
             if (plan.type === 'educational') {

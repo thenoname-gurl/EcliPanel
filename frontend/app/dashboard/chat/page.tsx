@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -559,8 +560,8 @@ export default function ChatPage() {
     let res: any
     try {
       res = await apiFetch(`/api/chat/messages/lookup?posterId=${encodeURIComponent(posterId)}`)
-    } catch { alert("Lookup failed"); return }
-    if (!Array.isArray(res) || res.length === 0) { alert("No messages found for this poster ID"); return }
+    } catch { toast.error("Lookup failed"); return }
+    if (!Array.isArray(res) || res.length === 0) { toast("No messages found for this poster ID"); return }
     const info = res[0]
     const msg = `Hash: ${info.ipHash || "N/A"}\nMsgs: ${res.length}\nPoster: ${posterId}\nUser ID: ${info.userId || "anon"}`
     if (info.ipHash) {
@@ -570,8 +571,8 @@ export default function ChatPage() {
           method: "POST",
           body: JSON.stringify({ ipHash: info.ipHash, reason: `Banned from #${info.formattedId}`, hours: 24 }),
         })
-        alert("Banned for 24h")
-      } catch { alert("Ban failed") }
+        toast("Banned for 24h")
+      } catch { toast.error("Ban failed") }
     } else if (info.userId) {
       if (!confirm(`${msg}\n\nNo IP log. Ban account (user #${info.userId}) for 24h?`)) return
       try {
@@ -579,10 +580,10 @@ export default function ChatPage() {
           method: "POST",
           body: JSON.stringify({ userId: info.userId, reason: `Banned from #${info.formattedId}`, hours: 24 }),
         })
-        alert("Account banned for 24h")
-      } catch { alert("Ban failed") }
+        toast("Account banned for 24h")
+      } catch { toast.error("Ban failed") }
     } else {
-      alert(`${msg}\n\nNo IP hash or user ID to ban.`)
+      toast(`${msg}\n\nNo IP hash or user ID to ban.`)
     }
   }
 
@@ -599,9 +600,9 @@ export default function ChatPage() {
           ...prev,
           replies: prev.replies.filter(r => r.posterId !== posterId),
         } : prev)
-        alert(`Deleted ${res.deleted} posts`)
+        toast.success(`Deleted ${res.deleted} posts`)
       }
-    } catch { alert("Mass delete failed") }
+    } catch { toast.error("Mass delete failed") }
   }
 
   function canManage(ch: Channel) {

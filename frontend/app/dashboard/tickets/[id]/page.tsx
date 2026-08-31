@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { use, useState, useEffect, useRef } from "react"
@@ -398,7 +399,7 @@ export default function TicketDetailPage({
       applyTicket(updated?.ticket || updated)
       setEditingMsgId(null)
     } catch (e: any) {
-      alert(t("alerts.failedEdit", { reason: e.message }))
+      toast.error(t("alerts.failedEdit", { reason: e.message }))
       setEditingMsgId(null)
     } finally {
       setSavingMsg(false)
@@ -414,7 +415,7 @@ export default function TicketDetailPage({
       )
       applyTicket(updated?.ticket || updated)
     } catch (e: any) {
-      alert(t("alerts.failedDeleteMsg", { reason: e.message }))
+      toast.error(t("alerts.failedDeleteMsg", { reason: e.message }))
     }
   }
 
@@ -426,7 +427,7 @@ export default function TicketDetailPage({
       )
       applyTicket(updated?.ticket || updated)
     } catch (e: any) {
-      alert(t("alerts.failedReact", { reason: e.message }))
+      toast.error(t("alerts.failedReact", { reason: e.message }))
     }
   }
 
@@ -468,7 +469,7 @@ export default function TicketDetailPage({
       setScreenshots([])
       setUploadedUrls([])
     } catch (e: any) {
-      alert(t("alerts.failedSend", { reason: e.message }))
+      toast.error(t("alerts.failedSend", { reason: e.message }))
     } finally {
       setSending(false)
     }
@@ -487,7 +488,7 @@ export default function TicketDetailPage({
       applyTicket(updated)
       setAdminStatus(updated.status)
     } catch (e: any) {
-      alert(t("alerts.failed", { reason: e.message }))
+      toast.error(t("alerts.failed", { reason: e.message }))
     }
   }
 
@@ -515,7 +516,7 @@ export default function TicketDetailPage({
       ])
       setShowAdminPanel(false)
     } catch (e: any) {
-      alert(t("alerts.failedSaveAdmin", { reason: e.message }))
+      toast.error(t("alerts.failedSaveAdmin", { reason: e.message }))
     } finally {
       setSavingAdmin(false)
     }
@@ -532,7 +533,7 @@ export default function TicketDetailPage({
       )
       window.location.href = "/dashboard/tickets"
     } catch (e: any) {
-      alert(t("alerts.failedDelete", { reason: e.message }))
+      toast.error(t("alerts.failedDelete", { reason: e.message }))
     } finally {
       setDeleting(false)
     }
@@ -838,9 +839,9 @@ export default function TicketDetailPage({
                       }),
                     }
                   )
-                  alert(t("alerts.userBanned"))
+                  toast(t("alerts.userBanned"))
                 } catch (e: any) {
-                  alert(t("alerts.failedBan", { reason: e.message }))
+                  toast.error(t("alerts.failedBan", { reason: e.message }))
                 }
               }}
               className="flex items-center justify-center gap-1.5 border border-destructive/30 bg-destructive/5 px-2 py-2 text-[11px] sm:text-xs font-medium text-destructive hover:bg-destructive/15 active:scale-[0.98] transition-all hover:bg-destructive/15 active:scale-[0.98] transition-all"
@@ -863,9 +864,9 @@ export default function TicketDetailPage({
                       }),
                     }
                   )
-                  alert(t("alerts.userUnbanned"))
+                  toast(t("alerts.userUnbanned"))
                 } catch (e: any) {
-                  alert(t("alerts.failedUnban", { reason: e.message }))
+                  toast.error(t("alerts.failedUnban", { reason: e.message }))
                 }
               }}
               className="flex items-center justify-center gap-1.5 border border-border px-2 py-2 text-[11px] sm:text-xs font-medium text-muted-foreground hover:bg-secondary/50 active:scale-[0.98] transition-all"

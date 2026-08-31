@@ -273,6 +273,17 @@ html {
   -webkit-tap-highlight-color: transparent;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  ::view-transition-new(root),
+  ::view-transition-old(root),
+  .dark::view-transition-old(root) {
+    animation: none !important;
+  }
+}
+
 @layer base {
   /* We Love iOS and WCAG 2.5.5 AA thingy :sob: */
   input,

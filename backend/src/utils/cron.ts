@@ -134,10 +134,13 @@ export function validate(expr: string): boolean {
   return nextRun(expr) !== null;
 }
 
-export function schedule(expr: string, fn: () => void): { stop: () => void } {
+export function schedule(expr: string, fn: () => void | Promise<void>): { stop: () => void } {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let stopped = false;
+  let running = false;
 
   const tick = () => {
+    if (stopped) return;
     const now = new Date();
     const next = nextRun(expr, now);
     if (!next) {
@@ -146,9 +149,21 @@ export function schedule(expr: string, fn: () => void): { stop: () => void } {
     }
     const delay = next.getTime() - now.getTime();
     timer = setTimeout(
-      () => {
-        fn();
-        tick();
+      async () => {
+        if (stopped) return;
+        if (running) {
+          tick();
+          return;
+        }
+        running = true;
+        try {
+          await fn();
+        } catch (err) {
+          console.error(`cron: job "${expr}" threw:`, err);
+        } finally {
+          running = false;
+          if (!stopped) tick();
+        }
       },
       delay > 0 ? delay : 0
     );
@@ -157,6 +172,7 @@ export function schedule(expr: string, fn: () => void): { stop: () => void } {
   tick();
   return {
     stop: () => {
+      stopped = true;
       if (timer !== undefined) clearTimeout(timer);
     },
   };

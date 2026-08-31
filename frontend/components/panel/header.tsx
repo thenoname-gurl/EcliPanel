@@ -4,13 +4,15 @@ import { Bell, Search, Command, X, Sparkles } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import {
-  PORTALS,
   NAVIGATION,
-  API_ENDPOINTS,
   NAV_SECTION_I18N_KEYS,
   NAV_ITEM_I18N_KEYS,
   NAV_BADGE_I18N_KEYS,
   type NavItem,
+} from "@/lib/navigation"
+import {
+  PORTALS,
+  API_ENDPOINTS,
   type FeatureFlag,
   type PortalTier,
 } from "@/lib/panel-config"
@@ -332,6 +334,7 @@ export function PanelHeader({
     elo: true,
     calendar: true,
     chat: true,
+    blog: true,
   })
 
   const [searchOpen, setSearchOpen] = useState(false)

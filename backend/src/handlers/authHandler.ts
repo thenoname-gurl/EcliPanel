@@ -494,10 +494,10 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       const orgs = await getUserOrgMemberships(user.id);
       const legacyOrg = orgs[0] || null;
 
-      ctx.log?.info?.(
-        { userId: user.id, token: token.slice(0, 8) + '...' },
-        'login succeeded, returning token'
-      );
+        ctx.log?.info?.(
+          { userId: user.id },
+          'login succeeded'
+        );
       setAuthCookie(ctx, token);
       const csrfToken = await storeCsrfToken(sessionId);
       return {
@@ -1230,8 +1230,21 @@ export async function authRoutes(app: AuthRouteApp, prefix = '') {
       } catch { }
 
       const expected = await redisGet(`email-verify:code:${user.id}`);
-      if (!expected || expected !== String(code).trim()) {
-        ctx.log?.warn({ userId: user.id, provided: code, expected }, 'email verification failed');
+      const codeStr = String(code).trim();
+      let codeMatch = false;
+      if (expected && codeStr) {
+        try {
+          const { timingSafeEqual } = await import('crypto');
+          codeMatch = timingSafeEqual(
+            Buffer.from(String(expected).padEnd(32, '\0')),
+            Buffer.from(codeStr.padEnd(32, '\0'))
+          );
+        } catch {
+          codeMatch = expected === codeStr;
+        }
+      }
+      if (!codeMatch) {
+        ctx.log?.warn({ userId: user.id }, 'email verification failed');
         ctx.set.status = 400;
         return { error: ctx.t('validation.invalidOrExpiredCode') };
       }

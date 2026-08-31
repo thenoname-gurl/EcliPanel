@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { LoadingBar } from "@/components/panel/shared"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -231,7 +232,7 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
         setGeoBlockMetricsLoading(false)
       }
     } catch (e: any) {
-      alert(e.message || t("alerts.failedToSaveSettings"))
+      toast.error(e.message || t("alerts.failedToSaveSettings"))
     } finally {
       setSettingsSaving(false)
     }
@@ -1237,3 +1238,4 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
     </div>
   )
 }
+

@@ -1,4 +1,5 @@
 "use client"
+import { toast as sonnerToast } from "sonner"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useTranslations } from "next-intl"
@@ -1527,7 +1528,7 @@ export default function MailboxPage() {
         : action === "accept" ? API_ENDPOINTS.serverSubuserInviteAccept : API_ENDPOINTS.serverSubuserInviteReject
       await apiFetch(ep.replace(":inviteId", String(inviteId)), { method: "POST" })
       await loadStaticData()
-    } catch (e: any) { alert(e?.message || t("errors.failedAction")) }
+    } catch (e: any) { sonnerToast.error(e?.message || t("errors.failedAction")) }
     finally { setActionLoad(key, false) }
   }
 
@@ -1541,7 +1542,7 @@ export default function MailboxPage() {
       await apiFetch(target, { method: "POST", body: { read: !item.read } })
       if (item.type === "email") setMessages(prev => prev.map(msg => msg.id === item.inviteId ? { ...msg, read: !item.read } : msg))
       else await loadStaticData()
-    } catch { alert(t("errors.failedAction")) }
+    } catch { sonnerToast.error(t("errors.failedAction")) }
     finally { setActionLoad(key, false) }
   }
 
@@ -1557,7 +1558,7 @@ export default function MailboxPage() {
       setSelectedItemId(null); setMobileView("list")
       if (item.type === "email") await loadMessages(true)
       else await loadStaticData()
-    } catch { alert(t("errors.failedAction")) }
+    } catch { sonnerToast.error(t("errors.failedAction")) }
     finally { setActionLoad(key, false) }
   }
 
@@ -1569,7 +1570,7 @@ export default function MailboxPage() {
         method: "POST", body: { category: currentMessageCategory || null },
       })
       await loadMessages(true)
-    } catch { alert(t("errors.failedAction")) }
+    } catch { sonnerToast.error(t("errors.failedAction")) }
     finally { setActionLoad(key, false) }
   }
 
@@ -1583,7 +1584,7 @@ export default function MailboxPage() {
       await apiFetch(endpoint, { method: "POST", body: { favorite } })
       if (item.isSent) setSentMessages(prev => prev.map(msg => msg.id === item.inviteId ? { ...msg, favorite } : msg))
       else setMessages(prev => prev.map(msg => msg.id === item.inviteId ? { ...msg, favorite } : msg))
-    } catch { alert(t("errors.failedAction")) }
+    } catch { sonnerToast.error(t("errors.failedAction")) }
     finally { setActionLoad(key, false) }
   }
 

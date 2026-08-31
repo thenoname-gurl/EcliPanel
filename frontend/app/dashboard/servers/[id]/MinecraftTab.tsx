@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect, useCallback } from "react"
@@ -411,10 +412,10 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
         method: "POST",
         body: JSON.stringify({ truncate_directory: wipe }),
       })
-      alert(t("errors.reinstallInitiated"))
+      toast.error(t("errors.reinstallInitiated"))
       setShowReinstall(false)
     } catch (e: any) {
-      alert(t("errors.reinstallFailed", { message: e.message || t("errors.unknownError") }))
+      toast.error(t("errors.reinstallFailed", { message: e.message || t("errors.unknownError") }))
     } finally {
       setReinstalling(false)
     }
@@ -675,9 +676,9 @@ export function MinecraftTab({ serverId, server, subuserEntry }: MinecraftTabPro
                           method: "PUT",
                           body: JSON.stringify({ startup: startupCommand }),
                         })
-                        alert(t("startup.startupSaved"))
+                        toast.success(t("startup.startupSaved"))
                       } catch (e: any) {
-                        alert(t("startup.startupSaveFailed", { message: e?.message || t("errors.unknownError") }))
+                        toast.error(t("startup.startupSaveFailed", { message: e?.message || t("errors.unknownError") }))
                       }
                       setSavingStartup(false)
                     }} disabled={savingStartup || !startupCommand} className="self-start h-9" data-telemetry="servers:async">

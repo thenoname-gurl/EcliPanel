@@ -96,7 +96,7 @@ class SlowQueryLogger {
 
 export const AppDataSource = new DataSource({
   ...getDataSourceOptions(),
-  synchronize: true,
+  synchronize: process.env.NODE_ENV === 'production' ? false : true,
   logging: process.env.DB_LOG_QUERIES ? ['error'] : false,
   logger: new SlowQueryLogger(),
   maxQueryExecutionTime: Number(process.env.DB_MAX_QUERY_MS || 200),

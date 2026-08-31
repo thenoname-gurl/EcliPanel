@@ -2,6 +2,7 @@ export const THEMES = [
   {
     name: "Voters 7 Mystery",
     primary: "#9CA3AF",
+    primaryForeground: "#ffffff",
     bg: "#050507",
     card: "#0b0b0d",
     secondary: "#0a0a0b",
@@ -17,6 +18,7 @@ export const THEMES = [
   {
     name: "Eclipse Purple",
     primary: "#8b5cf6",
+    primaryForeground: "#ffffff",
     bg: "#0a0a12",
     card: "#12111f",
     secondary: "#1a1830",
@@ -32,6 +34,7 @@ export const THEMES = [
   {
     name: "Cyber Blue",
     primary: "#06b6d4",
+    primaryForeground: "#ffffff",
     bg: "#0a0f14",
     card: "#0f1820",
     secondary: "#131e2a",
@@ -47,6 +50,7 @@ export const THEMES = [
   {
     name: "Neon Green",
     primary: "#10b981",
+    primaryForeground: "#ffffff",
     bg: "#0a120e",
     card: "#0f1f17",
     secondary: "#12211a",
@@ -62,6 +66,7 @@ export const THEMES = [
   {
     name: "Solar Orange",
     primary: "#f59e0b",
+    primaryForeground: "#1a1200",
     bg: "#12100a",
     card: "#1f1c0f",
     secondary: "#261f0e",
@@ -77,6 +82,7 @@ export const THEMES = [
   {
     name: "Ruby Red",
     primary: "#ef4444",
+    primaryForeground: "#ffffff",
     bg: "#120a0a",
     card: "#1f0f0f",
     secondary: "#260e0e",
@@ -92,6 +98,7 @@ export const THEMES = [
   {
     name: "Gambling Mode Dark",
     primary: "#facc15",
+    primaryForeground: "#1a1200",
     bg: "#0b0a07",
     card: "#14110a",
     secondary: "#1f1a0f",
@@ -107,6 +114,7 @@ export const THEMES = [
   {
     name: "Arctic White",
     primary: "#8b5cf6",
+    primaryForeground: "#ffffff",
     bg: "#f4f3f9",
     card: "#ffffff",
     secondary: "#e8e7f0",
@@ -122,6 +130,7 @@ export const THEMES = [
   {
     name: "Arctic Snow",
     primary: "#0ea5e9",
+    primaryForeground: "#ffffff",
     bg: "#fbfbff",
     card: "#ffffff",
     secondary: "#f1f5ff",
@@ -136,7 +145,8 @@ export const THEMES = [
   },
   {
     name: "Frost Beam",
-    primary: "#22d3ee",
+    primary: "#0891b2",
+    primaryForeground: "#ffffff",
     bg: "#fdfdff",
     card: "#ffffff",
     secondary: "#ecfeff",
@@ -151,7 +161,8 @@ export const THEMES = [
   },
   {
     name: "Nordic Light",
-    primary: "#818cf8",
+    primary: "#6366f1",
+    primaryForeground: "#ffffff",
     bg: "#fafbff",
     card: "#ffffff",
     secondary: "#f3f4ff",
@@ -166,7 +177,8 @@ export const THEMES = [
   },
   {
     name: "Bubblegum Pink",
-    primary: "#e594c7",
+    primary: "#c026d3",
+    primaryForeground: "#ffffff",
     bg: "#f4f8ff",
     card: "#ffffff",
     secondary: "#eef4ff",
@@ -182,6 +194,7 @@ export const THEMES = [
   {
     name: "Gambling Mode White",
     primary: "#b45309",
+    primaryForeground: "#ffffff",
     bg: "#fffdf7",
     card: "#ffffff",
     secondary: "#fff4db",
@@ -230,6 +243,7 @@ function persistThemeSelection(theme: Theme) {
 function applyThemeStyles(theme: Theme) {
   const root = document.documentElement;
   root.style.setProperty("--primary", theme.primary);
+  root.style.setProperty("--primary-foreground", theme.primaryForeground);
   root.style.setProperty("--background", theme.bg);
   root.style.setProperty("--card", theme.card);
   root.style.setProperty("--secondary", theme.secondary);
@@ -240,6 +254,7 @@ function applyThemeStyles(theme: Theme) {
   root.style.setProperty("--glow-strong", theme.primary);
   root.style.setProperty("--ring", theme.primary);
   root.style.setProperty("--sidebar-primary", theme.primary);
+  root.style.setProperty("--sidebar-primary-foreground", theme.primaryForeground);
   root.style.setProperty("--border", theme.border);
   root.style.setProperty("--chart-1", theme.primary);
   if (theme.foreground) {

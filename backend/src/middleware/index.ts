@@ -79,15 +79,20 @@ export function setupMiddleware(app: {
           }
         }
 
-        const repo = AppDataSource.getRepository(ApiRequestLog);
-        const record = repo.create({
+        const logPayload = {
           endpoint: url,
           userId: userId ?? undefined,
           organisationId: orgId ?? undefined,
-          count: 1,
-          timestamp: new Date(),
-        });
-        await repo.save(record);
+        };
+        setTimeout(() => {
+          const repo = AppDataSource.getRepository(ApiRequestLog);
+          const record = repo.create({
+            ...logPayload,
+            count: 1,
+            timestamp: new Date(),
+          });
+          repo.save(record).catch(() => {});
+        }, 0);
       } catch {
         // ignore
       }

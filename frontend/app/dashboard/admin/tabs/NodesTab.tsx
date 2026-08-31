@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -23,7 +24,7 @@ export default function NodesTab({ ctx }: { ctx: any }) {
 
   async function runBackupAll(node: any) {
     if (!node?.pbsUrl) {
-      alert("Configure PBS on this node first (Edit → Proxmox Backup Server).")
+      toast("Configure PBS on this node first (Edit > Proxmox Backup Server).")
       return
     }
     setBackupRunning((p) => ({ ...p, [node.id]: true }))
@@ -871,3 +872,5 @@ export default function NodesTab({ ctx }: { ctx: any }) {
     </>
   )
 }
+
+

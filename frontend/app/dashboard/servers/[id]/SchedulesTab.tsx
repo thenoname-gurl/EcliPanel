@@ -1,4 +1,5 @@
 'use client';
+import { toast } from "sonner"
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Clock, Plus, Trash2, Loader2, Play, Square, Copy, ChevronDown, ChevronRight, ChevronLeft, GripVertical, Calendar as CalendarIcon, List } from 'lucide-react';
@@ -244,7 +245,7 @@ export function SchedulesTab({ serverId }: { serverId: string }) {
       setDialogOpen(false);
       load();
     } catch (e: any) {
-      alert(t('schedules.failed', { reason: e?.message || 'Unknown error' }));
+      toast.error(t('schedules.failed', { reason: e?.message || 'Unknown error' }));
     } finally {
       setSaving(false);
     }
@@ -254,7 +255,7 @@ export function SchedulesTab({ serverId }: { serverId: string }) {
     try {
       await apiFetch(API_ENDPOINTS.serverScheduleUpdate.replace(':id', serverId).replace(':sid', s.uuid), { method: 'POST', body: JSON.stringify({ enabled: !s.enabled }) });
       load();
-    } catch (e: any) { alert(t('schedules.failed', { reason: e?.message })); }
+    } catch (e: any) { toast.error(t('schedules.failed', { reason: e?.message })); }
   };
 
   const deleteSchedule = async (sid: string) => {
@@ -262,14 +263,14 @@ export function SchedulesTab({ serverId }: { serverId: string }) {
     try {
       await apiFetch(API_ENDPOINTS.serverScheduleDelete.replace(':id', serverId).replace(':sid', sid), { method: 'DELETE' });
       load();
-    } catch (e: any) { alert(t('schedules.failed', { reason: e?.message })); }
+    } catch (e: any) { toast.error(t('schedules.failed', { reason: e?.message })); }
   };
 
   const triggerSchedule = async (sid: string) => {
     try {
       await apiFetch(API_ENDPOINTS.serverScheduleTrigger.replace(':id', serverId).replace(':sid', sid), { method: 'POST' });
-      alert('Schedule triggered');
-    } catch (e: any) { alert(t('schedules.failed', { reason: e?.message })); }
+      toast('Schedule triggered');
+    } catch (e: any) { toast.error(t('schedules.failed', { reason: e?.message })); }
   };
 
   const addTrigger = (type: TriggerType) => { setForm({ ...form, triggers: [...form.triggers, newTrigger(type)] }); };

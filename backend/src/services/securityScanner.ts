@@ -49,17 +49,17 @@ async function persistFindings(results: ScanCheckResult[]): Promise<{ created: n
 
   const detectedFingerprints = new Set(results.map((r) => r.fingerprint));
 
+  const fingerprints = [...new Set(results.map(r => r.fingerprint))];
+  const existingFindings = fingerprints.length > 0
+    ? await repo.find({
+        where: fingerprints.map(fp => ({ checkFingerprint: fp })),
+      })
+    : [];
+  const existingMap = new Map(existingFindings.map(f => [f.checkFingerprint, f]));
+
+  const toSave: SecurityFinding[] = [];
   for (const r of results) {
-    const existing = await repo.findOne({
-      where: [
-        { checkFingerprint: r.fingerprint, status: 'open' as any },
-        { checkFingerprint: r.fingerprint, status: 'acknowledged' as any },
-        { checkFingerprint: r.fingerprint, status: 'resolved' as any },
-        { checkFingerprint: r.fingerprint, status: 'false_positive' as any },
-        { checkFingerprint: r.fingerprint, status: 'internal_resolved' as any },
-      ],
-    });
-    if (existing) {
+    if (existingMap.has(r.fingerprint)) {
       detectedFingerprints.add(r.fingerprint);
       continue;
     }
@@ -78,7 +78,7 @@ async function persistFindings(results: ScanCheckResult[]): Promise<{ created: n
       status: 'open',
       visibility: (r as any).visibility || 'public',
     });
-    await repo.save(finding);
+    toSave.push(finding);
     created++;
 
     if (r.severity === 'critical') {
@@ -98,16 +98,20 @@ async function persistFindings(results: ScanCheckResult[]): Promise<{ created: n
       }).catch(e => console.error('[securityScanner] alert dispatch error:', e));
     }
   }
+  if (toSave.length > 0) {
+    await repo.save(toSave);
+  }
 
   if (detectedFingerprints.size > 0) {
     const openFindings = await repo.find({ where: { source: 'internal', status: 'open' as any } });
-    for (const f of openFindings) {
-      if (f.checkFingerprint && !detectedFingerprints.has(f.checkFingerprint)) {
+    const staleFindings = openFindings.filter(f => f.checkFingerprint && !detectedFingerprints.has(f.checkFingerprint));
+    if (staleFindings.length > 0) {
+      for (const f of staleFindings) {
         f.status = 'resolved';
         f.resolvedAt = new Date();
-        await repo.save(f);
-        resolved++;
       }
+      await repo.save(staleFindings);
+      resolved = staleFindings.length;
     }
   }
 

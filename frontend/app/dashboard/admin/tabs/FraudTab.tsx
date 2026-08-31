@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { API_ENDPOINTS } from "@/lib/panel-config"
@@ -43,7 +44,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
               setFraudScanningAll(true)
               try {
                 await apiFetch(API_ENDPOINTS.adminFraudScanAll, { method: "POST" })
-                alert(t("alerts.scanStarted"))
+                toast(t("alerts.scanStarted"))
                 setTimeout(async () => {
                   try {
                     const data = await apiFetch(API_ENDPOINTS.adminFraudAlerts)
@@ -51,7 +52,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                   } catch {}
                 }, 5000)
               } catch (e: any) {
-                alert(t("alerts.scanFailed", { reason: e.message }))
+                toast.error(t("alerts.scanFailed", { reason: e.message }))
               } finally {
                 setFraudScanningAll(false)
               }
@@ -101,7 +102,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                     setSelectedFraudIds([])
                     setSelectAllFraud(false)
                   } catch (e: any) {
-                    alert(t("alerts.dismissFailed", { reason: e?.message || t("common.error") }))
+                    toast.error(t("alerts.dismissFailed", { reason: e?.message || t("common.error") }))
                   } finally {
                     setBulkDismissing(false)
                   }
@@ -177,7 +178,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                         })
                         setFraudAlerts((prev: any[]) => prev.filter((a: any) => a.id !== alert.id))
                       } catch (e: any) {
-                        alert(t("alerts.failed", { reason: e.message }))
+                        toast.error(t("alerts.failed", { reason: e.message }))
                       }
                     }}
                     className="border border-border bg-secondary/50 px-3 py-1 text-xs text-foreground hover:bg-secondary transition-colors"
@@ -197,7 +198,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                           })
                           setFraudAlerts((prev: any[]) => prev.map((a: any) => a.id === alert.id ? { ...a, suspended: true } : a))
                         } catch (e: any) {
-                          alert(t("alerts.failed", { reason: e.message }))
+                          toast.error(t("alerts.failed", { reason: e.message }))
                         }
                       }}
                       className="border border-destructive/30 bg-destructive/10 px-3 py-1 text-xs text-destructive hover:bg-destructive/20 transition-colors"
@@ -216,7 +217,7 @@ export default function FraudTab({ ctx }: { ctx: any }) {
                           setFraudAlerts((prev: any[]) => prev.map((a: any) => a.id === alert.id ? { ...a, fraudReason: res.reasons?.join("; ") } : a))
                         }
                       } catch (e: any) {
-                        alert(t("alerts.rescanFailed", { reason: e.message }))
+                        toast.error(t("alerts.rescanFailed", { reason: e.message }))
                       } finally {
                         setFraudScanning(false)
                       }

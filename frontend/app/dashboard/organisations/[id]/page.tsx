@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -156,7 +157,7 @@ export default function OrganisationDetail() {
 
   const createSubdomain = async (token?: string, zoneId?: string) => {
     const name = subdomainNewName.trim();
-    if (!name) return alert(t("alerts.subdomainNameRequired"));
+    if (!name) return toast(t("alerts.subdomainNameRequired"));
     try {
       const body: any = { name, kind: "Cloudflare" };
       if (token) body.cloudflareToken = token;
@@ -164,7 +165,7 @@ export default function OrganisationDetail() {
       await apiFetch(API_ENDPOINTS.organisationDnsZones.replace(":id", orgId), { method: "POST", body: JSON.stringify(body) });
       setSubdomainNewName("");
       await loadSubdomains();
-    } catch (e: any) { alert(t("alerts.failed", { reason: e.message })); }
+    } catch (e: any) { toast.error(t("alerts.failed", { reason: e.message })); }
   };
 
   const addSubdomainRecord = async () => {
@@ -175,7 +176,7 @@ export default function OrganisationDetail() {
       await apiFetch(API_ENDPOINTS.organisationDnsZoneRecords.replace(":id", orgId).replace(":zoneId", subdomainSelection.id), { method: "POST", body: JSON.stringify(body) });
       setSubdomainRecordForm({ name: "", type: "A", ttl: 3600, content: "", proxied: false, autoTtl: false });
       await loadSubdomainRecords(subdomainSelection);
-    } catch (e: any) { alert(t("alerts.failed", { reason: e.message })); }
+    } catch (e: any) { toast.error(t("alerts.failed", { reason: e.message })); }
   };
 
   const updateSubdomainRecord = async () => {
@@ -186,7 +187,7 @@ export default function OrganisationDetail() {
       await apiFetch(API_ENDPOINTS.organisationDnsZoneRecord.replace(":id", orgId).replace(":zoneId", subdomainSelection.id).replace(":recordId", subdomainEditId), { method: "PUT", body: JSON.stringify(body) });
       setSubdomainEditId(null); setSubdomainEditingRecord(null);
       await loadSubdomainRecords(subdomainSelection);
-    } catch (e: any) { alert(t("alerts.failedUpdate", { reason: e.message })); }
+    } catch (e: any) { toast.error(t("alerts.failedUpdate", { reason: e.message })); }
   };
 
   const deleteSubdomainRecord = async (record: any) => {
@@ -195,7 +196,7 @@ export default function OrganisationDetail() {
     try {
       await apiFetch(API_ENDPOINTS.organisationDnsZoneRecord.replace(":id", orgId).replace(":zoneId", subdomainSelection.id).replace(":recordId", String(record.id)), { method: "DELETE" });
       await loadSubdomainRecords(subdomainSelection);
-    } catch (e: any) { alert(t("alerts.failedDelete", { reason: e.message })); }
+    } catch (e: any) { toast.error(t("alerts.failedDelete", { reason: e.message })); }
   };
 
   const handleTabChange = (tab: string) => {
@@ -207,7 +208,7 @@ export default function OrganisationDetail() {
 
   const sendInvite = async (email: string) => {
     await apiFetch(API_ENDPOINTS.organisationInvite.replace(":id", id!), { method: "POST", body: JSON.stringify({ email }) });
-    alert(t("alerts.invitationSent"));
+    toast.success(t("alerts.invitationSent"));
   };
   const removeMember = async (userId: number) => {
     await apiFetch(API_ENDPOINTS.organisationRemoveUser.replace(":id", id!).replace(":userId", String(userId)), { method: "DELETE" });
@@ -227,17 +228,17 @@ export default function OrganisationDetail() {
   };
   const resendInvite = async (inviteId: number) => {
     await apiFetch(API_ENDPOINTS.organisationResendInvite.replace(":id", id!).replace(":inviteId", String(inviteId)), { method: "POST" });
-    alert(t("alerts.inviteResent"));
+    toast.success(t("alerts.inviteResent"));
   };
   const revokeInvite = async (inviteId: number) => {
     await apiFetch(API_ENDPOINTS.organisationRevokeInvite.replace(":id", id!).replace(":inviteId", String(inviteId)), { method: "DELETE" });
     setOrg((o: any) => ({ ...o, invites: (o.invites || []).filter((iv: any) => iv.id !== inviteId) }));
-    alert(t("alerts.inviteRevoked"));
+    toast(t("alerts.inviteRevoked"));
   };
   const leaveOrg = async () => {
     if (!confirm(t("confirm.leaveOrg"))) return;
     await apiFetch(API_ENDPOINTS.organisationLeave.replace(":id", orgId), { method: "POST" });
-    alert(t("alerts.leftOrg"));
+    toast(t("alerts.leftOrg"));
     router.push("/dashboard");
   };
 
@@ -385,7 +386,7 @@ export default function OrganisationDetail() {
                       await apiFetch(API_ENDPOINTS.organisationDnsZone.replace(":id", orgId).replace(":zoneId", sub.id), { method: "DELETE" });
                       if (subdomainSelection?.id === sub.id) setSubdomainSelection(null);
                       await loadSubdomains();
-                    } catch (e: any) { alert(t("alerts.failedDeleteSubdomain", { reason: e.message })); }
+                    } catch (e: any) { toast.error(t("alerts.failedDeleteSubdomain", { reason: e.message })); }
                   }}
                   onSetSubdomainRecordForm={setSubdomainRecordForm}
                   onAddSubdomainRecord={addSubdomainRecord}
@@ -414,11 +415,11 @@ export default function OrganisationDetail() {
                             items: JSON.stringify([{ description: "DNS Management Add-on (monthly)", quantity: 1, price: 3 }]),
                           }),
                         });
-                        alert(t("dns.upsellSuccess"));
+                        toast.success(t("dns.upsellSuccess"));
                         setDnsAllowed(true);
                         loadSubdomains();
                       } catch (e: any) {
-                        alert(t("dns.upsellFailed", { reason: e?.message || "" }));
+                        toast.error(t("dns.upsellFailed", { reason: e?.message || "" }));
                       } finally {
                         setDnsUpselling(false);
                       }
@@ -475,7 +476,7 @@ export default function OrganisationDetail() {
                           const fd = new FormData(); fd.append("file", file);
                           const res = await apiFetch(API_ENDPOINTS.orgAvatar.replace(":id", id!), { method: "POST", body: fd });
                           setOrg((o: any) => ({ ...o, avatarUrl: res.url }));
-                        } catch (err: any) { alert(t("alerts.uploadFailed", { reason: err.message })); }
+                        } catch (err: any) { toast.error(t("alerts.uploadFailed", { reason: err.message })); }
                         finally { setLogoUploading(false); }
                       }}
                     />
@@ -493,7 +494,7 @@ export default function OrganisationDetail() {
                     if (n && n.trim()) {
                       apiFetch(API_ENDPOINTS.organisationDetail.replace(":id", id!), { method: "PUT", body: JSON.stringify({ name: n.trim() }) })
                         .then(() => setOrg({ ...org, name: n.trim() }))
-                        .catch((e: any) => alert(e?.message));
+                        .catch((e: any) => toast(e?.message));
                     }
                   }}>
                     {t("actions.edit")}
@@ -531,10 +532,10 @@ export default function OrganisationDetail() {
                     const uid = prompt(t("settings.transferUserIdPrompt"));
                     if (uid) {
                       const member = members.find((m: any) => String(m.id) === uid.trim());
-                      if (!member) return alert(t("settings.userNotMember"));
+                      if (!member) return toast(t("settings.userNotMember"));
                       apiFetch(API_ENDPOINTS.organisationAddUserRole.replace(":id", id!).replace(":userId", uid.trim()), { method: "PUT", body: JSON.stringify({ orgRole: "owner" }) })
-                        .then(() => { setOrg({ ...org, ownerId: Number(uid) }); alert(t("settings.ownershipTransferred")); })
-                        .catch((e: any) => alert(e?.message));
+                        .then(() => { setOrg({ ...org, ownerId: Number(uid) }); toast(t("settings.ownershipTransferred")); })
+                        .catch((e: any) => toast(e?.message));
                     }
                   }}>
                     <KeyRound className="h-3 w-3 mr-1" /> {t("settings.transfer")}
@@ -555,7 +556,7 @@ export default function OrganisationDetail() {
                     try {
                       await apiFetch(API_ENDPOINTS.organisationDetail.replace(":id", id!), { method: "DELETE" });
                       router.push("/dashboard/organisations");
-                    } catch (e: any) { alert(t("alerts.failed", { reason: e?.message || "" })); }
+                    } catch (e: any) { toast.error(t("alerts.failed", { reason: e?.message || "" })); }
                   }} data-telemetry="organisations:deleteorg">
                     <Trash2 className="h-3 w-3 mr-1" /> {t("actions.deleteOrg")}
                   </Button>

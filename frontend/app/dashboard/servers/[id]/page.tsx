@@ -1,4 +1,5 @@
 "use client"
+import { toast as sonnerToast } from "sonner"
 
 import { LoadingBar } from "@/components/panel/shared"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -983,9 +984,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         body: JSON.stringify({ enable }),
       })
       await loadServer()
-      alert(t("alerts.kvmToggled", { state: enable ? t("states.enabled") : t("states.disabled") }))
+      sonnerToast.success(t("alerts.kvmToggled", { state: enable ? t("states.enabled") : t("states.disabled") }))
     } catch (e: any) {
-      alert(t("alerts.kvmToggleFailed", { reason: e?.message || e }))
+      sonnerToast.error(t("alerts.kvmToggleFailed", { reason: e?.message || e }))
     } finally {
       setKvmLoading(false)
     }
@@ -998,7 +999,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       await apiFetch(API_ENDPOINTS.serverDelete.replace(":id", id), { method: "DELETE" })
       router.push("/dashboard/servers")
     } catch (e: any) {
-      alert(t("alerts.deleteFailed", { reason: e.message }))
+      sonnerToast.error(t("alerts.deleteFailed", { reason: e.message }))
     }
   }, [id, router, t])
 
@@ -1090,7 +1091,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       setTransferDialogOpen(false)
       hadProgressRef.current = false
     } catch (e: any) {
-      alert(e.message || "Failed to cancel transfer")
+      sonnerToast.error(e.message || "Failed to cancel transfer")
     } finally {
       setCancellingTransfer(false)
     }
@@ -1120,9 +1121,9 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
         method: "POST",
       })
       await loadServer()
-      alert(t("alerts.markedStarted"))
+      sonnerToast(t("alerts.markedStarted"))
     } catch (e: any) {
-      alert(t("alerts.markStartedFailed", { reason: e?.message || e }))
+      sonnerToast.error(t("alerts.markStartedFailed", { reason: e?.message || e }))
     } finally {
       setMarkStartedLoading(false)
     }
@@ -2167,7 +2168,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       setDialogOpen(false)
       load()
     } catch (e: any) {
-      alert(t("schedules.failed", { reason: e.message }))
+      sonnerToast.error(t("schedules.failed", { reason: e.message }))
     } finally {
       setSaving(false)
     }
@@ -2183,7 +2184,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       )
       load()
     } catch (e: any) {
-      alert(t("schedules.failed", { reason: e.message }))
+      sonnerToast.error(t("schedules.failed", { reason: e.message }))
     }
   }
 
@@ -2199,7 +2200,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       setDeleteTarget(null)
       load()
     } catch (e: any) {
-      alert(t("schedules.failed", { reason: e.message }))
+      sonnerToast.error(t("schedules.failed", { reason: e.message }))
     }
   }
 
@@ -2214,7 +2215,7 @@ function SchedulesTab({ serverId }: { serverId: string }) {
       )
       setTimeout(() => load(), 1500)
     } catch (e: any) {
-      alert(t("schedules.failed", { reason: e.message }))
+      sonnerToast.error(t("schedules.failed", { reason: e.message }))
     } finally {
       setTriggering(null)
     }
@@ -2839,7 +2840,7 @@ function NetworkTab({ serverId, server }: { serverId: string; server: any }) {
       })
       await refreshAllocations()
     } catch (e: any) {
-      alert(e?.message || t("network.failed"))
+      sonnerToast.error(e?.message || t("network.failed"))
     } finally {
       setDeleting(null)
     }
@@ -3223,7 +3224,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
       })
       load()
     } catch (e: any) {
-      alert(t("backups.failed", { reason: e.message }))
+      sonnerToast.error(t("backups.failed", { reason: e.message }))
     } finally {
       setCreating(false)
     }
@@ -3236,9 +3237,9 @@ function BackupsTab({ serverId }: { serverId: string }) {
         API_ENDPOINTS.serverBackupRestore.replace(":id", serverId).replace(":bid", bid),
         { method: "POST" }
       )
-      alert(t("backups.restoreInitiated"))
+      sonnerToast(t("backups.restoreInitiated"))
     } catch (e: any) {
-      alert(t("backups.failed", { reason: e.message }))
+      sonnerToast.error(t("backups.failed", { reason: e.message }))
     }
   }
 
@@ -3251,7 +3252,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
       )
       load()
     } catch (e: any) {
-      alert(t("backups.failed", { reason: e.message }))
+      sonnerToast.error(t("backups.failed", { reason: e.message }))
     }
   }
 
@@ -3263,7 +3264,7 @@ function BackupsTab({ serverId }: { serverId: string }) {
       })
       load()
     } catch (e: any) {
-      alert(t("backups.failed", { reason: e.message }))
+      sonnerToast.error(t("backups.failed", { reason: e.message }))
     }
   }
 
@@ -3434,7 +3435,7 @@ function StartupTab({ serverId }: { serverId: string }) {
 
   const saveEnv = async () => {
     if (dockerImageOptions.length > 0 && !selectedDockerImage) {
-      alert(t("startup.selectDockerBeforeSave"))
+      sonnerToast(t("startup.selectDockerBeforeSave"))
       return
     }
 
@@ -3465,9 +3466,9 @@ function StartupTab({ serverId }: { serverId: string }) {
       })
       setEditedEnv(nextEnvironment)
       setExtraEnvRows([])
-      alert(t("startup.saved"))
+      sonnerToast.success(t("startup.saved"))
     } catch (e: any) {
-      alert(t("startup.saveFailed", { reason: e.message }))
+      sonnerToast.error(t("startup.saveFailed", { reason: e.message }))
     } finally {
       setSaving(false)
     }
@@ -4025,7 +4026,7 @@ function SubusersTab({
       })
       loadSubusers()
     } catch (e: any) {
-      alert(t("subusers.failedWithReason", { reason: e.message }))
+      sonnerToast.error(t("subusers.failedWithReason", { reason: e.message }))
     }
   }
 
@@ -4047,7 +4048,7 @@ function SubusersTab({
       )
       loadSubusers()
     } catch (e: any) {
-      alert(t("subusers.failedUpdateLock", { reason: e?.message || e }))
+      sonnerToast.error(t("subusers.failedUpdateLock", { reason: e?.message || e }))
     } finally {
       setLocking((s) => ({ ...s, [su.id]: false }))
     }
@@ -4069,7 +4070,7 @@ function SubusersTab({
       setEditingSubuser(null)
       loadSubusers()
     } catch (e: any) {
-      alert(t("subusers.failedUpdatePerms", { reason: e?.message || e }))
+      sonnerToast.error(t("subusers.failedUpdatePerms", { reason: e?.message || e }))
     } finally {
       setSavingPerms(false)
     }
@@ -4545,10 +4546,10 @@ function SettingsTab({
         method: "POST",
         body: JSON.stringify({ truncate_directory: wipeOnReinstall }),
       })
-      alert(t("settings.reinstallInitiated"))
+      sonnerToast(t("settings.reinstallInitiated"))
       reload()
     } catch (e: any) {
-      alert(t("settings.failedWithReason", { reason: e.message }))
+      sonnerToast.error(t("settings.failedWithReason", { reason: e.message }))
     } finally {
       setReinstalling(false)
     }
@@ -5025,10 +5026,10 @@ function SettingsTab({
                       method: "PUT",
                       body: JSON.stringify(payload),
                     })
-                    alert(t("settings.resourcesSaved"))
+                    sonnerToast.success(t("settings.resourcesSaved"))
                     reload()
                   } catch (e: any) {
-                    alert(t("settings.saveFailed", { reason: e?.message || e }))
+                    sonnerToast.error(t("settings.saveFailed", { reason: e?.message || e }))
                   } finally {
                     setSavingResources(false)
                   }

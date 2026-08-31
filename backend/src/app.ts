@@ -378,7 +378,7 @@ const corsOriginCallback = (request: Request) => {
       path.startsWith('/api/proxy/ws') ||
       path.startsWith('/api/proxy/chunkbase/') ||
       path.startsWith('/api/proxy/image')
-    ) return true;
+    ) return isAllowedCorsOrigin(origin);
   } catch {}
   return isAllowedCorsOrigin(origin);
 };
@@ -631,13 +631,12 @@ app.request(async (rawCtx: unknown) => {
     existing && now <= existing.resetAt
       ? (existing.count++, existing)
       : { count: 1, resetAt: now + 60_000 };
-  // Guard the in-memory rate map from unbounded growth (one entry per IP is fine,
-  // but a scanning/attacking source would otherwise pin it forever).
   if (!existing && _rateBuckets.size >= MAX_RATE_BUCKETS) {
+    const expired: string[] = [];
     for (const [k, v] of _rateBuckets) {
-      if (now > v.resetAt) _rateBuckets.delete(k);
+      if (now > v.resetAt) expired.push(k);
     }
-    // still full? evict the single newest entry so a fresh IP can be tracked
+    for (const k of expired) _rateBuckets.delete(k);
     if (_rateBuckets.size >= MAX_RATE_BUCKETS) {
       let oldest: string | null = null;
       let oldestReset = Infinity;
@@ -984,27 +983,6 @@ export async function initApp() {
         description: 'Returns status of the application and database connection',
       },
     }
-    ,
-    async (rawCtx: unknown) => {
-      const ctx = rawCtx as unknown as AppRequestContext;
-      if (!AppDataSource.isInitialized) {
-        return new Response(JSON.stringify({ status: 'starting' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-      try {
-        await AppDataSource.query('SELECT 1');
-        return new Response(JSON.stringify({ status: 'ok' }), {
-          headers: { 'Content-Type': 'application/json' },
-        });
-      } catch {
-        return new Response(JSON.stringify({ status: 'degraded', db: false }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    },
   );
 
   (app as any).get(

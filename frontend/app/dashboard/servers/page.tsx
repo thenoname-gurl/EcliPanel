@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useEffect, useState, useCallback } from "react"
 import Link from "next/link"
@@ -1811,7 +1812,7 @@ export default function ServersPage() {
       await refreshUser()
     } catch (e: any) {
       setFavoriteServerIds(Array.from(current))
-      alert(t("errors.favoriteSaveFailed", { reason: e?.message || t("toasts.unknownError") }))
+      toast.error(t("errors.favoriteSaveFailed", { reason: e?.message || t("toasts.unknownError") }))
     }
   }
 

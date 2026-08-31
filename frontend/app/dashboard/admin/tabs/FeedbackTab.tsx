@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useState, useEffect, useCallback } from "react"
 import { apiFetch } from "@/lib/api-client"
@@ -84,7 +85,7 @@ export default function FeedbackTab() {
       setData((prev) => prev ? { ...prev, data: prev.data.filter((d) => d.id !== id), total: prev.total - 1 } : prev)
       setDeleteConfirm(null)
     } catch (e: any) {
-      alert(e?.message || "Failed to delete feedback")
+      toast.error(e?.message || "Failed to delete feedback")
     }
   }
 

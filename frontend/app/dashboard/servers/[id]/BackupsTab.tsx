@@ -1,4 +1,5 @@
 'use client';
+import { toast } from "sonner"
 
 import { LoadingBar } from "@/components/panel/shared"
 import { useState, useEffect, useCallback } from 'react';
@@ -64,7 +65,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
       });
       load();
     } catch (e: any) {
-      alert(t('backups.failed', { reason: e.message }));
+      toast.error(t('backups.failed', { reason: e.message }));
     } finally {
       setCreating(false);
     }
@@ -74,9 +75,9 @@ export function BackupsTab({ serverId }: { serverId: string }) {
     if (!confirm(t('backups.confirmRestore'))) return;
     try {
       await apiFetch(API_ENDPOINTS.serverBackupRestore.replace(':id', serverId).replace(':bid', bid), { method: 'POST' });
-      alert(t('backups.restoreInitiated'));
+      toast(t('backups.restoreInitiated'));
     } catch (e: any) {
-      alert(t('backups.failed', { reason: e.message }));
+      toast.error(t('backups.failed', { reason: e.message }));
     }
   };
 
@@ -86,7 +87,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
       await apiFetch(API_ENDPOINTS.serverBackupDelete.replace(':id', serverId).replace(':bid', bid), { method: 'DELETE' });
       load();
     } catch (e: any) {
-      alert(t('backups.failed', { reason: e.message }));
+      toast.error(t('backups.failed', { reason: e.message }));
     }
   };
 
@@ -98,7 +99,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
       });
       load();
     } catch (e: any) {
-      alert(t('backups.failed', { reason: e.message }));
+      toast.error(t('backups.failed', { reason: e.message }));
     }
   };
 
@@ -121,7 +122,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
       setGroupForm({ name: '', description: '', compressionType: '' });
       load();
     } catch (e: any) {
-      alert(e?.message || 'Failed to save group');
+      toast.error(e?.message || 'Failed to save group');
     }
   };
 
@@ -131,7 +132,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
       await apiFetch(`/api/servers/v1/${serverId}/backup-groups/${groupUuid}`, { method: 'DELETE' });
       load();
     } catch (e: any) {
-      alert(e?.message || 'Failed to delete group');
+      toast.error(e?.message || 'Failed to delete group');
     }
   };
 
@@ -140,7 +141,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
       await apiFetch(`/api/servers/v1/${serverId}/backup-groups/${groupUuid}/backups/${backupUuid}`, { method: 'POST' });
       load();
     } catch (e: any) {
-      alert(e?.message || 'Failed to add backup');
+      toast.error(e?.message || 'Failed to add backup');
     }
   };
 
@@ -149,7 +150,7 @@ export function BackupsTab({ serverId }: { serverId: string }) {
       await apiFetch(`/api/servers/v1/${serverId}/backup-groups/${groupUuid}/backups/${backupUuid}`, { method: 'DELETE' });
       load();
     } catch (e: any) {
-      alert(e?.message || 'Failed to remove backup');
+      toast.error(e?.message || 'Failed to remove backup');
     }
   };
 

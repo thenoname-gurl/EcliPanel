@@ -210,16 +210,19 @@ export default function SOCDashboard() {
       .catch(() => {})
   }, [])
 
-  // Fetch security findings & soc uptime
   useEffect(() => {
-    apiFetch(API_ENDPOINTS.socUptime)
-      .then((data) => {
-        if (data && typeof data.uptime === 'number') {
-          setSocUptime(data)
-        }
-      })
-      .catch(() => {})
-  }, [])
+    const abort = new AbortController();
+    Promise.allSettled([
+      apiFetch(API_ENDPOINTS.socUptime).then((data) => {
+        if (data && typeof data.uptime === 'number') setSocUptime(data);
+      }),
+      apiFetch(`${API_ENDPOINTS.socSecurityFindings}?status=${findingsFilter || 'open'}&visibility=public${findingsSeverity ? `&severity=${findingsSeverity}` : ''}`).then((data: any) => {
+        setFindings(Array.isArray(data?.findings) ? data.findings : []);
+        setFindingsSummary(data?.summary || {});
+      }),
+    ]).catch(() => {});
+    return () => abort.abort();
+  }, [findingsFilter, findingsSeverity])
 
   const fetchFindings = useCallback(() => {
     setFindingsLoading(true)
@@ -418,9 +421,7 @@ export default function SOCDashboard() {
             </AlertBanner>
           )}
 
-          {/* Stats Row — show skeleton cards until the server list loads, so we
-              don't flash 0/0 / "—" / "Low" before the real numbers arrive. */}
-          <StatGrid>
+          <StatGrid aria-label="Server statistics">
               <StatCard
               title={t("stats.yourServersOnline")}
               value={`${myOnlineServers}/${myServers.length}`}
@@ -468,14 +469,16 @@ export default function SOCDashboard() {
 
             {/* Filters */}
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <select value={findingsFilter} onChange={e => { setFindingsFilter(e.target.value) }}
+              <label className="sr-only" htmlFor="findings-status-filter">Filter by status</label>
+              <select id="findings-status-filter" value={findingsFilter} onChange={e => { setFindingsFilter(e.target.value) }}
                 className="border border-border bg-card text-xs px-2 py-1.5 w-full sm:w-auto">
                 <option value="open">Open</option>
                 <option value="acknowledged">Acknowledged</option>
                 <option value="resolved">Resolved</option>
                 <option value="false_positive">False Positive</option>
               </select>
-              <select value={findingsSeverity} onChange={e => { setFindingsSeverity(e.target.value) }}
+              <label className="sr-only" htmlFor="findings-severity-filter">Filter by severity</label>
+              <select id="findings-severity-filter" value={findingsSeverity} onChange={e => { setFindingsSeverity(e.target.value) }}
                 className="border border-border bg-card text-xs px-2 py-1.5 w-full sm:w-auto">
                 <option value="">All severities</option>
                 <option value="critical">Critical</option>
@@ -485,7 +488,7 @@ export default function SOCDashboard() {
               </select>
             </div>
 
-            <div className="mt-4 flex flex-col gap-3">
+            <div className="mt-4 flex flex-col gap-3" role="region" aria-live="polite" aria-label="Security findings">
               {findingsLoading ? (
                 <div className="border border-border/50 bg-secondary/10 p-4 text-center">
                   <p className="text-xs text-muted-foreground">{t("securityFindings.scanning")}</p>
@@ -552,8 +555,8 @@ export default function SOCDashboard() {
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
-                              <p className="text-foreground text-sm font-medium truncate">{item.title}</p>
-                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</p>
+                              <p className="text-foreground text-sm font-medium truncate" title={item.title}>{item.title}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2" title={item.description}>{item.description}</p>
                               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                 <span className={cn(
                                   'text-[10px] px-1.5 py-0.5 border font-medium',
@@ -617,6 +620,7 @@ export default function SOCDashboard() {
                               <button
                                 onClick={() => handleUpdateFinding(item.id, 'acknowledged')}
                                 title={t("securityFindings.actions.acknowledge")}
+                                aria-label={t("securityFindings.actions.acknowledge")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                                data-telemetry="dashboard:acknowledge">
                                 <Check className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-foreground" />
@@ -624,6 +628,7 @@ export default function SOCDashboard() {
                               <button
                                 onClick={() => handleUpdateFinding(item.id, 'resolved')}
                                 title={t("securityFindings.actions.resolve")}
+                                aria-label={t("securityFindings.actions.resolve")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                                data-telemetry="dashboard:resolve">
                                 <CheckCircle className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-success" />
@@ -631,6 +636,7 @@ export default function SOCDashboard() {
                               <button
                                 onClick={() => handleUpdateFinding(item.id, 'false_positive')}
                                 title={t("securityFindings.actions.falsePositive")}
+                                aria-label={t("securityFindings.actions.falsePositive")}
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                                data-telemetry="dashboard:falsepositive">
                                 <Flag className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-warning" />
@@ -638,6 +644,7 @@ export default function SOCDashboard() {
                               <button
                                 onClick={() => handleEscalate(item.id)}
                                 title="Escalate to staff"
+                                aria-label="Escalate to staff"
                                 className="p-2.5 md:p-1 hover:bg-secondary/50 rounded transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                               >
                                 <Send className="h-5 w-5 md:h-3.5 md:w-3.5 text-muted-foreground hover:text-info" />
@@ -730,7 +737,7 @@ export default function SOCDashboard() {
                     <div key={item.id} className="flex items-start gap-3 border border-border/50 bg-secondary/10 p-3 text-sm">
                       <Icon className={cn("mt-0.5 h-4 w-4 shrink-0", iconColor)} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-foreground leading-snug truncate">{label}</p>
+                        <p className="text-foreground leading-snug truncate" title={label}>{label}</p>
                         <p className="text-xs text-muted-foreground">
                           {targetHref ? <Link href={targetHref} className="font-medium text-primary hover:underline">{targetLabel}</Link>
                            : targetLabel ? targetLabel

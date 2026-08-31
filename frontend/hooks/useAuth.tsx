@@ -1,6 +1,7 @@
 "use client"
+import { toast } from "sonner"
 
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
@@ -247,11 +248,11 @@ export const AuthProvider = ({
 
     if (sv === "1") {
       setTimeout(() => {
-        alert("Student status verified! Educational limits have been applied to your account.")
+        toast.success("Student status verified! Educational limits have been applied to your account.")
       }, 100)
     } else {
       setTimeout(() => {
-        alert("OAuth did not return student status. Please try again or contact support.")
+        toast.error("OAuth did not return student status. Please try again or contact support.")
       }, 100)
     }
 
@@ -400,7 +401,7 @@ export const AuthProvider = ({
     checkAndPromptGuide(user)
   }, [user, authState, checkAndPromptGuide])
 
-  const value: AuthContextType = {
+  const value: AuthContextType = useMemo(() => ({
     user,
     login,
     logout,
@@ -408,7 +409,7 @@ export const AuthProvider = ({
     selectOrganisation,
     isLoggedIn: authState === "authenticated" && !!user,
     isLoading: authState === "logging-in" || authState === "logging-out",
-  }
+  }), [user, login, logout, refreshUser, selectOrganisation, authState])
 
   const renderLoadingState = () => {
     switch (authState) {

@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { PanelHeader } from "@/components/panel/header"
 import { SectionHeader, PageLayout, AlertBanner } from "@/components/panel/shared"
@@ -250,19 +251,19 @@ export default function IdentityPage() {
                 <button
                   disabled={euIdDisabled || submitting || !idDocFile || !selfieFile || (kycRequired && missingFields.length > 0)}
                   onClick={async () => {
-                    if (!idDocFile || !selfieFile) { alert(t('errors.selectBothFiles')); return; }
+                    if (!idDocFile || !selfieFile) { toast.error(t('errors.selectBothFiles')); return; }
                     setSubmitting(true);
                     try {
                       const formData = new FormData();
                       formData.append('idDocument', idDocFile);
                       formData.append('selfie', selfieFile);
                       await apiFetch(API_ENDPOINTS.identity, { method: 'POST', body: formData });
-                      alert(t('messages.submittedForReview'));
+                      toast(t('messages.submittedForReview'));
                       setIdDocFile(null);
                       setSelfieFile(null);
                       if (user) apiFetch(API_ENDPOINTS.identityStatus.replace(':id', user.id.toString())).then((d) => setStatus(d));
                     } catch (e: any) {
-                      alert(t('errors.failed') + ': ' + e.message);
+                      toast.error(t('errors.failed') + ': ' + e.message);
                     } finally {
                       setSubmitting(false);
                     }

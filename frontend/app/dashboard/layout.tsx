@@ -13,6 +13,7 @@ import { TermsUpdateBanner } from "@/components/panel/terms-update-banner";
 import { FeedbackDialog } from "@/components/panel/feedback-dialog";
 import { CookieConsent } from "@/components/panel/cookie-consent";
 import { Footer } from "@/components/Footer";
+import { Toaster } from "@/components/ui/sonner";
 import { createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
 
@@ -40,17 +41,31 @@ export default function DashboardLayout({
   const [showSidebar, setShowSidebar] = useState(true)
 
   if (user === undefined) {
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center bg-background" role="status" aria-label="Loading">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   const hideFooter = pathname?.startsWith("/dashboard/ai-chat") || pathname?.startsWith("/dashboard/tickets/")
 
   return (
     <div className="flex h-screen overflow-hidden bg-background min-w-0">
+      <Toaster position="top-right" richColors closeButton />    
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[9999] focus:bg-primary focus:text-primary-foreground focus:px-4 focus:py-2 focus:text-sm focus:font-medium"
+      >
+        Skip to main content
+      </a>
       {!isAnonChat && showSidebar && (
         <PanelSidebar mobileOpen={mobileSidebarOpen} onClose={() => setMobileSidebarOpen(false)} />
       )}
-      <main className="relative flex flex-1 flex-col overflow-y-auto min-w-0">
+      <main id="main-content" className="relative flex flex-1 flex-col overflow-y-auto min-w-0">
         {!isAnonChat && !mobileSidebarOpen && (
           <div className={cn("absolute left-3 top-3 z-50", showSidebar ? "md:hidden" : "")}>
             <button

@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Skeleton } from "@/components/ui/skeleton"
 import React from "react"
@@ -831,7 +832,7 @@ function DatabaseHostsPanel({ privateMode }: { privateMode: boolean }) {
       setHosts(prev => prev.filter(h => h.id !== id))
       setDeleteConfirm(null)
     } catch (e: any) {
-      alert(e?.message || tDb("errors.failedToDelete"))
+      toast.error(e?.message || tDb("errors.failedToDelete"))
     }
   }
 
@@ -1606,7 +1607,7 @@ export default function AdminPanel() {
       setLogs((prev) => prev.filter((log) => log.id !== logId));
       setLogsTotal((prev) => (prev !== null ? Math.max(0, prev - 1) : null));
     } catch (err: any) {
-      alert('Failed to delete log: ' + (err?.message || 'unknown error'));
+      toast.error('Failed to delete log: ' + (err?.message || 'unknown error'));
     }
   }
 
@@ -2024,7 +2025,7 @@ export default function AdminPanel() {
       }))
       void fetchExportJobs(150, "")
     } catch (e: any) {
-      alert(e?.message || "Failed to start export job")
+      toast.error(e?.message || "Failed to start export job")
     }
   }
 
@@ -2042,7 +2043,7 @@ export default function AdminPanel() {
       }
       void fetchExportJobs(150, "")
     } catch (e: any) {
-      alert(e?.message || "Failed to create share link")
+      toast.error(e?.message || "Failed to create share link")
     } finally {
       setExportShareLoading((prev) => ({ ...prev, [jobId]: false }))
     }
@@ -2061,7 +2062,7 @@ export default function AdminPanel() {
         return next
       })
     } catch (e: any) {
-      alert(e?.message || "Failed to delete export job")
+      toast.error(e?.message || "Failed to delete export job")
     }
   }
 
@@ -2422,9 +2423,9 @@ export default function AdminPanel() {
         body: JSON.stringify({ removePortal: true }),
       })
       setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, studentVerified: false, portalType: 'free' } : u))
-      alert('Student deassigned')
+      toast('Student deassigned')
     } catch (e: any) {
-      alert('Failed: ' + (e.message || 'error'))
+      toast.error('Failed: ' + (e.message || 'error'))
     }
   }
 
@@ -2438,9 +2439,9 @@ export default function AdminPanel() {
         body: JSON.stringify({ durationMonths: parseInt(months) || 12 }),
       })
       setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, studentVerified: true, portalType: 'educational' } : u))
-      alert('Student assigned')
+      toast('Student assigned')
     } catch (e: any) {
-      alert('Failed: ' + (e.message || 'error'))
+      toast.error('Failed: ' + (e.message || 'error'))
     }
   }
 
@@ -2452,9 +2453,9 @@ export default function AdminPanel() {
         body: JSON.stringify({ clearLimits: false }),
       })
       setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, studentVerified: false } : u))
-      alert('User marked for re-verification')
+      toast('User marked for re-verification')
     } catch (e: any) {
-      alert('Failed: ' + (e.message || 'error'))
+      toast.error('Failed: ' + (e.message || 'error'))
     }
   }
 
@@ -2507,7 +2508,7 @@ export default function AdminPanel() {
       await apiFetch(API_ENDPOINTS.adminUserCancelPlan.replace(":id", String(editUserDialog.id)), { method: "POST" })
       setUserCurrentPlans([])
     } catch (e: any) {
-      alert("Failed to cancel plan: " + (e.message || "error"))
+      toast.error("Failed to cancel plan: " + (e.message || "error"))
     } finally {
       setCancelPlanLoading(false)
     }
@@ -2523,7 +2524,7 @@ export default function AdminPanel() {
     ] as const
     for (const [label, value] of requiredFields) {
       if (!value.trim()) {
-        alert(`Please enter a valid ${label}.`)
+        toast(`Please enter a valid ${label}.`)
         return
       }
     }
@@ -2603,7 +2604,7 @@ export default function AdminPanel() {
       )
       setEditUserDialog(null)
     } catch (e: any) {
-      alert(e?.message || "Failed to save user")
+      toast.error(e?.message || "Failed to save user")
     } finally {
       setEditLoading(false)
     }
@@ -2669,7 +2670,7 @@ export default function AdminPanel() {
       setVerifications((prev) => prev.filter((v) => v.id !== id))
       apiFetch(API_ENDPOINTS.adminStats).then((d) => setStats(d)).catch(() => { })
     } catch (err: any) {
-      alert('Failed to delete: ' + (err?.message || 'unknown error'))
+      toast.error('Failed to delete: ' + (err?.message || 'unknown error'))
     }
   }
 
@@ -2739,7 +2740,7 @@ export default function AdminPanel() {
     await apiFetch(API_ENDPOINTS.adminServerMarkStarted.replace(":id", uuid), {
       method: "POST",
     })
-    alert("Startup detection was set to auto-complete for this server.")
+    toast.success("Startup detection was set to auto-complete for this server.")
     forceRefreshTab("servers")
   }
 
@@ -3078,9 +3079,9 @@ export default function AdminPanel() {
         method: "POST",
         body: JSON.stringify({ truncate_directory: wipe }),
       })
-      alert("Reinstall initiated. The server will restart shortly.")
+      toast("Reinstall initiated. The server will restart shortly.")
     } catch (e: any) {
-      alert("Reinstall failed: " + e.message)
+      toast.error("Reinstall failed: " + e.message)
     } finally {
       setEsReinstalling(false)
     }
@@ -3097,7 +3098,7 @@ export default function AdminPanel() {
 
     if (!result?.emailSent) {
       const extra = result?.emailReason ? ` (${result.emailReason})` : ""
-      alert(`Server suspended, but owner email was not sent${extra}.`)
+      toast.success(`Server suspended, but owner email was not sent${extra}.`)
     }
 
     setServers((prev) => prev.map((s) => s.uuid === uuid ? { ...s, status: dmca ? "dmca" : "suspended" } : s))
@@ -3113,10 +3114,10 @@ export default function AdminPanel() {
     try {
       const result = await apiFetch(API_ENDPOINTS.adminSyncFromWings, { method: "POST" })
       forceRefreshTab("servers")
-      alert(`Sync complete — ${result.created} new configs imported, ${result.skipped} already existed.${result.errors?.length ? `\n\nErrors:\n${result.errors.join("\n")}` : ""
+      toast.error(`Sync complete — ${result.created} new configs imported, ${result.skipped} already existed.${result.errors?.length ? `\n\nErrors:\n${result.errors.join("\n")}` : ""
         }`)
     } catch (e: any) {
-      alert(`Sync failed: ${e.message}`)
+      toast.error(`Sync failed: ${e.message}`)
     } finally {
       setSyncingFromWings(false)
     }
@@ -3127,9 +3128,9 @@ export default function AdminPanel() {
     try {
       const result = await apiFetch(API_ENDPOINTS.adminSyncToWings, { method: "POST" })
       forceRefreshTab("nodes")
-      alert(result?.message || 'Sync to Wings started in the background. Check your activity notifications for completion updates.')
+      toast(result?.message || 'Sync to Wings started in the background. Check your activity notifications for completion updates.')
     } catch (e: any) {
-      alert(`Sync to Wings failed: ${e.message}`)
+      toast.error(`Sync to Wings failed: ${e.message}`)
     } finally {
       setSyncingToWings(false)
     }
@@ -3141,7 +3142,7 @@ export default function AdminPanel() {
       await apiFetch(API_ENDPOINTS.serverSync.replace(":id", uuid), { method: "POST" })
       forceRefreshTab("servers")
     } catch (e: any) {
-      alert(`Resync failed: ${e.message}`)
+      toast.error(`Resync failed: ${e.message}`)
     } finally {
       setResyncingServer(null)
     }
@@ -3368,12 +3369,12 @@ export default function AdminPanel() {
       const query = force ? '?force=true' : ''
       const res = await apiFetch(API_ENDPOINTS.adminPlanReapplyLimits.replace(':id', String(planId)) + query, { method: 'POST' })
       if (res && res.updated != null) {
-        alert(`Reapplied plan limits to ${res.updated} users`)
+        toast.success(`Reapplied plan limits to ${res.updated} users`)
       } else {
-        alert('Reapplied plan limits')
+        toast('Reapplied plan limits')
       }
     } catch (e: any) {
-      alert('Failed: ' + (e.message || 'error'))
+      toast.error('Failed: ' + (e.message || 'error'))
     } finally {
       setPlanReapplyId(null)
       setPlanReapplyLoading(false)
@@ -3392,14 +3393,14 @@ export default function AdminPanel() {
     try {
       const res = await apiFetch('/api/admin/ensure-portal-plans', { method: 'POST' })
       if (res && typeof res.assigned !== 'undefined') {
-        alert(`Assigned plans to ${res.assigned} users.`)
+        toast(`Assigned plans to ${res.assigned} users.`)
         apiFetch(API_ENDPOINTS.adminPlans).then((d: any) => setPlans(Array.isArray(d) ? d : [])).catch(() => { })
         apiFetch(API_ENDPOINTS.adminUsers).then((d: any) => setUsers(Array.isArray(d) ? d : [])).catch(() => { })
       } else {
-        alert('Operation completed.')
+        toast.success('Operation completed.')
       }
     } catch (e: any) {
-      alert(e?.message || 'Failed to ensure portal plans')
+      toast.error(e?.message || 'Failed to ensure portal plans')
     } finally {
       setEnsureLoading(false)
     }
@@ -3571,7 +3572,7 @@ export default function AdminPanel() {
       })
       setAdminOrders((prev) => prev.map((o) => (o.id === order.id ? (res.order ?? res) : o)))
     } catch (e) {
-      alert("Failed to cancel order")
+      toast.error("Failed to cancel order")
     }
   }
 
@@ -3581,7 +3582,7 @@ export default function AdminPanel() {
       await apiFetch(API_ENDPOINTS.adminOrderDetail.replace(":id", String(order.id)), { method: "DELETE" })
       setAdminOrders((prev) => prev.filter((o) => o.id !== order.id))
     } catch (e) {
-      alert("Failed to delete order")
+      toast.error("Failed to delete order")
     }
   }
 
@@ -3651,7 +3652,7 @@ export default function AdminPanel() {
     try {
       await apiFetch(`${API_ENDPOINTS.nodes}/${node.id}`, { method: "DELETE" })
     } catch (e: any) {
-      alert(e?.message || "Failed to delete node.")
+      toast.error(e?.message || "Failed to delete node.")
       return
     }
     setNodes((prev) => prev.filter((n) => n.id !== node.id))
@@ -3947,13 +3948,13 @@ remote: ${panelUrl}`
       const res = await apiFetch(`/api/admin/eggs/${egg.id}/sync`, { method: 'POST', body: JSON.stringify({ respectOptOut: false }) })
       if (res && res.results) {
         const failed = res.results.filter((r: any) => r.status !== 'synced' && r.status !== 'skipped_opt_out')
-        if (failed.length === 0) alert(`Sync requested for ${res.total} servers.`)
-        else alert(`Sync completed: ${res.total} total, ${failed.length} failures.`)
+        if (failed.length === 0) toast(`Sync requested for ${res.total} servers.`)
+        else toast.error(`Sync completed: ${res.total} total, ${failed.length} failures.`)
       } else {
-        alert('Sync request sent')
+        toast.success('Sync request sent')
       }
     } catch (e: any) {
-      alert('Sync failed: ' + (e?.message || String(e)))
+      toast.error('Sync failed: ' + (e?.message || String(e)))
     } finally {
       setSyncingEggIds(prev => prev.filter(id => id !== egg.id))
     }
@@ -4017,7 +4018,7 @@ remote: ${panelUrl}`
       a.remove()
       URL.revokeObjectURL(url)
     } catch (e: any) {
-      alert("Export failed: " + (e?.message || String(e)))
+      toast.error("Export failed: " + (e?.message || String(e)))
     }
   }
 
@@ -4198,9 +4199,9 @@ remote: ${panelUrl}`
         body: JSON.stringify({ graceHours: 48 }),
       })
       const serverCount = Number(res?.servers || 0)
-      alert(`Sunset notice sent. ${serverCount} server${serverCount === 1 ? "" : "s"} included with a 48h grace period.`)
+      toast.success(`Sunset notice sent. ${serverCount} server${serverCount === 1 ? "" : "s"} included with a 48h grace period.`)
     } catch (err: any) {
-      alert(`Failed to send sunset notice: ${err?.message || "unknown error"}`)
+      toast.error(`Failed to send sunset notice: ${err?.message || "unknown error"}`)
     } finally {
       setViewUserSunsetLoading(false)
     }
@@ -4242,7 +4243,7 @@ remote: ${panelUrl}`
         setViewUserContributorActivity(updatedActivity)
       }
     } catch (err: any) {
-      alert(`Failed to save contributor profile: ${err?.message || 'unknown error'}`)
+      toast.error(`Failed to save contributor profile: ${err?.message || 'unknown error'}`)
     } finally {
       setViewUserContributorSaving(false)
     }
@@ -4305,10 +4306,10 @@ remote: ${panelUrl}`
         setViewUserDocFile(null)
         setViewUserDocName("")
         setViewUserDocDescription("")
-        alert('Document uploaded successfully.')
+        toast.success('Document uploaded successfully.')
       }
     } catch (e: any) {
-      alert('Failed to upload document: ' + (e?.message || 'unknown error'))
+      toast.error('Failed to upload document: ' + (e?.message || 'unknown error'))
     } finally {
       setViewUserDocUploading(false)
     }
@@ -4347,7 +4348,7 @@ remote: ${panelUrl}`
       setOauthCreateScopes(["profile", "email"]); setOauthCreateGrants(["authorization_code", "refresh_token"])
       setOauthCreateLogo(null); setOauthCreateLogoPreview("")
     } catch (e: any) {
-      alert(e.message || "Failed to create OAuth app")
+      toast.error(e.message || "Failed to create OAuth app")
     } finally {
       setOauthCreateLoading(false)
     }
@@ -4392,7 +4393,7 @@ remote: ${panelUrl}`
       setOauthEditApp(null)
       setOauthEditLogo(null); setOauthEditLogoPreview("")
     } catch (e: any) {
-      alert(e.message || "Failed to update app")
+      toast.error(e.message || "Failed to update app")
     } finally {
       setOauthEditLoading(false)
     }
@@ -4407,7 +4408,7 @@ remote: ${panelUrl}`
       setOauthRotateApp(null)
       setOauthNewSecret({ name: app.name, clientId: app.clientId, clientSecret: result.clientSecret })
     } catch (e: any) {
-      alert(e.message || "Failed to rotate secret")
+      toast.error(e.message || "Failed to rotate secret")
     } finally {
       setOauthRotateLoading(false)
     }
@@ -7963,9 +7964,9 @@ remote: ${panelUrl}`
                   try {
                     const res = await apiFetch(API_ENDPOINTS.adminFraudScan.replace(":id", String(viewUserDialog.id)), { method: "POST" });
                     setViewUserProfile((prev: any) => prev ? { ...prev, fraudFlag: res.isSuspicious, fraudReason: res.reasons?.join('; ') || null } : prev);
-                    alert(res.isSuspicious ? `Suspicious! Score: ${res.fraudScore}/100` : `Clean — fraud score: ${res.fraudScore}/100`);
+                    toast(res.isSuspicious ? `Suspicious! Score: ${res.fraudScore}/100` : `Clean — fraud score: ${res.fraudScore}/100`);
                   } catch (e: any) {
-                    alert("Fraud scan failed: " + e.message);
+                    toast.error("Fraud scan failed: " + e.message);
                   }
                 }}
                 className="flex items-center gap-1.5 border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors w-fit"
@@ -8270,7 +8271,7 @@ remote: ${panelUrl}`
                       if (!makeUnban) {
                         reason = window.prompt("Reason for banning this user from support tickets:", reason || "")?.trim() || "";
                         if (!reason) {
-                          alert("Ban reason cannot be empty.");
+                          toast("Ban reason cannot be empty.");
                           return;
                         }
                       }
@@ -8287,7 +8288,7 @@ remote: ${panelUrl}`
                         setViewUserProfile((p: any) => ({ ...p, supportBanned: !makeUnban, supportBanReason: makeUnban ? null : reason }));
                         setViewUserDialog((u) => (u ? { ...u, supportBanned: !makeUnban } : u));
                       } catch (err: any) {
-                        alert(`Failed to ${makeUnban ? "unban" : "ban"} user: ${err?.message || "unknown error"}`);
+                        toast.error(`Failed to ${makeUnban ? "unban" : "ban"} user: ${err?.message || "unknown error"}`);
                       }
                     }}
                   >

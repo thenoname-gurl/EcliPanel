@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -75,7 +76,7 @@ export default function BackupConfigsTab() {
       setEditing(null)
       load()
     } catch (e: any) {
-      alert(e?.message || 'Failed to save')
+      toast.error(e?.message || 'Failed to save')
     } finally {
       setSaving(false)
     }
@@ -87,7 +88,7 @@ export default function BackupConfigsTab() {
       await apiFetch(`/api/admin/backup-configurations/${uuid}`, { method: 'DELETE' })
       load()
     } catch (e: any) {
-      alert(e?.message || 'Failed to delete')
+      toast.error(e?.message || 'Failed to delete')
     }
   }
 

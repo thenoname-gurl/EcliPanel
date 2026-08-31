@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { PageLayout } from "@/components/panel/shared"
 import { PanelHeader } from "@/components/panel/header"
@@ -68,34 +69,34 @@ export default function StudentBenefitsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ proofType: 'school_email', emailCode }),
       })
-      alert(t("manual.emailSubmitted"))
+      toast(t("manual.emailSubmitted"))
       if (user) {
         apiFetch(API_ENDPOINTS.studentVerificationStatus.replace(':id', user.id.toString()))
           .then(setStudentVerifStatus)
       }
     } catch (e: any) {
-      alert(t("errors.submitFailed") + ': ' + e.message)
+      toast.error(t("errors.submitFailed") + ': ' + e.message)
     } finally {
       setSubmitting(false)
     }
   }
 
   async function submitProof() {
-    if (!proofFile) { alert(t("manual.selectFile")); return }
+    if (!proofFile) { toast(t("manual.selectFile")); return }
     setSubmitting(true)
     try {
       const fd = new FormData()
       fd.append('proof', proofFile)
       fd.append('proofType', proofType)
       await apiFetch(API_ENDPOINTS.studentVerification, { method: 'POST', body: fd })
-      alert(t("manual.submitted"))
+      toast(t("manual.submitted"))
       setProofFile(null)
       if (user) {
         apiFetch(API_ENDPOINTS.studentVerificationStatus.replace(':id', user.id.toString()))
           .then(setStudentVerifStatus)
       }
     } catch (e: any) {
-      alert(t("errors.submitFailed") + ': ' + e.message)
+      toast.error(t("errors.submitFailed") + ': ' + e.message)
     } finally {
       setSubmitting(false)
     }

@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { useTranslations } from "next-intl"
@@ -31,7 +32,7 @@ export default function StudentVerificationsTab() {
       })
       fetchRecords()
     } catch (e: any) {
-      alert(e?.message || 'Failed')
+      toast.error(e?.message || 'Failed')
     }
   }
 
@@ -41,7 +42,7 @@ export default function StudentVerificationsTab() {
       await apiFetch(API_ENDPOINTS.adminStudentVerificationDetail.replace(':id', String(id)), { method: 'DELETE' })
       fetchRecords()
     } catch (e: any) {
-      alert(e?.message || 'Failed')
+      toast.error(e?.message || 'Failed')
     }
   }
 
@@ -51,7 +52,7 @@ export default function StudentVerificationsTab() {
       await apiFetch(API_ENDPOINTS.adminStudentVerificationDeleteProof.replace(':id', String(id)), { method: 'DELETE' })
       fetchRecords()
     } catch (e: any) {
-      alert(e?.message || 'Failed')
+      toast.error(e?.message || 'Failed')
     }
   }
 

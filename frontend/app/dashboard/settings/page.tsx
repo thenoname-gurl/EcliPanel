@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { PanelHeader } from "@/components/panel/header"
 import { PageLayout } from "@/components/panel/shared"
@@ -325,14 +326,14 @@ function PasskeyManager() {
       setEditingPasskeyName("")
       load()
     } catch (e: any) {
-      alert(t("messages.failed") + ": " + e.message)
+      toast.error(t("messages.failed") + ": " + e.message)
     }
   }
 
   const addPasskey = async () => {
     if (!user) return
     if (typeof window === "undefined" || !window.isSecureContext || !navigator.credentials) {
-      alert(t("passkeys.errors.httpsRequired"))
+      toast.error(t("passkeys.errors.httpsRequired"))
       return
     }
     const initialCount = passkeys.length
@@ -387,7 +388,7 @@ function PasskeyManager() {
     } catch (e: any) {
       const detail = e?.name ? `${e.name}: ${e.message || ""}`.trim() : e?.message
       debugLog("error", "addPasskey: " + (detail || JSON.stringify(e)))
-      alert(t("passkeys.errors.failedRegister") + ": " + (detail || t("messages.unknown")))
+      toast.error(t("passkeys.errors.failedRegister") + ": " + (detail || t("messages.unknown")))
     } finally {
       setRegistering(false)
     }
@@ -399,7 +400,7 @@ function PasskeyManager() {
       await apiFetch(API_ENDPOINTS.passkeyDelete.replace(":id", String(id)), { method: "DELETE" })
       setPasskeys((prev) => prev.filter((p) => p.id !== id))
     } catch (e: any) {
-      alert(t("messages.failed") + ": " + e.message)
+      toast.error(t("messages.failed") + ": " + e.message)
     }
   }
 
@@ -590,7 +591,7 @@ function SshKeyManager() {
       await apiFetch(API_ENDPOINTS.sshKeyDelete.replace(":id", String(id)), { method: "DELETE" })
       setKeys((k) => k.filter((x: any) => x.id !== id))
     } catch (e: any) {
-      alert(t("ssh.errors.failedRemove") + ": " + e.message)
+      toast.error(t("ssh.errors.failedRemove") + ": " + e.message)
     }
   }
 
@@ -605,7 +606,7 @@ function SshKeyManager() {
       setEditingSshKeyName("")
       loadKeys()
     } catch (e: any) {
-      alert(t("messages.failed") + ": " + e.message)
+      toast.error(t("messages.failed") + ": " + e.message)
     }
   }
 
@@ -789,13 +790,13 @@ function TwoFactorManager() {
       const d = await QRCode.toDataURL(res.otpauth_url || "")
       setQrDataUrl(d)
     } catch (e: any) {
-      alert(e.message || t("twoFactor.errors.failedStartSetup"))
+      toast.error(e.message || t("twoFactor.errors.failedStartSetup"))
     }
     setLoading(false)
   }
 
   const verifyAndEnable = async () => {
-    if (!secret) return alert(t("twoFactor.errors.missingSecret"))
+    if (!secret) return toast.error(t("twoFactor.errors.missingSecret"))
     setLoading(true)
     try {
       const res: any = await apiFetch(API_ENDPOINTS.twoFactorVerify, {
@@ -808,9 +809,9 @@ function TwoFactorManager() {
       setSecret(null)
       setOtpauth(null)
       setQrDataUrl(null)
-      alert(t("twoFactor.enabledAlert"))
+      toast.success(t("twoFactor.enabledAlert"))
     } catch (e: any) {
-      alert(e.message || t("twoFactor.errors.failedVerify"))
+      toast.error(e.message || t("twoFactor.errors.failedVerify"))
     }
     setLoading(false)
   }
@@ -825,9 +826,9 @@ function TwoFactorManager() {
       })
       await refreshUser()
       setEnabled(false)
-      alert(t("twoFactor.disabledAlert"))
+      toast.success(t("twoFactor.disabledAlert"))
     } catch (e: any) {
-      alert(e.message || t("twoFactor.errors.failedDisable"))
+      toast.error(e.message || t("twoFactor.errors.failedDisable"))
     }
     setLoading(false)
   }
@@ -983,7 +984,7 @@ function TwoFactorManager() {
             onClick={() => {
               const text = recoveryCodes.join("\n")
               navigator.clipboard.writeText(text)
-              alert(t("twoFactor.recoveryCopied"))
+              toast(t("twoFactor.recoveryCopied"))
             }}
             className="w-full mt-3 flex items-center justify-center gap-2 border border-border bg-secondary/50 py-2.5 text-sm font-medium text-foreground hover:bg-secondary transition-colors"
           >
@@ -1093,7 +1094,7 @@ function ConnectedAppsList() {
         { method: "POST" }
       )
       setApps((prev) => prev.filter((a) => a.appId !== app.appId))
-      alert(t("connectedApps.revoked"))
+      toast(t("connectedApps.revoked"))
     } catch {}
   }
 
@@ -1102,7 +1103,7 @@ function ConnectedAppsList() {
     try {
       await apiFetch(API_ENDPOINTS.oauthAuthorizationsRevokeAll, { method: "POST" })
       setApps([])
-      alert(t("connectedApps.revokedAll"))
+      toast(t("connectedApps.revokedAll"))
     } catch {}
   }
 
@@ -1267,13 +1268,13 @@ export default function SettingsPage() {
         method: "POST",
         body: JSON.stringify(body),
       })
-      alert(t("api.keyCreated") + ": " + res.apiKey)
+      toast.success(t("api.keyCreated") + ": " + res.apiKey)
       setNewKeyName("")
       setNewKeyPerms([])
       setShowApiForm(false)
       loadApiKeys()
     } catch (e: any) {
-      alert(t("messages.failed") + ": " + e.message)
+      toast.error(t("messages.failed") + ": " + e.message)
     }
   }
 
@@ -1285,7 +1286,7 @@ export default function SettingsPage() {
       })
       loadApiKeys()
     } catch (e: any) {
-      alert(t("messages.failed") + ": " + e.message)
+      toast.error(t("messages.failed") + ": " + e.message)
     }
   }
 
@@ -1320,7 +1321,7 @@ export default function SettingsPage() {
       setNewPassword("")
       setConfirmPassword("")
       await refreshUser()
-      alert(t("security.passwordUpdated"))
+      toast.success(t("security.passwordUpdated"))
     } catch (err: any) {
       setPasswordError(err?.message || t("security.errors.failedUpdatePassword"))
     } finally {
@@ -1430,7 +1431,7 @@ export default function SettingsPage() {
       await refreshUser()
     } catch (err: any) {
       console.error("Failed to save settings", err)
-      alert(
+      toast(
         t("messages.failedToSaveSettings") + ": " + (err?.message || t("messages.unknown"))
       )
     }
@@ -1683,7 +1684,7 @@ export default function SettingsPage() {
       )
       window.location.reload()
     } catch (e: any) {
-      alert(t("messages.failed") + ": " + (e.message || e))
+      toast.error(t("messages.failed") + ": " + (e.message || e))
     }
   }
 
@@ -1692,7 +1693,7 @@ export default function SettingsPage() {
 
     const validationError = validateProfileForm()
     if (validationError) {
-      alert(validationError)
+      toast(validationError)
       setSaving(false)
       return
     }
@@ -1702,7 +1703,7 @@ export default function SettingsPage() {
     const emailChanged = form.email !== (user?.email || "")
 
     if (emailChanged && !currentPassword) {
-      alert(t("security.currentPasswordRequired"))
+      toast(t("security.currentPasswordRequired"))
       setSaving(false)
       return
     }
@@ -1734,9 +1735,9 @@ export default function SettingsPage() {
         }
       )
       await refreshUser()
-      alert(t("profile.updated"))
+      toast.success(t("profile.updated"))
     } catch (err: any) {
-      alert(t("messages.failedToSave") + ": " + err.message)
+      toast.error(t("messages.failedToSave") + ": " + err.message)
     } finally {
       setSaving(false)
     }
@@ -1847,7 +1848,7 @@ export default function SettingsPage() {
                               )
                               await refreshUser()
                             } catch (err: any) {
-                              alert(t("profile.uploadFailed") + ": " + err.message)
+                              toast.error(t("profile.uploadFailed") + ": " + err.message)
                             } finally {
                               setAvatarUploading(false)
                             }
@@ -2282,9 +2283,9 @@ export default function SettingsPage() {
                           method: "POST",
                           body: JSON.stringify({ userId: user?.id }),
                         })
-                        alert(t("security.loggedOutElsewhere"))
+                        toast(t("security.loggedOutElsewhere"))
                       } catch (e: any) {
-                        alert(t("messages.failed") + ": " + e.message)
+                        toast.error(t("messages.failed") + ": " + e.message)
                       }
                     }}
                     className="border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary/50 transition-all active:scale-[0.98]"
@@ -2340,7 +2341,7 @@ export default function SettingsPage() {
                                 await saveUserSettings({ notifications: newPrefs })
                               } catch (e: any) {
                                 setNotificationPrefs(notificationPrefs)
-                                alert(
+                                toast(
                                   t("messages.failedToSave") +
                                     ": " +
                                     (e?.message || t("messages.unknown"))

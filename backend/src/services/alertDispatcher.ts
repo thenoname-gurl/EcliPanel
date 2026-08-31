@@ -1,7 +1,7 @@
 import { sendMail } from './mailService';
 import { AppDataSource } from '../config/typeorm';
 import { redisGet, redisSet } from '../config/redis';
-import { PanelSetting } from '../models/panelSetting.entity';
+import { getSocSettings } from './socSettings';
 
 type Severity = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
@@ -26,24 +26,6 @@ interface UserAlertPrefs {
   severities: string[];
   channels: { email: boolean; inapp: boolean; };
   emailOverride?: string;
-}
-
-let _settingsCache: Record<string, string> | null = null;
-let _settingsCacheTs = 0;
-
-async function getSocSettings(): Promise<Record<string, string>> {
-  if (_settingsCache && Date.now() - _settingsCacheTs < 60_000) return _settingsCache;
-  try {
-    const repo = AppDataSource.getRepository(PanelSetting);
-    const rows = await repo.find();
-    const map: Record<string, string> = {};
-    for (const r of rows) {
-      if (r.key.startsWith('soc.')) map[r.key] = r.value;
-    }
-    _settingsCache = map;
-    _settingsCacheTs = Date.now();
-    return map;
-  } catch { return {}; }
 }
 
 async function getAdminFallbackEmail(): Promise<string> {

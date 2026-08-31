@@ -142,6 +142,7 @@ async function safeUser(user: User): Promise<Record<string, unknown>> {
     computedAge !== null &&
     computedAge < minimumAge &&
     result.suspended === false &&
+    result.fraudFlag !== true &&
     user.role !== '*' &&
     user.role !== 'rootAdmin'
   ) {

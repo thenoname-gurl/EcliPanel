@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
@@ -329,7 +330,7 @@ export default function UsersTab({ ctx }: { ctx: any }) {
                            <button onClick={async (e) => {
                               e.preventDefault()
                               if (!confirm("Request KYC from this user?")) return
-                              try { await apiFetch(`/api/admin/users/${user.id}/request-kyc`, { method: "POST" }); alert("KYC requested") } catch (e: any) { alert("Failed: " + (e?.message || e)) }
+                              try { await apiFetch(`/api/admin/users/${user.id}/request-kyc`, { method: "POST" }); toast("KYC requested") } catch (e: any) { toast.error("Failed: " + (e?.message || e)) }
                            }} title="Request KYC" className="p-1.5 text-muted-foreground hover:bg-warning/10 hover:text-warning transition-colors">
                              <ShieldCheck className="h-3.5 w-3.5" />
                            </button>

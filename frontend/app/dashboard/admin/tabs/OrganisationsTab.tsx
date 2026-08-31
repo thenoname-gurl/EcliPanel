@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -386,7 +387,7 @@ export default function OrganisationsTab({ ctx }: { ctx: any }) {
                     })
                     setEditOrgAddMemberId("")
                   } catch (e: any) {
-                    alert(t("alerts.failed", { reason: e.message }))
+                    toast.error(t("alerts.failed", { reason: e.message }))
                   } finally {
                     setEditOrgMemberLoading(false)
                   }

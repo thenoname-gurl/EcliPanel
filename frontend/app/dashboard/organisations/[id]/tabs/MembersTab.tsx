@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -52,7 +53,7 @@ export function MembersTab(props: MembersTabProps) {
     const email = inviteEmail.trim();
     if (!email) return;
     if (currentUserEmail && email.toLowerCase() === currentUserEmail.toLowerCase()) {
-      alert(t("alerts.cannotInviteYourself"));
+      toast(t("alerts.cannotInviteYourself"));
       return;
     }
     await onInvite(email);
@@ -99,7 +100,7 @@ export function MembersTab(props: MembersTabProps) {
                         try {
                           await onChangeRole(m.id, e.target.value);
                         } catch {
-                          alert(t("alerts.failedChangeRole"));
+                          toast.error(t("alerts.failedChangeRole"));
                         }
                       }}
                       className="border border-border bg-input px-2 py-1 text-xs text-foreground"

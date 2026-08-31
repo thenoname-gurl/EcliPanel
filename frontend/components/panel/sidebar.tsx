@@ -17,13 +17,12 @@ import { cn } from "@/lib/utils"
 import {
   NAVIGATION,
   ADMIN_NAVIGATION,
-  BRAND,
-  API_ENDPOINTS,
   NAV_SECTION_I18N_KEYS,
   NAV_ITEM_I18N_KEYS,
   NAV_BADGE_I18N_KEYS,
   type NavItem,
-} from "@/lib/panel-config"
+} from "@/lib/navigation"
+import { BRAND, API_ENDPOINTS } from "@/lib/panel-config"
 import { apiFetch } from "@/lib/api-client"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { getCountryFlagUrl } from "@/lib/country-flag"

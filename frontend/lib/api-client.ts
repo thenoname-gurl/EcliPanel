@@ -197,10 +197,6 @@ async function apiFetchRaw(
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), timeout)
 
-    if (typeof window !== 'undefined') {
-      console.log(`[apiFetch] request`, method, url, `(attempt ${attempt}/${retries})`);
-    }
-
     try {
       const res = await fetch(url, {
         ...options,
@@ -212,9 +208,6 @@ async function apiFetchRaw(
       })
 
       const duration = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - start;
-      if (typeof window !== 'undefined') {
-        console.log(`[apiFetch] answered in ${duration.toFixed(2)}ms`, url);
-      }
 
       if (!res.ok) {
         const text = await res.text();
@@ -295,12 +288,6 @@ async function apiFetchRaw(
       try {
         if (data && typeof data === 'object' && data.csrfToken) {
           localStorage.setItem('csrfToken', data.csrfToken);
-        }
-      } catch {}
-
-      try {
-        if (url.includes('/auth/login') || url.includes('/auth/session') || url.includes('/auth/2fa/verify-login')) {
-          console.debug('[apiFetch] auth response: %s', url, data);
         }
       } catch {}
 

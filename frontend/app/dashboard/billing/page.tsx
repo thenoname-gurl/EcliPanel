@@ -1,4 +1,5 @@
 "use client"
+import { toast as sonnerToast } from "sonner"
 
 import { PanelHeader } from "@/components/panel/header"
 import { StatCard, SectionHeader, PageLayout, StatGrid } from "@/components/panel/shared"
@@ -698,7 +699,7 @@ export default function BillingPage() {
                                 URL.revokeObjectURL(url);
                               } catch (e) {
                                 console.error(e);
-                                alert(t("errors.unableDownloadInvoice"));
+                                sonnerToast.error(t("errors.unableDownloadInvoice"));
                               }
                             }}
                             className="p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"

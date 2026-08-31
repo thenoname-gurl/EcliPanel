@@ -1,4 +1,5 @@
 "use client"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -57,17 +58,17 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
               size="sm"
               variant="outline"
               onClick={async () => {
-                if (!annSubject.trim() || !annMessage.trim()) return alert(t("alerts.testRequired"))
+                if (!annSubject.trim() || !annMessage.trim()) return toast(t("alerts.testRequired"))
                 setAnnSending(true)
                 try {
                   const res = await apiFetch(API_ENDPOINTS.adminProductUpdates, {
                     method: "POST",
                     body: JSON.stringify({ subject: annSubject, message: annMessage, test: true, excludeSuspended: annExcludeSuspended }),
                   })
-                  if (res && res.success) alert(t("alerts.testSent", { recipients: res.recipients }))
-                  else alert(t("alerts.testFailed"))
+                  if (res && res.success) toast.success(t("alerts.testSent", { recipients: res.recipients }))
+                  else toast.error(t("alerts.testFailed"))
                 } catch (e: any) {
-                  alert(t("alerts.testFailedWithReason", { reason: e.message || e }))
+                  toast.error(t("alerts.testFailedWithReason", { reason: e.message || e }))
                 } finally {
                   setAnnSending(false)
                 }
@@ -167,7 +168,7 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                 <Button
                   size="sm"
                   onClick={async () => {
-                    if (!annSubject.trim() || !annMessage.trim()) return alert(t("alerts.required"))
+                    if (!annSubject.trim() || !annMessage.trim()) return toast(t("alerts.required"))
                     const ok = await confirmAsync(
                       t("alerts.confirmBroadcast")
                     )
@@ -179,14 +180,14 @@ export default function AnnouncementsTab({ ctx }: { ctx: any }) {
                         body: JSON.stringify({ subject: annSubject, message: annMessage, force: annForce, excludeSuspended: annExcludeSuspended }),
                       })
                       if (res?.status === 'queued') {
-                        alert(t("alerts.broadcastQueued"))
+                        toast(t("alerts.broadcastQueued"))
                       } else if (res && res.success) {
-                        alert(t("alerts.broadcastSent", { recipients: res.recipients ?? 0 }))
+                        toast.success(t("alerts.broadcastSent", { recipients: res.recipients ?? 0 }))
                       } else {
-                        alert(t("alerts.broadcastFailed"))
+                        toast.error(t("alerts.broadcastFailed"))
                       }
                     } catch (e: any) {
-                      alert(t("alerts.broadcastFailedWithReason", { reason: e.message || e }))
+                      toast.error(t("alerts.broadcastFailedWithReason", { reason: e.message || e }))
                     } finally {
                       setAnnSending(false)
                     }
