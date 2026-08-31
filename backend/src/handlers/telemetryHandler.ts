@@ -4,6 +4,7 @@ import { User } from '../models/user.entity';
 import { authenticate } from '../middleware/auth';
 import { authorize } from '../middleware/authorize';
 import * as jwtLib from 'jsonwebtoken';
+import { t } from 'elysia';
 
 const DAY_MS = 86_400_000;
 
@@ -124,6 +125,14 @@ export async function telemetryIngestRoutes(app: any, prefix = '') {
       await repo.save(entities);
       return { ok: true, count: entities.length };
     },
+    {
+      response: {
+        200: t.Object({ ok: t.Boolean(), count: t.Number() }),
+        400: t.Object({ error: t.String() }),
+        429: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Ingest a batch of telemetry events', tags: ['Telemetry'] },
+    },
   );
 }
 
@@ -232,6 +241,19 @@ export async function telemetryAdminRoutes(app: any, prefix = '') {
     },
     {
       beforeHandle: [authenticate, authorize('admin:metrics')],
+      query: t.Object({ days: t.Optional(t.Number()) }),
+      response: {
+        200: t.Object({
+          window: t.Object({ days: t.Number(), start: t.String(), end: t.String() }),
+          summary: t.Object({ totalEvents: t.Number(), uniqueUsers: t.Number() }),
+          topEvents: t.Array(t.Object({ event: t.String(), category: t.Union([t.String(), t.Null()]), count: t.Number() })),
+          topPages: t.Array(t.Object({ path: t.String(), count: t.Number() })),
+          series: t.Array(t.Object({ date: t.String(), events: t.Number() })),
+        }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get aggregated telemetry analytics', tags: ['Admin'] },
     },
   );
 
@@ -244,6 +266,12 @@ export async function telemetryAdminRoutes(app: any, prefix = '') {
     },
     {
       beforeHandle: [authenticate, authorize('admin:metrics')],
+      response: {
+        200: t.Object({ ok: t.Boolean() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Clear all telemetry data', tags: ['Admin'] },
     },
   );
 }
