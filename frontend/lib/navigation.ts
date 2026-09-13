@@ -22,6 +22,8 @@ import {
   CalendarDays,
   MessageCircle,
   BookOpen,
+  FolderOpen,
+  MonitorUp,
   Users,
   Lock,
   Check,
@@ -86,6 +88,8 @@ export const NAV_ITEM_I18N_KEYS: Record<string, string> = {
   Chat: "chat",
   "Visual Editor": "visualEditor",
   Blog: "blog",
+  "EcliOffice": "office",
+  "Screen Share": "screenShare",
 }
 
 export const NAV_BADGE_I18N_KEYS: Record<string, string> = {
@@ -127,6 +131,9 @@ export const NAVIGATION: NavSection[] = [
       { label: "Visual Editor", href: "/dashboard/infrastructure/visual-editor", icon: Braces, feature: "visualeditor" },
       { label: "Chat", href: "/dashboard/chat", icon: MessageCircle, feature: "chat" },
       { label: "Blog", href: "/dashboard/blog", icon: BookOpen, feature: "blog", badge: "New" },
+      { label: "EcliOffice", href: "/dashboard/office", icon: FolderOpen, feature: "office", badge: "New" },
+      { label: "Drive", href: "/dashboard/office", icon: HardDrive, feature: "drive", badge: "New" },
+      { label: "Screen Share", href: "/dashboard/screen-share", icon: MonitorUp, feature: "office" },
     ],
   },
   {
