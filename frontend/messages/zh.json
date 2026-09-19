@@ -44,7 +44,10 @@
       "adminPanel": "员工门户",
       "tunnels": "隧道",
       "blog": "博客",
-      "luminosClub": "Luminos Club"
+      "luminosClub": "Luminos Club",
+      "office": "EcliOffice",
+      "screenShare": "屏幕共享",
+      "drive": "网盘"
     },
     "badges": {
       "new": "新建",
@@ -7538,5 +7541,185 @@
       "postPlaceholder": "在俱乐部里说点什么...",
       "postFailed": "发布失败"
     }
+  },
+  "officePage": {
+    "title": "EcliOffice",
+    "description": "文档、表格、演示文稿和笔记本，支持实时协作。",
+    "newDocument": "新建文档",
+    "newSpreadsheet": "新建表格",
+    "newPresentation": "新建演示文稿",
+    "newNotebook": "新建笔记本",
+    "import": "导入",
+    "searchPlaceholder": "搜索文档…",
+    "all": "全部",
+    "documents": "文档",
+    "spreadsheets": "表格",
+    "presentations": "演示文稿",
+    "notebooks": "笔记本",
+    "starred": "星标",
+    "trash": "回收站",
+    "recent": "最近",
+    "emptyTitle": "尚无文件",
+    "emptyDescription": "创建文档、表格、演示文稿或笔记本以开始使用。",
+    "sharedWithYou": "与您共享",
+    "owner": "所有者",
+    "you": "您",
+    "canView": "可查看",
+    "canComment": "可评论",
+    "canEdit": "可编辑",
+    "lastEditedBy": "编辑于 {date}",
+    "actions": {
+      "open": "打开",
+      "rename": "重命名",
+      "duplicate": "复制",
+      "share": "共享",
+      "star": "加星标",
+      "unstar": "取消星标",
+      "moveToTrash": "移至回收站",
+      "restore": "还原",
+      "deleteForever": "永久删除",
+      "cancel": "取消",
+      "preview": "预览"
+    },
+    "dialogs": {
+      "createTitle": "新建文件",
+      "createSubtitle": "选择类型即可开始。",
+      "createNameLabel": "名称",
+      "createNamePlaceholder": "未命名",
+      "create": "创建",
+      "renameTitle": "重命名",
+      "renamePlaceholder": "文件名",
+      "save": "保存",
+      "shareTitle": "共享",
+      "shareSubtitle": "邀请他人编辑、评论或查看。",
+      "shareEmailPlaceholder": "email@example.com",
+      "sharePermissionLabel": "权限",
+      "shareAdd": "添加",
+      "shareEmpty": "暂无协作者。",
+      "removeShare": "移除访问权限",
+      "trashTitle": "移至回收站？",
+      "trashDescription": "该文件将移至回收站，之后可还原。",
+      "deleteTitle": "永久删除？",
+      "deleteDescription": "此操作无法撤销。",
+      "confirm": "是，移至回收站",
+      "confirmDelete": "是，永久删除"
+    },
+    "editor": {
+      "back": "返回文件",
+      "renamePlaceholder": "未命名",
+      "saved": "所有更改已保存",
+      "saving": "保存中…",
+      "connectError": "协作连接已断开——正在重新连接…",
+      "participants": "{count} 人在线",
+      "readOnly": "仅查看",
+      "editing": "编辑中",
+      "document": "文档",
+      "spreadsheet": "表格",
+      "presentation": "演示文稿",
+      "notebook": "笔记本",
+      "notFound": "未找到文档",
+      "share": "共享",
+      "preview": "预览"
+    }
+  },
+  "notebookPage": {
+    "notebook": "笔记本",
+    "cells": "单元格",
+    "toolbar": {
+      "runAll": "全部运行",
+      "addCode": "添加代码",
+      "addBlocks": "添加积木",
+      "addMarkdown": "添加 Markdown",
+      "clearOutputs": "清空输出",
+      "restart": "重启内核"
+    },
+    "cell": {
+      "run": "运行",
+      "running": "运行中…",
+      "executing": "执行中…",
+      "markdown": "Markdown",
+      "blocks": "积木",
+      "clearOutputs": "清空输出",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "delete": "删除单元格",
+      "showCode": "显示代码",
+      "showBlocks": "显示积木"
+    },
+    "blocks": {
+      "showLua": "生成的 Lua",
+      "hideLua": "隐藏 Lua",
+      "generatedLua": "生成的 Lua 源码",
+      "empty": "从面板添加积木来构建程序。",
+      "noBlocks": "此类别中没有积木",
+      "search": "搜索积木…",
+      "noMatch": "没有匹配的积木",
+      "disable": "禁用积木",
+      "enable": "启用积木",
+      "duplicate": "复制积木",
+      "reset": "重置数值"
+    },
+    "kernels": {
+      "lua": "Lua"
+    },
+    "outputs": {
+      "error": "错误",
+      "timedOut": "{seconds} 秒后超时"
+    },
+    "markdown": {
+      "render": "预览",
+      "edit": "编辑",
+      "placeholder": "编写 Markdown…",
+      "empty": "空单元格"
+    },
+    "empty": {
+      "title": "暂无内容可运行",
+      "description": "添加 Lua 代码、积木或 Markdown 单元格以开始。"
+    },
+    "add": {
+      "code": "代码",
+      "blocks": "积木",
+      "markdown": "Markdown"
+    },
+    "restartConfirm": {
+      "body": "重启 Lua 内核？",
+      "description": "所有变量和状态都将被清除。输出将保留。"
+    },
+    "help": {
+      "open": "笔记本指南",
+      "title": "EcliNotebook 快速参考",
+      "intro": "所有代码片段都是真实的 Lua — 它们与您手写的单元格在同一内核中运行。",
+      "varsTitle": "变量",
+      "varsNote": "全局变量在单元格之间持续保留。",
+      "graphTitle": "绘图与阴影区域",
+      "graphNote": "GeoGebra 风格：为函数命名、复用并积分。",
+      "chartTitle": "图表",
+      "chartNote": "数字或表达式，即刻呈现。",
+      "canvasTitle": "画板",
+      "canvasNote": "单元格执行结束时渲染为图像。"
+    }
+  },
+  "drivePage": {
+    "title": "网盘",
+    "subtitle": "云文件存储",
+    "upload": "上传",
+    "empty": "将文件拖放到此处或点击上传",
+    "download": "下载",
+    "delete": "删除",
+    "newFolder": "新建文件夹",
+    "create": "创建",
+    "folderName": "文件夹名称",
+    "deleteConfirm": "删除“{name}”？此操作无法撤销。",
+    "readOnly": "只读",
+    "used": "已使用 {used} / {total}",
+    "noStorage": "没有可用的云存储",
+    "loadError": "网盘加载失败",
+    "uploadError": "上传失败",
+    "mkdirError": "创建文件夹失败",
+    "deleteError": "删除失败",
+    "rename": "重命名",
+    "renameHint": "为“{name}”选择新名称。",
+    "renameError": "重命名失败",
+    "sharedLinks": "共享链接"
   }
 }

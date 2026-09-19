@@ -1842,10 +1842,7 @@ export default function SettingsPage() {
                             try {
                               const fd = new FormData()
                               fd.append("file", file)
-                              await apiFetch(
-                                API_ENDPOINTS.userAvatar.replace(":id", String(user.id)),
-                                { method: "POST", body: fd }
-                              )
+                              await apiFetch(API_ENDPOINTS.userAvatarFile, { method: "PUT", body: fd })
                               await refreshUser()
                             } catch (err: any) {
                               toast.error(t("profile.uploadFailed") + ": " + err.message)

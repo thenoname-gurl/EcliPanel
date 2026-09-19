@@ -21,10 +21,10 @@ import {
   MessageSquare, Box, GitBranch, Repeat, Puzzle, Globe, Database, Folder, Cpu, Square,
   Code as CodeIcon, Play, CornerDownLeft, Shield, AlertCircle, Server, Route, Send, Download,
   Mail, Plus, FileText, Save as SaveIcon, Terminal, Calendar, Key, Package, Share2,
-  StickyNote, Clock, RefreshCw, List, Search, Eye, Calculator, Link, Shuffle, GitMerge, Layers,
+  StickyNote, Clock, RefreshCw, List, Search, Eye, Calculator, Link as LinkIcon, Shuffle, GitMerge, Layers,
   Tag, MoreHorizontal, ListOrdered, StopCircle, SkipForward, ChevronUp, ChevronDown, ChevronRight,
   Lock, KeyRound, Signature, Dice5, Radio, LogIn, LogOut, Users, ShieldCheck, ClipboardCopy, Library,
-  Compass, ArrowRight, CheckCircle, ChevronLeft, Fingerprint,
+  Compass, ArrowRight, CheckCircle, ChevronLeft, Fingerprint, Boxes, Pencil,
 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { createPortal } from "react-dom"
@@ -65,8 +65,42 @@ type LibraryItem = {
   updatedAt: string
 }
 
+type SettingDef = {
+  key: string
+  label: string
+  type: 'text' | 'number' | 'boolean' | 'select'
+  default: unknown
+  options?: { label: string; value: string }[]
+}
+
+type CustomBlock = {
+  id: number
+  name: string
+  code: string
+  blocks: Block[]
+  description: string | null
+  settingsDefinition: SettingDef[]
+  createdAt: string
+  updatedAt: string
+}
+
 type DefinitionsResponse = { categories: Category[]; blocks: BlockDef[] }
 type GenerateMultiResponse = { files: { name: string; code: string }[] }
+
+type SharedBlockEntry = {
+  id: number; authorUserId: number; authorName: string | null; name: string
+  code: string; blocks: Block[]; settingsDefinition: SettingDef[]
+  description: string | null; tags: string[]; downloads: number
+  createdAt: string; updatedAt: string
+}
+
+type BlockPackItem = { name: string; code: string; settingsDefinition: SettingDef[]; description: string | null }
+
+type BlockPackEntry = {
+  id: number; authorUserId: number; authorName: string | null; name: string
+  description: string | null; items: BlockPackItem[]; tags: string[]
+  isPublic: boolean; downloads: number; createdAt: string; updatedAt: string
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 const uid = () => {
@@ -74,6 +108,18 @@ const uid = () => {
 }
 
 const safeArr = <T,>(a: T[] | null | undefined): T[] => (Array.isArray(a) ? a : [])
+
+function crc32(data: Uint8Array): number {
+  const t = new Uint32Array(256)
+  for (let i = 0; i < 256; i++) {
+    let c = i
+    for (let j = 0; j < 8; j++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1)
+    t[i] = c
+  }
+  let crc = 0xFFFFFFFF
+  for (let i = 0; i < data.length; i++) crc = (crc >>> 8) ^ t[(crc ^ data[i]) & 0xFF]
+  return (crc ^ 0xFFFFFFFF) >>> 0
+}
 
 const DROP_ROOT = "__root__"
 
@@ -152,6 +198,326 @@ function mkBlock(type: string, defs: BlockDef[]): Block {
   return { id: uid(), type, name: d?.name || type, config: cfg, children: [], position: { x: 100, y: 100 } }
 }
 
+function blockDeclaredNames(block: Block): string[] {
+  const cfg = block.config || {}
+  const names: string[] = []
+  switch (block.type) {
+    case 'create_variable':
+    case 'create_list':
+    case 'create_object':
+    case 'create_function':
+    case 'define_handler':
+    case 'create_smtp_transport':
+    case 'connect_database':
+    case 'connect_redis':
+    case 'connect_mongodb':
+    case 'connect_typeorm':
+      if (cfg.name) names.push(String(cfg.name).trim())
+      break
+    case 'get_from_list':
+    case 'math':
+    case 'text_join':
+    case 'random_number':
+    case 'run_function':
+    case 'invoke_handler':
+    case 'fetch_url':
+    case 'get_env':
+    case 'read_file':
+    case 'write_file':
+    case 'list_files':
+    case 'generate_uuid':
+    case 'hash_text':
+    case 'hash_verify':
+    case 'random_bytes':
+    case 'encrypt_text':
+    case 'decrypt_text':
+    case 'generate_key':
+    case 'sign_hmac':
+    case 'verify_hmac':
+    case 'csrf_token':
+    case 'csrf_verify':
+    case 'redis_get':
+    case 'mongo_find':
+    case 'orm_find':
+    case 'orm_save':
+    case 'orm_update':
+    case 'orm_delete':
+      for (const key of ['saveTo', 'saveKeyTo', 'saveIvTo'] as const) {
+        if (cfg[key]) names.push(String(cfg[key]).trim())
+      }
+      break
+  }
+  if (block.type === 'import_file' && cfg.what) {
+    String(cfg.what).split(',').map(s => s.trim()).filter(Boolean).forEach(n => names.push(n))
+  }
+  return names.filter(Boolean)
+}
+
+function containerImplicitNames(block: Block): string[] {
+  switch (block.type) {
+    case 'start_server': return ['request', 'url', 'method', 'server']
+    case 'start_ws_server': return ['req', 'server', 'ws']
+    case 'ws_on_open': return ['ws']
+    case 'ws_on_message': return ['ws', 'message']
+    case 'ws_on_close': return ['ws', 'code', 'reason']
+    case 'create_function':
+    case 'define_handler': return ['args', 'result']
+    default: return []
+  }
+}
+
+function collectScopeContext(blocks: Block[]): Map<string, string[]> {
+  const map = new Map<string, string[]>()
+  const walk = (list: Block[], inherited: Set<string>) => {
+    const scope = new Set<string>(inherited)
+    for (const b of list) {
+      containerImplicitNames(b).forEach(n => scope.add(n))
+      if (b.type === 'custom_code') {
+        map.set(b.id, [...scope].sort((a, b) => a.localeCompare(b)))
+      }
+      blockDeclaredNames(b).forEach(n => scope.add(n))
+      if (b.children && b.children.length) walk(b.children, scope)
+    }
+  }
+  walk(blocks, new Set<string>())
+  return map
+}
+
+function isInsideFunctionContext(blocks: Block[], blockId: string): boolean {
+  const walk = (list: Block[], inFunc: boolean): boolean => {
+    for (const b of list) {
+      const thisInFunc = containerImplicitNames(b).length > 0 || inFunc
+      if (b.id === blockId) return thisInFunc
+      if (b.children && b.children.length) {
+        const found = walk(b.children, thisInFunc)
+        if (found) return found
+      }
+    }
+    return false
+  }
+  return walk(blocks, false)
+}
+
+const MONACO_SCOPE_LIB_URI = "__eclipanel_ve_scope.d.ts__"
+const MONACO_BUN_LIB_URI = "__eclipanel_ve_bun_globals.d.ts__"
+
+const BUN_AMBIENT_DECLS = `// Bun / Elysia runtime globals available in visual-editor output.
+declare const Bun: {
+  serve(opts: any): any;
+  file(path: string, opts?: any): any;
+  hash(data: any): number;
+  password: {
+    hash(password: string, opts?: any): Promise<string>;
+    verify(password: string, hash: string): Promise<boolean>;
+  };
+  CryptoHasher: new (algorithm?: string) => { update(data: any): any; digest(encoding?: string): string };
+  sleep(ms: number): Promise<void>;
+  gc(): void;
+  env: Record<string, string | undefined>;
+  stdio: any;
+};
+declare const process: { env: Record<string, string | undefined>; argv: string[]; exit(code?: number): void };
+declare const console: { log(...args: any[]): void; error(...args: any[]): void; warn(...args: any[]): void; info(...args: any[]): void };
+declare const Buffer: { from(data: any, encoding?: string): any; alloc(size: number): any; isBuffer(obj: any): boolean };
+declare const crypto: { randomBytes(size: number): any; randomUUID(): string; createHash(algorithm: string): any; createHmac(algorithm: string, key: any): any; createCipheriv(algorithm: string, key: any, iv: any): any; createDecipheriv(algorithm: string, key: any, iv: any): any };
+declare const setTimeout: (fn: (...args: any[]) => void, ms: number, ...args: any[]) => any;
+declare const setInterval: (fn: (...args: any[]) => void, ms: number, ...args: any[]) => any;
+declare const clearTimeout: (id: any) => void;
+declare const clearInterval: (id: any) => void;
+declare const fetch: typeof globalThis.fetch;
+declare class URL { constructor(url: string, base?: string); href: string; pathname: string; searchParams: URLSearchParams; }
+declare class URLSearchParams { constructor(init?: any); get(key: string): string | null; entries(): IterableIterator<[string, string]>; }
+declare class Headers { constructor(init?: any); get(name: string): string | null; set(name: string, value: string): void; append(name: string, value: string): void; }
+declare class Response { constructor(body?: any, init?: any); json(): any; text(): Promise<string>; status: number; }
+declare class Request { url: string; method: string; headers: Headers; json(): Promise<any>; text(): Promise<string>; }
+declare function randomBytes(size: number): any;
+declare function createHash(algorithm: string): any;
+declare function createHmac(algorithm: string, key: any): any;
+declare function createCipheriv(algorithm: string, key: any, iv: any): any;
+declare function createDecipheriv(algorithm: string, key: any, iv: any): any;
+declare namespace NodeJS { interface ErrnoException extends Error { code?: string; } }
+`
+
+function setMonacoScopeDecls(monaco: any, names: string[]) {
+  if (!monaco?.languages?.typescript?.typescriptDefaults) return
+  try { monaco.languages.typescript.typescriptDefaults.removeExtraLib(MONACO_BUN_LIB_URI) } catch { /* noop */ }
+  monaco.languages.typescript.typescriptDefaults.addExtraLib(BUN_AMBIENT_DECLS, MONACO_BUN_LIB_URI)
+  try { monaco.languages.typescript.typescriptDefaults.removeExtraLib(MONACO_SCOPE_LIB_URI) } catch { /* noop */ }
+  const valid = names
+    .map(n => String(n).trim())
+    .filter(n => /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(n))
+  if (valid.length === 0) return
+  const decls = valid.map(n => `declare const ${n}: any;`).join("\n")
+  monaco.languages.typescript.typescriptDefaults.addExtraLib(
+    `// Declared by other blocks, in scope for this Custom Code block.\n${decls}\n`,
+    MONACO_SCOPE_LIB_URI
+  )
+}
+
+const CC_WRAP_OPEN = "async function __eclipanel_ctx() {"
+const CC_WRAP_CLOSE = "}"
+const CC_INDENT = 2
+
+function wrapCustomCode(code: string): string {
+  const inner = String(code ?? '')
+    .split('\n')
+    .map(l => (l.trim() === '' ? '' : ' '.repeat(CC_INDENT) + l))
+    .join('\n')
+  return [CC_WRAP_OPEN, inner, CC_WRAP_CLOSE].join('\n')
+}
+
+function unwrapCustomCode(wrapped: string): string {
+  const lines = String(wrapped ?? '').split('\n')
+  let body = lines.slice(1, -1)
+  if (body.length > 0 && body[body.length - 1] === CC_WRAP_CLOSE) body = body.slice(0, -1)
+  body = body.map(l => {
+    if (l.trim() === '') return ''
+    const chunk = l.slice(0, CC_INDENT)
+    return chunk === ' '.repeat(CC_INDENT) ? l.slice(CC_INDENT) : l
+  })
+  return body.join('\n')
+}
+
+function CustomCodeEditor({
+  block, blocks, onUpdate, onMount,
+}: {
+  block: Block
+  blocks: Block[]
+  onUpdate: (id: string, k: string, v: unknown) => void
+  onMount?: (monaco: any) => void
+}) {
+  const inFunc = isInsideFunctionContext(blocks, block.id)
+  const scope = collectScopeContext(blocks).get(block.id) || []
+
+  const [scopeOpen, setScopeOpen] = useState(false)
+  const [scopeQuery, setScopeQuery] = useState("")
+  const editorRef = useRef<any>(null)
+
+  const q = scopeQuery.trim().toLowerCase()
+  const filteredScope = q ? scope.filter(n => n.toLowerCase().includes(q)) : scope
+
+  const raw = String(block.config?.code ?? '')
+  const value = inFunc ? wrapCustomCode(raw) : raw
+  const handleChange = (v: string | undefined) => {
+    const next = inFunc ? unwrapCustomCode(v ?? '') : String(v ?? '')
+    onUpdate(block.id, 'code', next)
+  }
+
+  const insertIntoEditor = (name: string) => {
+    const ed = editorRef.current
+    if (ed) {
+      const sel = ed.getSelection() || { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 }
+      ed.executeEdits("eclipanel-scope-insert", [{ range: sel, text: name, forceMoveMarkers: true }])
+      ed.focus()
+    } else {
+      navigator.clipboard?.writeText(name)
+    }
+  }
+
+  const formatEditor = () => {
+    const ed = editorRef.current
+    if (ed && typeof ed.getAction === 'function') {
+      ed.getAction('editor.action.formatDocument')?.run()
+      ed.focus()
+    }
+  }
+
+  const editorOpts = {
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    fontSize: 11,
+    lineNumbers: "off" as const,
+    renderLineHighlight: "none" as const,
+    padding: { top: 4, bottom: 4 },
+    automaticLayout: true,
+    wordWrap: "on" as const,
+    scrollbar: { vertical: "visible" as const, horizontal: "visible" as const, verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <Button
+          variant={scopeOpen ? "secondary" : "outline"}
+          size="sm"
+          className="h-6 text-[10px] gap-1 px-2"
+          onClick={() => setScopeOpen(o => !o)}
+          title="List every variable in scope for this block"
+        >
+          <List className="h-3 w-3" />
+          In scope ({scope.length})
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-6 text-[10px] gap-1 px-2"
+          onClick={formatEditor}
+          title="Format this code (Monaco built-in formatter)"
+        >
+          <Braces className="h-3 w-3" />
+          Format
+        </Button>
+        {inFunc && (
+          <span className="ml-auto text-[9px] text-emerald-400/70 font-mono" title="This block is inside a function callback (async fetch / ws handler), so return/await are valid here.">
+            function body
+          </span>
+        )}
+      </div>
+
+      {scopeOpen && (
+        <div className="border border-border/20 bg-background/30 rounded p-1.5 space-y-1">
+          <div className="relative">
+            <Search className="h-3 w-3 absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground/50" />
+            <Input
+              value={scopeQuery}
+              onChange={e => setScopeQuery(e.target.value)}
+              placeholder="Search in scope…"
+              className="h-6 pl-6 text-[10px]"
+            />
+          </div>
+          {filteredScope.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground/50 px-1 py-0.5">
+              {scope.length === 0 ? "No variables are in scope for this block." : `No variables match "${scopeQuery}".`}
+            </p>
+          ) : (
+            <div className="max-h-24 overflow-y-auto flex flex-wrap gap-1 px-0.5">
+              {filteredScope.map(n => (
+                <span
+                  key={n}
+                  onClick={() => insertIntoEditor(n)}
+                  title={`Insert ${n} at cursor`}
+                  className="text-[10px] font-mono text-foreground/80 bg-border/40 hover:bg-border/70 hover:text-foreground border border-border/30 rounded px-1.5 py-0.5 cursor-pointer transition-colors"
+                >
+                  {n}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="h-32 w-full border overflow-hidden border-border/30">
+        <Suspense fallback={<div className="p-3 text-xs text-muted-foreground/50">Loading...</div>}>
+          <MonacoEditor
+            height="100%"
+            language="typescript"
+            theme="vs-dark"
+            value={value}
+            onChange={handleChange}
+            onMount={(editor, monaco) => {
+              editorRef.current = editor
+              setMonacoScopeDecls(monaco, scope)
+              onMount?.(monaco)
+            }}
+            options={editorOpts}
+          />
+        </Suspense>
+      </div>
+    </div>
+  )
+}
+
+
 // ─── Guide Templates ────────────────────────────────────────────────────
 function getBlockExample(type: string, cfg: Record<string, unknown>): string {
   const ex: Record<string, (c: Record<string, unknown>) => string> = {
@@ -177,6 +543,7 @@ function getBlockExample(type: string, cfg: Record<string, unknown>): string {
     start_ws_server: c => `Bun.serve({ port: ${Number(c.port) || 8080}, websocket: { ... } });`,
     csrf_token: c => `const token = Bun.CSRF.generate("${c.secret || 'secret'}");`,
     custom_code: () => `// Your custom TypeScript code goes here`,
+    custom_block: c => `// Linked custom block #${String(c.customBlockId ?? '?')} — inlined at generation time`,
     comment: c => `// ${c.text || 'Your comment'}`,
   }
   const fn = ex[type]
@@ -560,10 +927,11 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   Code: CodeIcon, MessageSquare, Box, GitBranch, Repeat, Puzzle, Globe, Database, Folder, Cpu,
   Play, CornerDownLeft, Shield, AlertCircle, Server, Route, Send, Download, Mail,
   Plus, FileText, Save: SaveIcon, Terminal, Calendar, Key, Package, Share2, Sparkles,
-  StickyNote, Clock, RefreshCw, List, Search, Eye, Calculator, Link, Shuffle, GitMerge, Layers,
+  StickyNote, Clock, RefreshCw, List, Search, Eye, Calculator, LinkIcon, Shuffle, GitMerge, Layers,
   Tag, MoreHorizontal, ListOrdered, StopCircle, SkipForward,
   Lock, KeyRound, Signature, Dice5, Radio, LogIn, LogOut, Users, ShieldCheck, ClipboardCopy, Library,
   Compass, ArrowRight, CheckCircle, PlusCircle: AddIcon, MinusCircle, Fingerprint, Braces, Trash2,
+  Boxes, Pencil,
 }
 function BlockIcon({ icon, className, ...props }: { icon: string; className?: string; style?: React.CSSProperties }) {
   const Icon = iconMap[icon]
@@ -595,6 +963,7 @@ export default function VisualEditorPage() {
   const { toast } = useToast()
 
   const [defs, setDefs] = useState<BlockDef[]>([])
+  const [customBlocks, setCustomBlocks] = useState<CustomBlock[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [initError, setInitError] = useState<string | null>(null)
@@ -604,6 +973,8 @@ export default function VisualEditorPage() {
   const [activeCat, setActiveCat] = useState<string>("basics")
   const [searchQuery, setSearchQuery] = useState("")
   const [code, setCode] = useState<string | null>(null)
+  const [genFiles, setGenFiles] = useState<{ name: string; code: string }[]>([])
+  const [activeGenFileId, setActiveGenFileId] = useState<number>(0)
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -625,7 +996,9 @@ export default function VisualEditorPage() {
   const [mobileView, setMobileView] = useState<string | null>(null)
   const [quickAddParent, setQuickAddParent] = useState<string | null>(null)
   const [quickAddFilter, setQuickAddFilter] = useState("")
+  const [convertingId, setConvertingId] = useState<string | null>(null)
   const quickAddRef = useRef<HTMLDivElement>(null)
+  const generatedEditorRef = useRef<any>(null)
   const popupBlockRef = useRef<string | null>(null)
   const blocksRef = useRef<Block[]>([])
   const undoStackRef = useRef<ProjectFile[][]>([])
@@ -651,6 +1024,9 @@ export default function VisualEditorPage() {
         const initial = starter ? [mkBlock('print', b)] : []
         updateFiles(initial)
         await loadLibrary()
+        await loadCustomBlocks()
+        loadSharedBlocks()
+        loadBlockPacks()
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Failed to load"
         setInitError(msg)
@@ -842,9 +1218,35 @@ export default function VisualEditorPage() {
   }
 
   const sel = selectedId ? treeFind(activeBlocks, selectedId)?.block ?? null : null
-  const selDef = sel ? defs.find(d => d.type === sel.type) : null
+  const selCustomBlock = sel && sel.type === 'custom_block'
+    ? customBlocks.find(c => c.id === Number(sel.config?.customBlockId)) || null
+    : null
+  const selDef = sel
+    ? sel.type === 'custom_block'
+      ? {
+          type: 'custom_block', category: 'custom', name: selCustomBlock?.name || 'Custom Block',
+          description: selCustomBlock ? 'Linked block — editing it updates every place it is used' : 'Linked block (source deleted)',
+          color: '#8b5cf6', icon: 'Boxes', canHaveChildren: false, fields: [],
+        }
+      : defs.find(d => d.type === sel.type) || null
+    : null
 
   const addBlock = (type: string, parentId?: string | null) => {
+    if (type.startsWith("custom-block:")) {
+      const cb = customBlocks.find(c => `custom-block:${c.id}` === type)
+      if (!cb) return
+      const nb: Block = {
+        id: uid(), type: "custom_block", name: String(cb.name || "Custom Block"),
+        config: { customBlockId: cb.id },
+        children: [], position: { x: 100, y: 100 },
+      }
+      const next = parentId
+        ? treeUpdate(activeBlocks, parentId, p => ({ ...p, children: [...safeArr(p.children), nb] }))
+        : [...activeBlocks, nb]
+      updateFiles(next)
+      setSelectedId(nb.id)
+      return
+    }
     const d = defs.find(x => x.type === type); if (!d) return
     const nb = mkBlock(type, defs)
     const next = parentId
@@ -862,6 +1264,44 @@ export default function VisualEditorPage() {
 
   const updConfig = (id: string, key: string, val: unknown) =>
     updateFiles(treeUpdate(activeBlocks, id, b => ({ ...b, config: { ...b.config, [key]: val } })))
+  
+  const customCodeMonacoRef = useRef<{ blockId: string; monaco: any } | null>(null)
+
+  useEffect(() => {
+    const cur = customCodeMonacoRef.current
+    if (!cur) return
+    setMonacoScopeDecls(cur.monaco, collectScopeContext(activeBlocks).get(cur.blockId) || [])
+  }, [activeBlocks, activeFileId])
+
+  const handleCustomCodeMount = useCallback((monaco: any, blockId: string) => {
+    customCodeMonacoRef.current = { blockId, monaco }
+    setMonacoScopeDecls(monaco, collectScopeContext(activeBlocks).get(blockId) || [])
+  }, [activeBlocks])
+
+  const convertToCustomCode = async (id: string) => {
+    const item = treeFind(activeBlocks, id)?.block
+    if (!item || item.type === 'custom_code') return
+    setConvertingId(id)
+    try {
+      const body = { block: item }
+      const res = (await apiFetch('/api/infrastructure/visual-editor/block-code', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })) as { code?: string } | null
+      const generated = res?.code
+      if (typeof generated !== 'string') throw new Error('No code returned')
+      updateFiles(treeUpdate(activeBlocks, id, b => ({
+        ...b,
+        type: 'custom_code',
+        config: { ...b.config, code: generated },
+      })))
+      toast({ title: 'Converted to Custom Code', description: 'You can now edit the generated code freely.' })
+    } catch (e: any) {
+      toast({ title: 'Conversion failed', description: String(e?.message || e), variant: 'destructive' })
+    } finally {
+      setConvertingId(null)
+    }
+  }
 
   const handleCanvasDragStart = (e: React.DragEvent, blockId: string) => {
     e.dataTransfer.setData("text/plain", blockId)
@@ -895,6 +1335,25 @@ export default function VisualEditorPage() {
       }
     }
     updateFiles(treeMove(current, blockId, parentId, index))
+  }
+
+
+  const insertCustomBlockRef = (id: string, parentId: string | null, index: number) => {
+    const cb = customBlocks.find(c => String(c.id) === id)
+    if (!cb) return
+    const current = blocksRef.current
+    const nb: Block = {
+      id: uid(), type: "custom_block", name: String(cb.name || "Custom Block"),
+      config: { customBlockId: cb.id },
+      children: [], position: { x: 100, y: 100 },
+    }
+    const next = !parentId || parentId === DROP_ROOT
+      ? (() => { const r = [...current]; r.splice(Math.max(0, Math.min(index, r.length)), 0, nb); return r })()
+      : treeUpdate(current, parentId, p => {
+        const c = [...safeArr(p.children)]; c.splice(Math.max(0, Math.min(index, c.length)), 0, nb); return { ...p, children: c }
+      })
+    updateFiles(next)
+    setSelectedId(nb.id)
   }
 
   const handleMoveBlock = (id: string, direction: -1 | 1) => {
@@ -946,6 +1405,11 @@ export default function VisualEditorPage() {
       return
     }
 
+    if (data.startsWith("custom-block:")) {
+      insertCustomBlockRef(data.slice("custom-block:".length), parentId, index)
+      return
+    }
+
     // Dragging an existing block from canvas (data is a block ID)
     setDragBlockId(null)
     moveTo(data, parentId, index)
@@ -983,6 +1447,23 @@ export default function VisualEditorPage() {
   const [savedBlocks, setSavedBlocks] = useState<LibraryItem[]>([])
   const [showLib, setShowLib] = useState(false)
   const [libName, setLibName] = useState("")
+  const [sharedBlocks, setSharedBlocks] = useState<SharedBlockEntry[]>([])
+  const [blockPacks, setBlockPacks] = useState<BlockPackEntry[]>([])
+  const [publicPacks, setPublicPacks] = useState<BlockPackEntry[]>([])
+  const [shareModal, setShareModal] = useState<null | { cb: CustomBlock }>(null)
+  const [packModal, setPackModal] = useState<null | { mode: "create" } | { mode: "edit"; pack: BlockPackEntry }>(null)
+  const [packName, setPackName] = useState("")
+  const [packDesc, setPackDesc] = useState("")
+  const [packItems, setPackItems] = useState<BlockPackItem[]>([])
+  const [packTags, setPackTags] = useState("")
+  const [packIsPublic, setPackIsPublic] = useState(false)
+  const [packSaving, setPackSaving] = useState(false)
+  const [packSearch, setPackSearch] = useState("")
+  const [cbModal, setCbModal] = useState<null | { mode: "create" } | { mode: "edit"; cb: CustomBlock }>(null)
+  const [cbName, setCbName] = useState("")
+  const [cbCode, setCbCode] = useState("")
+  const [cbSettingsDef, setCbSettingsDef] = useState<SettingDef[]>([])
+  const [cbSaving, setCbSaving] = useState(false)
 
   const loadLibrary = async () => {
     try {
@@ -990,6 +1471,156 @@ export default function VisualEditorPage() {
     } catch {
       toast({ title: "Failed to load library", variant: "destructive" })
     }
+  }
+
+  const loadCustomBlocks = async () => {
+    try {
+      setCustomBlocks(safeArr(await apiFetch("/api/infrastructure/visual-editor/custom-blocks")) as CustomBlock[])
+    } catch {
+      // bneh
+    }
+  }
+
+  const loadSharedBlocks = async () => {
+    try { setSharedBlocks(safeArr(await apiFetch("/api/infrastructure/visual-editor/shared-blocks")) as SharedBlockEntry[]) } catch {}
+    try { setPublicPacks(safeArr(await apiFetch("/api/infrastructure/visual-editor/block-packs")) as BlockPackEntry[]) } catch {}
+  }
+
+  const loadBlockPacks = async () => {
+    try { setBlockPacks(safeArr(await apiFetch("/api/infrastructure/visual-editor/user/block-packs")) as BlockPackEntry[]) } catch {}
+  }
+
+  const loadPublicPacks = async () => {
+    try { setPublicPacks(safeArr(await apiFetch("/api/infrastructure/visual-editor/block-packs")) as BlockPackEntry[]) } catch {}
+  }
+
+  const deletePack = async (id: number, name: string) => {
+    if (!confirm(`Delete pack "${name}"? This won't affect the custom blocks inside it.`)) return
+    try {
+      await apiFetch(`/api/infrastructure/visual-editor/block-packs/${id}`, { method: "DELETE" })
+      setBlockPacks(prev => prev.filter(p => p.id !== id))
+      toast({ title: "Pack deleted" })
+    } catch { toast({ title: "Failed to delete pack", variant: "destructive" } as any) }
+  }
+
+  const shareToLibrary = async (cb: CustomBlock) => {
+    try {
+      await apiFetch("/api/infrastructure/visual-editor/shared-blocks", {
+        method: "POST",
+        body: JSON.stringify({ customBlockId: cb.id }),
+      })
+      toast({ title: "Shared!", description: `"${cb.name}" is now in the public library` })
+      setShareModal(null)
+      loadSharedBlocks()
+    } catch (e: unknown) {
+      toast({ title: "Failed to share", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" })
+    }
+  }
+
+  const downloadSharedBlockToMe = async (entry: SharedBlockEntry) => {
+    try {
+      await apiFetch(`/api/infrastructure/visual-editor/shared-blocks/${entry.id}/download`, { method: "POST" })
+      await loadCustomBlocks()
+      toast({ title: "Imported", description: `"${entry.name}" added to your custom blocks` })
+    } catch (e: unknown) {
+      toast({ title: "Failed to import", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" })
+    }
+  }
+
+  const downloadPackToMe = async (pack: BlockPackEntry) => {
+    try {
+      const res = await apiFetch(`/api/infrastructure/visual-editor/block-packs/${pack.id}/download`, { method: "POST" }) as { imported?: number }
+      await loadCustomBlocks()
+      toast({ title: "Pack imported", description: `${res?.imported ?? pack.items.length} blocks added to your custom blocks` })
+    } catch (e: unknown) {
+      toast({ title: "Failed to import pack", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" })
+    }
+  }
+
+  const saveBlockPack = async () => {
+    const name = packName.trim() || "Untitled Pack"
+    const isEdit = packModal?.mode === "edit"
+    const id = isEdit ? packModal.pack.id : undefined
+    const tags = packTags.split(',').map(t => t.trim()).filter(Boolean)
+    const url = id ? `/api/infrastructure/visual-editor/block-packs/${id}` : "/api/infrastructure/visual-editor/block-packs"
+    setPackSaving(true)
+    try {
+      await apiFetch(url, {
+        method: id ? "PATCH" : "POST",
+        body: JSON.stringify({ name, description: packDesc, tags, items: packItems, isPublic: packIsPublic }),
+      })
+      setPackModal(null)
+      toast({ title: id ? "Pack updated" : "Pack created", description: `"${name}" saved` })
+      loadBlockPacks()
+    } catch (e: unknown) {
+      toast({ title: "Save failed", description: e instanceof Error ? e.message : "Unknown error", variant: "destructive" })
+    } finally { setPackSaving(false) }
+  }
+
+  const openCreatePack = () => {
+    setPackName(""); setPackDesc(""); setPackTags(""); setPackItems([]); setPackSearch(""); setPackIsPublic(false)
+    setPackModal({ mode: "create" })
+  }
+
+  const openEditPack = (pack: BlockPackEntry) => {
+    setPackName(pack.name); setPackDesc(pack.description || ""); setPackTags(pack.tags.join(", "))
+    setPackItems([...pack.items]); setPackSearch(""); setPackIsPublic(pack.isPublic)
+    setPackModal({ mode: "edit", pack })
+  }
+
+  const toggleBlockInPack = (cb: CustomBlock) => {
+    const exists = packItems.find(i => i.name === cb.name && i.code === cb.code)
+    if (exists) {
+      setPackItems(packItems.filter(i => !(i.name === cb.name && i.code === cb.code)))
+    } else {
+      setPackItems([...packItems, {
+        name: cb.name, code: cb.code,
+        settingsDefinition: cb.settingsDefinition, description: cb.description,
+      }])
+    }
+  }
+
+  const saveCustomBlock = () => {
+    const name = cbName.trim() || "My Block"
+    const isEdit = cbModal?.mode === "edit"
+    const id = isEdit ? cbModal.cb.id : undefined
+    const url = id
+      ? `/api/infrastructure/visual-editor/custom-blocks/${id}`
+      : "/api/infrastructure/visual-editor/custom-blocks"
+    setCbSaving(true)
+    apiFetch(url, {
+      method: id ? "PATCH" : "POST",
+      body: JSON.stringify({ name, code: cbCode, settingsDefinition: cbSettingsDef }),
+    })
+      .then(async () => {
+        setCbModal(null)
+        setCbName("")
+        setCbCode("")
+        await loadCustomBlocks()
+        toast({ title: id ? "Updated" : "Custom block created", description: `"${name}" saved to My Blocks` })
+      })
+      .catch(() => toast({ title: "Save failed", variant: "destructive" }))
+      .finally(() => setCbSaving(false))
+  }
+
+  const openCreateCustomBlock = () => {
+    setCbName("")
+    setCbCode("")
+    setCbSettingsDef([])
+    setCbModal({ mode: "create" })
+  }
+
+  const openEditCustomBlock = (cb: CustomBlock) => {
+    setCbName(cb.name)
+    setCbCode(cb.code)
+    setCbSettingsDef(Array.isArray(cb.settingsDefinition) ? [...cb.settingsDefinition] : [])
+    setCbModal({ mode: "edit", cb })
+  }
+
+  const removeCustomBlock = (id: number) => {
+    apiFetch(`/api/infrastructure/visual-editor/custom-blocks/${id}`, { method: "DELETE" })
+      .then(() => setCustomBlocks(prev => prev.filter(c => c.id !== id)))
+      .catch(() => toast({ title: "Delete failed", variant: "destructive" }))
   }
 
   const handleGenerate = () => {
@@ -1011,11 +1642,15 @@ export default function VisualEditorPage() {
           body: JSON.stringify({ files: snap }),
         })) as GenerateMultiResponse
         const generatedFiles = safeArr(res?.files)
-        let output = ""
-        for (const gf of generatedFiles) {
-          output += `// === ${gf.name} ===\n${gf.code}\n\n`
+        setGenFiles(generatedFiles)
+        setActiveGenFileId(0)
+        if (generatedFiles.length === 1) {
+          setCode(generatedFiles[0].code)
+        } else if (generatedFiles.length > 1) {
+          setCode(generatedFiles[0].code)
+        } else {
+          setCode("// No code generated")
         }
-        setCode(output.trim() || "// No code generated")
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Generation failed"
         toast({ title: "Generation failed", description: msg, variant: "destructive" })
@@ -1036,6 +1671,93 @@ export default function VisualEditorPage() {
     if (!code) return
     await navigator.clipboard.writeText(code); setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const downloadGeneratedCode = () => {
+    if (genFiles.length === 0 && !code) return
+    const files = genFiles.length > 0 ? genFiles : [{ name: 'main.ts', code: code || '' }]
+    if (files.length === 1) {
+      const blob = new Blob([files[0].code], { type: 'text/plain' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href = url; a.download = files[0].name; a.click()
+      URL.revokeObjectURL(url)
+      return
+    }
+    const encoder = new TextEncoder()
+    const parts: ArrayBuffer[] = []
+    const central: { name: Uint8Array; offset: number; size: number }[] = []
+    let offset = 0
+    const toDos: [Uint8Array, Uint8Array][] = []
+    for (const f of files) {
+      const nameBytes = encoder.encode(f.name)
+      const dataBytes = encoder.encode(f.code)
+      const lh = new ArrayBuffer(30 + nameBytes.length)
+      const lv = new DataView(lh)
+      lv.setUint32(0, 0x04034b50, true)
+      lv.setUint16(4, 20, true)
+      lv.setUint16(6, 0, true)
+      lv.setUint16(8, 0, true)
+      lv.setUint16(10, 0, true)
+      lv.setUint16(12, 0, true)
+      lv.setUint32(14, crc32(dataBytes), true)
+      lv.setUint32(18, dataBytes.length, true)
+      lv.setUint32(22, dataBytes.length, true)
+      lv.setUint16(26, nameBytes.length, true)
+      lv.setUint16(28, 0, true)
+      new Uint8Array(lh).set(nameBytes, 30)
+      parts.push(lh, dataBytes.buffer)
+      central.push({ name: nameBytes, offset, size: dataBytes.length })
+      toDos.push([nameBytes, dataBytes])
+      offset += lh.byteLength + dataBytes.length
+    }
+    const cdStart = offset
+    for (const c of central) {
+      const cd = new ArrayBuffer(46 + c.name.length)
+      const cv = new DataView(cd)
+      cv.setUint32(0, 0x02014b50, true)
+      cv.setUint16(4, 20, true)
+      cv.setUint16(6, 20, true)
+      cv.setUint16(8, 0, true)
+      cv.setUint16(10, 0, true)
+      cv.setUint16(12, 0, true)
+      cv.setUint16(14, 0, true)
+      cv.setUint32(16, crc32(toDos[central.indexOf(c)][1]), true)
+      cv.setUint32(20, c.size, true)
+      cv.setUint32(24, c.size, true)
+      cv.setUint16(28, c.name.length, true)
+      cv.setUint16(30, 0, true)
+      cv.setUint16(32, 0, true)
+      cv.setUint16(34, 0, true)
+      cv.setUint16(36, 0, true)
+      cv.setUint32(38, 0x20, true)
+      cv.setUint32(42, c.offset, true)
+      new Uint8Array(cd).set(c.name, 46)
+      parts.push(cd)
+    }
+    const cdSize = offset - cdStart
+    const eocd = new ArrayBuffer(22)
+    const ev = new DataView(eocd)
+    ev.setUint32(0, 0x06054b50, true)
+    ev.setUint16(4, 0, true)
+    ev.setUint16(6, 0, true)
+    ev.setUint16(8, files.length, true)
+    ev.setUint16(10, files.length, true)
+    ev.setUint32(12, cdSize, true)
+    ev.setUint32(16, cdStart, true)
+    ev.setUint16(20, 0, true)
+    parts.push(eocd)
+    const zip = new Blob(parts, { type: 'application/zip' })
+    const url = URL.createObjectURL(zip)
+    const a = document.createElement('a'); a.href = url; a.download = 'generated-code.zip'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const formatGenerated = () => {
+    const ed = generatedEditorRef.current
+    if (ed && typeof ed.getAction === 'function') {
+      ed.getAction('editor.action.formatDocument')?.run()
+      ed.focus()
+    }
   }
 
   const deepCloneBlocks = (blocks: Block[]): Block[] => blocks.map(b => ({ ...b, config: { ...b.config }, children: deepCloneBlocks(b.children || []) }))
@@ -1271,7 +1993,11 @@ export default function VisualEditorPage() {
           {orderNum !== undefined && (
             <span className="text-[9px] text-muted-foreground/30 font-mono w-4 text-right shrink-0">{orderNum}</span>
           )}
-          <span className="font-medium truncate flex-1">{String(b.config.blockName || (b.type === 'group' && b.config.name ? b.config.name : b.name) || '')}</span>
+          <span className="font-medium truncate flex-1">{String(
+            b.type === 'custom_block'
+              ? (customBlocks.find(c => c.id === Number(b.config?.customBlockId))?.name || b.name || 'Custom Block')
+              : (b.config.blockName || (b.type === 'group' && b.config.name ? b.config.name : b.name) || '')
+          )}</span>
           {blockIssues.length > 0 && (
             <span title={blockIssues.map(i => i.message).join(' | ')}
               className={`text-[9px] px-1 rounded shrink-0 cursor-help ${hasBlockError ? "bg-red-500/20 text-red-300" : "bg-amber-500/20 text-amber-300"}`}>
@@ -1379,7 +2105,24 @@ export default function VisualEditorPage() {
     </div>
   )
 
-  const filtered = safeArr(defs).filter(d => {
+  const MY_BLOCKS_CATEGORY_ID = "my_blocks"
+  const SHARED_CATEGORY_ID = "shared_blocks"
+  const PACKS_CATEGORY_ID = "block_packs"
+
+  const customBlockDefs: BlockDef[] = customBlocks.map(cb => ({
+    type: `custom-block:${cb.id}`,
+    category: MY_BLOCKS_CATEGORY_ID,
+    name: cb.name || "Untitled Block",
+    description: String(cb.code || "").split("\n").find(l => l.trim().startsWith("//"))?.trim().replace(/^\/\/\s*/, "") || "User-defined custom block",
+    color: "#8b5cf6",
+    icon: "Boxes",
+    canHaveChildren: false,
+    fields: [],
+  }))
+
+  const paletteDefs = activeCat === MY_BLOCKS_CATEGORY_ID ? customBlockDefs : activeCat === SHARED_CATEGORY_ID || activeCat === PACKS_CATEGORY_ID ? [] : safeArr(defs)
+
+  const filtered = paletteDefs.filter(d => {
     const q = searchQuery.toLowerCase().trim()
     if (q) return d.name.toLowerCase().includes(q) || d.description.toLowerCase().includes(q) || d.type.toLowerCase().includes(q)
     return d.category === activeCat
@@ -1659,6 +2402,21 @@ export default function VisualEditorPage() {
                     {cat.name}
                   </button>
                 ))}
+                <button onClick={() => setActiveCat(MY_BLOCKS_CATEGORY_ID)}
+                  className={`px-2 py-0.5 text-[10px] rounded-full whitespace-nowrap font-medium transition-colors flex items-center gap-1
+                    ${activeCat === MY_BLOCKS_CATEGORY_ID ? "bg-primary/20 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/30"}`}>
+                  <Boxes className="h-3 w-3" /> My Blocks
+                </button>
+                <button onClick={() => { setActiveCat(SHARED_CATEGORY_ID); loadSharedBlocks() }}
+                  className={`px-2 py-0.5 text-[10px] rounded-full whitespace-nowrap font-medium transition-colors flex items-center gap-1
+                    ${activeCat === SHARED_CATEGORY_ID ? "bg-primary/20 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/30"}`}>
+                  <Globe className="h-3 w-3" /> Shared
+                </button>
+                <button onClick={() => { setActiveCat(PACKS_CATEGORY_ID); loadBlockPacks() }}
+                  className={`px-2 py-0.5 text-[10px] rounded-full whitespace-nowrap font-medium transition-colors flex items-center gap-1
+                    ${activeCat === PACKS_CATEGORY_ID ? "bg-primary/20 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/30"}`}>
+                  <Package className="h-3 w-3" /> Packs
+                </button>
               </div>
               <div className="px-1.5 py-1 border-b border-border/10">
                 <div className="relative">
@@ -1668,8 +2426,143 @@ export default function VisualEditorPage() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0">
-                {filtered.map(d => (
-                  <div key={d.type} onClick={() => { addBlock(d.type); setMobileView(null) }}
+                {activeCat === MY_BLOCKS_CATEGORY_ID && (
+                  <button onClick={openCreateCustomBlock}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 mb-1 rounded border border-dashed border-purple-400/40 text-[10px] font-medium text-purple-400/80 hover:bg-purple-500/10 hover:border-purple-400/60 transition-colors"
+                    data-telemetry="palette-new-custom-block">
+                    <Plus className="h-3 w-3" /> New Custom Block
+                  </button>
+                )}
+                {activeCat === MY_BLOCKS_CATEGORY_ID && filtered.length === 0 && (
+                  <p className="text-[10px] text-muted-foreground/40 text-center pt-2 px-2">
+                    No custom blocks yet. Create one to drop it on any canvas.
+                  </p>
+                )}
+                {/* Shared Blocks panel */}
+                {activeCat === SHARED_CATEGORY_ID && (
+                  <div className="space-y-1">
+                    {sharedBlocks.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground/40 text-center pt-2 px-2">
+                        No shared blocks yet. Share your custom blocks from the editor!
+                      </p>
+                    )}
+                    {sharedBlocks.filter(b => !searchQuery || b.name.toLowerCase().includes(searchQuery.toLowerCase())).map(entry => (
+                      <div key={entry.id} className="p-2 border border-border/20 bg-card/20 hover:bg-accent/30 transition-all">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[10px] font-medium truncate">{entry.name}</div>
+                            <div className="text-[9px] text-muted-foreground/50 truncate">{entry.description || entry.code.slice(0, 50)}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[8px] text-muted-foreground/40">{entry.authorName || 'Anonymous'}</span>
+                              <span className="text-[8px] text-muted-foreground/30">|</span>
+                              <span className="text-[8px] text-muted-foreground/40">{entry.downloads} downloads</span>
+                            </div>
+                            {entry.tags.length > 0 && (
+                              <div className="flex flex-wrap gap-0.5 mt-0.5">
+                                {entry.tags.slice(0, 3).map(t => (
+                                  <span key={t} className="text-[7px] px-1 py-0 rounded bg-primary/10 text-primary/60">{t}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 shrink-0"
+                            onClick={(e) => { e.stopPropagation(); downloadSharedBlockToMe(entry) }}>
+                            <Download className="h-2.5 w-2.5" /> Import
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {publicPacks.length > 0 && (
+                      <div className="pt-2 border-t border-border/20 mt-1">
+                        <div className="text-[9px] font-semibold uppercase tracking-wider text-amber-400/60 px-1 pb-1">Public Packs</div>
+                        {publicPacks.filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(pack => (
+                          <div key={pack.id} className="p-2 border border-border/20 bg-card/20 hover:bg-accent/30 transition-all">
+                            <div className="flex items-start justify-between gap-1.5">
+                              <div className="min-w-0 flex-1">
+                                <div className="text-[10px] font-medium truncate flex items-center gap-1">
+                                  <Package className="h-2.5 w-2.5 text-amber-400" /> {pack.name}
+                                </div>
+                                <div className="text-[9px] text-muted-foreground/50 truncate">{pack.description || `${pack.items.length} blocks`}</div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[8px] text-muted-foreground/40">{pack.authorName || 'Anonymous'}</span>
+                                  <span className="text-[8px] text-muted-foreground/30">|</span>
+                                  <span className="text-[8px] text-muted-foreground/40">{pack.items.length} blocks</span>
+                                  <span className="text-[8px] text-muted-foreground/30">|</span>
+                                  <span className="text-[8px] text-muted-foreground/40">{pack.downloads} downloads</span>
+                                </div>
+                              </div>
+                              <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 shrink-0"
+                                onClick={(e) => { e.stopPropagation(); downloadPackToMe(pack) }}>
+                                <Download className="h-2.5 w-2.5" /> Import
+                              </Button>
+                             </div>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </div>
+                 )}
+                 {activeCat === PACKS_CATEGORY_ID && (
+                  <div className="space-y-1">
+                    <button onClick={openCreatePack}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 mb-1 rounded border border-dashed border-amber-400/40 text-[10px] font-medium text-amber-400/80 hover:bg-amber-500/10 hover:border-amber-400/60 transition-colors">
+                      <Plus className="h-3 w-3" /> New Pack
+                    </button>
+                    {blockPacks.length === 0 && (
+                      <p className="text-[10px] text-muted-foreground/40 text-center pt-2 px-2">
+                        No packs yet. Bundle custom blocks into packs for easy sharing!
+                      </p>
+                    )}
+                    {blockPacks.filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(pack => (
+                      <div key={pack.id} className="p-2 border border-border/20 bg-card/20 hover:bg-accent/30 transition-all">
+                        <div className="flex items-start justify-between gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[10px] font-medium truncate flex items-center gap-1">
+                              <Package className="h-2.5 w-2.5 text-amber-400" /> {pack.name}
+                              {pack.isPublic
+                                ? <span title="Public"><Globe className="h-2 w-2 text-green-400/60" /></span>
+                                : <span title="Private"><Lock className="h-2 w-2 text-muted-foreground/30" /></span>}
+                            </div>
+                            <div className="text-[9px] text-muted-foreground/50 truncate">{pack.description || `${pack.items.length} blocks`}</div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[8px] text-muted-foreground/40">{pack.items.length} blocks</span>
+                              {pack.isPublic && <><span className="text-[8px] text-muted-foreground/30">|</span><span className="text-[8px] text-muted-foreground/40">{pack.downloads} downloads</span></>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            {pack.authorUserId === user?.id && (
+                              <>
+                                <Button size="sm" variant="ghost" className="h-5 w-5 p-0" title={pack.isPublic ? "Make private" : "Make public"}
+                                  onClick={async (e) => { e.stopPropagation(); try { await apiFetch(`/api/infrastructure/visual-editor/block-packs/${pack.id}`, { method: "PATCH", body: JSON.stringify({ isPublic: !pack.isPublic }) }); loadBlockPacks(); toast({ title: pack.isPublic ? "Pack is now private" : "Pack is now public" }) } catch {} }}>
+                                  {pack.isPublic ? <Globe className="h-2.5 w-2.5 text-green-400/60" /> : <Lock className="h-2.5 w-2.5 text-muted-foreground/40" />}
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); openEditPack(pack) }}>
+                                  <Pencil className="h-2.5 w-2.5 text-muted-foreground/60" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-5 w-5 p-0" title="Delete pack"
+                                  onClick={(e) => { e.stopPropagation(); deletePack(pack.id, pack.name) }}>
+                                  <Trash2 className="h-2.5 w-2.5 text-muted-foreground/60 hover:text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                            {pack.isPublic && pack.authorUserId !== user?.id && (
+                              <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5"
+                                onClick={(e) => { e.stopPropagation(); downloadPackToMe(pack) }}>
+                                <Download className="h-2.5 w-2.5" /> Import
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {activeCat !== SHARED_CATEGORY_ID && activeCat !== PACKS_CATEGORY_ID && filtered.map(d => {
+                  const isCustom = d.category === MY_BLOCKS_CATEGORY_ID
+                  const cbId = isCustom ? Number(d.type.split(":")[1]) : null
+                  const cb = cbId ? customBlocks.find(c => c.id === cbId) : null
+                  return (
+                    <div key={d.type} onClick={() => { addBlock(d.type); setMobileView(null) }}
                     className="flex items-center gap-2 p-2 border border-border/20 bg-card/20 hover:bg-accent/30 hover:border-border/40 transition-all text-xs cursor-pointer active:scale-[0.98]">
                     <span className="w-6 h-6 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: d.color + "25" }}>
                       <BlockIcon icon={d.icon} className="h-3.5 w-3.5" style={{ color: d.color }} />
@@ -1678,9 +2571,16 @@ export default function VisualEditorPage() {
                       <div className="font-medium truncate">{d.name}</div>
                       <div className="text-[9px] text-muted-foreground/50 truncate">{d.description}</div>
                     </div>
+                    {isCustom && cb && (
+                      <button onClick={(e) => { e.stopPropagation(); openEditCustomBlock(cb) }}
+                        className="p-1 rounded hover:bg-accent text-muted-foreground/60 hover:text-foreground shrink-0" title="Edit block">
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                    )}
                     {d.canHaveChildren && <span className="text-[8px] text-muted-foreground/30 border border-border/10 rounded px-0.5">[]</span>}
                   </div>
-                ))}
+                )
+                })}
               </div>
             </div>
           </div>
@@ -1741,28 +2641,12 @@ export default function VisualEditorPage() {
                             )}
                           </Label>
                           {useMonaco ? (
-                            <div className="h-32 w-full border overflow-hidden border-border/30">
-                              <Suspense fallback={<div className="p-3 text-xs text-muted-foreground/50">Loading...</div>}>
-                                <MonacoEditor
-                                  height="100%"
-                                  language="typescript"
-                                  theme="vs-dark"
-                                  value={String(sel!.config.code ?? '')}
-                                  onChange={(v) => updConfig(sel!.id, 'code', v ?? '')}
-                                  options={{
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    fontSize: 11,
-                                    lineNumbers: "off",
-                                    renderLineHighlight: "none",
-                                    padding: { top: 4, bottom: 4 },
-                                    automaticLayout: true,
-                                    wordWrap: "on",
-                                    scrollbar: { vertical: "visible", horizontal: "visible", verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
-                                  }}
-                                />
-                              </Suspense>
-                            </div>
+                            <CustomCodeEditor
+                              block={sel!}
+                              blocks={activeBlocks}
+                              onUpdate={updConfig}
+                              onMount={(monaco) => handleCustomCodeMount(monaco, sel!.id)}
+                            />
                           ) : (
                             <FieldInput field={f} block={sel!} onUpdate={updConfig} fieldIssues={fieldIssues} />
                           )}
@@ -1770,12 +2654,87 @@ export default function VisualEditorPage() {
                         </div>
                       )
                     })}
+                    {sel!.type === 'custom_block' && (
+                      <div className="space-y-2">
+                        <Label className="text-[10px] font-medium flex items-center gap-1">
+                          <LinkIcon className="h-3 w-3 text-purple-400" /> Linked block
+                          <span className="text-[9px] text-muted-foreground/50 font-normal">
+                            {selCustomBlock ? "editing the block updates every use" : "source deleted"}
+                          </span>
+                        </Label>
+                        {selCustomBlock && (selCustomBlock.settingsDefinition?.length ?? 0) > 0 && (
+                          <div className="space-y-1.5 p-2 bg-background/30 rounded border border-border/20">
+                            <p className="text-[9px] text-muted-foreground/50 font-medium">Settings <span className="font-normal">(local overrides)</span></p>
+                            {selCustomBlock.settingsDefinition!.map(s => {
+                              const overrides = (sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>
+                              const val = overrides[s.key] !== undefined ? overrides[s.key] : s.default
+                              return (
+                                <div key={s.key} className="space-y-0.5">
+                                  <Label className="text-[9px] text-muted-foreground/70">{s.label || s.key}</Label>
+                                  {s.type === 'boolean' ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <Switch checked={Boolean(val)} onCheckedChange={v => {
+                                        const overrides = { ...((sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>), [s.key]: v }
+                                        updConfig(sel!.id, 'settingsOverrides', overrides)
+                                      }} />
+                                      <span className="text-[9px] text-muted-foreground/50">{String(val)}</span>
+                                    </div>
+                                  ) : s.type === 'select' ? (
+                                    <Select value={String(val)} onValueChange={v => {
+                                      const overrides = { ...((sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>), [s.key]: v }
+                                      updConfig(sel!.id, 'settingsOverrides', overrides)
+                                    }}>
+                                      <SelectTrigger className="h-6 text-[10px]"><SelectValue /></SelectTrigger>
+                                      <SelectContent>{safeArr(s.options).map(o => <SelectItem key={o.value} value={o.value} className="text-[10px]">{o.label}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input type={s.type === 'number' ? 'number' : 'text'} value={String(val ?? '')} onChange={e => {
+                                      const v = s.type === 'number' ? Number(e.target.value) : e.target.value
+                                      const overrides = { ...((sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>), [s.key]: v }
+                                      updConfig(sel!.id, 'settingsOverrides', overrides)
+                                    }} className="h-6 text-[10px]" />
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                        <pre className="text-[9px] font-mono text-emerald-400/60 bg-background/30 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                          {selCustomBlock?.code || "// This reference's source custom block no longer exists."}
+                        </pre>
+                        {selCustomBlock && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full h-7 text-[10px] gap-1.5"
+                            onClick={() => openEditCustomBlock(selCustomBlock)}
+                          >
+                            <Pencil className="h-3 w-3" />
+                            Edit linked block
+                          </Button>
+                        )}
+                      </div>
+                    )}
                     <div className="pt-2 border-t border-border/20">
                       <p className="text-[9px] text-muted-foreground/40 mb-1">Example output:</p>
                       <pre className="text-[9px] font-mono text-emerald-400/60 bg-background/30 rounded p-1.5 overflow-x-auto whitespace-pre-wrap break-all">
                         {getBlockExample(sel!.type, sel!.config)}
                       </pre>
                     </div>
+                    {sel!.type !== 'custom_code' && sel!.type !== 'custom_block' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-7 text-[10px] gap-1.5"
+                        onClick={() => convertToCustomCode(sel!.id)}
+                        disabled={convertingId === sel!.id}
+                      >
+                        {convertingId === sel!.id
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <CodeIcon className="h-3 w-3" />}
+                        Convert to Custom Code
+                      </Button>
+                    )}
                     {(sel!.type === 'if' || sel!.type === 'otherwise_if') && (
                       <ConditionsBuilder block={sel!} onUpdate={updConfig} />
                     )}
@@ -1810,6 +2769,21 @@ export default function VisualEditorPage() {
                   {cat.name}
                 </button>
               ))}
+              <button onClick={() => setActiveCat(MY_BLOCKS_CATEGORY_ID)}
+                className={`px-2 py-0.5 text-[10px] rounded-full whitespace-nowrap font-medium transition-colors flex items-center gap-1
+                  ${activeCat === MY_BLOCKS_CATEGORY_ID ? "bg-primary/20 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/30"}`}>
+                <Boxes className="h-3 w-3" /> My Blocks
+              </button>
+              <button onClick={() => { setActiveCat(SHARED_CATEGORY_ID); loadSharedBlocks() }}
+                className={`px-2 py-0.5 text-[10px] rounded-full whitespace-nowrap font-medium transition-colors flex items-center gap-1
+                  ${activeCat === SHARED_CATEGORY_ID ? "bg-primary/20 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/30"}`}>
+                <Globe className="h-3 w-3" /> Shared
+              </button>
+              <button onClick={() => { setActiveCat(PACKS_CATEGORY_ID); loadBlockPacks() }}
+                className={`px-2 py-0.5 text-[10px] rounded-full whitespace-nowrap font-medium transition-colors flex items-center gap-1
+                  ${activeCat === PACKS_CATEGORY_ID ? "bg-primary/20 text-primary" : "text-muted-foreground/60 hover:text-foreground hover:bg-accent/30"}`}>
+                <Package className="h-3 w-3" /> Packs
+              </button>
             </div>
             <div className="px-1.5 py-1 border-b border-border/10">
               <div className="relative">
@@ -1823,21 +2797,157 @@ export default function VisualEditorPage() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto p-1.5 space-y-0.5 min-h-0" data-guide-id="palette-list">
-              {filtered.map(d => (
-                <div key={d.type} data-guide-id={`palette-block-${d.type}`} draggable
-                  onDragStart={(e) => { e.dataTransfer.setData("text/plain", d.type); e.dataTransfer.effectAllowed = "copy" }}
-                  onClick={() => addBlock(d.type)}
-                  className="flex items-center gap-2 p-1.5 border border-border/20 bg-card/20 hover:bg-accent/30 hover:border-border/40 transition-all cursor-grab active:cursor-grabbing text-xs touch-none">
-                  <span className="w-5 h-5 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: d.color + "25" }}>
-                    <BlockIcon icon={d.icon} className="h-3 w-3" style={{ color: d.color }} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-medium truncate">{d.name}</div>
-                    <div className="text-[9px] text-muted-foreground/50 truncate">{d.description}</div>
-                  </div>
-                  {d.canHaveChildren && <span className="text-[8px] text-muted-foreground/30 border border-border/10 rounded px-0.5">[]</span>}
+              {activeCat === MY_BLOCKS_CATEGORY_ID && (
+                <button onClick={openCreateCustomBlock}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 mb-1 rounded border border-dashed border-purple-400/40 text-[10px] font-medium text-purple-400/80 hover:bg-purple-500/10 hover:border-purple-400/60 transition-colors"
+                  data-telemetry="palette-new-custom-block">
+                  <Plus className="h-3 w-3" /> New Custom Block
+                </button>
+              )}
+              {activeCat === MY_BLOCKS_CATEGORY_ID && filtered.length === 0 && (
+                <p className="text-[10px] text-muted-foreground/40 text-center pt-2 px-2">
+                  No custom blocks yet. Create one to drop it on any canvas.
+                </p>
+              )}
+              {/* Shared Blocks panel */}
+              {activeCat === SHARED_CATEGORY_ID && (
+                <div className="space-y-1">
+                  {sharedBlocks.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground/40 text-center pt-2 px-2">No shared blocks yet.</p>
+                  )}
+                  {sharedBlocks.filter(b => !searchQuery || b.name.toLowerCase().includes(searchQuery.toLowerCase())).map(entry => (
+                    <div key={entry.id} className="p-2 border border-border/20 bg-card/20 hover:bg-accent/30 transition-all">
+                      <div className="flex items-start justify-between gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-medium truncate">{entry.name}</div>
+                          <div className="text-[9px] text-muted-foreground/50 truncate">{entry.description || entry.code.slice(0, 50)}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[8px] text-muted-foreground/40">{entry.authorName || 'Anonymous'}</span>
+                            <span className="text-[8px] text-muted-foreground/30">|</span>
+                            <span className="text-[8px] text-muted-foreground/40">{entry.downloads} downloads</span>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 shrink-0"
+                          onClick={(e) => { e.stopPropagation(); downloadSharedBlockToMe(entry) }}>
+                          <Download className="h-2.5 w-2.5" /> Import
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  {publicPacks.length > 0 && (
+                    <div className="pt-2 border-t border-border/20 mt-1">
+                      <div className="text-[9px] font-semibold uppercase tracking-wider text-amber-400/60 px-1 pb-1">Public Packs</div>
+                      {publicPacks.filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(pack => (
+                        <div key={pack.id} className="p-2 border border-border/20 bg-card/20 hover:bg-accent/30 transition-all">
+                          <div className="flex items-start justify-between gap-1.5">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[10px] font-medium truncate flex items-center gap-1">
+                                <Package className="h-2.5 w-2.5 text-amber-400" /> {pack.name}
+                              </div>
+                              <div className="text-[9px] text-muted-foreground/50 truncate">{pack.description || `${pack.items.length} blocks`}</div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[8px] text-muted-foreground/40">{pack.authorName || 'Anonymous'}</span>
+                                <span className="text-[8px] text-muted-foreground/30">|</span>
+                                <span className="text-[8px] text-muted-foreground/40">{pack.items.length} blocks</span>
+                              </div>
+                            </div>
+                            <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5 shrink-0"
+                              onClick={(e) => { e.stopPropagation(); downloadPackToMe(pack) }}>
+                              <Download className="h-2.5 w-2.5" /> Import
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
+              {activeCat === PACKS_CATEGORY_ID && (
+                <div className="space-y-1">
+                  <button onClick={openCreatePack}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 mb-1 rounded border border-dashed border-amber-400/40 text-[10px] font-medium text-amber-400/80 hover:bg-amber-500/10 hover:border-amber-400/60 transition-colors">
+                    <Plus className="h-3 w-3" /> New Pack
+                  </button>
+                  {blockPacks.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground/40 text-center pt-2 px-2">No packs yet.</p>
+                  )}
+                  {blockPacks.filter(p => !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(pack => (
+                    <div key={pack.id} className="p-2 border border-border/20 bg-card/20 hover:bg-accent/30 transition-all">
+                      <div className="flex items-start justify-between gap-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-medium truncate flex items-center gap-1">
+                            <Package className="h-2.5 w-2.5 text-amber-400" /> {pack.name}
+                            {pack.isPublic
+                              ? <span title="Public"><Globe className="h-2 w-2 text-green-400/60" /></span>
+                              : <span title="Private"><Lock className="h-2 w-2 text-muted-foreground/30" /></span>}
+                          </div>
+                          <div className="text-[9px] text-muted-foreground/50 truncate">{pack.description || `${pack.items.length} blocks`}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[8px] text-muted-foreground/40">{pack.items.length} blocks</span>
+                            {pack.isPublic && <><span className="text-[8px] text-muted-foreground/30">|</span><span className="text-[8px] text-muted-foreground/40">{pack.downloads} downloads</span></>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          {pack.authorUserId === user?.id && (
+                            <>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" title={pack.isPublic ? "Make private" : "Make public"}
+                                onClick={async (e) => { e.stopPropagation(); try { await apiFetch(`/api/infrastructure/visual-editor/block-packs/${pack.id}`, { method: "PATCH", body: JSON.stringify({ isPublic: !pack.isPublic }) }); loadBlockPacks(); toast({ title: pack.isPublic ? "Pack is now private" : "Pack is now public" }) } catch {} }}>
+                                {pack.isPublic ? <Globe className="h-2.5 w-2.5 text-green-400/60" /> : <Lock className="h-2.5 w-2.5 text-muted-foreground/40" />}
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" onClick={(e) => { e.stopPropagation(); openEditPack(pack) }}>
+                                <Pencil className="h-2.5 w-2.5 text-muted-foreground/60" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="h-5 w-5 p-0" title="Delete pack"
+                                onClick={(e) => { e.stopPropagation(); deletePack(pack.id, pack.name) }}>
+                                <Trash2 className="h-2.5 w-2.5 text-muted-foreground/60 hover:text-destructive" />
+                              </Button>
+                            </>
+                          )}
+                          {pack.isPublic && pack.authorUserId !== user?.id && (
+                            <Button size="sm" variant="outline" className="h-5 text-[9px] gap-0.5"
+                              onClick={(e) => { e.stopPropagation(); downloadPackToMe(pack) }}>
+                              <Download className="h-2.5 w-2.5" /> Import
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {activeCat !== SHARED_CATEGORY_ID && activeCat !== PACKS_CATEGORY_ID && filtered.map(d => {
+                const isCustom = d.category === MY_BLOCKS_CATEGORY_ID
+                const cbId = isCustom ? Number(d.type.split(":")[1]) : null
+                const cb = cbId ? customBlocks.find(c => c.id === cbId) : null
+                return (
+                  <div key={d.type} data-guide-id={`palette-block-${d.type}`} draggable
+                    onDragStart={(e) => { e.dataTransfer.setData("text/plain", d.type); e.dataTransfer.effectAllowed = "copy" }}
+                    onClick={() => { addBlock(d.type) }}
+                    className="flex items-center gap-2 p-1.5 border border-border/20 bg-card/20 hover:bg-accent/30 hover:border-border/40 transition-all cursor-grab active:cursor-grabbing text-xs touch-none group">
+                    <span className="w-5 h-5 rounded flex items-center justify-center shrink-0" style={{ backgroundColor: d.color + "25" }}>
+                      <BlockIcon icon={d.icon} className="h-3 w-3" style={{ color: d.color }} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium truncate">{d.name}</div>
+                      <div className="text-[9px] text-muted-foreground/50 truncate">{d.description}</div>
+                    </div>
+                    {isCustom && cb && (
+                      <span className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <button onClick={() => openEditCustomBlock(cb)} className="p-1 rounded hover:bg-accent text-muted-foreground/60 hover:text-foreground" title="Edit block">
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => setShareModal({ cb })} className="p-1 rounded hover:bg-info/20 text-muted-foreground/60 hover:text-info" title="Share to library">
+                          <Share2 className="h-3 w-3" />
+                        </button>
+                        <button onClick={() => removeCustomBlock(cb.id)} className="p-1 rounded hover:bg-destructive/20 text-muted-foreground/60 hover:text-destructive" title="Delete">
+                          <Trash2 className="h-3 w-3" />
+                        </button>
+                      </span>
+                    )}
+                    {d.canHaveChildren && <span className="text-[8px] text-muted-foreground/30 border border-border/10 rounded px-0.5">[]</span>}
+                  </div>
+                )
+              })}
             </div>
           </Card>
 
@@ -1953,28 +3063,12 @@ export default function VisualEditorPage() {
                         </Label>
                         {useMonaco ? (
                           <div className="space-y-1">
-                            <div className={`h-32 w-full border overflow-hidden ${hasFieldError ? "border-red-500/40" : hasFieldWarning ? "border-amber-500/30" : "border-border/30"}`}>
-                              <Suspense fallback={<div className="p-3 text-xs text-muted-foreground/50">Loading editor...</div>}>
-                                <MonacoEditor
-                                  height="100%"
-                                  language="typescript"
-                                  theme="vs-dark"
-                                  value={String(sel!.config.code ?? '')}
-                                  onChange={(v) => updConfig(sel!.id, 'code', v ?? '')}
-                                  options={{
-                                    minimap: { enabled: false },
-                                    scrollBeyondLastLine: false,
-                                    fontSize: 11,
-                                    lineNumbers: "off",
-                                    renderLineHighlight: "none",
-                                    padding: { top: 4, bottom: 4 },
-                                    automaticLayout: true,
-                                    wordWrap: "on",
-                                    scrollbar: { vertical: "visible", horizontal: "visible", verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
-                                  }}
-                                />
-                              </Suspense>
-                            </div>
+                            <CustomCodeEditor
+                              block={sel!}
+                              blocks={activeBlocks}
+                              onUpdate={updConfig}
+                              onMount={(monaco) => handleCustomCodeMount(monaco, sel!.id)}
+                            />
                             <Dialog open={popupEditorOpen} onOpenChange={(o) => { if (!o) { updConfig(sel!.id, 'code', popupCode); }; setPopupEditorOpen(o) }}>
                               <DialogTrigger asChild>
                                 <Button
@@ -2021,6 +3115,67 @@ export default function VisualEditorPage() {
                       </div>
                     )
                   })}
+                  {sel!.type === 'custom_block' && (
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-medium flex items-center gap-1">
+                        <LinkIcon className="h-3 w-3 text-purple-400" /> Linked block
+                        <span className="text-[9px] text-muted-foreground/50 font-normal">
+                          {selCustomBlock ? "editing the block updates every use" : "source deleted"}
+                        </span>
+                      </Label>
+                      {selCustomBlock && (selCustomBlock.settingsDefinition?.length ?? 0) > 0 && (
+                        <div className="space-y-1.5 p-2 bg-background/30 rounded border border-border/20">
+                          <p className="text-[9px] text-muted-foreground/50 font-medium">Settings <span className="font-normal">(local overrides)</span></p>
+                          {selCustomBlock.settingsDefinition!.map(s => {
+                            const overrides = (sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>
+                            const val = overrides[s.key] !== undefined ? overrides[s.key] : s.default
+                            return (
+                              <div key={s.key} className="space-y-0.5">
+                                <Label className="text-[9px] text-muted-foreground/70">{s.label || s.key}</Label>
+                                {s.type === 'boolean' ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <Switch checked={Boolean(val)} onCheckedChange={v => {
+                                      const overrides = { ...((sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>), [s.key]: v }
+                                      updConfig(sel!.id, 'settingsOverrides', overrides)
+                                    }} />
+                                    <span className="text-[9px] text-muted-foreground/50">{String(val)}</span>
+                                  </div>
+                                ) : s.type === 'select' ? (
+                                  <Select value={String(val)} onValueChange={v => {
+                                    const overrides = { ...((sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>), [s.key]: v }
+                                    updConfig(sel!.id, 'settingsOverrides', overrides)
+                                  }}>
+                                    <SelectTrigger className="h-6 text-[10px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>{safeArr(s.options).map(o => <SelectItem key={o.value} value={o.value} className="text-[10px]">{o.label}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                ) : (
+                                  <Input type={s.type === 'number' ? 'number' : 'text'} value={String(val ?? '')} onChange={e => {
+                                    const v = s.type === 'number' ? Number(e.target.value) : e.target.value
+                                    const overrides = { ...((sel!.config?.settingsOverrides ?? {}) as Record<string, unknown>), [s.key]: v }
+                                    updConfig(sel!.id, 'settingsOverrides', overrides)
+                                  }} className="h-6 text-[10px]" />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      <pre className="text-[9px] font-mono text-emerald-400/60 bg-background/30 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all max-h-32 overflow-y-auto">
+                        {selCustomBlock?.code || "// This reference's source custom block no longer exists."}
+                      </pre>
+                      {selCustomBlock && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full h-7 text-[10px] gap-1.5"
+                          onClick={() => openEditCustomBlock(selCustomBlock)}
+                        >
+                          <Pencil className="h-3 w-3" />
+                          Edit linked block
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   {/* Usage example */}
                   <div className="pt-2 border-t border-border/20">
                     <p className="text-[9px] text-muted-foreground/40 mb-1">Example output:</p>
@@ -2028,6 +3183,20 @@ export default function VisualEditorPage() {
                       {getBlockExample(sel!.type, sel!.config)}
                     </pre>
                   </div>
+                  {sel!.type !== 'custom_code' && sel!.type !== 'custom_block' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full h-7 text-[10px] gap-1.5"
+                      onClick={() => convertToCustomCode(sel!.id)}
+                      disabled={convertingId === sel!.id}
+                    >
+                      {convertingId === sel!.id
+                        ? <Loader2 className="h-3 w-3 animate-spin" />
+                        : <CodeIcon className="h-3 w-3" />}
+                      Convert to Custom Code
+                    </Button>
+                  )}
                   {(sel!.type === 'if' || sel!.type === 'otherwise_if') && (
                     <ConditionsBuilder block={sel!} onUpdate={updConfig} />
                   )}
@@ -2056,15 +3225,35 @@ export default function VisualEditorPage() {
           <Card className="mt-3 overflow-hidden">
             <div className="px-2.5 py-1.5 border-b border-border/30 flex items-center justify-between">
               <span className="text-xs font-semibold flex items-center gap-1.5">
-                <FileCode className="h-3.5 w-3.5 text-amber-500" />Generated Bun Code
+                <FileCode className="h-3.5 w-3.5 text-amber-500" />Generated Code
+                {genFiles.length > 1 && <span className="text-[9px] text-muted-foreground/50 font-normal">({genFiles.length} files)</span>}
               </span>
               <div className="flex items-center gap-1.5">
+                <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={formatGenerated} data-telemetry="infrastructure:format">
+                  <Braces className="h-3 w-3 mr-0.5" />
+                  Format
+                </Button>
                 <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={handleCopy} data-telemetry="infrastructure:copy">
                   {copied ? <Check className="h-3 w-3 mr-0.5 text-green-500" /> : <Copy className="h-3 w-3 mr-0.5" />}
                   {copied ? "Copied!" : "Copy"}
                 </Button>
+                <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1" onClick={downloadGeneratedCode} data-telemetry="infrastructure:download">
+                  <Download className="h-3 w-3" />
+                  Download
+                </Button>
               </div>
             </div>
+            {genFiles.length > 1 && (
+              <div className="px-2 py-1 border-b border-border/20 flex flex-wrap gap-0.5 bg-background/30">
+                {genFiles.map((gf, idx) => (
+                  <button key={idx}
+                    onClick={() => { setActiveGenFileId(idx); setCode(gf.code) }}
+                    className={`px-2 py-0.5 text-[10px] rounded-sm font-mono transition-colors ${activeGenFileId === idx ? "bg-primary/20 text-primary" : "text-muted-foreground/50 hover:text-foreground hover:bg-accent/20"}`}>
+                    {gf.name.split("/").pop()}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="h-64 w-full overflow-hidden">
               <Suspense fallback={<div className="p-4 text-xs text-muted-foreground/50">Loading editor...</div>}>
                 <MonacoEditor
@@ -2072,6 +3261,7 @@ export default function VisualEditorPage() {
                   language="typescript"
                   theme="vs-dark"
                   value={code ?? ""}
+                  onMount={(editor) => { generatedEditorRef.current = editor }}
                   options={{
                     readOnly: true,
                     minimap: { enabled: false },
@@ -2099,6 +3289,271 @@ export default function VisualEditorPage() {
         const init = [...safeArr(activeBlocks), ...blocks]
         updateFiles(init); setCode(null); setSelectedId(null)
       }} />
+
+      {/* Custom block create/edit modal */}
+      {cbModal && (
+        <Dialog open={!!cbModal} onOpenChange={(o) => { if (!o) setCbModal(null) }}>
+          <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-1.5">
+                <Boxes className="h-4 w-4 text-purple-400" />
+                {cbModal.mode === "edit" ? `Edit "${cbModal.cb.name}"` : "New Custom Block"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 mt-1">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-medium">Block name</Label>
+                <Input value={cbName} onChange={e => setCbName(e.target.value)} maxLength={512}
+                  placeholder="e.g. Sanitize input" className="h-7 text-xs" />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-medium">Custom code</Label>
+                <div className="border border-border/30 rounded overflow-hidden h-48">
+                  <Suspense fallback={<div className="p-4 text-xs text-muted-foreground/50">Loading editor...</div>}>
+                    <MonacoEditor
+                      height="100%"
+                      language="typescript"
+                      theme="vs-dark"
+                      value={cbCode}
+                      onChange={(v) => setCbCode(v ?? '')}
+                      options={{
+                        minimap: { enabled: false },
+                        scrollBeyondLastLine: false,
+                        fontSize: 11,
+                        lineNumbers: "off",
+                        renderLineHighlight: "none",
+                        padding: { top: 4, bottom: 4 },
+                        automaticLayout: true,
+                        wordWrap: "on",
+                        scrollbar: { vertical: "visible", horizontal: "visible" },
+                      }}
+                    />
+                  </Suspense>
+                </div>
+                <p className="text-[9px] text-muted-foreground/40">
+                  Reference settings in code as <code className="text-purple-400/80">{`const ${'{key}'} = settings.{key};`}</code> — they become constants at generation time.
+                </p>
+              </div>
+              {/* Settings Definition */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] font-medium flex items-center gap-1">
+                    <Settings className="h-3 w-3 text-amber-400" /> Settings fields
+                  </Label>
+                  <Button size="sm" variant="ghost" className="h-5 text-[9px] gap-0.5 px-1.5"
+                    onClick={() => setCbSettingsDef([...cbSettingsDef, { key: `setting_${cbSettingsDef.length + 1}`, label: '', type: 'text', default: '' }])}>
+                    <Plus className="h-2.5 w-2.5" /> Add field
+                  </Button>
+                </div>
+                {cbSettingsDef.length === 0 && (
+                  <p className="text-[9px] text-muted-foreground/40 italic">No settings defined. Users will see this block's code as-is.</p>
+                )}
+                {cbSettingsDef.map((s, idx) => (
+                  <div key={idx} className="p-2 bg-background/30 rounded border border-border/20 space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Input value={s.key} placeholder="key" className="h-6 text-[10px] flex-1"
+                        onChange={e => {
+                          const next = [...cbSettingsDef]; next[idx] = { ...next[idx], key: e.target.value }; setCbSettingsDef(next)
+                        }} />
+                      <Input value={s.label} placeholder="Label" className="h-6 text-[10px] flex-1"
+                        onChange={e => {
+                          const next = [...cbSettingsDef]; next[idx] = { ...next[idx], label: e.target.value }; setCbSettingsDef(next)
+                        }} />
+                      <Select value={s.type} onValueChange={v => {
+                        const next = [...cbSettingsDef]; next[idx] = { ...next[idx], type: v as SettingDef['type'] }; setCbSettingsDef(next)
+                      }}>
+                        <SelectTrigger className="h-6 w-20 text-[10px]"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="text" className="text-[10px]">Text</SelectItem>
+                          <SelectItem value="number" className="text-[10px]">Number</SelectItem>
+                          <SelectItem value="boolean" className="text-[10px]">Boolean</SelectItem>
+                          <SelectItem value="select" className="text-[10px]">Select</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <button onClick={() => setCbSettingsDef(cbSettingsDef.filter((_, i) => i !== idx))}
+                        className="text-muted-foreground/40 hover:text-destructive p-0.5"><Trash2 className="h-3 w-3" /></button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {s.type === 'boolean' ? (
+                        <div className="flex items-center gap-1.5">
+                          <Switch checked={Boolean(s.default)} onCheckedChange={v => {
+                            const next = [...cbSettingsDef]; next[idx] = { ...next[idx], default: v }; setCbSettingsDef(next)
+                          }} />
+                          <span className="text-[9px] text-muted-foreground/50">Default: {String(s.default)}</span>
+                        </div>
+                      ) : s.type === 'select' ? (
+                        <div className="flex-1 space-y-1">
+                          <Input value={String(s.default ?? '')} placeholder="Default value" className="h-6 text-[10px]"
+                            onChange={e => {
+                              const next = [...cbSettingsDef]; next[idx] = { ...next[idx], default: e.target.value }; setCbSettingsDef(next)
+                            }} />
+                          <Input value={safeArr(s.options).map(o => `${o.label}:${o.value}`).join(', ')} placeholder="Options: Label:value, Label:value" className="h-6 text-[10px]"
+                            onChange={e => {
+                              const opts = e.target.value.split(',').map(pair => { const [label, value] = pair.trim().split(':'); return { label: (label || '').trim(), value: (value || label || '').trim() } }).filter(o => o.value)
+                              const next = [...cbSettingsDef]; next[idx] = { ...next[idx], options: opts }; setCbSettingsDef(next)
+                            }} />
+                        </div>
+                      ) : (
+                        <Input type={s.type === 'number' ? 'number' : 'text'} value={String(s.default ?? '')} placeholder="Default value" className="h-6 text-[10px] flex-1"
+                          onChange={e => {
+                            const v = s.type === 'number' ? Number(e.target.value) : e.target.value
+                            const next = [...cbSettingsDef]; next[idx] = { ...next[idx], default: v }; setCbSettingsDef(next)
+                          }} />
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {cbSettingsDef.length > 0 && (
+                  <p className="text-[9px] text-muted-foreground/40">
+                    Each field's <code>key</code> becomes a <code className="text-purple-400/80">const {`{key}`}</code> in the generated code.
+                    Users can override defaults locally per canvas instance.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-border/20">
+                <div className="flex items-center gap-1">
+                  {cbModal.mode === "edit" && (
+                    <>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs text-info hover:text-info gap-1"
+                        onClick={() => setShareModal({ cb: cbModal.cb })}>
+                        <Share2 className="h-3 w-3" /> Share
+                      </Button>
+                      <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive gap-1"
+                        onClick={() => { if (confirm("Delete this custom block? References on canvas will show 'source deleted'.")) { removeCustomBlock(cbModal.cb.id); setCbModal(null) } }}>
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setCbModal(null)}>Cancel</Button>
+                  <Button size="sm" className="h-7 text-xs gap-1.5" onClick={saveCustomBlock} disabled={cbSaving}>
+                    {cbSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    {cbModal.mode === "edit" ? "Save changes" : "Create block"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Share to Library confirmation */}
+      {shareModal && (
+        <Dialog open={!!shareModal} onOpenChange={(o) => { if (!o) setShareModal(null) }}>
+          <DialogContent className="sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-1.5">
+                <Share2 className="h-4 w-4 text-info" /> Share to Library
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 mt-1">
+              <p className="text-xs text-muted-foreground/70">
+                Share "<span className="font-medium text-foreground">{shareModal.cb.name}</span>" to the public library? Other users will be able to download and use it.
+              </p>
+              <p className="text-[9px] text-muted-foreground/40">
+                Code: <code className="text-emerald-400/60">{shareModal.cb.code.slice(0, 80)}{shareModal.cb.code.length > 80 ? '...' : ''}</code>
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setShareModal(null)}>Cancel</Button>
+                <Button size="sm" className="h-7 text-xs gap-1.5" onClick={() => shareToLibrary(shareModal.cb)}>
+                  <Share2 className="h-3 w-3" /> Share
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Block Pack create/edit modal */}
+      {packModal && (
+        <Dialog open={!!packModal} onOpenChange={(o) => { if (!o) setPackModal(null) }}>
+          <DialogContent className="sm:max-w-[520px] max-h-[85vh] flex flex-col overflow-hidden">
+            <DialogHeader>
+              <DialogTitle className="text-sm flex items-center gap-1.5">
+                <Package className="h-4 w-4 text-amber-400" />
+                {packModal.mode === "edit" ? `Edit "${packModal.pack.name}"` : "New Block Pack"}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3 mt-1 flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-medium">Pack name</Label>
+                  <Input value={packName} onChange={e => setPackName(e.target.value)} maxLength={256}
+                    placeholder="e.g. Auth utilities" className="h-7 text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-medium">Tags (comma-separated)</Label>
+                  <Input value={packTags} onChange={e => setPackTags(e.target.value)}
+                    placeholder="auth, utility" className="h-7 text-xs" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-medium">Description</Label>
+                <Input value={packDesc} onChange={e => setPackDesc(e.target.value)} maxLength={1024}
+                  placeholder="What's in this pack?" className="h-7 text-xs" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={packIsPublic} onCheckedChange={setPackIsPublic} className="scale-75" />
+                <Label className="text-[10px] font-medium cursor-pointer" onClick={() => setPackIsPublic(!packIsPublic)}>
+                  Public <span className="text-muted-foreground/40 font-normal">(visible in shared library)</span>
+                </Label>
+              </div>
+              {/* Block selector */}
+              <div className="flex-1 min-h-0 flex flex-col border border-border/20 rounded overflow-hidden">
+                <div className="px-2 py-1.5 border-b border-border/20 bg-background/30 flex items-center justify-between">
+                  <Label className="text-[10px] font-medium">
+                    Your Custom Blocks
+                    <span className="text-muted-foreground/50 font-normal ml-1">
+                      ({packItems.length} selected)
+                    </span>
+                  </Label>
+                  <div className="relative w-40">
+                    <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/40 pointer-events-none" />
+                    <input type="text" placeholder="Filter..." value={packSearch} onChange={e => setPackSearch(e.target.value)}
+                      className="w-full h-6 pl-6 pr-2 text-[10px] border border-border/20 bg-background/50 focus:outline-none focus:border-primary/40 placeholder:text-muted-foreground/30" />
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto min-h-0 max-h-[240px]">
+                  {customBlocks.length === 0 && (
+                    <p className="text-[10px] text-muted-foreground/40 text-center py-4">No custom blocks. Create some first.</p>
+                  )}
+                  {customBlocks.filter(cb => !packSearch || cb.name.toLowerCase().includes(packSearch.toLowerCase()) || (cb.description || '').toLowerCase().includes(packSearch.toLowerCase())).map(cb => {
+                    const inPack = packItems.some(i => i.name === cb.name && i.code === cb.code)
+                    return (
+                      <div key={cb.id} onClick={() => toggleBlockInPack(cb)}
+                        className={`flex items-center gap-2 px-2 py-1.5 cursor-pointer transition-colors border-b border-border/10 last:border-0
+                          ${inPack ? "bg-primary/10" : "hover:bg-accent/20"}`}>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors
+                          ${inPack ? "bg-primary border-primary" : "border-border/40"}`}>
+                          {inPack && <Check className="h-2.5 w-2.5 text-primary-foreground" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[10px] font-medium truncate">{cb.name}</div>
+                          <div className="text-[9px] text-muted-foreground/40 truncate">
+                            {cb.description || cb.code.slice(0, 60)}
+                            {cb.settingsDefinition?.length > 0 && <span className="text-amber-400/60 ml-1">({cb.settingsDefinition.length} settings)</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {customBlocks.length > 0 && customBlocks.filter(cb => !packSearch || cb.name.toLowerCase().includes(packSearch.toLowerCase())).length === 0 && (
+                    <p className="text-[10px] text-muted-foreground/40 text-center py-3">No blocks match "{packSearch}"</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-1 border-t border-border/20 shrink-0">
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setPackModal(null)}>Cancel</Button>
+                <Button size="sm" className="h-7 text-xs gap-1.5" onClick={saveBlockPack} disabled={packSaving || packItems.length === 0}>
+                  {packSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                  {packModal.mode === "edit" ? "Save changes" : "Create pack"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
       </VEErrorBoundary>
     </RolloutGuard>
   )

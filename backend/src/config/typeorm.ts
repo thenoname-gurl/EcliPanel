@@ -180,6 +180,7 @@ export const AppDataSource = new DataSource({
     require('../models/feedback.entity').Feedback,
     require('../models/visualEditorBlueprint.entity').VisualEditorBlueprint,
     require('../models/visualEditorLibrary.entity').VisualEditorLibrary,
+    require('../models/visualEditorCustomBlock.entity').VisualEditorCustomBlock,
     require('../models/sharedFileLink.entity').SharedFileLink,
     require('../models/eloProject.entity').EloProject,
     require('../models/eloVote.entity').EloVote,
@@ -206,5 +207,10 @@ export const AppDataSource = new DataSource({
     require('../models/blogMember.entity').BlogMember,
     require('../models/blogSubscriber.entity').BlogSubscriber,
     require('../models/financeLog.entity').FinanceLog,
+    require('../models/sharedCustomBlock.entity').SharedCustomBlock,
+    require('../models/blockPack.entity').BlockPack,
+    require('../models/officeDocument.entity').OfficeDocument,
+    require('../models/officeShare.entity').OfficeShare,
+    require('../models/userStorage.entity').UserStorage,
   ],
 });

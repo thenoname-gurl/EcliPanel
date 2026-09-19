@@ -153,7 +153,8 @@
     "childCannotUpdateBilling": "child_cannot_update_billing",
     "userNotFoundInOrg": "Пользователь не найден в организации",
     "accountSuspended": "Учётная запись приостановлена. Пожалуйста, свяжитесь с поддержкой.",
-    "accountIsPendingDeletionAndCurrentlyFrozen": "Учётная запись ожидает удаления и заморожена"
+    "accountIsPendingDeletionAndCurrentlyFrozen": "Учётная запись ожидает удаления и заморожена",
+    "cannotSuspendAdmin": "Нельзя заморозить аккаунт администратора."
   },
   "organisation": {
     "notFound": "Организация не найдена",
@@ -370,7 +371,9 @@
     "could_not_resolve_download_url_for_this_version": "Could not resolve download URL for this version",
     "could_not_resolve_download_url": "Could not resolve download URL",
     "failed_to_download_plugin": "Failed to download plugin",
-    "not_supported_for_proxmox_nodes_15": "Not supported for Proxmox nodes"
+    "not_supported_for_proxmox_nodes_15": "Not supported for Proxmox nodes",
+    "invalidDownloadUrl": "URL загрузки должен быть публичным http(s) URL.",
+    "serverNotFound": "Сервер не найден."
   },
   "node": {
     "notFound": "Узел не найден",
@@ -610,7 +613,9 @@
     "invalidMethod": "Неверные данные способа оплаты для метода {id}",
     "methodSaved": "Способы оплаты сохранены",
     "methodSaveFailed": "Не удалось сохранить способы оплаты",
-    "paymentConfirmed": "Платёж подтверждён и заказ активирован"
+    "paymentConfirmed": "Платёж подтверждён и заказ активирован",
+    "cannotCancel": "Заказ нельзя отменить в текущем статусе.",
+    "cannotReject": "Платёж нельзя отклонить в текущем статусе."
   },
   "order": {
     "notFound": "Заказ не найден",
@@ -897,7 +902,8 @@
     "invalid_request_3": "Invalid request",
     "blueprint_not_found_2": "Blueprint not found",
     "invalid_request_4": "Invalid request",
-    "blueprint_not_found_3": "Blueprint not found"
+    "blueprint_not_found_3": "Blueprint not found",
+    "block_required": "Требуется объект блока."
   },
   "chat": {
     "channel_name_is_required": "Channel name is required",
@@ -1040,7 +1046,8 @@
     "this_coupon_is_no_longer_active_1": "This coupon is no longer active",
     "this_coupon_has_expired_1": "This coupon has expired",
     "this_coupon_has_reached_its_global_usage_limit_1": "This coupon has reached its global usage limit",
-    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "You have already used this coupon the maximum number of times"
+    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "You have already used this coupon the maximum number of times",
+    "discounttype_must_be_percentage_or_fixed": "Тип скидки должен быть «percentage» или «fixed»."
   },
   "serverSubuser": {
     "this_user_must_complete_kyc_identity_verification_before_the": "This user must complete KYC identity verification before they can be added as a subuser."
@@ -1182,7 +1189,7 @@
     "alreadySubmitted": "Вы уже отправили работу на этот конкурс.",
     "submissionNotFound": "Работа не найдена.",
     "bountyTitleRequired": "Укажите название баунти.",
-  "bountyRepoUrlInvalid": "Ссылка на репозиторий должна быть абсолютной ссылкой http(s).",
+    "bountyRepoUrlInvalid": "Ссылка на репозиторий должна быть абсолютной ссылкой http(s).",
     "bountyNotFound": "Баунти не найден.",
     "findingRequired": "Укажите текст находки.",
     "findingNotFound": "Находка не найдена.",
@@ -1200,5 +1207,25 @@
     "onlyReporterCanRequest": "Запросить раскрытие может только автор отчёта.",
     "disclosureNeedsAward": "Раскрытие можно запросить только после вознаграждения.",
     "commentRequired": "Укажите текст комментария."
+  },
+  "office": {
+    "documentNotFound": "Документ не найден.",
+    "noAccess": "У вас нет доступа к этому документу.",
+    "invalidType": "Недопустимый тип документа.",
+    "metadataOwnerOnly": "Только владелец может изменять параметры документа.",
+    "readOnly": "Этот документ доступен только для чтения.",
+    "userNotFound": "Пользователь не найден.",
+    "cannotShareToSelf": "Нельзя поделиться документом с самим собой.",
+    "shareNotFound": "Доступ не найден.",
+    "noFileProvided": "Файл не предоставлен.",
+    "invalidImageType": "Изображение должно быть в формате PNG, JPEG или WebP.",
+    "imageTooLarge": "Изображение слишком большое (максимум 5 МБ).",
+    "thumbnailNotFound": "Миниатюра не найдена."
+  },
+  "studentVerification": {
+    "existingPending": "У вас уже есть заявка на подтверждение статуса студента. Дождитесь проверки.",
+    "proofRequired": "Требуется подтверждение обучения.",
+    "proofEmpty": "Файл подтверждения не должен быть пустым.",
+    "uploadError": "Не удалось обработать загруженный файл: "
   }
 }

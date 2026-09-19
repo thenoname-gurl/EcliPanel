@@ -1,0 +1,40 @@
+---
+import PageShell from "../../components/PageShell";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getPageData } from "../../lib/page-data";
+
+const { locale, messages, initialUser, pathname } = await getPageData(
+  Astro.cookies,
+  Astro.request.headers,
+  Astro.url.pathname
+);
+
+const { token } = Astro.params;
+const backendUrl = ((process.env.BACKEND_URL || "") || (process.env.PUBLIC_API_BASE || "") || "")
+  .replace(/\/+$/, "");
+
+let title = "Live Screen Share — EcliOffice";
+let description = "Watch a live screen share streamed via EcliOffice.";
+try {
+  if (token) {
+    const res = await fetch(`${backendUrl}/api/screen-share/public/${encodeURIComponent(token)}`);
+    if (res.ok) {
+      const info = await res.json();
+      if (info?.title) title = `${info.title} — Live Screen Share`;
+      if (info?.hostName) description = `${info.hostName} is sharing their screen via EcliOffice`;
+    }
+  }
+} catch {}
+---
+
+<BaseLayout title={title} description={description}>
+  <PageShell
+    client:load="react"
+    locale={locale}
+    messages={messages}
+    initialUser={initialUser}
+    page="app"
+    pathname={pathname}
+  />
+  <script id="__astro_params" type="application/json">{JSON.stringify({ token })}</script>
+</BaseLayout>

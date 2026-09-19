@@ -150,4 +150,7 @@ export class Node {
 
   @Column({ nullable: true, type: 'text' })
   pendingCommand?: string;
+
+  @Column({ default: false })
+  isStorageNode: boolean;
 }

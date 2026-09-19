@@ -44,7 +44,10 @@
       "adminPanel": "スタッフポータル",
       "tunnels": "トンネル",
       "blog": "ブログ",
-      "luminosClub": "Luminos Club"
+      "luminosClub": "Luminos Club",
+      "office": "EcliOffice",
+      "screenShare": "画面共有",
+      "drive": "ドライブ"
     },
     "badges": {
       "new": "新規",
@@ -7537,5 +7540,185 @@
       "postPlaceholder": "クラブに書き込む...",
       "postFailed": "投稿に失敗しました"
     }
+  },
+  "officePage": {
+    "title": "EcliOffice",
+    "description": "文書・スプレッドシート・プレゼンテーション・ノートブックをリアルタイムで共同編集。",
+    "newDocument": "新しい文書",
+    "newSpreadsheet": "新しいスプレッドシート",
+    "newPresentation": "新しいプレゼンテーション",
+    "newNotebook": "新しいノートブック",
+    "import": "インポート",
+    "searchPlaceholder": "文書を検索…",
+    "all": "すべて",
+    "documents": "文書",
+    "spreadsheets": "スプレッドシート",
+    "presentations": "プレゼンテーション",
+    "notebooks": "ノートブック",
+    "starred": "スター付き",
+    "trash": "ゴミ箱",
+    "recent": "最近",
+    "emptyTitle": "ファイルがありません",
+    "emptyDescription": "文書、スプレッドシート、プレゼンテーション、ノートブックを作成して始めましょう。",
+    "sharedWithYou": "共有されたもの",
+    "owner": "所有者",
+    "you": "あなた",
+    "canView": "閲覧可",
+    "canComment": "コメント可",
+    "canEdit": "編集可",
+    "lastEditedBy": "{date} に編集",
+    "actions": {
+      "open": "開く",
+      "rename": "名前を変更",
+      "duplicate": "複製",
+      "share": "共有",
+      "star": "スターを付ける",
+      "unstar": "スターを外す",
+      "moveToTrash": "ゴミ箱へ移動",
+      "restore": "復元",
+      "deleteForever": "完全に削除",
+      "cancel": "キャンセル",
+      "preview": "プレビュー"
+    },
+    "dialogs": {
+      "createTitle": "新しいファイルを作成",
+      "createSubtitle": "タイプを選択して開始します。",
+      "createNameLabel": "名前",
+      "createNamePlaceholder": "無題",
+      "create": "作成",
+      "renameTitle": "名前を変更",
+      "renamePlaceholder": "ファイル名",
+      "save": "保存",
+      "shareTitle": "共有",
+      "shareSubtitle": "編集・コメント・閲覧したい人を招待します。",
+      "shareEmailPlaceholder": "email@example.com",
+      "sharePermissionLabel": "権限",
+      "shareAdd": "追加",
+      "shareEmpty": "まだ共同編集者がいません。",
+      "removeShare": "アクセスを削除",
+      "trashTitle": "ゴミ箱へ移動しますか？",
+      "trashDescription": "このファイルはゴミ箱に移動されます。後で復元できます。",
+      "deleteTitle": "完全に削除しますか？",
+      "deleteDescription": "この操作は取り消せません。",
+      "confirm": "はい、ゴミ箱へ移動",
+      "confirmDelete": "はい、完全に削除"
+    },
+    "editor": {
+      "back": "ファイルへ戻る",
+      "renamePlaceholder": "無題",
+      "saved": "すべての変更が保存されました",
+      "saving": "保存中…",
+      "connectError": "コラボレーション接続が失われました — 再接続中…",
+      "participants": "{count} 人がオンライン",
+      "readOnly": "閲覧のみ",
+      "editing": "編集中",
+      "document": "文書",
+      "spreadsheet": "スプレッドシート",
+      "presentation": "プレゼンテーション",
+      "notebook": "ノートブック",
+      "notFound": "文書が見つかりません",
+      "share": "共有",
+      "preview": "プレビュー"
+    }
+  },
+  "notebookPage": {
+    "notebook": "ノートブック",
+    "cells": "セル",
+    "toolbar": {
+      "runAll": "すべて実行",
+      "addCode": "コードを追加",
+      "addBlocks": "ブロックを追加",
+      "addMarkdown": "Markdownを追加",
+      "clearOutputs": "出力をクリア",
+      "restart": "カーネルを再起動"
+    },
+    "cell": {
+      "run": "実行",
+      "running": "実行中…",
+      "executing": "実行中…",
+      "markdown": "Markdown",
+      "blocks": "ブロック",
+      "clearOutputs": "出力をクリア",
+      "moveUp": "上へ移動",
+      "moveDown": "下へ移動",
+      "delete": "セルを削除",
+      "showCode": "コードを表示",
+      "showBlocks": "ブロックを表示"
+    },
+    "blocks": {
+      "showLua": "生成されたLua",
+      "hideLua": "Luaを隠す",
+      "generatedLua": "生成されたLuaソース",
+      "empty": "パレットからブロックを追加してプログラムを組み立てます。",
+      "noBlocks": "このカテゴリにブロックはありません",
+      "search": "ブロックを検索…",
+      "noMatch": "一致するブロックがありません",
+      "disable": "ブロックを無効化",
+      "enable": "ブロックを有効化",
+      "duplicate": "ブロックを複製",
+      "reset": "値をリセット"
+    },
+    "kernels": {
+      "lua": "Lua"
+    },
+    "outputs": {
+      "error": "エラー",
+      "timedOut": "{seconds} 秒でタイムアウト"
+    },
+    "markdown": {
+      "render": "プレビュー",
+      "edit": "編集",
+      "placeholder": "Markdownを記述…",
+      "empty": "空のセル"
+    },
+    "empty": {
+      "title": "まだ実行するものがありません",
+      "description": "Luaコード、ブロック、またはMarkdownセルを追加して始めましょう。"
+    },
+    "add": {
+      "code": "コード",
+      "blocks": "ブロック",
+      "markdown": "Markdown"
+    },
+    "restartConfirm": {
+      "body": "Luaカーネルを再起動しますか？",
+      "description": "すべての変数と状態がクリアされます。出力は保持されます。"
+    },
+    "help": {
+      "open": "ノートブックガイド",
+      "title": "EcliNotebook クイックリファレンス",
+      "intro": "すべてのスニペットは実Luaです — 手書きのセルと同じカーネルで実行されます。",
+      "varsTitle": "変数",
+      "varsNote": "グローバル変数はセル間で保持されます。",
+      "graphTitle": "プロットと塗りつぶし領域",
+      "graphNote": "GeoGebra風：関数に名前を付け、再利用し、積分します。",
+      "chartTitle": "チャート",
+      "chartNote": "数値や数式を即座に表示。",
+      "canvasTitle": "お絵かきボード",
+      "canvasNote": "セル実行終了時に画像としてレンダリングされます。"
+    }
+  },
+  "drivePage": {
+    "title": "ドライブ",
+    "subtitle": "クラウドファイルストレージ",
+    "upload": "アップロード",
+    "empty": "ファイルをここにドロップするか「アップロード」をクリック",
+    "download": "ダウンロード",
+    "delete": "削除",
+    "newFolder": "新しいフォルダ",
+    "create": "作成",
+    "folderName": "フォルダ名",
+    "deleteConfirm": "「{name}」を削除しますか？この操作は取り消せません。",
+    "readOnly": "読み取り専用",
+    "used": "{total} 中 {used} を使用",
+    "noStorage": "利用可能なクラウドストレージがありません",
+    "loadError": "ドライブを読み込めませんでした",
+    "uploadError": "アップロードに失敗しました",
+    "mkdirError": "フォルダを作成できませんでした",
+    "deleteError": "削除に失敗しました",
+    "rename": "名前を変更",
+    "renameHint": "「{name}」の新しい名前を選択してください。",
+    "renameError": "名前の変更に失敗しました",
+    "sharedLinks": "共有リンク"
   }
 }

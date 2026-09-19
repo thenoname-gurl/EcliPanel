@@ -14,6 +14,18 @@ import { authenticate } from '../middleware/auth';
 import { hasPermissionSync, authorize } from '../middleware/authorize';
 import { UserLog } from '../models/userLog.entity';
 import {
+  getStorageQuota,
+  provisionStorageServer,
+  writeStorageBlob,
+  downloadStorageBlob,
+  listStorageBlobs,
+  deleteStorageBlob,
+  deleteStoragePrefix,
+  renameStorageBlob,
+  ensureStorageDir,
+  recomputeStorageUsage,
+} from '../services/cloudStorageService';
+import {
   ensureMailboxAccountForUser,
   getMailboxAccountForUser,
   getMailboxConnectionInfo,
@@ -71,6 +83,17 @@ import {
 } from '../utils/body';
 import { getStringParam, getNumberParam } from '../types/handler';
 import type { ValidationErrorBody } from '../middleware/validation';
+
+function backendBaseFor(ctx: any): string {
+  return (
+    (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
+    (() => {
+      const proto = (ctx.request?.headers?.get?.('x-forwarded-proto') || 'https') as string;
+      const host = (ctx.request?.headers?.get?.('host') || 'localhost') as string;
+      return `${proto}://${host}`;
+    })()
+  );
+}
 
 const userSchema = t.Object({
   id: t.Number(),
@@ -399,6 +422,14 @@ export async function userRoutes(app: any, prefix = '') {
         const errObj = err as Record<string, unknown>;
         console.warn('Failed to provision Mailcow mailbox for user:', errObj.message || err);
       }
+
+      void (async () => {
+        try {
+          await provisionStorageServer(user.id);
+        } catch (e: any) {
+          console.warn('[registration:storage]', e?.message || e);
+        }
+      })();
 
       void (async () => {
         try {
@@ -2489,6 +2520,103 @@ export async function userRoutes(app: any, prefix = '') {
     }
   );
 
+  app.put(
+    prefix + '/me/avatar-file',
+    async (ctx: any) => {
+      const user = ctx.user as User;
+      if (!user) { ctx.set.status = 401; return { error: ctx.t('auth.notLoggedIn') }; }
+      const body = (ctx.body || {}) as any;
+      const uploadFile = body?.file || body?.blob;
+      if (!uploadFile) { ctx.set.status = 400; return { error: ctx.t('validation.noFile') }; }
+      const mime = (uploadFile.type || uploadFile.mimetype || '').toString();
+      const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+      if (!allowed.includes(mime)) { ctx.set.status = 400; return { error: ctx.t('validation.invalidImageType') }; }
+      const ab = await uploadFile.arrayBuffer();
+      if (ab.byteLength > 5 * 1024 * 1024) { ctx.set.status = 413; return { error: 'Image too large (5 MB max)' }; }
+      const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : mime === 'image/gif' ? '.gif' : '.jpg';
+      const bytes = Buffer.from(ab);
+      const filePath = `avatars/${user.id}${ext}`;
+      let url: string;
+      try {
+        await writeStorageBlob(user.id, filePath, bytes);
+        const backendBase = backendBaseFor(ctx);
+        url = `${backendBase}/api/me/avatar?path=${encodeURIComponent(filePath)}&mime=${encodeURIComponent(mime)}`;
+      } catch (e: unknown) {
+        console.warn('[user] avatar cloud write failed, local fallback:', (e as Error)?.message || e);
+        const filename = `avatar_user_${user.id}${ext}`;
+        const uploadDir = path.join(process.cwd(), 'uploads');
+        await fs.promises.mkdir(uploadDir, { recursive: true });
+        await Bun.write(path.join(uploadDir, filename), bytes);
+        const backendBase = backendBaseFor(ctx);
+        url = `${backendBase}/uploads/${filename}`;
+      }
+      user.avatarUrl = url;
+      await AppDataSource.getRepository(User).save(user);
+      return { success: true, url: user.avatarUrl };
+    },
+    {
+      beforeHandle: [authenticate],
+      body: t.Object({ file: t.File() }),
+      detail: { summary: 'Upload user avatar to cloud storage', tags: ['Users'] },
+    }
+  );
+
+  app.get(
+    prefix + '/me/avatar',
+    async (ctx: any) => {
+      const q = (ctx.query || {}) as any;
+      const storedPath = String(q.path || '');
+      const mimeHint = String(q.mime || 'image/png');
+      const m = storedPath.match(/^avatars\/(\d+)(\.[a-z0-9]+)?$/i);
+      if (!m) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      const targetId = Number(m[1]);
+      if (!targetId) {
+        ctx.set.status = 404;
+        return { error: ctx.t('user.notFound') };
+      }
+      const ext = (m[2] || '').toLowerCase();
+      try {
+        const bytes = await downloadStorageBlob(targetId, storedPath);
+        if (bytes) {
+          ctx.set.status = 200;
+          ctx.set.headers = {
+            'Content-Type': mimeHint || 'image/png',
+            'Cache-Control': 'private, max-age=3600',
+          };
+          return new Response(bytes as unknown as BodyInit);
+        }
+      } catch {}
+      const isGif = mimeHint === 'image/gif' || ext === '.gif';
+      const isWebp = mimeHint === 'image/webp' || ext === '.webp';
+      const candidates = [
+        `avatar_user_${targetId}${ext}`,
+        `avatar_user_${targetId}.png`,
+        `avatar_user_${targetId}.jpg`,
+        `avatar_user_${targetId}.jpeg`,
+        `avatar_user_${targetId}.webp`,
+        `avatar_user_${targetId}.gif`,
+      ];
+      const uploadDir = path.join(process.cwd(), 'uploads');
+      for (const name of candidates) {
+        try {
+          const buf = await fs.promises.readFile(path.join(uploadDir, name));
+          ctx.set.status = 200;
+          ctx.set.headers = {
+            'Content-Type': isGif ? 'image/gif' : isWebp ? 'image/webp' : 'image/png',
+            'Cache-Control': 'private, max-age=3600',
+          };
+          return new Response(buf as unknown as BodyInit);
+        } catch {}
+      }
+      ctx.set.status = 404;
+      return { error: ctx.t('user.notFound') };
+    },
+    { detail: { summary: 'Serve user avatar from cloud or legacy uploads', tags: ['Users'] } }
+  );;
+
   app.post(
     prefix + '/users/:id/guide',
     async (ctx: any) => {
@@ -2577,15 +2705,309 @@ export async function userRoutes(app: any, prefix = '') {
         results.push(...userServers.map((s: any) => ({ ...s, node: n.id })));
       }
       return results;
-    },
-    {
-      beforeHandle: authenticate,
-      response: {
-        200: t.Array(t.Any()),
-        401: t.Object({ error: t.String() }),
-        403: t.Object({ error: t.String() }),
+},
+      {
+        beforeHandle: authenticate,
+        response: {
+          200: t.Array(t.Any()),
+          401: t.Object({ error: t.String() }),
+          403: t.Object({ error: t.String() }),
+        },
+        detail: { summary: 'List all servers owned by user', tags: ['Users'] },
+      }
+    );
+
+    app.get(
+      prefix + '/me/storage',
+      async ctx => {
+        try {
+          const q = await getStorageQuota(ctx.user.id);
+          const quotaBytes = Number(q.quotaBytes) || 0;
+          const usedBytes = Number(q.usedBytes) || 0;
+          return {
+            quotaBytes,
+            usedBytes,
+            serverUuid: q.serverUuid,
+            nodeId: q.nodeId,
+            quotaGB: quotaBytes / 1024 / 1024 / 1024,
+            usedGB: usedBytes / 1024 / 1024 / 1024,
+            usagePercent: quotaBytes > 0 ? (usedBytes / quotaBytes) * 100 : 0,
+          };
+        } catch (e: any) {
+          console.warn('[userHandler] storage quota fetch failed', e?.message || e);
+          ctx.set.status = 502;
+          return {
+            error: 'No cloud storage available. Please contact support.',
+          };
+        }
       },
-      detail: { summary: 'List all servers owned by user', tags: ['Users'] },
-    }
-  );
+      {
+        beforeHandle: [authenticate],
+        response: {
+          200: t.Object({
+            quotaBytes: t.Number(),
+            usedBytes: t.Number(),
+            serverUuid: t.String(),
+            nodeId: t.Number(),
+            quotaGB: t.Number(),
+            usedGB: t.Number(),
+            usagePercent: t.Number(),
+          }),
+          401: t.Object({ error: t.String() }),
+        },
+        detail: { summary: 'Current user cloud-storage quota + usage', tags: ['Users'] },
+      }
+    );
+
+
+    const DRIVE_PREFIX = 'drive';
+
+    const isUserWritableStoragePath = (rel: string): boolean => {
+      const first = String(rel).split('/')[0] || '';
+      return first === 'drive';
+    };
+
+    app.get(
+      prefix + '/me/drive',
+      async ctx => {
+        const user = ctx.user as User;
+        const q = ctx.query as Record<string, string>;
+        const dir = String(q?.path || '/');
+        try {
+          await recomputeStorageUsage(user.id);
+          const quota = await getStorageQuota(user.id);
+          const quotaBytes = Number(quota.quotaBytes) || 0;
+          const usedBytes = Number(quota.usedBytes) || 0;
+          let blobs: any[] = [];
+          try {
+            const storageDir = dir === '/' ? '/' : dir.replace(/^\/+|\/+$/g, '');
+            blobs = (await listStorageBlobs(user.id, storageDir || '/')) as any;
+          } catch { /* dir is non existant */ }
+          const ui = blobs.map((b: any) => ({
+            name: b.name,
+            size: b.size,
+            directory: b.directory,
+            modified: b.modified || null,
+          }));
+          return {
+            quotaBytes,
+            usedBytes,
+            quotaGB: quotaBytes / 1024 / 1024 / 1024,
+            usedGB: usedBytes / 1024 / 1024 / 1024,
+            usagePercent: quotaBytes > 0 ? (usedBytes / quotaBytes) * 100 : 0,
+            directory: dir === '/' ? '/' : `/${dir}`,
+            serverUuid: quota.serverUuid,
+            entries: ui,
+          };
+        } catch (e: any) {
+          ctx.set.status = 502;
+          return { error: e?.message || 'Drive unavailable' };
+        }
+      },
+      {
+        beforeHandle: [authenticate],
+        response: {
+          200: t.Object({
+            quotaBytes: t.Number(), usedBytes: t.Number(), quotaGB: t.Number(), usedGB: t.Number(),
+            usagePercent: t.Number(), directory: t.String(), serverUuid: t.String(),
+            entries: t.Array(t.Object({ name: t.String(), size: t.Number(), directory: t.Boolean(), modified: t.Nullable(t.String()) })),
+          }),
+          401: t.Object({ error: t.String() }),
+        },
+        detail: { summary: 'List user drive files (cloud storage)', tags: ['Users'] },
+      }
+    );
+
+    app.put(
+      prefix + '/me/drive/upload',
+      async ctx => {
+        const user = ctx.user as User;
+        const q = ctx.query as Record<string, string>;
+        const dir = String(q?.path || '/');
+        const body = (ctx.body || {}) as any;
+        const file = body?.file;
+        if (!file) {
+          ctx.set.status = 400;
+          return { error: 'file required' };
+        }
+        let buf: Buffer;
+        try {
+          const ab = ArrayBuffer.isView(file) ? file : await file.arrayBuffer?.();
+          buf = Buffer.from(ab as any);
+        } catch (e: any) {
+          ctx.set.status = 400;
+          return { error: 'Invalid upload' };
+        }
+        if (!buf.length) {
+          ctx.set.status = 400;
+          return { error: 'Empty file' };
+        }
+        if (buf.length > 1024 * 1024 * 1024) {
+          ctx.set.status = 413;
+          return { error: 'File too large (max 1GB)' };
+        }
+        const dirClean = dir === '/' ? '' : dir.replace(/^\/+|\/+$/g, '');
+        let targetDir: string;
+        if (!dirClean || dirClean === 'drive') {
+          targetDir = 'drive';
+        } else if (dirClean.startsWith('drive/')) {
+          targetDir = dirClean;
+        } else {
+          ctx.set.status = 403;
+          return { error: 'This folder is read-only — uploads are only allowed in your Drive' };
+        }
+        await ensureStorageDir(user.id, targetDir);
+        const name = String(body?.name || body?.filename || file?.name || 'upload.bin');
+        const clean = name.replace(/^\/+|\/+$/g, '');
+        const filePath = `${targetDir}/${clean}`;
+        const timeoutMs = Math.min(600_000, Math.max(120_000, Math.ceil(buf.length / (1024 * 1024)) * 30_000));
+        try {
+          const res = await writeStorageBlob(user.id, filePath, buf, timeoutMs);
+          return { success: true, path: filePath.replace(/^drive\//, '').replace(/^\/+/, ''), size: buf.length, quotaBytes: res.quotaBytes };
+        } catch (e: any) {
+          if (e?.code === 'STORAGE_QUOTA_EXCEEDED') ctx.set.status = 413;
+          else ctx.set.status = 500;
+          return { error: e?.message || 'Upload failed' };
+        }
+      },
+      {
+        beforeHandle: [authenticate],
+        body: t.Object({ file: t.File(), name: t.Optional(t.String()) }),
+        response: { 200: t.Object({ success: t.Boolean(), path: t.String() }) },
+        detail: { summary: 'Upload file to user drive', tags: ['Users'] },
+      }
+    );
+
+    app.get(
+      prefix + '/me/drive/download',
+      async ctx => {
+        const user = ctx.user as User;
+        const q = ctx.query as Record<string, string>;
+        const p = String(q?.path || '');
+        const clean = p.replace(/^\/+/, '');
+        if (!clean) {
+          ctx.set.status = 400;
+          return { error: 'Invalid path' };
+        }
+        try {
+          const data = await downloadStorageBlob(user.id, clean);
+          if (!data) {
+            ctx.set.status = 404;
+            return { error: 'Not found' };
+          }
+          return new Response(data as any, {
+            headers: {
+              'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(clean.split('/').pop() || 'file')}`,
+              'Content-Type': q?.mime || 'application/octet-stream',
+              'Cache-Control': 'no-store',
+            },
+          });
+        } catch (e: any) {
+          ctx.set.status = 404;
+          return { error: e?.message || 'Not found' };
+        }
+      },
+      {
+        beforeHandle: [authenticate],
+        detail: { summary: 'Download user drive file', tags: ['Users'] },
+      }
+    );
+
+    app.delete(
+      prefix + '/me/drive',
+      async ctx => {
+        const user = ctx.user as User;
+        const q = ctx.query as Record<string, string>;
+        const p = String(q?.path || '');
+        const clean = p.replace(/^\/+/, '');
+        if (!clean) {
+          ctx.set.status = 400;
+          return { error: 'Invalid path' };
+        }
+        if (clean === 'drive') {
+          ctx.set.status = 403;
+          return { error: 'Cannot delete the root Drive folder' };
+        }
+        if (!isUserWritableStoragePath(clean)) {
+          ctx.set.status = 403;
+          return { error: 'Read-only category — only files in your Drive can be deleted' };
+        }
+        try {
+          const ok = await deleteStorageBlob(user.id, clean);
+          if (!ok) {
+            await deleteStoragePrefix(user.id, clean.replace(/\/+$/, ''));
+          }
+          return { success: true, deleted: clean };
+        } catch (e: any) {
+          ctx.set.status = 500;
+          return { error: e?.message || 'Delete failed' };
+        }
+      },
+      {
+        beforeHandle: [authenticate],
+        detail: { summary: 'Delete user drive file/folder', tags: ['Users'] },
+      }
+    );
+
+    app.post(
+      prefix + '/me/drive/mkdir',
+      async ctx => {
+        const user = ctx.user as User;
+        const body = (ctx.body || {}) as any;
+        const d = String(body?.path || '');
+        const clean = d.replace(/^\/+|\/+$/g, '');
+        if (!clean || clean === 'drive') {
+          ctx.set.status = 400;
+          return { error: 'Invalid path' };
+        }
+        if (!clean.startsWith('drive/')) {
+          ctx.set.status = 403;
+          return { error: 'Read-only category — folders can only be created inside your Drive' };
+        }
+        await ensureStorageDir(user.id, clean);
+        return { success: true, path: clean };
+      },
+      {
+        beforeHandle: [authenticate],
+        body: t.Object({ path: t.String() }),
+        detail: { summary: 'Create folder in user drive', tags: ['Users'] },
+      }
+    );
+
+    app.post(
+      prefix + '/me/drive/rename',
+      async ctx => {
+        const user = ctx.user as User;
+        const body = (ctx.body || {}) as any;
+        const from = String(body?.path || '').replace(/^\/+/, '');
+        const name = String(body?.newName || '').replace(/^\/+|\/+$/g, '');
+        if (!from || from === 'drive') {
+          ctx.set.status = 400;
+          return { error: 'Invalid path — the root Drive folder cannot be renamed' };
+        }
+        if (!name || name.includes('/') || name === '.' || name === '..') {
+          ctx.set.status = 400;
+          return { error: 'Invalid name' };
+        }
+        if (!isUserWritableStoragePath(from)) {
+          ctx.set.status = 403;
+          return { error: 'Read-only category — only files in your Drive can be renamed' };
+        }
+        const dirname = from.includes('/') ? from.slice(0, from.lastIndexOf('/')) : '';
+        const to = dirname ? `${dirname}/${name}` : name;
+        if (to === from) return { success: true, from, to };
+        try {
+          await renameStorageBlob(user.id, from, to);
+          return { success: true, from, to };
+        } catch (e: any) {
+          ctx.set.status = 500;
+          return { error: e?.message || 'Rename failed' };
+        }
+      },
+      {
+        beforeHandle: [authenticate],
+        body: t.Object({ path: t.String(), newName: t.String() }),
+        detail: { summary: 'Rename file/folder in user drive', tags: ['Users'] },
+      }
+    );
 }

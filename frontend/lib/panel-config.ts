@@ -128,6 +128,13 @@ export const API_ENDPOINTS = {
   permissions: "/api/permissions",
   userRoles: "/api/users/:id/roles",
   userAvatar: "/api/users/:id/avatar",
+  userAvatarFile: "/api/me/avatar-file",
+  userStorage: "/api/me/storage",
+  userDrive: "/api/me/drive",
+  userDriveUpload: "/api/me/drive/upload",
+  userDriveDownload: "/api/me/drive/download",
+  userDriveMkdir: "/api/me/drive/mkdir",
+  userDriveRename: "/api/me/drive/rename",
   orgAvatar: "/api/organisations/:id/avatar",
   adminOrgMembers: "/api/admin/organisations/:id/members",
 
@@ -631,6 +638,29 @@ export const API_ENDPOINTS = {
   blogAuthorProfile: "/api/public/blog/:slug/author/:userId",
   blogList: "/api/blog/list",
   blogAnalytics: "/api/blog/mine/analytics",
+
+  // EcliOffice
+  officeList: "/api/office",
+  officeCreate: "/api/office",
+  officeDetail: "/api/office/:id",
+  officeUpdate: "/api/office/:id",
+  officeContent: "/api/office/:id/content",
+  officeDuplicate: "/api/office/:id/duplicate",
+  officeTrash: "/api/office/:id/trash",
+  officeRestore: "/api/office/:id/restore",
+  officeDelete: "/api/office/:id",
+  officeShares: "/api/office/:id/shares",
+  officeShareCreate: "/api/office/:id/shares",
+  officeShareDelete: "/api/office/:id/shares/:shareId",
+  officeThumbnail: "/api/office/:id/thumbnail",
+  officeWs: "/api/ws/office",
+
+  // EcliOffice screen share
+  screenShareSessions: "/api/screen-share/sessions",
+  screenShareMine: "/api/screen-share/sessions/mine",
+  screenShareDelete: "/api/screen-share/sessions/:id",
+  screenSharePublic: "/api/screen-share/public/:token",
+  screenShareSignal: "/api/screen-share/signal/:token",
 } as const
 
 // ============================================
@@ -698,7 +728,7 @@ export const PORTALS: Record<PortalTier, PortalConfig> = {
   },
 } as const
 
-export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'chat' | 'blog'
+export type FeatureFlag = 'registration' | 'billing' | 'ai' | 'dns' | 'ticketing' | 'applications' | 'oauth' | 'tunnels' | 'visualeditor' | 'elo' | 'calendar' | 'chat' | 'blog' | 'office' | 'drive'
 
 export interface NavItem {
   label: string

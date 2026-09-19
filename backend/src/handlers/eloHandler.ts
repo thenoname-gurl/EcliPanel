@@ -24,14 +24,24 @@ import { sanitizeError } from '../utils/sanitizeError';
 import { getRolloutTreatment } from '../services/rolloutService';
 import { getGeoBlockLevel, requiresKyc, isKycVerified } from '../utils/eu';
 import { httpRequest } from '../utils/http';
-import path from 'path';
-import fs from 'fs';
+import { writeStorageBlob, downloadStorageBlob } from '../services/cloudStorageService';
 
 const ELO_SERVER_LIMIT_KEY = 'eloServerLimit';
 const VOTES_TO_UNLOCK = 20;
 
 export function clampInt(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(v)));
+}
+
+function backendBaseFor(ctx: any): string {
+  return (
+    (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
+    (() => {
+      const proto = (ctx.request?.headers?.get?.('x-forwarded-proto') || 'https') as string;
+      const host = (ctx.request?.headers?.get?.('host') || 'localhost') as string;
+      return `${proto}://${host}`;
+    })()
+  );
 }
 
 async function requireEloRollout(ctx: any): Promise<true | { error: string }> {
@@ -1245,25 +1255,52 @@ export async function eloRoutes(app: any, prefix = '') {
 
       const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : mime === 'image/gif' ? '.gif' : '.jpg';
       const filename = `elo_screenshot_${userId}_${Date.now()}${ext}`;
-      const uploadDir = path.join(process.cwd(), 'uploads');
-      await fs.promises.mkdir(uploadDir, { recursive: true });
-      const filepath = path.join(uploadDir, filename);
-      await Bun.write(filepath, buffer);
+      const filePath = `elo/${userId}/screenshots/${filename}`;
 
-      const backendBase =
-        (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
-        (() => {
-          const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
-          const host = (ctx.request.headers.get('host') || 'localhost') as string;
-          return `${proto}://${host}`;
-        })();
+      let url: string;
+      try {
+        await writeStorageBlob(userId, filePath, buffer);
+        url = `${backendBaseFor(ctx)}/api${prefix}/elo/screenshots/file?path=${encodeURIComponent(filePath)}&mime=${encodeURIComponent(mime)}`;
+      } catch (e: unknown) {
+        const code = (e as any)?.code;
+        ctx.set.status = code === 'STORAGE_QUOTA_EXCEEDED' ? 413 : 500;
+        return { error: (e as Error)?.message || 'Upload failed' };
+      }
 
-      return { url: `${backendBase}/uploads/${filename}` };
+      return { url };
     },
     {
       body: t.Object({ file: t.File() }),
       beforeHandle: [authenticate],
       detail: { summary: 'Upload an ELO screenshot', tags: ['ELO'] },
+    }
+  );
+
+  app.get(
+    prefix + '/elo/screenshots/file',
+    async (ctx: any) => {
+      const user = ctx.user as User;
+      const q = ctx.query as Record<string, string>;
+      const filePath = String(q?.path || '');
+      if (!filePath.startsWith(`elo/${user.id}/`)) {
+        ctx.set.status = 403;
+        return null;
+      }
+      const data = await downloadStorageBlob(user.id, filePath);
+      if (!data) {
+        ctx.set.status = 404;
+        return null;
+      }
+      return new Response(data as any, {
+        headers: {
+          'Content-Type': q?.mime || 'image/png',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    },
+    {
+      beforeHandle: [authenticate],
+      detail: { summary: 'Serve an ELO screenshot from cloud storage', tags: ['ELO'] },
     }
   );
 

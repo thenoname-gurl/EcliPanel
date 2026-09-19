@@ -153,7 +153,8 @@
     "childCannotUpdateBilling": "child_cannot_update_billing",
     "userNotFoundInOrg": "User not found in org",
     "accountSuspended": "Account is suspended. Please contact support.",
-    "accountIsPendingDeletionAndCurrentlyFrozen": "Account is pending deletion and currently frozen"
+    "accountIsPendingDeletionAndCurrentlyFrozen": "Account is pending deletion and currently frozen",
+    "cannotSuspendAdmin": "You cannot suspend an admin account."
   },
   "organisation": {
     "notFound": "Organisation not found",
@@ -370,7 +371,9 @@
     "could_not_resolve_download_url_for_this_version": "Could not resolve download URL for this version",
     "could_not_resolve_download_url": "Could not resolve download URL",
     "failed_to_download_plugin": "Failed to download plugin",
-    "not_supported_for_proxmox_nodes_15": "Not supported for Proxmox nodes"
+    "not_supported_for_proxmox_nodes_15": "Not supported for Proxmox nodes",
+    "invalidDownloadUrl": "Download URL must be a public http(s) URL.",
+    "serverNotFound": "Server not found."
   },
   "node": {
     "notFound": "Node not found",
@@ -610,7 +613,9 @@
     "invalidMethod": "Invalid payment method data for method {id}",
     "methodSaved": "Payment methods saved",
     "methodSaveFailed": "Failed to save payment methods",
-    "paymentConfirmed": "Payment confirmed and order activated"
+    "paymentConfirmed": "Payment confirmed and order activated",
+    "cannotCancel": "Order cannot be cancelled in its current status.",
+    "cannotReject": "Payment cannot be rejected in its current status."
   },
   "order": {
     "notFound": "Order not found",
@@ -693,6 +698,12 @@
       "updated": "Your ID verification status has been updated.",
       "statusVerified": "Verified",
       "statusFailed": "Failed"
+    },
+    "sunsetPolicy": {
+      "subject": "Your account is inactive - please log in to keep it",
+      "message": "Your EclipseSystems account has been inactive for more than one year. Please log in to keep your account active.",
+      "details": "If you do not log in, your account will be marked inactive and you will stop receiving product updates and non-essential emails. You can reactivate your account at any time by logging in.",
+      "actionText": "Log in now"
     }
   },
   "plan": {
@@ -894,7 +905,8 @@
     "invalid_request_3": "Invalid request",
     "blueprint_not_found_2": "Blueprint not found",
     "invalid_request_4": "Invalid request",
-    "blueprint_not_found_3": "Blueprint not found"
+    "blueprint_not_found_3": "Blueprint not found",
+    "block_required": "Block object is required."
   },
   "chat": {
     "channel_name_is_required": "Channel name is required",
@@ -1037,7 +1049,8 @@
     "this_coupon_is_no_longer_active_1": "This coupon is no longer active",
     "this_coupon_has_expired_1": "This coupon has expired",
     "this_coupon_has_reached_its_global_usage_limit_1": "This coupon has reached its global usage limit",
-    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "You have already used this coupon the maximum number of times"
+    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "You have already used this coupon the maximum number of times",
+    "discounttype_must_be_percentage_or_fixed": "Discount type must be 'percentage' or 'fixed'."
   },
   "serverSubuser": {
     "this_user_must_complete_kyc_identity_verification_before_the": "This user must complete KYC identity verification before they can be added as a subuser."
@@ -1157,12 +1170,6 @@
     "mature": "Mature content",
     "political": "Political opinion"
   },
-  "sunsetPolicy": {
-    "subject": "Your account is inactive - please log in to keep it",
-    "message": "Your EclipseSystems account has been inactive for more than one year. Please log in to keep your account active.",
-    "details": "If you do not log in, your account will be marked inactive and you will stop receiving product updates and non-essential emails. You can reactivate your account at any time by logging in.",
-    "actionText": "Log in now"
-  },
   "luminos": {
     "attemptsExhausted": "No attempts left. You have used all 3 of your exam attempts.",
     "attemptInProgress": "You already have an exam in progress. Finish or wait for it to expire.",
@@ -1191,7 +1198,7 @@
     "alreadySubmitted": "You already submitted to this contest.",
     "submissionNotFound": "Submission not found.",
     "bountyTitleRequired": "Bounty title is required.",
-  "bountyRepoUrlInvalid": "Repo URL must be an absolute http(s) link.",
+    "bountyRepoUrlInvalid": "Repo URL must be an absolute http(s) link.",
     "bountyNotFound": "Bounty not found.",
     "findingRequired": "Finding text is required.",
     "findingNotFound": "Finding not found.",
@@ -1209,5 +1216,19 @@
     "onlyReporterCanRequest": "Only the reporter can request disclosure.",
     "disclosureNeedsAward": "Disclosure can only be requested after the report is awarded.",
     "commentRequired": "Comment text is required."
+  },
+  "office": {
+    "documentNotFound": "Document not found.",
+    "noAccess": "You don't have access to this document.",
+    "invalidType": "Invalid document type.",
+    "metadataOwnerOnly": "Only the owner can change document metadata.",
+    "readOnly": "This document is read-only for you.",
+    "userNotFound": "User not found.",
+    "cannotShareToSelf": "You cannot share a document with yourself.",
+    "shareNotFound": "Share not found.",
+    "noFileProvided": "No file provided.",
+    "invalidImageType": "Image must be PNG, JPEG or WebP.",
+    "imageTooLarge": "Image is too large (max 5 MB).",
+    "thumbnailNotFound": "Thumbnail not found."
   }
 }

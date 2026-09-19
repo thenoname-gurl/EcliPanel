@@ -1,6 +1,9 @@
 import { AppDataSource } from '../config/typeorm';
 import { VisualEditorBlueprint } from '../models/visualEditorBlueprint.entity';
 import { VisualEditorLibrary } from '../models/visualEditorLibrary.entity';
+import { VisualEditorCustomBlock } from '../models/visualEditorCustomBlock.entity';
+import { SharedCustomBlock } from '../models/sharedCustomBlock.entity';
+import { BlockPack } from '../models/blockPack.entity';
 
 export interface BlockField {
   name: string;
@@ -681,6 +684,15 @@ export function generateCode(blocks: Block[]): string {
   output = output.replace(/\}\n(\s*)else\s*\{/g, '} else {');
   output = output.replace(/\}\n(\s*)else\s+if\s*\(/g, '} else if (');
   return output;
+}
+
+export function generateBlockCode(block: Block, depth = 0): string {
+  if (!block) return '';
+  if (depth > 200) return '// Max nesting depth exceeded';
+  let code = generateBlock(block, depth);
+  code = code.replace(/\}\n(\s*)else\s*\{/g, '} else {');
+  code = code.replace(/\}\n(\s*)else\s+if\s*\(/g, '} else if (');
+  return code.trim();
 }
 
 function indent(level: number): string {
@@ -1609,6 +1621,146 @@ export async function deleteLibraryItem(id: number, userId: number): Promise<boo
   return (result.affected ?? 0) > 0;
 }
 
+export interface SettingDef {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'boolean' | 'select';
+  default: unknown;
+  options?: { label: string; value: string }[];
+}
+
+export interface CustomBlock {
+  id: number;
+  userId: number;
+  name: string;
+  code: string;
+  blocks: Block[];
+  description: string | null;
+  settingsDefinition: SettingDef[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export function expandCustomBlockRef(
+  block: Block,
+  resolver: ReadonlyMap<number, { code: string; settingsDefinition?: SettingDef[] }>,
+): Block {
+  if (block.type !== 'custom_block') return block;
+  const id = Number(block.config?.customBlockId);
+  const entry = resolver.get(id);
+  if (!entry) return block;
+
+  const settingsDef = Array.isArray(entry.settingsDefinition) ? entry.settingsDefinition : [];
+  const localOverrides: Record<string, unknown> = (block.config?.settingsOverrides as Record<string, unknown>) ?? {};
+
+  let code = entry.code;
+  if (settingsDef.length > 0) {
+    const lines = settingsDef.map((s) => {
+      const resolved = localOverrides[s.key] !== undefined ? localOverrides[s.key] : s.default;
+      const val = typeof resolved === 'string' ? JSON.stringify(resolved) : JSON.stringify(resolved ?? s.default ?? '');
+      return `const ${s.key} = ${val};`;
+    });
+    code = lines.join('\n') + '\n\n' + code;
+  }
+
+  return {
+    ...block,
+    type: 'custom_code',
+    config: { ...(block.config || {}), code },
+  };
+}
+
+export function expandCustomBlockRefs(
+  blocks: Block[],
+  resolver: ReadonlyMap<number, { code: string; settingsDefinition?: SettingDef[] }>,
+): Block[] {
+  if (!blocks || blocks.length === 0) return blocks;
+  return blocks.map(b => {
+    const childList = Array.isArray(b.children) ? b.children : [];
+    return {
+      ...expandCustomBlockRef(b, resolver),
+      children: expandCustomBlockRefs(childList, resolver),
+    };
+  });
+}
+
+function mapCustomBlock(l: VisualEditorCustomBlock): CustomBlock {
+  let blocks: Block[] = [];
+  if (l.blocksData) {
+    try { blocks = JSON.parse(l.blocksData) } catch { blocks = [] }
+  }
+  let settingsDefinition: SettingDef[] = [];
+  if ((l as any).settingsDefinition) {
+    try { const parsed = JSON.parse((l as any).settingsDefinition); if (Array.isArray(parsed)) settingsDefinition = parsed } catch { settingsDefinition = [] }
+  }
+  return {
+    id: l.id, userId: l.userId, name: l.name, code: l.code, blocks,
+    description: l.description, settingsDefinition,
+    createdAt: l.createdAt, updatedAt: l.updatedAt,
+  };
+}
+
+function normalizeCustomBlockName(name: string): string {
+  const normalized = clampText(name, MAX_VISUAL_EDITOR_NAME_LENGTH);
+  if (!normalized) {
+    throw new Error('Custom block name is required');
+  }
+  return normalized;
+}
+
+export async function createCustomBlock(
+  userId: number,
+  name: string,
+  code: string,
+  blocks: Block[] = [],
+  description?: string,
+  settingsDefinition?: SettingDef[],
+): Promise<CustomBlock> {
+  const repo = AppDataSource.getRepository(VisualEditorCustomBlock);
+  const item = repo.create({
+    userId,
+    name: normalizeCustomBlockName(name),
+    code: String(code ?? ''),
+    blocksData: blocks.length ? JSON.stringify(blocks) : null,
+    description: clampText(description, MAX_VISUAL_EDITOR_DESCRIPTION_LENGTH) || null,
+    settingsDefinition: Array.isArray(settingsDefinition) && settingsDefinition.length > 0 ? JSON.stringify(settingsDefinition) : null,
+  });
+  return mapCustomBlock(await repo.save(item));
+}
+
+export async function getUserCustomBlocks(userId: number, skip = 0, take = 100): Promise<CustomBlock[]> {
+  const repo = AppDataSource.getRepository(VisualEditorCustomBlock);
+  const items = await repo.find({
+    where: { userId },
+    order: { updatedAt: 'DESC' },
+    skip,
+    take,
+  });
+  return items.map(mapCustomBlock);
+}
+
+export async function updateCustomBlock(
+  id: number,
+  userId: number,
+  data: { name?: string; code?: string; blocks?: Block[]; description?: string; settingsDefinition?: SettingDef[] },
+): Promise<CustomBlock | null> {
+  const repo = AppDataSource.getRepository(VisualEditorCustomBlock);
+  const item = await repo.findOne({ where: { id, userId } });
+  if (!item) return null;
+  if (data.name !== undefined) item.name = normalizeCustomBlockName(data.name);
+  if (data.code !== undefined) item.code = String(data.code ?? '');
+  if (data.blocks !== undefined) item.blocksData = data.blocks.length ? JSON.stringify(data.blocks) : null;
+  if (data.description !== undefined) item.description = clampText(data.description, MAX_VISUAL_EDITOR_DESCRIPTION_LENGTH) || null;
+  if (data.settingsDefinition !== undefined) (item as any).settingsDefinition = Array.isArray(data.settingsDefinition) && data.settingsDefinition.length > 0 ? JSON.stringify(data.settingsDefinition) : null;
+  return mapCustomBlock(await repo.save(item));
+}
+
+export async function deleteCustomBlock(id: number, userId: number): Promise<boolean> {
+  const repo = AppDataSource.getRepository(VisualEditorCustomBlock);
+  const result = await repo.delete({ id, userId });
+  return (result.affected ?? 0) > 0;
+}
+
 export async function exportBlueprintAsZip(id: number, userId: number): Promise<{ name: string; data: Buffer } | null> {
   const blueprint = await getBlueprint(id, userId);
   if (!blueprint) return null;
@@ -1621,8 +1773,14 @@ export async function exportBlueprintAsZip(id: number, userId: number): Promise<
     projectFiles = data.files || [];
   } catch {}
 
+  const resolver = new Map<number, { code: string; settingsDefinition?: SettingDef[] }>();
+  try {
+    const items = await getUserCustomBlocks(userId, 0, 200);
+    for (const item of items) resolver.set(item.id, { code: item.code, settingsDefinition: item.settingsDefinition });
+  } catch {}
+
   for (const file of projectFiles) {
-    const code = generateCode(file.blocks || []);
+    const code = generateCode(expandCustomBlockRefs(file.blocks || [], resolver));
     files.push({ name: file.name || 'main.ts', content: code });
   }
 
@@ -1759,4 +1917,246 @@ function calculateCRC32(data: Buffer): number {
     crc = table[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
+}
+
+export interface SharedBlockEntry {
+  id: number;
+  authorUserId: number;
+  authorName: string | null;
+  name: string;
+  code: string;
+  blocks: Block[];
+  settingsDefinition: SettingDef[];
+  description: string | null;
+  tags: string[];
+  downloads: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function mapSharedBlock(s: SharedCustomBlock): SharedBlockEntry {
+  let blocks: Block[] = [];
+  if (s.blocksData) { try { blocks = JSON.parse(s.blocksData) } catch { blocks = [] } }
+  let settingsDefinition: SettingDef[] = [];
+  if ((s as any).settingsDefinition) {
+    try { const p = JSON.parse((s as any).settingsDefinition); if (Array.isArray(p)) settingsDefinition = p } catch {}
+  }
+  const tags = s.tags ? s.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+  return {
+    id: s.id, authorUserId: s.authorUserId, authorName: s.authorName,
+    name: s.name, code: s.code, blocks, settingsDefinition,
+    description: s.description, tags, downloads: s.downloads,
+    createdAt: s.createdAt, updatedAt: s.updatedAt,
+  };
+}
+
+export async function shareCustomBlock(
+  userId: number, authorName: string, customBlockId: number,
+): Promise<SharedBlockEntry> {
+  const repo = AppDataSource.getRepository(SharedCustomBlock);
+  const cbRepo = AppDataSource.getRepository(VisualEditorCustomBlock);
+  const cb = await cbRepo.findOne({ where: { id: customBlockId, userId } });
+  if (!cb) throw new Error('Custom block not found');
+  const existing = await repo.findOne({ where: { authorUserId: userId, name: cb.name } });
+  if (existing) throw new Error('You have already shared a block with this name. Rename it first.');
+  const item = repo.create({
+    authorUserId: userId,
+    authorName: clampText(authorName, 128) || null,
+    name: cb.name,
+    code: cb.code,
+    blocksData: (cb as any).blocksData || null,
+    settingsDefinition: (cb as any).settingsDefinition || null,
+    description: (cb as any).description || null,
+    tags: '',
+    downloads: 0,
+  });
+  return mapSharedBlock(await repo.save(item));
+}
+
+export async function unshareCustomBlock(id: number, userId: number): Promise<boolean> {
+  const repo = AppDataSource.getRepository(SharedCustomBlock);
+  const result = await repo.delete({ id, authorUserId: userId });
+  return (result.affected ?? 0) > 0;
+}
+
+export async function browseSharedBlocks(
+  skip = 0, take = 50, search?: string, tag?: string,
+): Promise<SharedBlockEntry[]> {
+  const repo = AppDataSource.getRepository(SharedCustomBlock);
+  const qb = repo.createQueryBuilder('s').orderBy('s.downloads', 'DESC').skip(skip).take(Math.min(take, 200));
+  if (search) qb.andWhere('s.name LIKE :q', { q: `%${search}%` });
+  if (tag) qb.andWhere('s.tags LIKE :tag', { tag: `%${tag}%` });
+  return (await qb.getMany()).map(mapSharedBlock);
+}
+
+export async function downloadSharedBlock(
+  id: number, targetUserId: number, authorName: string,
+): Promise<CustomBlock> {
+  const repo = AppDataSource.getRepository(SharedCustomBlock);
+  const item = await repo.findOne({ where: { id } });
+  if (!item) throw new Error('Shared block not found');
+  item.downloads += 1;
+  await repo.save(item);
+  let blocks: Block[] = [];
+  if (item.blocksData) { try { blocks = JSON.parse(item.blocksData) } catch {} }
+  let settingsDefinition: SettingDef[] = [];
+  if ((item as any).settingsDefinition) {
+    try { const p = JSON.parse((item as any).settingsDefinition); if (Array.isArray(p)) settingsDefinition = p } catch {}
+  }
+  return createCustomBlock(
+    targetUserId, item.name, item.code, blocks,
+    item.description || undefined, settingsDefinition,
+  );
+}
+
+export async function updateSharedBlockTags(
+  id: number, userId: number, tags: string[],
+): Promise<SharedBlockEntry | null> {
+  const repo = AppDataSource.getRepository(SharedCustomBlock);
+  const item = await repo.findOne({ where: { id, authorUserId: userId } });
+  if (!item) return null;
+  item.tags = tags.join(',');
+  return mapSharedBlock(await repo.save(item));
+}
+
+export interface BlockPackItem {
+  name: string;
+  code: string;
+  settingsDefinition: SettingDef[];
+  description: string | null;
+}
+
+export interface BlockPackEntry {
+  id: number;
+  authorUserId: number;
+  authorName: string | null;
+  name: string;
+  description: string | null;
+  items: BlockPackItem[];
+  tags: string[];
+  isPublic: boolean;
+  downloads: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+function mapBlockPack(p: BlockPack): BlockPackEntry {
+  let items: BlockPackItem[] = [];
+  if (p.itemsData) { try { const parsed = JSON.parse(p.itemsData); if (Array.isArray(parsed)) items = parsed } catch {} }
+  const tags = p.tags ? p.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+  return {
+    id: p.id, authorUserId: p.authorUserId, authorName: p.authorName,
+    name: p.name, description: p.description, items, tags,
+    isPublic: Boolean(p.isPublic), downloads: p.downloads,
+    createdAt: p.createdAt, updatedAt: p.updatedAt,
+  };
+}
+
+export async function createBlockPack(
+  userId: number, authorName: string, name: string,
+  items: BlockPackItem[], description?: string, tags?: string[], isPublic = false,
+): Promise<BlockPackEntry> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  if (!items.length) throw new Error('Pack must contain at least one block');
+  const item = repo.create({
+    authorUserId: userId,
+    authorName: clampText(authorName, 128) || null,
+    name: clampText(name, 256) || 'Untitled Pack',
+    description: clampText(description, 1024) || null,
+    itemsData: JSON.stringify(items),
+    tags: (tags || []).join(','),
+    isPublic,
+    downloads: 0,
+  });
+  return mapBlockPack(await repo.save(item));
+}
+
+export async function deleteBlockPack(id: number, userId: number): Promise<boolean> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  const result = await repo.delete({ id, authorUserId: userId });
+  return (result.affected ?? 0) > 0;
+}
+
+export async function browseBlockPacks(
+  skip = 0, take = 50, search?: string, tag?: string,
+): Promise<BlockPackEntry[]> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  const qb = repo.createQueryBuilder('p')
+    .where('p.isPublic = :pub', { pub: true })
+    .orderBy('p.downloads', 'DESC').skip(skip).take(Math.min(take, 200));
+  if (search) qb.andWhere('p.name LIKE :q', { q: `%${search}%` });
+  if (tag) qb.andWhere('p.tags LIKE :tag', { tag: `%${tag}%` });
+  return (await qb.getMany()).map(mapBlockPack);
+}
+
+export async function getUserBlockPacks(
+  userId: number, skip = 0, take = 100,
+): Promise<BlockPackEntry[]> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  const items = await repo.find({ where: { authorUserId: userId }, order: { updatedAt: 'DESC' }, skip, take: Math.min(take, 200) });
+  return items.map(mapBlockPack);
+}
+
+export async function downloadBlockPack(
+  id: number, targetUserId: number, authorName: string,
+): Promise<CustomBlock[]> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  const pack = await repo.findOne({ where: { id } });
+  if (!pack) throw new Error('Block pack not found');
+  if (!pack.isPublic && pack.authorUserId !== targetUserId) throw new Error('Pack is private');
+  pack.downloads += 1;
+  await repo.save(pack);
+  let items: BlockPackItem[] = [];
+  if (pack.itemsData) { try { const parsed = JSON.parse(pack.itemsData); if (Array.isArray(parsed)) items = parsed } catch {} }
+  const created: CustomBlock[] = [];
+  for (const item of items) {
+    const cb = await createCustomBlock(
+      targetUserId, item.name, item.code, [],
+      item.description || undefined,
+      Array.isArray(item.settingsDefinition) ? item.settingsDefinition : undefined,
+    );
+    created.push(cb);
+  }
+  return created;
+}
+
+export async function updateBlockPack(
+  id: number, userId: number,
+  data: { name?: string; description?: string; tags?: string[]; items?: BlockPackItem[]; isPublic?: boolean },
+): Promise<BlockPackEntry | null> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  const item = await repo.findOne({ where: { id, authorUserId: userId } });
+  if (!item) return null;
+  if (data.name !== undefined) item.name = clampText(data.name, 256) || item.name;
+  if (data.description !== undefined) item.description = clampText(data.description, 1024) || null;
+  if (data.tags !== undefined) item.tags = data.tags.join(',');
+  if (data.items !== undefined) item.itemsData = JSON.stringify(data.items);
+  if (data.isPublic !== undefined) item.isPublic = data.isPublic;
+  return mapBlockPack(await repo.save(item));
+}
+
+export async function adminListSharedBlocks(skip = 0, take = 100, search?: string): Promise<SharedBlockEntry[]> {
+  const repo = AppDataSource.getRepository(SharedCustomBlock);
+  const qb = repo.createQueryBuilder('s').orderBy('s.createdAt', 'DESC').skip(skip).take(Math.min(take, 200));
+  if (search) qb.andWhere('s.name LIKE :q', { q: `%${search}%` });
+  return (await qb.getMany()).map(mapSharedBlock);
+}
+
+export async function adminDeleteSharedBlock(id: number): Promise<boolean> {
+  const repo = AppDataSource.getRepository(SharedCustomBlock);
+  const result = await repo.delete({ id });
+  return (result.affected ?? 0) > 0;
+}
+
+export async function adminListBlockPacks(skip = 0, take = 100, search?: string): Promise<BlockPackEntry[]> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  const qb = repo.createQueryBuilder('p').orderBy('p.createdAt', 'DESC').skip(skip).take(Math.min(take, 200));
+  if (search) qb.andWhere('p.name LIKE :q', { q: `%${search}%` });
+  return (await qb.getMany()).map(mapBlockPack);
+}
+
+export async function adminDeleteBlockPack(id: number): Promise<boolean> {
+  const repo = AppDataSource.getRepository(BlockPack);
+  const result = await repo.delete({ id });
+  return (result.affected ?? 0) > 0;
 }

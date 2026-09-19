@@ -216,7 +216,8 @@ fn pick(entry: &RawResponse, m: Method) -> Bytes {
 }
 
 fn resolve(path: &str, cfg: &StaticFiles) -> Option<(String, PathBuf)> {
-    let decoded = percent_decode(path);
+    let no_query = path.split('?').next().unwrap_or(path);
+    let decoded = percent_decode(no_query);
     if decoded.contains("..") {
         return None;
     }
@@ -303,6 +304,69 @@ fn percent_decode(s: &str) -> String {
     percent_encoding::percent_decode_str(s)
         .decode_utf8_lossy()
         .into_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+
+    fn temp_cfg() -> (tempfile::TempDir, StaticFiles) {
+        let dir = tempfile::Builder::new()
+            .prefix(&format!("halo-sf-{}", COUNTER.fetch_add(1, Ordering::Relaxed)))
+            .tempdir()
+            .unwrap();
+        fs::write(dir.path().join("index.html"), b"<h1>home</h1>").unwrap();
+        fs::create_dir(dir.path().join("blog")).unwrap();
+        fs::write(dir.path().join("blog/post.html"), b"<h1>post</h1>").unwrap();
+        let cfg = StaticFiles {
+            root: dir.path().to_string_lossy().into_owned(),
+            index: "index.html".to_owned(),
+            precompressed: false,
+            max_age: 3600,
+            cache_enabled: true,
+            cache_strategy: CacheStrategy::None,
+        };
+        (dir, cfg)
+    }
+
+    #[test]
+    fn query_string_resolves_to_same_file() {
+        let (_d, cfg) = temp_cfg();
+        let plain = resolve("/", &cfg).unwrap();
+        let with_query = resolve("/?utm=test", &cfg).unwrap();
+        assert_eq!(plain, with_query, "query string must not change resolution");
+
+        let post = resolve("/blog/post.html", &cfg).unwrap();
+        let post_query = resolve("/blog/post.html?utm=test&ref=fb", &cfg).unwrap();
+        assert_eq!(post, post_query);
+    }
+
+    #[test]
+    fn percent_encoded_query_still_strips() {
+        let (_d, cfg) = temp_cfg();
+        let with_encoded = resolve("/?utm%3Dtest", &cfg).unwrap();
+        assert_eq!(with_encoded.1.file_name().unwrap().to_str().unwrap(), "index.html");
+    }
+
+    #[test]
+    fn traversal_in_query_ignored() {
+        let (_d, cfg) = temp_cfg();
+        let raw = resolve("/?../../etc/passwd", &cfg).unwrap();
+        assert_eq!(raw.1.file_name().unwrap().to_str().unwrap(), "index.html");
+        let post = resolve("/blog/post.html?..%2f..%2fetc%2fpasswd", &cfg).unwrap();
+        assert_eq!(post.1.file_name().unwrap().to_str().unwrap(), "post.html");
+    }
+
+    #[test]
+    fn missing_file_still_returns_none() {
+        let (_d, cfg) = temp_cfg();
+        assert!(resolve("/nope", &cfg).is_none());
+        assert!(resolve("/nope?utm=test", &cfg).is_none());
+    }
 }
 
 pub fn spawn_prewarm(cfg: StaticFiles, cache: RespCache) {

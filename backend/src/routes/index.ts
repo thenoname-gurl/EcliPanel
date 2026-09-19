@@ -47,6 +47,8 @@ import { proxyRoutes } from '../handlers/proxyHandler';
 import { telemetryIngestRoutes, telemetryAdminRoutes } from '../handlers/telemetryHandler';
 import { blogRoutes } from '../handlers/blogHandler';
 import { voiceRoutes } from '../handlers/voiceHandler';
+import { officeRoutes } from '../handlers/officeHandler';
+import { screenShareRoutes } from '../handlers/screenShareHandler';
 import { isFeatureEnabled } from '../utils/featureToggles';
 // Migrating  to Elysia was a mistake but now its bulletproof?
 // Elysia 2 is amazing but hell they did a lot of changes :sob:
@@ -100,6 +102,9 @@ export function registerRoutes(app: any) {
       { prefix: '/api/blog', feature: 'blog' },
       { prefix: '/api/public/blog', feature: 'blog' },
       { prefix: '/api/admin/blog', feature: 'blog' },
+      { prefix: '/api/office', feature: 'office' },
+      { prefix: '/api/ws/office', feature: 'office' },
+      { prefix: '/api/screen-share', feature: 'office' },
     ];
 
     for (const check of checks) {
@@ -188,4 +193,6 @@ export function registerRoutes(app: any) {
   telemetryAdminRoutes(app, '/api');
   blogRoutes(app, '/api');
   voiceRoutes(app, '/api');
+  officeRoutes(app, '/api');
+  screenShareRoutes(app, '/api');
 }

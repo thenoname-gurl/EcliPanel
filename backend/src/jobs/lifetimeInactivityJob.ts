@@ -104,7 +104,7 @@ async function processLifetimeInactivity() {
       await orderRepo.save(order);
 
       if (user) {
-        const servers = await cfgRepo.find({ where: { userId: user.id, suspended: false } });
+        const servers = await cfgRepo.find({ where: { userId: user.id, suspended: false, isStorageOnly: false } });
         for (const cfg of servers) {
           try {
             const node = await nodeRepo.findOneBy({ id: cfg.nodeId });

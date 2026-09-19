@@ -87,16 +87,28 @@ export default function Guide() {
     const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const startedRef = useRef(false);
 
-    const [show, setShow] = useState(() => {
-        try { return new URLSearchParams(window.location.search).get("guide") === "true"; }
-        catch { return false; }
-    });
+    const [show, setShow] = useState(false);
+    const [hydrated, setHydrated] = useState(false);
     const [phase, setPhase] = useState<GuidePhase>("welcome");
     const [step, setStep] = useState(0);
     const [minimized, setMinimized] = useState(false);
     const [targetRect, setTargetRect] = useState<Rect | null>(null);
     const [searching, setSearching] = useState(false);
     const [showHighlight, setShowHighlight] = useState(false);
+
+    useEffect(() => {
+        setHydrated(true);
+    }, []);
+
+    useEffect(() => {
+        try {
+            if (new URLSearchParams(window.location.search).get("guide") === "true") {
+                setShow(true);
+                setPhase("welcome");
+                startedRef.current = true;
+            }
+        } catch {}
+    }, []);
 
     // Open when URL changes to ?guide=true (e.g. from settings)
     useEffect(() => {
@@ -221,7 +233,7 @@ export default function Guide() {
 
     const prev = useCallback(() => setStep(s => Math.max(s - 1, 0)), []);
 
-    if (!show) return null;
+    if (!show || !hydrated) return null;
 
     // ===== WELCOME =====
     if (phase === "welcome") {

@@ -1,6 +1,6 @@
 [package]
 name = "eclihalo"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2021"
 
 [dependencies]
@@ -41,6 +41,9 @@ openssl = { version = "0.10", features = ["v111"] }
 openssl-sys = "0.9"
 tokio-openssl = "0.6"
 regex = "1"
+
+[dev-dependencies]
+tempfile = "3"
 
 
 [profile.release]

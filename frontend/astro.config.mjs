@@ -36,10 +36,12 @@ export default defineConfig({
     },
     define: {
       'process.env.NEXT_PUBLIC_API_BASE': JSON.stringify(process.env.NEXT_PUBLIC_API_BASE || process.env.PUBLIC_API_BASE || ''),
+      'process.env.NEXT_PUBLIC_BACKEND_URL': JSON.stringify(process.env.NEXT_PUBLIC_BACKEND_URL || process.env.PUBLIC_BACKEND_URL || ''),
       'process.env.NEXT_PUBLIC_COMMIT_SHA': JSON.stringify(process.env.NEXT_PUBLIC_COMMIT_SHA || process.env.PUBLIC_COMMIT_SHA || ''),
       'process.env.NEXT_PUBLIC_REPO_URL': JSON.stringify(process.env.NEXT_PUBLIC_REPO_URL || process.env.PUBLIC_REPO_URL || ''),
       'process.env.NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED': JSON.stringify(process.env.NEXT_PUBLIC_HACKCLUB_STUDENT_ENABLED || process.env.PUBLIC_HACKCLUB_STUDENT_ENABLED || 'false'),
       'process.env.NEXT_PUBLIC_SITE_URL': JSON.stringify(process.env.NEXT_PUBLIC_SITE_URL || process.env.PUBLIC_SITE_URL || ''),
+      
       'process.env.BACKEND_URL': JSON.stringify(process.env.BACKEND_URL || ''),
       'process.env.GITHUB_STUDENT_ENABLED': JSON.stringify(process.env.GITHUB_STUDENT_ENABLED || 'false'),
     },

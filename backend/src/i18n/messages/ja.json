@@ -153,7 +153,8 @@
     "childCannotUpdateBilling": "子アカウントは請求情報を更新できません",
     "userNotFoundInOrg": "組織内にユーザーが見つかりません",
     "accountSuspended": "アカウントは停止されています。サポートにお問い合わせください。",
-    "accountIsPendingDeletionAndCurrentlyFrozen": "アカウントは削除待ちのため凍結されています"
+    "accountIsPendingDeletionAndCurrentlyFrozen": "アカウントは削除待ちのため凍結されています",
+    "cannotSuspendAdmin": "管理者アカウントを停止することはできません。"
   },
   "organisation": {
     "notFound": "組織が見つかりません",
@@ -370,7 +371,9 @@
     "could_not_resolve_download_url_for_this_version": "このバージョンのダウンロードURLを解決できませんでした",
     "could_not_resolve_download_url": "ダウンロードURLを解決できませんでした",
     "failed_to_download_plugin": "プラグインのダウンロードに失敗しました",
-    "not_supported_for_proxmox_nodes_15": "Proxmoxノードではサポートされていません"
+    "not_supported_for_proxmox_nodes_15": "Proxmoxノードではサポートされていません",
+    "invalidDownloadUrl": "ダウンロードURLは公開のhttp(s) URLである必要があります。",
+    "serverNotFound": "サーバーが見つかりません。"
   },
   "node": {
     "notFound": "ノードが見つかりません",
@@ -610,7 +613,9 @@
     "invalidMethod": "方法 {id} の支払い方法データが無効です",
     "methodSaved": "支払い方法が保存されました",
     "methodSaveFailed": "支払い方法の保存に失敗しました",
-    "paymentConfirmed": "支払いが確認され、注文が有効化されました"
+    "paymentConfirmed": "支払いが確認され、注文が有効化されました",
+    "cannotCancel": "現在のステータスでは注文をキャンセルできません。",
+    "cannotReject": "現在のステータスでは支払いを拒否できません。"
   },
   "order": {
     "notFound": "注文が見つかりません",
@@ -894,7 +899,8 @@
     "invalid_request_3": "無効なリクエスト",
     "blueprint_not_found_2": "ブループリントが見つかりません",
     "invalid_request_4": "無効なリクエスト",
-    "blueprint_not_found_3": "ブループリントが見つかりません"
+    "blueprint_not_found_3": "ブループリントが見つかりません",
+    "block_required": "ブロックオブジェクトが必要です。"
   },
   "chat": {
     "channel_name_is_required": "チャンネル名が必要です",
@@ -1037,7 +1043,8 @@
     "this_coupon_is_no_longer_active_1": "このクーポンは現在有効ではありません",
     "this_coupon_has_expired_1": "このクーポンは期限切れです",
     "this_coupon_has_reached_its_global_usage_limit_1": "このクーポンは全体の利用回数上限に達しました",
-    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "このクーポンは最大利用回数に達しました"
+    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "このクーポンは最大利用回数に達しました",
+    "discounttype_must_be_percentage_or_fixed": "割引タイプはpercentageまたはfixedである必要があります。"
   },
   "serverSubuser": {
     "this_user_must_complete_kyc_identity_verification_before_the": "このユーザーはサブユーザーとして追加される前にKYC本人確認を完了する必要があります。"
@@ -1185,7 +1192,7 @@
     "alreadySubmitted": "このコンテストにはすでに応募済みです。",
     "submissionNotFound": "応募が見つかりません。",
     "bountyTitleRequired": "バウンティのタイトルが必要です。",
-  "bountyRepoUrlInvalid": "リポジトリ URL は絶対的な http(s) リンクである必要があります。",
+    "bountyRepoUrlInvalid": "リポジトリ URL は絶対的な http(s) リンクである必要があります。",
     "bountyNotFound": "バウンティが見つかりません。",
     "findingRequired": "発見内容のテキストが必要です。",
     "findingNotFound": "発見が見つかりません。",
@@ -1203,5 +1210,25 @@
     "onlyReporterCanRequest": "開示をリクエストできるのは報告者のみです。",
     "disclosureNeedsAward": "開示は報酬付与後にのみリクエストできます。",
     "commentRequired": "コメント本文が必要です。"
+  },
+  "office": {
+    "documentNotFound": "ドキュメントが見つかりません。",
+    "noAccess": "このドキュメントへのアクセス権がありません。",
+    "invalidType": "無効なドキュメントタイプです。",
+    "metadataOwnerOnly": "ドキュメントのメタデータを変更できるのは所有者のみです。",
+    "readOnly": "このドキュメントは読み取り専用です。",
+    "userNotFound": "ユーザーが見つかりません。",
+    "cannotShareToSelf": "自分自身とドキュメントを共有することはできません。",
+    "shareNotFound": "共有が見つかりません。",
+    "noFileProvided": "ファイルが指定されていません。",
+    "invalidImageType": "画像はPNG、JPEG、またはWebP形式である必要があります。",
+    "imageTooLarge": "画像が大きすぎます（最大5MB）。",
+    "thumbnailNotFound": "サムネイルが見つかりません。"
+  },
+  "studentVerification": {
+    "existingPending": "学生認証の申請が既に保留中です。審査をお待ちください。",
+    "proofRequired": "在学証明が必要です。",
+    "proofEmpty": "証明ファイルは空にできません。",
+    "uploadError": "アップロードされたファイルを処理できませんでした："
   }
 }

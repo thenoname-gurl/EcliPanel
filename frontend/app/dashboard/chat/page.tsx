@@ -313,8 +313,10 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeChannel) return
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:"
-    const ws = new WebSocket(`${protocol}//${window.location.host}${API_ENDPOINTS.chatWs}`)
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin
+    const protocol = backendUrl.startsWith('https:') ? 'wss:' : 'ws:'
+    const host = backendUrl.replace(/^https?:\/\//, '')
+    const ws = new WebSocket(`${protocol}//${host}${API_ENDPOINTS.chatWs}`)
     wsRef.current = ws
 
     const queue: string[] = []

@@ -18,6 +18,7 @@ import { WingsApiService } from '../services/wingsApiService';
 import { t } from 'elysia';
 import { errorMessage, sanitizeError } from '../utils/sanitizeError';
 import { randomHex } from '../utils/bunCrypto';
+import { invalidateStorageNodeCache } from '../services/cloudStorageService';
 import type { AuthenticatedHandlerContext, BaseHandlerContext, NodeApp, CreateNodeBody, UpdateNodeBody, RebootOperation, BackupOperation } from '../types';
 import type { OrganisationMember } from '../models/organisationMember.entity';
 
@@ -175,8 +176,8 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         where: { userId: user.id },
       });
       const subuserUuids = subuserEntries.map(s => s.serverUuid);
-      const where: Record<string, unknown>[] = [{ userId: user.id }];
-      if (subuserUuids.length) where.push({ uuid: In(subuserUuids) });
+      const where: Record<string, unknown>[] = [{ userId: user.id, isStorageOnly: false }];
+      if (subuserUuids.length) where.push({ uuid: In(subuserUuids), isStorageOnly: false });
       const configs = await cfgRepo.find({ where });
 
       const nodeIds = [...new Set(configs.map(c => c.nodeId))];
@@ -230,7 +231,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       const adminErr = await authorize('nodes:create')(ctx);
       if (adminErr !== undefined) return adminErr;
       const body = ctx.body as CreateNodeBody;
-      const { name, url, token, nodeId, provider, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge, pbsUrl, pbsDatastore, pbsNamespace, pbsTokenId, pbsTokenSecret, pbsFingerprint, pbsBackupIdPrefix } = body;
+      const { name, url, token, nodeId, provider, nodeType, useSSL, allowedOrigin, sftpPort, sftpProxyPort, fqdn, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, backendWingsUrl, portRangeStart, portRangeEnd, deploymentsDisabled, deploymentNotice, isStorageNode, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge, pbsUrl, pbsDatastore, pbsNamespace, pbsTokenId, pbsTokenSecret, pbsFingerprint, pbsBackupIdPrefix } = body;
       if (!name || !url || !token) {
         ctx.set.status = 400;
         return { error: ctx.t('validation.nameUrlTokenRequired') };
@@ -344,7 +345,11 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         node.deploymentsDisabled = deploymentsDisabled === true || deploymentsDisabled === 'true';
       if (deploymentNotice !== undefined)
         node.deploymentNotice = deploymentNotice || undefined;
+      if (isStorageNode !== undefined) {
+        node.isStorageNode = isStorageNode === true || isStorageNode === 'true';
+      }
       await nodeRepo().save(node);
+      invalidateStorageNodeCache();
       refreshAllSftpProxies().catch(() => {});
       (node as unknown as Record<string, unknown>).pbsTokenSecret = undefined;
       return { success: true, node };
@@ -368,7 +373,7 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
       if (adminErr !== undefined) return adminErr;
       const { id } = ctx.params as Record<string, string>;
       const body = ctx.body as UpdateNodeBody;
-      const { nodeId, url, nodeType, provider, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge, pbsUrl, pbsDatastore, pbsNamespace, pbsTokenId, pbsTokenSecret, pbsFingerprint, pbsBackupIdPrefix } = body;
+      const { nodeId, url, nodeType, provider, orgId, name, portRangeStart, portRangeEnd, defaultIp, ipv6Subnet, ipv6ExcludedPorts, ipv6ReservedCount, fqdn, cost, memory, disk, cpu, serverLimit, useSSL, allowedOrigin, sftpPort, sftpProxyPort, backendWingsUrl, deploymentsDisabled, deploymentNotice, isStorageNode, proxmoxHost, proxmoxTokenId, proxmoxSecret, proxmoxRealm, proxmoxNode, proxmoxStorage, proxmoxBridge, pbsUrl, pbsDatastore, pbsNamespace, pbsTokenId, pbsTokenSecret, pbsFingerprint, pbsBackupIdPrefix } = body;
 
       const node = await resolveNode(id);
       if (!node) {
@@ -513,8 +518,12 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
         node.deploymentsDisabled = deploymentsDisabled === true || deploymentsDisabled === 'true';
       if (deploymentNotice !== undefined)
         node.deploymentNotice = deploymentNotice || undefined;
+      if (isStorageNode !== undefined) {
+        node.isStorageNode = isStorageNode === true || isStorageNode === 'true';
+      }
       await nodeRepo().save(node);
       nodeService.invalidateNode(node.id);
+      invalidateStorageNodeCache();
       refreshAllSftpProxies().catch(() => {});
       const updated = await nodeRepo().findOne({
         where: { id: Number(id) },

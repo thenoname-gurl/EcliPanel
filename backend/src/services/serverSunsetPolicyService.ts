@@ -174,7 +174,7 @@ export async function requestServerSunsetNoticeForUser(params: {
   const onlineServerIds = Array.from(onlineStatusByServer.keys());
   if (!onlineServerIds.length) return { sent: false, reason: 'no_online_servers' };
 
-  const servers = await serverRepo.find({ where: { uuid: In(onlineServerIds), userId: user.id } });
+  const servers = await serverRepo.find({ where: { uuid: In(onlineServerIds), userId: user.id, isStorageOnly: false } });
   const eligibleServers = servers.filter(
     server => !server.suspended && !server.dmca && !server.hibernated
   );
@@ -245,7 +245,7 @@ export async function processServerSunsetPolicy() {
   const onlineServerIds = Array.from(onlineStatusByServer.keys());
   if (!onlineServerIds.length) return;
 
-  const servers = await serverRepo.find({ where: { uuid: In(onlineServerIds) } });
+  const servers = await serverRepo.find({ where: { uuid: In(onlineServerIds), isStorageOnly: false } });
   const eligibleServers = servers.filter(
     server => !server.suspended && !server.dmca && !server.hibernated
   );

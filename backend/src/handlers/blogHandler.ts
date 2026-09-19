@@ -14,10 +14,20 @@ import { authorize, hasPermissionSync } from '../middleware/authorize';
 import { requireFeature } from '../middleware/featureToggle';
 import { createActivityLog } from './logHandler';
 import { t } from 'elysia';
-import * as path from 'path';
-import * as fs from 'fs';
+import { writeStorageBlob, downloadStorageBlob } from '../services/cloudStorageService';
 
 const POST_PAGE_SIZE = 20;
+
+function backendBaseFor(ctx: any): string {
+  return (
+    (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
+    (() => {
+      const proto = (ctx.request?.headers?.get?.('x-forwarded-proto') || 'https') as string;
+      const host = (ctx.request?.headers?.get?.('host') || 'localhost') as string;
+      return `${proto}://${host}`;
+    })()
+  );
+}
 
 function slugify(text: string): string {
   return text
@@ -824,25 +834,73 @@ export async function blogRoutes(app: any, prefix = '') {
       const ext =
         mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : mime === 'image/gif' ? '.gif' : '.jpg';
       const filename = `blog_${userId}_${Date.now()}${ext}`;
-      const uploadDir = path.join(process.cwd(), 'uploads');
-      await fs.promises.mkdir(uploadDir, { recursive: true });
-      const filepath = path.join(uploadDir, filename);
-      await Bun.write(filepath, buffer);
+      const filePath = `blog/${userId}/covers/${filename}`;
 
-      const backendBase =
-        (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
-        (() => {
-          const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
-          const host = (ctx.request.headers.get('host') || 'localhost') as string;
-          return `${proto}://${host}`;
-        })();
+      let url: string;
+      try {
+        await writeStorageBlob(userId, filePath, buffer);
+        url = `${backendBaseFor(ctx)}/api/blog/mine/image?path=${encodeURIComponent(filePath)}&mime=${encodeURIComponent(mime)}`;
+      } catch (e: unknown) {
+        const code = (e as any)?.code;
+        ctx.set.status = code === 'STORAGE_QUOTA_EXCEEDED' ? 413 : 500;
+        return { error: (e as Error)?.message || 'Upload failed' };
+      }
 
-      return { url: `${backendBase}/uploads/${filename}` };
+      return { url };
     },
     {
       body: t.Object({ file: t.File() }),
       beforeHandle: [authenticate],
       detail: { summary: 'Upload blog image', tags: ['Blog'] },
+    }
+  );
+
+  app.get(
+    prefix + '/blog/mine/image',
+    async (ctx: any) => {
+      const q = ctx.query as Record<string, string>;
+      const filePath = String(q?.path || '');
+      const ownerMatch = filePath.match(/^blog\/(\d+)\//);
+      const ownerId = ownerMatch ? Number(ownerMatch[1]) : 0;
+      if (!ownerId) {
+        ctx.set.status = 403;
+        return null;
+      }
+      const blogRepo = AppDataSource.getRepository(Blog);
+      const blog = await blogRepo.findOne({ where: { userId: ownerId } });
+      if (!blog) {
+        ctx.set.status = 404;
+        return null;
+      }
+      if (blog.visibility !== 'public') {
+        const user = ctx.user as User;
+        if (!user) {
+          ctx.set.status = 401;
+          return null;
+        }
+        if (user.id !== ownerId) {
+          const memberRepo = AppDataSource.getRepository(BlogMember);
+          const member = await memberRepo.findOne({ where: { blogId: blog.id, userId: user.id } });
+          if (!member) {
+            ctx.set.status = 403;
+            return null;
+          }
+        }
+      }
+      const data = await downloadStorageBlob(ownerId, filePath);
+      if (!data) {
+        ctx.set.status = 404;
+        return null;
+      }
+      return new Response(data as any, {
+        headers: {
+          'Content-Type': q?.mime || 'image/png',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    },
+    {
+      detail: { summary: 'Serve blog cover image', tags: ['Blog'] },
     }
   );
 

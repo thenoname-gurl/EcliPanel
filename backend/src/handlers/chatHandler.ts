@@ -11,9 +11,8 @@ import { authenticate, optionalAuth } from '../middleware/auth';
 import { hasPermissionSync } from '../middleware/authorize';
 import { verifyAnyToken } from '../utils/pqJwt';
 import { chatEmitter } from '../services/chatSocketService';
+import { writeStorageBlob, downloadStorageBlob } from '../services/cloudStorageService';
 import * as crypto from 'crypto';
-import * as fs from 'fs';
-import * as path from 'path';
 
 // Looking for good code?
 // Well, sike its a mess.
@@ -22,6 +21,17 @@ const chatClients = new Set<any>();
 
 const recentPosts = new Map<string, number>();
 const RATE_LIMIT_MS = 3000;
+
+function backendBaseFor(ctx: any): string {
+  return (
+    (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
+    (() => {
+      const proto = (ctx.request?.headers?.get?.('x-forwarded-proto') || 'https') as string;
+      const host = (ctx.request?.headers?.get?.('host') || 'localhost') as string;
+      return `${proto}://${host}`;
+    })()
+  );
+}
 
 function checkRateLimit(ctx: any): boolean {
   const key = ctx.user?.id ? `user:${ctx.user.id}` : `ip:${getClientIp(ctx)}`;
@@ -114,7 +124,9 @@ async function wsClubMember(ws: any): Promise<boolean> {
 
 export async function handleChatSocketMessage(ws: any, message: any): Promise<void> {
   try {
-    const data = JSON.parse(typeof message === 'string' ? message : message.toString());
+    const data = typeof message === 'string' ? JSON.parse(message) : message instanceof ArrayBuffer || message instanceof Uint8Array || Buffer.isBuffer(message)
+      ? JSON.parse(Buffer.from(message as Uint8Array).toString('utf8'))
+      : message;
     if (data.type === 'subscribe' && data.channelId) {
       const channelId = Number(data.channelId);
       const channel = await AppDataSource.getRepository(ChatChannel).findOneBy({ id: channelId });
@@ -734,44 +746,65 @@ export async function chatRoutes(app: any, prefix = '') {
 
     const ext = mime === 'image/png' ? '.png' : mime === 'image/webp' ? '.webp' : mime === 'image/gif' ? '.gif' : mime === 'image/bmp' ? '.bmp' : '.jpg';
     const filename = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 8)}${ext}`;
-    const uploadDir = path.join(process.cwd(), 'uploads', 'chat');
-    await fs.promises.mkdir(uploadDir, { recursive: true });
-    const filepath = path.join(uploadDir, filename);
-    await Bun.write(filepath, buffer);
+    const filePath = `chat/${ctx.user.id}/${filename}`;
 
-    const backendBase =
-      (process.env.BACKEND_URL || '').replace(/\/+$/, '') ||
-      (() => {
-        const proto = (ctx.request.headers.get('x-forwarded-proto') || 'https') as string;
-        const host = (ctx.request.headers.get('host') || 'localhost') as string;
-        return `${proto}://${host}`;
-      })();
+    let url: string;
+    try {
+      await writeStorageBlob(ctx.user.id, filePath, buffer);
+      url = `${backendBaseFor(ctx)}/api${prefix}/chat/image?path=${encodeURIComponent(filePath)}&mime=${encodeURIComponent(mime)}`;
+    } catch (e: unknown) {
+      const code = (e as any)?.code;
+      ctx.set.status = code === 'STORAGE_QUOTA_EXCEEDED' ? 413 : 500;
+      return { error: (e as Error)?.message || 'Upload failed' };
+    }
 
-    return { url: `${backendBase}/uploads/chat/${filename}` };
+    return { url };
   }, {
     body: t.Object({ file: t.File() }),
     beforeHandle: [authenticate],
     detail: { tags: ['Chat'], summary: 'Upload an image for chat posts' }
   });
 
+  app.get(prefix + '/chat/image', async (ctx: any) => {
+    const user = ctx.user as User;
+    const q = ctx.query as Record<string, string>;
+    const filePath = String(q?.path || '');
+    if (!filePath.startsWith(`chat/${user.id}/`)) {
+      ctx.set.status = 403;
+      return null;
+    }
+    const data = await downloadStorageBlob(user.id, filePath);
+    if (!data) {
+      ctx.set.status = 404;
+      return null;
+    }
+    return new Response(data as any, {
+      headers: {
+        'Content-Type': q?.mime || 'image/png',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
+  }, {
+    beforeHandle: [authenticate],
+    detail: { tags: ['Chat'], summary: 'Serve a chat image attachment from cloud storage' }
+  });
+
   app.ws(prefix + '/ws/chat', {
-    upgrade(ctx: any) {
+    open(ws: any) {
+      let userId = 0;
       try {
         const cookieName = process.env.JWT_COOKIE_NAME || 'token';
-        const cookie = ctx.headers?.cookie;
-        if (!cookie) return {};
+        const cookie = ws.request?.headers?.get?.('cookie') || '';
         const parts = String(cookie).split(';').map((s: string) => s.trim());
         const pair = parts.find(p => p.startsWith(cookieName + '='));
-        if (!pair) return {};
-        const decoded = verifyAnyToken(pair.split('=')[1]) as any;
-        if (!decoded?.userId) return {};
-        return { userId: decoded.userId, luminosMember: undefined };
-      } catch {
-        return {};
-      }
-    },
-    open(ws: any) {
-      ws.data.channels = new Set<number>(); chatClients.add(ws);
+        if (pair) {
+          const decoded = verifyAnyToken(pair.split('=')[1]) as any;
+          if (decoded?.userId) userId = Number(decoded.userId) || 0;
+        }
+      } catch {}
+      ws.data.channels = new Set<number>();
+      ws.data.userId = userId;
+      chatClients.add(ws);
       try { ws.send(JSON.stringify({ type: 'connected', timestamp: Date.now() })); } catch { }
     },
     message(ws: any, message: any) {

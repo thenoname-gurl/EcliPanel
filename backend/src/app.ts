@@ -40,6 +40,7 @@ import { scheduleTempEmailBlacklistSyncJob } from './jobs/tempEmailBlacklistSync
 import { scheduleWingsSyncJob } from './jobs/wingsSyncJob';
 import { scheduleCalendarNotificationJob } from './jobs/calendarNotificationJob';
 import { scheduleSecurityScanJob } from './jobs/securityScanJob';
+import { scheduleStorageBackfillJob } from './jobs/storageBackfillJob';
 import { scheduleAutoPartitionMaintenance } from './utils/autoPartition';
 import path from 'path';
 import { decryptBuffer } from './utils/crypto';
@@ -943,6 +944,11 @@ export async function initApp() {
     scheduleSecurityScanJob();
   } catch (e) {
     console.error('Failed to schedule security scan job:', e);
+  }
+  try {
+    scheduleStorageBackfillJob();
+  } catch (e) {
+    console.error('Failed to schedule storage backfill job:', e);
   }
   try {
     scheduleAutoPartitionMaintenance(console);

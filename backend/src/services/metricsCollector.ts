@@ -69,7 +69,7 @@ export async function collectAndStoreMetrics() {
   const nodeRepo = AppDataSource.getRepository(Node);
   const socRepo = AppDataSource.getRepository(SocData);
 
-  const servers = await cfgRepo.find();
+  const servers = await cfgRepo.find({ where: { isStorageOnly: false } });
   const allNodes = await nodeRepo.find();
   const nodeMap = new Map(allNodes.map(n => [n.id, n]));
   for (const server of servers) {

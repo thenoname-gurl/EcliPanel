@@ -208,6 +208,10 @@ const SocTab = dynamic(() => import("./tabs/SocTab"), {
   ssr: false,
 })
 
+const StorageTab = dynamic(() => import("./tabs/StorageTab"), {
+  ssr: false,
+})
+
 const OauthTab = dynamic(() => import("./tabs/OauthTab"), {
   ssr: false,
 })
@@ -269,6 +273,10 @@ const EloTab = dynamic(() => import("./tabs/EloTab"), {
 })
 
 const ChatTab = dynamic(() => import("./tabs/ChatTab"), {
+  ssr: false,
+})
+
+const ModerationTab = dynamic(() => import("./tabs/ModerationTab"), {
   ssr: false,
 })
 
@@ -1013,11 +1021,13 @@ export default function AdminPanel() {
     { value: 'ai', label: t('tabs.aiModels'), category: 'integrations', feature: 'ai', permissions: ['ai:read'] },
     { value: 'metrics', label: t('tabs.metrics'), category: 'advanced', permissions: ['admin:metrics'] },
     { value: 'export-jobs', label: t('tabs.exportJobs'), category: 'advanced', permissions: ['admin:export-jobs'] },
+    { value: 'storage', label: 'Storage', category: 'advanced', permissions: ['admin:access'] },
     { value: 'outbound-emails', label: t('tabs.outboundEmails'), category: 'advanced', permissions: ['admin:outbound-emails'] },
     { value: 'shorturls', label: t('tabs.shortUrls'), category: 'advanced', permissions: ['admin.shorturl.add', 'admin.shorturl.remove', 'admin.shorturl.edit.own', 'admin.shorturl.edit.any'] },
     { value: 'settings', label: t('tabs.settings'), category: 'advanced', permissions: ['admin:settings', 'admin:geoblock:view'] },
     { value: 'applications', label: t('tabs.applications'), category: 'advanced', feature: 'applications', permissions: ['applications:manage'] },
     { value: 'elo', label: 'ELO', category: 'advanced', feature: 'elo', permissions: ['admin:access'] },
+    { value: 'moderation', label: 'Moderation', category: 'advanced', permissions: ['admin:access'] },
   ]
 
   const canAccessAdmin = !!user && (adminAccess || adminTabs.some((tab) => hasAnyPermission(tab.permissions)))
@@ -6544,6 +6554,9 @@ remote: ${panelUrl}`
             <TabsContent value="soc" className="mt-4">
               {activeTab === "soc" ? <SocTab /> : null}
             </TabsContent>
+            <TabsContent value="storage" className="mt-4">
+              {activeTab === "storage" ? <StorageTab /> : null}
+            </TabsContent>
             {/* ═════════════════ OAUTH ═══════════════════════════════════ */}
             <TabsContent value="oauth" className="mt-4">
               {activeTab === "oauth" ? (
@@ -6824,6 +6837,10 @@ remote: ${panelUrl}`
                   }}
                 />
               ) : null}
+            </TabsContent>
+            {/* ═════════════════ MODERATION ═══════════════════════════════════ */}
+            <TabsContent value="moderation" className="mt-4">
+              {activeTab === "moderation" ? <ModerationTab /> : null}
             </TabsContent>
           </Tabs>
         </div>

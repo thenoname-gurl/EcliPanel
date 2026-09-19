@@ -32,6 +32,7 @@ export interface CreateNodeBody {
   portRangeEnd?: unknown;
   deploymentsDisabled?: unknown;
   deploymentNotice?: string;
+  isStorageNode?: unknown;
   proxmoxHost?: string;
   proxmoxTokenId?: string;
   proxmoxSecret?: string;
@@ -74,6 +75,7 @@ export interface UpdateNodeBody {
   backendWingsUrl?: string;
   deploymentsDisabled?: unknown;
   deploymentNotice?: string;
+  isStorageNode?: unknown;
   proxmoxHost?: string;
   proxmoxTokenId?: string;
   proxmoxSecret?: string;

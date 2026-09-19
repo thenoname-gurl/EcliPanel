@@ -335,6 +335,8 @@ export function PanelHeader({
     calendar: true,
     chat: true,
     blog: true,
+    office: true,
+    drive: true,
   })
 
   const [searchOpen, setSearchOpen] = useState(false)

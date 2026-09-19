@@ -828,7 +828,11 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         const cfgRepo = AppDataSource.getRepository(ServerConfig);
 
         const configs = (isAdmin
-          ? await cfgRepo.createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT).getMany()
+          ? await cfgRepo
+              .createQueryBuilder('ServerConfig')
+              .select(SERVER_LIST_SELECT)
+              .andWhere('ServerConfig.isStorageOnly = false')
+              .getMany()
           : await (async () => {
               const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
                 where: { userId: user.id },
@@ -849,7 +853,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
                 if (orgIds.length) { conditions.push('ServerConfig.orgId IN (:...orgIds)'); params.orgIds = orgIds; }
                 qb.where(conditions.join(' OR '), params);
               }
-              return await qb.getMany();
+              return await qb.andWhere('ServerConfig.isStorageOnly = false').getMany();
             })()) as any[];
 
         const cfgMap = new Map(configs.map((c: ServerConfig) => [c.uuid, c]));
@@ -1092,7 +1096,9 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
       const configs = (isAdmin
-        ? await cfgRepo().createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT).getMany()
+        ? await cfgRepo().createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT)
+            .andWhere('ServerConfig.isStorageOnly = false')
+            .getMany()
         : await (async () => {
             const subuserEntries = await AppDataSource.getRepository(ServerSubuser).find({
               where: { userId: user.id },
@@ -1101,10 +1107,13 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             if (subuserUuids.length) {
               return await cfgRepo().createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT)
                 .where('ServerConfig.userId = :uid OR ServerConfig.uuid IN (:...uuids)', { uid: user.id, uuids: subuserUuids })
+                .andWhere('ServerConfig.isStorageOnly = false')
                 .getMany();
             }
             return await cfgRepo().createQueryBuilder('ServerConfig').select(SERVER_LIST_SELECT)
-              .where('ServerConfig.userId = :uid', { uid: user.id }).getMany();
+              .where('ServerConfig.userId = :uid', { uid: user.id })
+              .andWhere('ServerConfig.isStorageOnly = false')
+              .getMany();
           })()) as any[];
 
       const cfgMap = new Map(configs.map(c => [c.uuid, c]));

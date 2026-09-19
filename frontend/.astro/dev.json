@@ -1,13 +1,15 @@
 {
-	"pid": 84049,
-	"port": 3999,
-	"url": "http://127.0.0.1:3999",
+	"pid": 158749,
+	"port": 3987,
+	"url": "http://localhost:3987",
 	"urls": {
 		"local": [
-			"http://127.0.0.1:3999/"
+			"http://localhost:3987/"
 		],
-		"network": []
+		"network": [
+			"http://10.0.0.200:3987/"
+		]
 	},
 	"background": true,
-	"startedAt": "2026-08-24T14:03:53.845Z"
+	"startedAt": "2026-09-13T16:08:43.142Z"
 }

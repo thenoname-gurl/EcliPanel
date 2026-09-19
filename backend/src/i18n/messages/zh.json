@@ -153,7 +153,8 @@
     "childCannotUpdateBilling": "子账户无法更新账单信息",
     "userNotFoundInOrg": "组织中未找到该用户",
     "accountSuspended": "账户已被停用。请联系支持。",
-    "accountIsPendingDeletionAndCurrentlyFrozen": "账户正在等待删除，当前已冻结"
+    "accountIsPendingDeletionAndCurrentlyFrozen": "账户正在等待删除，当前已冻结",
+    "cannotSuspendAdmin": "不能暂停管理员账号。"
   },
   "organisation": {
     "notFound": "组织未找到",
@@ -370,7 +371,9 @@
     "could_not_resolve_download_url_for_this_version": "无法解析此版本的下载URL",
     "could_not_resolve_download_url": "无法解析下载URL",
     "failed_to_download_plugin": "下载插件失败",
-    "not_supported_for_proxmox_nodes_15": "Proxmox节点不支持"
+    "not_supported_for_proxmox_nodes_15": "Proxmox节点不支持",
+    "invalidDownloadUrl": "下载地址必须是公共的 http(s) URL。",
+    "serverNotFound": "未找到服务器。"
   },
   "node": {
     "notFound": "节点未找到",
@@ -610,7 +613,9 @@
     "invalidMethod": "方式{id}的支付方式数据无效",
     "methodSaved": "支付方式已保存",
     "methodSaveFailed": "保存支付方式失败",
-    "paymentConfirmed": "支付已确认，订单已激活"
+    "paymentConfirmed": "支付已确认，订单已激活",
+    "cannotCancel": "当前状态下无法取消订单。",
+    "cannotReject": "当前状态下无法拒绝付款。"
   },
   "order": {
     "notFound": "订单未找到",
@@ -894,7 +899,8 @@
     "invalid_request_3": "请求无效",
     "blueprint_not_found_2": "蓝图未找到",
     "invalid_request_4": "请求无效",
-    "blueprint_not_found_3": "蓝图未找到"
+    "blueprint_not_found_3": "蓝图未找到",
+    "block_required": "需要块对象。"
   },
   "chat": {
     "channel_name_is_required": "需要频道名称",
@@ -1037,7 +1043,8 @@
     "this_coupon_is_no_longer_active_1": "此优惠券已不再有效",
     "this_coupon_has_expired_1": "此优惠券已过期",
     "this_coupon_has_reached_its_global_usage_limit_1": "此优惠券已达到全局使用上限",
-    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "您已使用此优惠券达到最大次数"
+    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "您已使用此优惠券达到最大次数",
+    "discounttype_must_be_percentage_or_fixed": "折扣类型必须是百分比或固定。"
   },
   "serverSubuser": {
     "this_user_must_complete_kyc_identity_verification_before_the": "此用户必须先完成KYC身份验证，然后才能被添加为子用户。"
@@ -1185,7 +1192,7 @@
     "alreadySubmitted": "你已提交过此比赛。",
     "submissionNotFound": "未找到提交。",
     "bountyTitleRequired": "需要赏金标题。",
-  "bountyRepoUrlInvalid": "仓库 URL 必须是绝对的 http(s) 链接。",
+    "bountyRepoUrlInvalid": "仓库 URL 必须是绝对的 http(s) 链接。",
     "bountyNotFound": "未找到赏金。",
     "findingRequired": "需要发现内容。",
     "findingNotFound": "未找到发现。",
@@ -1203,5 +1210,25 @@
     "onlyReporterCanRequest": "只有报告者可以请求公开。",
     "disclosureNeedsAward": "仅在报告获得奖励后才能请求公开。",
     "commentRequired": "需要评论内容。"
+  },
+  "office": {
+    "documentNotFound": "未找到文档。",
+    "noAccess": "您没有访问此文档的权限。",
+    "invalidType": "无效的文档类型。",
+    "metadataOwnerOnly": "只有所有者可以更改文档元数据。",
+    "readOnly": "此文档对您为只读。",
+    "userNotFound": "未找到用户。",
+    "cannotShareToSelf": "您不能与自己共享文档。",
+    "shareNotFound": "未找到共享。",
+    "noFileProvided": "未提供文件。",
+    "invalidImageType": "图片必须是 PNG、JPEG 或 WebP 格式。",
+    "imageTooLarge": "图片过大（最大 5 MB）。",
+    "thumbnailNotFound": "未找到缩略图。"
+  },
+  "studentVerification": {
+    "existingPending": "您已有一项待审核的学生验证申请，请等待审核。",
+    "proofRequired": "需要提供在读证明。",
+    "proofEmpty": "证明文件不能为空。",
+    "uploadError": "无法处理上传的文件："
   }
 }

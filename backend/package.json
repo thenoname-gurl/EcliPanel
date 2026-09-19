@@ -60,6 +60,7 @@
     "pdfkit": "^0.19.1",
     "pg": "^8.22.0",
     "pqclean": "^0.8.1",
+    "prettier": "^3.9.6",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "reflect-metadata": "^0.2.2",
@@ -89,7 +90,6 @@
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
     "eslint": "^10.8.0",
-    "prettier": "^3.9.6",
     "typescript": "7.0.2"
   },
   "overrides": {

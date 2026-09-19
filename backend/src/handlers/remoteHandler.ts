@@ -1708,6 +1708,7 @@ export async function saveServerConfig(params: {
   netif?: string;
   nameserver?: string;
   searchdomain?: string;
+  isStorageOnly?: boolean;
 }): Promise<ServerConfig> {
   if (!Number.isFinite(params.memory) || params.memory < 0) throw new Error('Invalid memory value');
   if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
@@ -1750,6 +1751,7 @@ export async function saveServerConfig(params: {
       netif: params.netif ?? null,
       nameserver: params.nameserver ?? null,
       searchdomain: params.searchdomain ?? null,
+      isStorageOnly: params.isStorageOnly ?? false,
     });
     return r.save(cfg);
   }
@@ -1785,6 +1787,7 @@ export async function saveServerConfig(params: {
   keep.skipEggScripts = params.skipEggScripts ?? keep.skipEggScripts ?? false;
   keep.allocations = params.allocations ?? keep.allocations ?? null;
   keep.processConfig = normalizeProcessConfig(params.processConfig ?? keep.processConfig ?? null);
+  if (params.isStorageOnly !== undefined) keep.isStorageOnly = params.isStorageOnly;
 
   await r.save(keep);
 

@@ -44,7 +44,10 @@
       "adminPanel": "स्टाफ पोर्टल",
       "tunnels": "टनल",
       "blog": "ब्लॉग",
-      "luminosClub": "ल्यूमिनोस क्लब"
+      "luminosClub": "ल्यूमिनोस क्लब",
+      "office": "EcliOffice",
+      "screenShare": "स्क्रीन साझा करें",
+      "drive": "ड्राइव"
     },
     "badges": {
       "new": "नया",
@@ -7537,5 +7540,185 @@
       "postPlaceholder": "क्लब में कुछ कहें...",
       "postFailed": "पोस्ट नहीं हो सका"
     }
+  },
+  "officePage": {
+    "title": "EcliOffice",
+    "description": "दस्तावेज़, स्प्रेडशीट, प्रेज़ेंटेशन और नोटबुक — रीयल-टाइम सहयोग के साथ।",
+    "newDocument": "नया दस्तावेज़",
+    "newSpreadsheet": "नई स्प्रेडशीट",
+    "newPresentation": "नई प्रेज़ेंटेशन",
+    "newNotebook": "नई नोटबुक",
+    "import": "आयात",
+    "searchPlaceholder": "दस्तावेज़ खोजें…",
+    "all": "सभी",
+    "documents": "दस्तावेज़",
+    "spreadsheets": "स्प्रेडशीट",
+    "presentations": "प्रेज़ेंटेशन",
+    "notebooks": "नोटबुक",
+    "starred": "स्टार किए गए",
+    "trash": "ट्रैश",
+    "recent": "हाल ही के",
+    "emptyTitle": "अभी कोई फ़ाइल नहीं",
+    "emptyDescription": "शुरू करने के लिए दस्तावेज़, स्प्रेडशीट, प्रेज़ेंटेशन या नोटबुक बनाएं।",
+    "sharedWithYou": "आपके साथ साझा",
+    "owner": "स्वामी",
+    "you": "आप",
+    "canView": "देख सकते हैं",
+    "canComment": "टिप्पणी कर सकते हैं",
+    "canEdit": "संपादित कर सकते हैं",
+    "lastEditedBy": "{date} को संपादित",
+    "actions": {
+      "open": "खोलें",
+      "rename": "नाम बदलें",
+      "duplicate": "डुप्लिकेट",
+      "share": "साझा करें",
+      "star": "स्टार करें",
+      "unstar": "स्टार हटाएं",
+      "moveToTrash": "ट्रैश में ले जाएं",
+      "restore": "पुनर्स्थापित करें",
+      "deleteForever": "हमेशा के लिए हटाएं",
+      "cancel": "रद्द करें",
+      "preview": "पूर्वावलोकन"
+    },
+    "dialogs": {
+      "createTitle": "नई फ़ाइल बनाएं",
+      "createSubtitle": "शुरू करने के लिए एक प्रकार चुनें।",
+      "createNameLabel": "नाम",
+      "createNamePlaceholder": "बिना शीर्षक",
+      "create": "बनाएं",
+      "renameTitle": "नाम बदलें",
+      "renamePlaceholder": "फ़ाइल का नाम",
+      "save": "सहेजें",
+      "shareTitle": "साझा करें",
+      "shareSubtitle": "संपादन, टिप्पणी या देखने के लिए लोगों को आमंत्रित करें।",
+      "shareEmailPlaceholder": "email@example.com",
+      "sharePermissionLabel": "अनुमति",
+      "shareAdd": "जोड़ें",
+      "shareEmpty": "अभी कोई सहयोगी नहीं।",
+      "removeShare": "पहुंच हटाएं",
+      "trashTitle": "ट्रैश में भेजें?",
+      "trashDescription": "यह फ़ाइल ट्रैश में जाएगी। आप इसे बाद में पुनर्स्थापित कर सकते हैं।",
+      "deleteTitle": "हमेशा के लिए हटाएं?",
+      "deleteDescription": "यह क्रिया पूर्ववत नहीं की जा सकती।",
+      "confirm": "हां, ट्रैश में भेजें",
+      "confirmDelete": "हां, हमेशा के लिए हटाएं"
+    },
+    "editor": {
+      "back": "फ़ाइलों पर वापस",
+      "renamePlaceholder": "बिना शीर्षक",
+      "saved": "सभी परिवर्तन सहेजे गए",
+      "saving": "सहेजा जा रहा है…",
+      "connectError": "सहयोग कनेक्शन टूट गया — पुनः कनेक्ट हो रहा है…",
+      "participants": "{count} ऑनलाइन",
+      "readOnly": "केवल देखें",
+      "editing": "संपादन जारी",
+      "document": "दस्तावेज़",
+      "spreadsheet": "स्प्रेडशीट",
+      "presentation": "प्रेज़ेंटेशन",
+      "notebook": "नोटबुक",
+      "notFound": "दस्तावेज़ नहीं मिला",
+      "share": "साझा करें",
+      "preview": "पूर्वावलोकन"
+    }
+  },
+  "notebookPage": {
+    "notebook": "नोटबुक",
+    "cells": "सेल",
+    "toolbar": {
+      "runAll": "सभी चलाएं",
+      "addCode": "कोड जोड़ें",
+      "addBlocks": "ब्लॉक जोड़ें",
+      "addMarkdown": "मार्कडाउन जोड़ें",
+      "clearOutputs": "आउटपुट साफ़ करें",
+      "restart": "कर्नेल पुनः प्रारंभ करें"
+    },
+    "cell": {
+      "run": "चलाएं",
+      "running": "चल रहा है…",
+      "executing": "निष्पादित हो रहा है…",
+      "markdown": "मार्कडाउन",
+      "blocks": "ब्लॉक",
+      "clearOutputs": "आउटपुट साफ़ करें",
+      "moveUp": "ऊपर ले जाएं",
+      "moveDown": "नीचे ले जाएं",
+      "delete": "सेल हटाएं",
+      "showCode": "कोड दिखाएं",
+      "showBlocks": "ब्लॉक दिखाएं"
+    },
+    "blocks": {
+      "showLua": "जनरेट हुआ Lua",
+      "hideLua": "Lua छिपाएं",
+      "generatedLua": "जनरेट हुआ Lua स्रोत",
+      "empty": "प्रोग्राम बनाने के लिए पैलेट से ब्लॉक जोड़ें।",
+      "noBlocks": "इस श्रेणी में कोई ब्लॉक नहीं",
+      "search": "ब्लॉक खोजें…",
+      "noMatch": "कोई मेल खाता ब्लॉक नहीं",
+      "disable": "ब्लॉक अक्षम करें",
+      "enable": "ब्लॉक सक्षम करें",
+      "duplicate": "ब्लॉक की प्रतिलिपि",
+      "reset": "मान रीसेट करें"
+    },
+    "kernels": {
+      "lua": "Lua"
+    },
+    "outputs": {
+      "error": "त्रुटि",
+      "timedOut": "{seconds} सेकंड में टाइमआउट"
+    },
+    "markdown": {
+      "render": "पूर्वावलोकन",
+      "edit": "संपादित करें",
+      "placeholder": "मार्कडाउन लिखें…",
+      "empty": "खाली सेल"
+    },
+    "empty": {
+      "title": "अभी चलाने के लिए कुछ नहीं",
+      "description": "Lua कोड, ब्लॉक या मार्कडाउन सेल जोड़कर शुरू करें।"
+    },
+    "add": {
+      "code": "कोड",
+      "blocks": "ब्लॉक",
+      "markdown": "मार्कडाउन"
+    },
+    "restartConfirm": {
+      "body": "Lua कर्नेल पुनः प्रारंभ करें?",
+      "description": "सभी चर और स्थिति साफ़ हो जाएंगे। आउटपुट बने रहेंगे।"
+    },
+    "help": {
+      "open": "नोटबुक मार्गदर्शिका",
+      "title": "EcliNotebook त्वरित संदर्भ",
+      "intro": "सभी स्निपेट वास्तविक Lua हैं — वे आपके हाथ से लिखे सेल के समान कर्नेल में चलते हैं।",
+      "varsTitle": "चर",
+      "varsNote": "वैश्विक चर सेलों के बीच बने रहते हैं।",
+      "graphTitle": "प्लॉट और छायांकित क्षेत्र",
+      "graphNote": "GeoGebra-शैली: फ़ंक्शन को नाम दें, उसका पुनः उपयोग करें, समाकलन करें।",
+      "chartTitle": "चार्ट",
+      "chartNote": "संख्याएं या व्यंजक, तुरंत।",
+      "canvasTitle": "ड्रॉइंग बोर्ड",
+      "canvasNote": "सेल समाप्त होने पर छवि के रूप में प्रस्तुत होता है।"
+    }
+  },
+  "drivePage": {
+    "title": "ड्राइव",
+    "subtitle": "क्लाउड फ़ाइल स्टोरेज",
+    "upload": "अपलोड",
+    "empty": "फ़ाइलें यहां छोड़ें या अपलोड पर क्लिक करें",
+    "download": "डाउनलोड",
+    "delete": "हटाएं",
+    "newFolder": "नया फ़ोल्डर",
+    "create": "बनाएं",
+    "folderName": "फ़ोल्डर का नाम",
+    "deleteConfirm": "\"{name}\" हटाएं? यह पूर्ववत नहीं किया जा सकता।",
+    "readOnly": "केवल-पठनीय",
+    "used": "{total} में से {used} उपयोग",
+    "noStorage": "कोई क्लाउड स्टोरेज उपलब्ध नहीं",
+    "loadError": "ड्राइव लोड नहीं हो सका",
+    "uploadError": "अपलोड विफल",
+    "mkdirError": "फ़ोल्डर नहीं बन सका",
+    "deleteError": "हटाया नहीं जा सका",
+    "rename": "नाम बदलें",
+    "renameHint": "\"{name}\" के लिए नया नाम चुनें।",
+    "renameError": "नाम नहीं बदला जा सका",
+    "sharedLinks": "साझा लिंक"
   }
 }

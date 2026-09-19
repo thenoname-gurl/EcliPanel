@@ -20,6 +20,8 @@ export const DEFAULT_FEATURE_TOGGLES: Record<string, boolean> = {
   calendar: true,
   chat: true,
   blog: true,
+  office: true,
+  drive: true,
 };
 
 export async function getPanelFeatureToggles(): Promise<Record<string, boolean>> {

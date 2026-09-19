@@ -219,6 +219,9 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
     oauth: true,
     tunnels: true,
     chat: true,
+    blog: true,
+    office: true,
+    drive: true,
   })
 
   useEffect(() => {
@@ -238,6 +241,9 @@ export function PanelSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; on
           oauth: true,
           tunnels: true,
           chat: true,
+          blog: true,
+          office: true,
+          drive: true,
         }
 
         if (data?.featureToggles && typeof data.featureToggles === 'object') {

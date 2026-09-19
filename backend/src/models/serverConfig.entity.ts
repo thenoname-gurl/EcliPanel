@@ -165,6 +165,9 @@ export class ServerConfig {
   @Column({ default: 0 })
   maxBackups: number;
 
+  @Column({ default: false })
+  isStorageOnly: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }

@@ -128,7 +128,8 @@ export class WingsApiService {
   async writeFile(
     serverId: string,
     filePath: string,
-    content: Uint8Array | ArrayBuffer | Buffer | string
+    content: Uint8Array | ArrayBuffer | Buffer | string,
+    timeoutMs?: number
   ) {
     const url = `${this.baseUrl}/servers/${serverId}/files/write`;
 
@@ -158,6 +159,7 @@ export class WingsApiService {
       body,
       params: { file: filePath },
       headers: { 'Content-Type': contentType },
+      timeoutMs: timeoutMs ?? REQUEST_TIMEOUT,
     });
   }
 

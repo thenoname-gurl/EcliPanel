@@ -11,6 +11,7 @@ async function listServers(page = 1, limit = 25) {
     skip: (page - 1) * limit,
     take: limit,
     order: { createdAt: "DESC" as const },
+    where: { isStorageOnly: false },
   });
   return {
     servers: rows.map(s => ({

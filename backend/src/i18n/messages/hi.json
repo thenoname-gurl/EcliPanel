@@ -153,7 +153,8 @@
     "childCannotUpdateBilling": "चाइल्ड_बिलिंग_अपडेट_नहीं_कर_सकता",
     "userNotFoundInOrg": "संगठन में उपयोगकर्ता नहीं मिला",
     "accountSuspended": "खाता निलंबित है। कृपया सहायता से संपर्क करें।",
-    "accountIsPendingDeletionAndCurrentlyFrozen": "खाता हटाए जाने के लिए लंबित है और वर्तमान में स्थिर है"
+    "accountIsPendingDeletionAndCurrentlyFrozen": "खाता हटाए जाने के लिए लंबित है और वर्तमान में स्थिर है",
+    "cannotSuspendAdmin": "आप व्यवस्थापक खाते को निलंबित नहीं कर सकते।"
   },
   "organisation": {
     "notFound": "संगठन नहीं मिला",
@@ -370,7 +371,9 @@
     "could_not_resolve_download_url_for_this_version": "इस संस्करण के लिए डाउनलोड URL हल नहीं कर सके",
     "could_not_resolve_download_url": "डाउनलोड URL हल नहीं कर सके",
     "failed_to_download_plugin": "प्लगइन डाउनलोड करने में विफल",
-    "not_supported_for_proxmox_nodes_15": "Proxmox नोड्स के लिए समर्थित नहीं"
+    "not_supported_for_proxmox_nodes_15": "Proxmox नोड्स के लिए समर्थित नहीं",
+    "invalidDownloadUrl": "डाउनलोड URL सार्वजनिक http(s) URL होना चाहिए।",
+    "serverNotFound": "सर्वर नहीं मिला।"
   },
   "node": {
     "notFound": "नोड नहीं मिला",
@@ -610,7 +613,9 @@
     "invalidMethod": "विधि {id} के लिए अमान्य भुगतान विधि डेटा",
     "methodSaved": "भुगतान विधियाँ सहेजी गईं",
     "methodSaveFailed": "भुगतान विधियाँ सहेजने में विफल",
-    "paymentConfirmed": "भुगतान की पुष्टि हुई और ऑर्डर सक्रिय"
+    "paymentConfirmed": "भुगतान की पुष्टि हुई और ऑर्डर सक्रिय",
+    "cannotCancel": "वर्तमान स्थिति में ऑर्डर रद्द नहीं किया जा सकता।",
+    "cannotReject": "वर्तमान स्थिति में भुगतान अस्वीकार नहीं किया जा सकता।"
   },
   "order": {
     "notFound": "ऑर्डर नहीं मिला",
@@ -894,7 +899,8 @@
     "invalid_request_3": "अमान्य अनुरोध",
     "blueprint_not_found_2": "ब्लूप्रिंट नहीं मिला",
     "invalid_request_4": "अमान्य अनुरोध",
-    "blueprint_not_found_3": "ब्लूप्रिंट नहीं मिला"
+    "blueprint_not_found_3": "ब्लूप्रिंट नहीं मिला",
+    "block_required": "ब्लॉक ऑब्जेक्ट आवश्यक है।"
   },
   "chat": {
     "channel_name_is_required": "चैनल नाम आवश्यक है",
@@ -1037,7 +1043,8 @@
     "this_coupon_is_no_longer_active_1": "यह कूपन अब सक्रिय नहीं है",
     "this_coupon_has_expired_1": "यह कूपन समाप्त हो गया है",
     "this_coupon_has_reached_its_global_usage_limit_1": "यह कूपन अपनी वैश्विक उपयोग सीमा तक पहुँच गया है",
-    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "आप पहले ही इस कूपन का अधिकतम बार उपयोग कर चुके हैं"
+    "you_have_already_used_this_coupon_the_maximum_number_of_time_1": "आप पहले ही इस कूपन का अधिकतम बार उपयोग कर चुके हैं",
+    "discounttype_must_be_percentage_or_fixed": "छूट प्रकार प्रतिशत या निश्चित होना चाहिए।"
   },
   "serverSubuser": {
     "this_user_must_complete_kyc_identity_verification_before_the": "इस उपयोगकर्ता को उप-उपयोगकर्ता के रूप में जोड़े जाने से पहले KYC पहचान सत्यापन पूरा करना होगा।"
@@ -1185,7 +1192,7 @@
     "alreadySubmitted": "आपने पहले ही इस प्रतियोगिता में प्रविष्टि दी है।",
     "submissionNotFound": "प्रविष्टि नहीं मिली।",
     "bountyTitleRequired": "बाउंटी का शीर्षक आवश्यक है।",
-  "bountyRepoUrlInvalid": "रिपोज़िटरी URL एक निरपेक्ष http(s) लिंक होना चाहिए।",
+    "bountyRepoUrlInvalid": "रिपोज़िटरी URL एक निरपेक्ष http(s) लिंक होना चाहिए।",
     "bountyNotFound": "बाउंटी नहीं मिली।",
     "findingRequired": "खोज का पाठ आवश्यक है।",
     "findingNotFound": "खोज नहीं मिली।",
@@ -1203,5 +1210,25 @@
     "onlyReporterCanRequest": "केवल रिपोर्टर ही प्रकटीकरण का अनुरोध कर सकता है।",
     "disclosureNeedsAward": "प्रकटीकरण केवल पुरस्कृत रिपोर्ट के बाद मांगा जा सकता है।",
     "commentRequired": "टिप्पणी पाठ आवश्यक है।"
+  },
+  "office": {
+    "documentNotFound": "दस्तावेज़ नहीं मिला।",
+    "noAccess": "आपके पास इस दस्तावेज़ तक पहुंच नहीं है।",
+    "invalidType": "अमान्य दस्तावेज़ प्रकार।",
+    "metadataOwnerOnly": "केवल स्वामी ही दस्तावेज़ मेटाडेटा बदल सकता है।",
+    "readOnly": "यह दस्तावेज़ आपके लिए केवल-पठनीय है।",
+    "userNotFound": "उपयोगकर्ता नहीं मिला।",
+    "cannotShareToSelf": "आप स्वयं के साथ दस्तावेज़ साझा नहीं कर सकते।",
+    "shareNotFound": "साझाकरण नहीं मिला।",
+    "noFileProvided": "कोई फ़ाइल प्रदान नहीं की गई।",
+    "invalidImageType": "छवि PNG, JPEG या WebP प्रारूप की होनी चाहिए।",
+    "imageTooLarge": "छवि बहुत बड़ी है (अधिकतम 5 MB)।",
+    "thumbnailNotFound": "थंबनेल नहीं मिला।"
+  },
+  "studentVerification": {
+    "existingPending": "आपके पास पहले से ही एक लंबित छात्र सत्यापन है। कृपया समीक्षा की प्रतीक्षा करें।",
+    "proofRequired": "नामांकन का प्रमाण आवश्यक है।",
+    "proofEmpty": "प्रमाण फ़ाइल खाली नहीं होनी चाहिए।",
+    "uploadError": "अपलोड की गई फ़ाइल को संसाधित नहीं किया जा सका: "
   }
 }

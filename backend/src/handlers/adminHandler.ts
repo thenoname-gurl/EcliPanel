@@ -43,6 +43,13 @@ import {
 import { PanelSetting } from '../models/panelSetting.entity';
 import { saveServerConfig, removeServerConfig, mergeDuplicateServerConfigs } from './remoteHandler';
 import { requireFeature } from '../middleware/featureToggle';
+import { UserStorage } from '../models/userStorage.entity';
+import {
+  getStorageQuota,
+  setStorageQuota,
+  provisionStorageServer,
+  getStorageNode,
+} from '../services/cloudStorageService';
 import { Mount } from '../models/mount.entity';
 import { ServerMount } from '../models/serverMount.entity';
 import { ServerConfig } from '../models/serverConfig.entity';
@@ -1419,7 +1426,7 @@ export async function adminRoutes(app: any, prefix = '') {
       } catch { }
 
       const cfgRepo = AppDataSource.getRepository(ServerConfig);
-      const configCount = await cfgRepo.count();
+      const configCount = await cfgRepo.count({ where: { isStorageOnly: false } });
       const nodes = await AppDataSource.getRepository(Node).find();
       const unhealthyNodeIds = await getUnhealthyNodeIds();
 
@@ -1446,7 +1453,9 @@ export async function adminRoutes(app: any, prefix = '') {
       }, 0);
 
       const nodeConfigs = await cfgRepo.createQueryBuilder('c')
-        .select(['c.nodeId']).getMany();
+        .select(['c.nodeId'])
+        .where('c.isStorageOnly = false')
+        .getMany();
       const healthyNodeConfigCount = nodeConfigs.filter((c: any) =>
         unhealthyNodeIds.includes(c.nodeId)
       ).length;
@@ -4617,7 +4626,7 @@ export async function adminRoutes(app: any, prefix = '') {
       } catch (e) {
         /* skip */
       }
-      const configs = await cfgRepo.find();
+      const configs = await cfgRepo.find({ where: { isStorageOnly: false } });
       const cfgMap = new Map(configs.map((c: any) => [c.uuid, c]));
       const all: any[] = [];
 
@@ -4628,7 +4637,10 @@ export async function adminRoutes(app: any, prefix = '') {
             const base = (n as any).backendWingsUrl || n.url;
             const svc = new WingsApiService(base, n.token);
             const res = await svc.getServers({ timeoutMs: 4000 });
-            const servers = res.data || [];
+            const servers = (res.data || []).filter((s: any) => {
+              const uuid = s.configuration?.uuid || s.uuid;
+              return !cfgMap.get(uuid)?.isStorageOnly;
+            });
             return { node: n, servers };
           } catch {
             return null;
@@ -11904,6 +11916,101 @@ export async function adminRoutes(app: any, prefix = '') {
       body: t.Object({ from: t.String({ minLength: 1 }) }),
       response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 409: t.Object({ error: t.String() }) },
       detail: { summary: 'Queue a purge of all messages sent by a given address from all mailboxes', tags: ['Admin', 'Mailbox'] },
+    }
+  );
+
+  // ---------------------------------------------------------------
+  // Cloud storage admin — quota management
+  // ---------------------------------------------------------------
+
+  app.get(
+    prefix + '/admin/storage',
+    async ctx => {
+      const adminErr = requireAdminPageAccess(ctx);
+      if (adminErr !== true) return adminErr;
+      const rows = await AppDataSource.getRepository(UserStorage).find();
+      const userIds = rows.map(r => r.userId);
+      const users = userIds.length
+        ? await AppDataSource.getRepository(User)
+            .createQueryBuilder('u')
+            .select(['u.id', 'u.email', 'u.firstName', 'u.lastName'])
+            .where('u.id IN (:...ids)', { ids: userIds })
+            .getMany()
+        : [];
+      const userById = new Map(users.map(u => [u.id, u] as const));
+      return {
+        storageNode: await (async () => {
+          try {
+            const node = await getStorageNode();
+            return { id: node.id, name: node.name, url: node.url, provider: node.provider };
+          } catch {
+            return null;
+          }
+        })(),
+        servers: rows.map(r => {
+          const u = userById.get(r.userId);
+          return {
+            userId: r.userId,
+            email: u?.email || null,
+            name: u ? `${u.firstName || ''} ${u.lastName || ''}`.trim() || null : null,
+            quotaBytes: r.quotaBytes,
+            usedBytes: r.usedBytes,
+            serverUuid: r.storageServerUuid,
+            nodeId: r.nodeId,
+            updatedAt: r.updatedAt,
+          };
+        }),
+      };
+    },
+    {
+      beforeHandle: [authenticate],
+      detail: { tags: ['Admin', 'Storage'], summary: 'List cloud-storage provisioning with per-user quotas' },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/storage/:userId',
+    async (ctx: any) => {
+      const adminErr = requireAdminPageAccess(ctx);
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.userId);
+      if (!userId) {
+        ctx.set.status = 400;
+        return { error: 'Invalid user id' };
+      }
+      return getStorageQuota(userId);
+    },
+    {
+      beforeHandle: [authenticate],
+      detail: { tags: ['Admin', 'Storage'], summary: 'Get a user storage quota (provisions lazily if absent)' },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/storage/:userId/quota',
+    async (ctx: any) => {
+      const adminErr = requireAdminPageAccess(ctx);
+      if (adminErr !== true) return adminErr;
+      const userId = Number(ctx.params.userId);
+      const body = (ctx.body || {}) as any;
+      const quotaBytes = Number(body.quotaBytes ?? body.quota);
+      if (!userId) {
+        ctx.set.status = 400;
+        return { error: 'Invalid user id' };
+      }
+      if (!Number.isFinite(quotaBytes) || quotaBytes <= 0) {
+        ctx.set.status = 400;
+        return { error: 'Invalid quota: must be a positive byte count' };
+      }
+      await provisionStorageServer(userId).catch((e: unknown) => {
+        console.warn('[admin] storage provisioning for quota update failed:', (e as Error)?.message || e);
+      });
+      return setStorageQuota(userId, quotaBytes);
+    },
+    {
+      beforeHandle: [authenticate],
+      body: t.Object({ quotaBytes: t.Number() }),
+      detail: { tags: ['Admin', 'Storage'], summary: 'Set a user storage quota in bytes' },
     }
   );
 }
