@@ -628,9 +628,6 @@ fn tundra_data_directory() -> SystemPath {
         SystemPath::new("{root_directory}\\tundra")
     }
 }
-/// Panel is the master switch — wings runs a tundra shim on every node by
-/// default so zero manual per-node setup is required. Operators can opt out
-/// with `tundra.enabled: false` in config.yml.
 fn tundra_enabled() -> bool {
     true
 }

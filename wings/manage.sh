@@ -18,7 +18,7 @@ do_regen() {
     rm -f "$PATCHES_DIR"/*.patch 2>/dev/null || true
     local n=1
     cd "$SCRIPT_DIR/.."
-    diff -ruN wings/source wings/patched > "$SCRIPT_DIR/patches/$(printf '%04d' $n)-wings-security.patch" 2>/dev/null || true
+    diff -ruN --exclude=target --exclude=bins wings/source wings/patched > "$SCRIPT_DIR/patches/$(printf '%04d' $n)-wings-security.patch" 2>/dev/null || true
     local size=$(wc -c < "$PATCHES_DIR/0001-wings-security.patch" 2>/dev/null || echo 0)
     if [ "$size" -gt 10 ]; then
         log "Generated patch ($(du -h "$PATCHES_DIR/0001-wings-security.patch" | cut -f1))"
