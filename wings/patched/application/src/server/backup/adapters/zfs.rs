@@ -2,7 +2,10 @@ use crate::{
     remote::backups::RawServerBackup,
     response::ApiResponse,
     server::{
-        backup::{Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt},
+        backup::{
+            Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt, BackupStream,
+            BackupStreamCreateExt, BackupStreamExt, DumpReader,
+        },
         filesystem::{
             archive::StreamableArchiveFormat,
             virtualfs::{ByteRange, VirtualReadableFilesystem},
@@ -180,8 +183,8 @@ impl BackupCreateExt for ZfsBackup {
                         .with_is_ignored(ignore.into());
                     let mut total_size = 0;
                     let mut total_files = 0;
-                    while let Some(Ok((_, path))) = walker.next_entry() {
-                        let metadata = match filesystem.symlink_metadata(&path) {
+                    while let Some(Ok(entry)) = walker.next_entry() {
+                        let metadata = match entry.metadata() {
                             Ok(metadata) => metadata,
                             Err(_) => continue,
                         };
@@ -202,7 +205,7 @@ impl BackupCreateExt for ZfsBackup {
             let output = Command::new("zfs")
                 .arg("list")
                 .arg("-o")
-                .arg("name")
+                .arg("name,mountpoint")
                 .arg("-H")
                 .arg(&server.filesystem.base_path)
                 .output()
@@ -216,7 +219,20 @@ impl BackupCreateExt for ZfsBackup {
                 ));
             }
 
-            let dataset_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let mut columns = stdout.trim().split('\t');
+            let dataset_name = columns.next().unwrap_or_default().to_string();
+            let mountpoint = columns.next().unwrap_or_default();
+
+            if Path::new(mountpoint) != server.filesystem.base_path {
+                return Err(anyhow::anyhow!(
+                    "server volume {} is not its own ZFS dataset (found {} mounted at {}); \
+                     enable the zfs_dataset disk limiter and migrate the server first",
+                    server.filesystem.base_path.display(),
+                    dataset_name,
+                    mountpoint
+                ));
+            }
 
             tokio::fs::write(&ignored_path, ignore_raw).await?;
             tokio::fs::write(backup_path.join("dataset"), &dataset_name).await?;
@@ -279,14 +295,14 @@ impl BackupExt for ZfsBackup {
         let names = filesystem.async_read_dir_all(Path::new("")).await?;
         let ignore = Self::get_ignore(&state.config, self.uuid).await?;
 
-        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
         let (reader, signal) = crate::io::fallible_reader::FallibleReader::new(reader);
 
         tokio::spawn({
             let config = Arc::clone(&state.config);
 
             async move {
-                let writer = tokio_util::io::SyncIoBridge::new(writer);
+                let writer = writer.into_sync();
 
                 match archive_format {
                     StreamableArchiveFormat::Zip => {
@@ -299,6 +315,7 @@ impl BackupExt for ZfsBackup {
                             ignore.into(),
                             crate::server::filesystem::archive::create::CreateZipOptions {
                                 compression_level: config.load().system.backups.compression_level,
+                                threads: config.load().api.file_compression_threads,
                             },
                         )
                         .await
@@ -422,20 +439,22 @@ impl BackupExt for ZfsBackup {
             let ignore = ignore.clone();
 
             async move {
-                let mut walker = filesystem
-                    .async_walk_dir(&PathBuf::from(""))
-                    .await?
-                    .with_is_ignored(ignore.into());
-                while let Some(Ok((_, path))) = walker.next_entry().await {
-                    let metadata = match filesystem.async_symlink_metadata(&path).await {
-                        Ok(metadata) => metadata,
-                        Err(_) => continue,
-                    };
+                tokio::task::spawn_blocking(move || {
+                    let mut walker = filesystem
+                        .walk_dir(Path::new(""))?
+                        .with_is_ignored(ignore.into());
+                    while let Some(Ok(entry)) = walker.next_entry() {
+                        let metadata = match entry.metadata() {
+                            Ok(metadata) => metadata,
+                            Err(_) => continue,
+                        };
 
-                    total.fetch_add(metadata.len(), Ordering::Relaxed);
-                }
+                        total.fetch_add(metadata.len(), Ordering::Relaxed);
+                    }
 
-                Ok::<(), anyhow::Error>(())
+                    Ok::<(), anyhow::Error>(())
+                })
+                .await?
             }
         };
 
@@ -452,17 +471,17 @@ impl BackupExt for ZfsBackup {
                         let filesystem = filesystem.clone();
                         let progress = progress.clone();
 
-                        move |_, path: PathBuf| {
+                        move |entry: crate::server::filesystem::cap::WalkEntry| {
                             let server = server.clone();
                             let filesystem = filesystem.clone();
                             let progress = progress.clone();
 
                             async move {
-                                let metadata =
-                                    match filesystem.async_symlink_metadata(&path).await {
-                                        Ok(metadata) => metadata,
-                                        Err(_) => return Ok(()),
-                                    };
+                                let metadata = match entry.async_metadata().await {
+                                    Ok(metadata) => metadata,
+                                    Err(_) => return Ok(()),
+                                };
+                                let path = entry.path;
 
                                 if metadata.is_file() {
                                     server.log_daemon(compact_str::format_compact!("(restoring): {}", path.display()));
@@ -471,7 +490,7 @@ impl BackupExt for ZfsBackup {
                                         server.filesystem.async_create_dir_all(parent).await?;
                                     }
 
-                                    filesystem.async_quota_copy(&path, &path, &server, progress.clone_bytes().as_ref()).await?;
+                                    filesystem.async_quota_copy(&path, &path, &server, None, progress.clone_bytes().as_ref()).await?;
                                     progress.increment_files();
                                 } else if metadata.is_dir() {
                                     server.filesystem.async_create_dir_all(&path).await?;
@@ -561,6 +580,31 @@ impl BackupExt for ZfsBackup {
                 .get_virtual(server.clone())
                 .with_is_ignored(ignore.into()),
         ))
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamCreateExt for ZfsBackup {
+    async fn create_from_stream(
+        _state: &crate::routes::State,
+        _uuid: uuid::Uuid,
+        _extension: &str,
+        _reader: DumpReader,
+    ) -> Result<RawServerBackup, anyhow::Error> {
+        Err(anyhow::anyhow!(
+            "zfs backups snapshot the server dataset and cannot store database dumps"
+        ))
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamExt for ZfsBackup {
+    async fn read_stream(
+        &self,
+        _state: &crate::routes::State,
+        _download_url: Option<compact_str::CompactString>,
+    ) -> Result<BackupStream, anyhow::Error> {
+        Err(anyhow::anyhow!("zfs backups do not store database dumps"))
     }
 }
 

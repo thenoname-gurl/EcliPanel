@@ -22,6 +22,7 @@ pub mod configuration;
 pub mod diff;
 pub mod executor;
 pub mod filesystem;
+pub mod firewall;
 pub mod installation;
 pub mod manager;
 pub mod permissions;
@@ -98,6 +99,72 @@ impl Drop for InnerServer {
 
 #[repr(transparent)]
 pub struct Server(Arc<InnerServer>);
+
+impl InnerServer {
+    pub fn log_daemon(&self, message: compact_str::CompactString) {
+        self.websocket
+            .send(
+                websocket::WebsocketMessage::builder(
+                    websocket::WebsocketEvent::ServerDaemonMessage,
+                )
+                .arg(message)
+                .build(),
+            )
+            .ok();
+    }
+
+    pub fn log_daemon_install(&self, message: compact_str::CompactString) {
+        self.websocket
+            .send(
+                websocket::WebsocketMessage::builder(
+                    websocket::WebsocketEvent::ServerInstallOutput,
+                )
+                .arg(message)
+                .build(),
+            )
+            .ok();
+    }
+
+    pub fn log_daemon_with_prelude(&self, message: &str) {
+        let prelude = self.app_state.config.daemon_prelude();
+
+        self.websocket
+            .send(
+                websocket::WebsocketMessage::builder(
+                    websocket::WebsocketEvent::ServerConsoleOutput,
+                )
+                .arg(compact_str::format_compact!(
+                    "{} {}",
+                    prelude,
+                    nu_ansi_term::Style::new().bold().paint(message)
+                ))
+                .build(),
+            )
+            .ok();
+    }
+
+    pub fn log_daemon_error(&self, message: &str) {
+        self.log_daemon(
+            nu_ansi_term::Style::new()
+                .bold()
+                .on(nu_ansi_term::Color::Red)
+                .paint(message)
+                .to_compact_string(),
+        );
+    }
+
+    pub fn get_daemon_error(&self, message: &str) -> websocket::WebsocketMessage {
+        websocket::WebsocketMessage::builder(websocket::WebsocketEvent::ServerDaemonMessage)
+            .arg(
+                nu_ansi_term::Style::new()
+                    .bold()
+                    .on(nu_ansi_term::Color::Red)
+                    .paint(message)
+                    .to_compact_string(),
+            )
+            .build()
+    }
+}
 
 impl Server {
     pub fn new(
@@ -333,36 +400,50 @@ impl Server {
 
         Box::pin(async move {
             let old_sender = server.clone().status_task.write().await.replace(tokio::spawn(async move {
+                let mut full_since: Option<std::time::Instant> = None;
+
                 loop {
                     let process_status = match status_rx.recv().await {
                         Some(process_status) => process_status,
                         None => break,
                     };
 
-                    server.filesystem.disk_checker_state_dirty.store(true, Ordering::Relaxed);
+                    if !server.filesystem.write_tracking_active() {
+                        server.filesystem.disk_checker_state_dirty.store(true, Ordering::Relaxed);
+                    }
 
                     if server.filesystem.is_full().await
                         && server.state.get_state() != state::ServerState::Offline
                         && !server.stopping.load(Ordering::SeqCst)
                     {
-                        server.log_daemon_with_prelude("Server is exceeding the assigned disk space limit, stopping process now.");
+                        if full_since.is_none_or(|since| {
+                            since.elapsed() < std::time::Duration::from_secs(5)
+                        }) {
+                            full_since.get_or_insert_with(std::time::Instant::now);
+                        } else {
+                            full_since = None;
 
-                        let server_clone = server.clone();
-                        tokio::spawn(async move {
-                            if let Err(err) = server_clone
-                                .stop_with_kill_timeout(
-                                    std::time::Duration::from_secs(30),
-                                    false,
-                                )
-                                .await
-                            {
-                                tracing::error!(
-                                    server = %server_clone.uuid,
-                                    "failed to stop server: {:#?}",
-                                    err
-                                );
-                            }
-                        });
+                            server.log_daemon_with_prelude("Server is exceeding the assigned disk space limit, stopping process now.");
+
+                            let server_clone = server.clone();
+                            tokio::spawn(async move {
+                                if let Err(err) = server_clone
+                                    .stop_with_kill_timeout(
+                                        std::time::Duration::from_secs(30),
+                                        false,
+                                    )
+                                    .await
+                                {
+                                    tracing::error!(
+                                        server = %server_clone.uuid,
+                                        "failed to stop server: {:#?}",
+                                        err
+                                    );
+                                }
+                            });
+                        }
+                    } else {
+                        full_since = None;
                     }
 
                     match process_status {
@@ -805,6 +886,13 @@ impl Server {
         self.setup_startup_task(&*process_handle).await;
         *self.process_handle.write().await = Some(process_handle);
 
+        #[cfg(unix)]
+        if let Some(tundra) = self.app_state.tundra.as_ref()
+            && tundra.hub.connected()
+        {
+            tundra.rebroadcast();
+        }
+
         Ok(())
     }
 
@@ -967,70 +1055,6 @@ impl Server {
         Box::new(pinned)
     }
 
-    pub fn log_daemon(&self, message: compact_str::CompactString) {
-        self.websocket
-            .send(
-                websocket::WebsocketMessage::builder(
-                    websocket::WebsocketEvent::ServerDaemonMessage,
-                )
-                .arg(message)
-                .build(),
-            )
-            .ok();
-    }
-
-    pub fn log_daemon_install(&self, message: compact_str::CompactString) {
-        self.websocket
-            .send(
-                websocket::WebsocketMessage::builder(
-                    websocket::WebsocketEvent::ServerInstallOutput,
-                )
-                .arg(message)
-                .build(),
-            )
-            .ok();
-    }
-
-    pub fn log_daemon_with_prelude(&self, message: &str) {
-        let prelude = self.app_state.config.daemon_prelude();
-
-        self.websocket
-            .send(
-                websocket::WebsocketMessage::builder(
-                    websocket::WebsocketEvent::ServerConsoleOutput,
-                )
-                .arg(compact_str::format_compact!(
-                    "{} {}",
-                    prelude,
-                    nu_ansi_term::Style::new().bold().paint(message)
-                ))
-                .build(),
-            )
-            .ok();
-    }
-
-    pub fn log_daemon_error(&self, message: &str) {
-        self.log_daemon(
-            nu_ansi_term::Style::new()
-                .bold()
-                .on(nu_ansi_term::Color::Red)
-                .paint(message)
-                .to_compact_string(),
-        );
-    }
-
-    pub fn get_daemon_error(&self, message: &str) -> websocket::WebsocketMessage {
-        websocket::WebsocketMessage::builder(websocket::WebsocketEvent::ServerDaemonMessage)
-            .arg(
-                nu_ansi_term::Style::new()
-                    .bold()
-                    .on(nu_ansi_term::Color::Red)
-                    .paint(message)
-                    .to_compact_string(),
-            )
-            .build()
-    }
-
     pub async fn start(
         &self,
         aquire_timeout: Option<std::time::Duration>,
@@ -1061,9 +1085,29 @@ impl Server {
                         server.filesystem.setup().await;
                         server.filesystem.get_disk_limiter().startup().await?;
 
-                        server.destroy_container().await;
+                        let (_, configuration) = tokio::join!(
+                            server.destroy_container(),
+                            server.app_state.config.client.server(server.uuid),
+                        );
 
-                        server.sync_configuration(true).await;
+                        match configuration {
+                            Ok(configuration) => {
+                                server
+                                    .update_configuration(
+                                        configuration.settings,
+                                        configuration.process_configuration,
+                                        true,
+                                    )
+                                    .await;
+                            }
+                            Err(err) => {
+                                tracing::error!(
+                                    server = %server.uuid,
+                                    "failed to sync server configuration: {}",
+                                    err
+                                );
+                            }
+                        }
 
                         if !server.filesystem.disk_checker_state_dirty.load(std::sync::atomic::Ordering::Relaxed) {
                             let now = std::time::SystemTime::now()
@@ -1112,15 +1156,29 @@ impl Server {
                         }
 
                         if server.app_state.config.load().system.check_permissions_on_boot {
-                            tracing::debug!(
-                                server = %server.uuid,
-                                "checking permissions on boot"
-                            );
-                            server.log_daemon_with_prelude(
-                                "Ensuring file permissions are set correctly, this could take a few seconds...",
-                            );
+                            let walk_needed = !server.filesystem.write_tracking_active()
+                                || server.filesystem.chown_state_dirty.swap(false, std::sync::atomic::Ordering::Relaxed);
 
-                            server.filesystem.async_chown_path_recursive(&server.filesystem.base_path).await?;
+                            if walk_needed {
+                                tracing::debug!(
+                                    server = %server.uuid,
+                                    "checking permissions on boot"
+                                );
+                                server.log_daemon_with_prelude(
+                                    "Ensuring file permissions are set correctly, this could take a few seconds...",
+                                );
+
+                                if let Err(err) = server.filesystem.async_chown_path_recursive(&server.filesystem.base_path).await {
+                                    server.filesystem.chown_state_dirty.store(true, std::sync::atomic::Ordering::Relaxed);
+
+                                    return Err(err);
+                                }
+                            } else {
+                                tracing::debug!(
+                                    server = %server.uuid,
+                                    "skipping permission check on boot, no filesystem writes since the last one"
+                                );
+                            }
                         }
 
                         server.setup_container().await?;

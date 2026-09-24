@@ -53,6 +53,11 @@
           "name": "EcliHalo Proxy",
           "href": "/docs/eclihalo",
           "icon": "Zap"
+        },
+        {
+          "name": "Tundra Tunnels",
+          "href": "/docs/tunnels",
+          "icon": "Link2"
         }
       ]
     },

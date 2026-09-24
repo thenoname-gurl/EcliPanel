@@ -15,28 +15,27 @@ impl super::ProcessConfigurationFileParser for PlainFileParser {
             "processing plain file"
         );
 
+        let mut replacements = Vec::with_capacity(config.replace.len());
+        for replacement in &config.replace {
+            replacements.push(super::ResolvedReplacement::new(server, replacement, false).await?);
+        }
+
         let mut result = String::new();
         let mut found_matches = HashSet::new();
 
         for line in content.lines() {
             let mut replaced = false;
 
-            for replacement in &config.replace {
-                if !line.starts_with(&*replacement.r#match) {
+            for resolved in &replacements {
+                if !line.starts_with(&*resolved.replacement.r#match) {
                     continue;
                 }
 
-                let value = ServerConfigurationFile::replace_all_placeholders(
-                    server,
-                    &replacement.replace_with,
-                )
-                .await?;
-
-                if replacement.update_existing {
+                if let Some(value) = resolved.text(Some(line)) {
                     writeln!(result, "{}", value)?;
                     replaced = true;
                 }
-                found_matches.insert(&replacement.r#match);
+                found_matches.insert(&resolved.replacement.r#match);
 
                 break;
             }
@@ -46,18 +45,14 @@ impl super::ProcessConfigurationFileParser for PlainFileParser {
             }
         }
 
-        for replacement in &config.replace {
-            let insert_new = replacement.insert_new.unwrap_or(false);
-
-            if found_matches.contains(&replacement.r#match) || !insert_new {
+        for resolved in &replacements {
+            if found_matches.contains(&resolved.replacement.r#match) {
                 continue;
             }
 
-            let value = ServerConfigurationFile::replace_all_placeholders(
-                server,
-                &replacement.replace_with,
-            )
-            .await?;
+            let Some(value) = resolved.text(None) else {
+                continue;
+            };
 
             writeln!(result, "{}", value)?;
         }
@@ -82,6 +77,20 @@ mod tests {
             if_value: None,
             insert_new,
             update_existing,
+            replace_with: value,
+        }
+    }
+
+    fn gated(
+        m: &str,
+        value: serde_json::Value,
+        if_value: &str,
+    ) -> ServerConfigurationFileReplacement {
+        ServerConfigurationFileReplacement {
+            r#match: m.into(),
+            if_value: Some(if_value.into()),
+            insert_new: None,
+            update_existing: true,
             replace_with: value,
         }
     }
@@ -148,6 +157,29 @@ mod tests {
         assert_eq!(
             run("abcdef\n", vec![rep("ab", json!("X"), None, true)]),
             "X\n"
+        );
+    }
+
+    #[test]
+    fn if_value_gates_on_the_whole_line() {
+        assert_eq!(
+            run("foo bar\n", vec![gated("foo", json!("NEW"), "foo bar")]),
+            "NEW\n"
+        );
+        assert_eq!(
+            run("foo baz\n", vec![gated("foo", json!("NEW"), "foo bar")]),
+            "foo baz\n"
+        );
+    }
+
+    #[test]
+    fn regex_if_value_edits_the_line_in_place() {
+        assert_eq!(
+            run(
+                "java -Xmx1024M -jar server.jar\n",
+                vec![gated("java", json!("-Xmx2048M"), r"regex:-Xmx\d+M")],
+            ),
+            "java -Xmx2048M -jar server.jar\n"
         );
     }
 }

@@ -51,6 +51,12 @@ import { normalizeProcessConfig, normalizeStartupDonePatterns } from '../utils/s
 import type { AllocationLike, RemoteNodeOverrides, WingsApp, WingsContext } from '../types/remote';
 import { ServerSchedule } from '../models/serverSchedule.entity';
 import { ServerScheduleStep } from '../models/serverScheduleStep.entity';
+import {
+  buildSnapshot,
+  isTundraEnabled,
+  issueConnectToken,
+  storeNodeCert,
+} from '../services/tundraService';
 
 // ─── Auth middleware ──────────────────────────────────────────────────────────
 
@@ -320,6 +326,8 @@ async function buildServerObject(
       environment: cfg.environment || {},
       labels: {},
       backups: [],
+      firewall: cfg.firewallRules || [],
+      features: cfg.features || {},
       schedules: await buildSchedulesFromDb(cfg.uuid),
       allocations: {
         force_outgoing_ip: alloc.force_outgoing_ip ?? false,
@@ -1631,6 +1639,67 @@ export async function remoteRoutes(app: WingsApp, prefix: string) {
     }
   );
 
+  app.get(
+    prefix + '/remote/tunnel/state',
+    async (ctx: WingsContext) => {
+      const enabled = await isTundraEnabled();
+      if (!enabled) return { disabled: true };
+      return buildSnapshot();
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Fetch tundra mesh snapshot (Wings callback)', tags: ['Remote', 'Tundra'] },
+      response: { 200: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
+
+  app.post(
+    prefix + '/remote/tunnel/cert',
+    async (ctx: WingsContext) => {
+      const node = ctx.wingNode as Node;
+      const body = (ctx.body || {}) as { cert_sha256?: string };
+      const ok = await storeNodeCert(node.id, body?.cert_sha256 || '');
+      if (!ok) {
+        ctx.set.status = 400;
+        return { errors: [{ code: 'BadRequest', detail: 'cert_sha256 must be a 64-char hex digest' }] };
+      }
+      return { ok: true };
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Record node TLS cert fingerprint (Wings callback)', tags: ['Remote', 'Tundra'] },
+      response: { 200: t.Any(), 400: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
+
+  app.get(
+    prefix + '/remote/tunnel/connect-token',
+    async (ctx: WingsContext) => {
+      const node = ctx.wingNode as Node;
+      const target = String((ctx.query?.target as string) || '').trim();
+      if (!node.nodeId) {
+        ctx.set.status = 400;
+        return { errors: [{ code: 'BadRequest', detail: 'Node has no identity' }] };
+      }
+      if (!target) {
+        ctx.set.status = 400;
+        return { errors: [{ code: 'BadRequest', detail: 'Missing ?target=<node-uuid>' }] };
+      }
+      try {
+        const jwt = await issueConnectToken(node.nodeId, target);
+        return { jwt };
+      } catch (e) {
+        ctx.set.status = 400;
+        return { errors: [{ code: 'BadRequest', detail: (e as Error)?.message || 'Cannot issue token' }] };
+      }
+    },
+    {
+      beforeHandle: authenticateWings,
+      detail: { summary: 'Issue tundra connect token (Wings callback)', tags: ['Remote', 'Tundra'] },
+      response: { 200: t.Any(), 400: t.Any(), 401: t.Object({ errors: t.Array(t.Any()) }) },
+    }
+  );
+
   if (!prefix) {
     app.post('/servers/:uuid/transfer/success', async (ctx: WingsContext) => {
       const uuid = (ctx.params as any).uuid;
@@ -1709,10 +1778,18 @@ export async function saveServerConfig(params: {
   nameserver?: string;
   searchdomain?: string;
   isStorageOnly?: boolean;
+  features?: Record<string, any>;
 }): Promise<ServerConfig> {
-  if (!Number.isFinite(params.memory) || params.memory < 0) throw new Error('Invalid memory value');
-  if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
-  if (!Number.isFinite(params.cpu) || params.cpu < 0) throw new Error('Invalid cpu value');
+  const isUpdate = !!(params.uuid && params.uuid.length > 0);
+  if (!isUpdate) {
+    if (!Number.isFinite(params.memory) || params.memory < 0) throw new Error('Invalid memory value');
+    if (!Number.isFinite(params.disk) || params.disk < 0) throw new Error('Invalid disk value');
+    if (!Number.isFinite(params.cpu) || params.cpu < 0) throw new Error('Invalid cpu value');
+  } else {
+    if (params.memory !== undefined && (!Number.isFinite(params.memory) || params.memory < 0)) throw new Error('Invalid memory value');
+    if (params.disk !== undefined && (!Number.isFinite(params.disk) || params.disk < 0)) throw new Error('Invalid disk value');
+    if (params.cpu !== undefined && (!Number.isFinite(params.cpu) || params.cpu < 0)) throw new Error('Invalid cpu value');
+  }
   const r = AppDataSource.getRepository(ServerConfig);
   const existing = await r.find({ where: { uuid: params.uuid }, order: { createdAt: 'ASC' } });
   if (!existing || existing.length === 0) {
@@ -1752,6 +1829,7 @@ export async function saveServerConfig(params: {
       nameserver: params.nameserver ?? null,
       searchdomain: params.searchdomain ?? null,
       isStorageOnly: params.isStorageOnly ?? false,
+      features: params.features ?? null,
     });
     return r.save(cfg);
   }
@@ -1788,6 +1866,7 @@ export async function saveServerConfig(params: {
   keep.allocations = params.allocations ?? keep.allocations ?? null;
   keep.processConfig = normalizeProcessConfig(params.processConfig ?? keep.processConfig ?? null);
   if (params.isStorageOnly !== undefined) keep.isStorageOnly = params.isStorageOnly;
+  if (params.features !== undefined) keep.features = params.features;
 
   await r.save(keep);
 

@@ -1,3 +1,4 @@
+"use client"
 import type { Metadata } from "next"
 import { PostPageClient } from "./PostPageClient"
 import { safeUrl } from "@/lib/url-utils"

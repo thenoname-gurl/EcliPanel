@@ -1,3 +1,4 @@
+"use client"
 export default function ServerDetailLoading() {
   return (
     <div className="p-6 space-y-6">

@@ -1,4 +1,4 @@
-use crate::server::filesystem::cap::FileType;
+use crate::server::filesystem::{cap::FileType, uploads::ignore_match_path};
 use parking_lot::Mutex;
 use serde::{
     Deserialize, Deserializer, Serialize,
@@ -94,11 +94,61 @@ impl Permission {
     }
 }
 
-type UserPermissions = (
-    Permissions,
-    Option<ignore::overrides::Override>,
-    std::time::Instant,
-);
+/// A subuser's compiled deny-list.
+///
+/// `Unusable` is what keeps a malformed list from becoming a hole: a list that cannot
+/// be compiled hides everything rather than nothing, since silently degrading to "no
+/// path is hidden" hands the subuser exactly the files the list was written to hide.
+enum IgnoredFiles {
+    Unrestricted,
+    Matcher(ignore::overrides::Override),
+    Unusable,
+}
+
+impl IgnoredFiles {
+    fn compile(patterns: &[impl AsRef<str>]) -> Self {
+        if patterns.is_empty() {
+            return Self::Unrestricted;
+        }
+
+        let mut builder = ignore::overrides::OverrideBuilder::new("");
+        for pattern in patterns {
+            if let Err(err) = builder.add(pattern.as_ref()) {
+                tracing::error!(
+                    "rejecting subuser ignored files, {} is not a valid pattern: {:#?}",
+                    pattern.as_ref(),
+                    err
+                );
+
+                return Self::Unusable;
+            }
+        }
+
+        match builder.build() {
+            Ok(overrides) => Self::Matcher(overrides),
+            Err(err) => {
+                tracing::error!(
+                    "rejecting subuser ignored files, cannot compile: {:#?}",
+                    err
+                );
+
+                Self::Unusable
+            }
+        }
+    }
+
+    fn matches(&self, path: std::path::PathBuf, is_dir: bool) -> bool {
+        match self {
+            Self::Unrestricted => false,
+            Self::Matcher(overrides) => overrides
+                .matched(ignore_match_path(&path), is_dir)
+                .is_whitelist(),
+            Self::Unusable => true,
+        }
+    }
+}
+
+type UserPermissions = (Permissions, IgnoredFiles, std::time::Instant);
 pub struct UserPermissionsMap {
     map: Arc<Mutex<HashMap<uuid::Uuid, UserPermissions>>>,
     removal_sender: tokio::sync::broadcast::Sender<uuid::Uuid>,
@@ -175,6 +225,17 @@ impl UserPermissionsMap {
         }
     }
 
+    pub fn has_ignored_files(&self, user_uuid: uuid::Uuid) -> bool {
+        let mut map = self.map.lock();
+        if let Some((_, ignored, last_access)) = map.get_mut(&user_uuid) {
+            *last_access = std::time::Instant::now();
+
+            !matches!(ignored, IgnoredFiles::Unrestricted)
+        } else {
+            false
+        }
+    }
+
     pub fn is_ignored(
         &self,
         server: &crate::server::Server,
@@ -224,10 +285,7 @@ impl UserPermissionsMap {
         if let Some((_, ignored, last_access)) = map.get_mut(&user_uuid) {
             *last_access = std::time::Instant::now();
 
-            ignored
-                .as_ref()
-                .map(|ig| ig.matched(path, file_type.is_dir()).is_whitelist())
-                .unwrap_or(false)
+            ignored.matches(path, file_type.is_dir())
         } else {
             false
         }
@@ -245,29 +303,20 @@ impl UserPermissionsMap {
             return;
         }
 
-        let overrides = if let Some(ignored_files) = ignored_files {
-            let mut overrides = ignore::overrides::OverrideBuilder::new("");
-            for file in ignored_files {
-                overrides.add(file.as_ref()).ok();
-            }
-
-            Some(overrides)
-        } else {
-            None
-        };
+        let ignored_files = ignored_files.map(IgnoredFiles::compile);
 
         let mut map = self.map.lock();
         if let Some((current_permissions, current_ignored, _)) = map.get_mut(&user_uuid) {
             *current_permissions = permissions;
-            if let Some(overrides) = overrides {
-                *current_ignored = overrides.build().ok();
+            if let Some(ignored_files) = ignored_files {
+                *current_ignored = ignored_files;
             }
         } else {
             map.insert(
                 user_uuid,
                 (
                     permissions,
-                    overrides.as_ref().and_then(|o| o.build().ok()),
+                    ignored_files.unwrap_or(IgnoredFiles::Unrestricted),
                     std::time::Instant::now(),
                 ),
             );
@@ -579,6 +628,33 @@ mod tests {
         });
     }
 
+    /// A staging file inherits the visibility of the file it will become, or a deny rule is
+    /// dodged by reaching for `server.log.upload-part` over SFTP instead.
+    #[test]
+    fn map_is_ignored_matches_a_staging_file_as_its_target() {
+        tokio_test::block_on(async {
+            let state = crate::routes::AppState::mock();
+            let server = crate::server::Server::mock(uuid::Uuid::new_v4(), state);
+            let permissions = UserPermissionsMap::default();
+            let user = uuid::Uuid::new_v4();
+            let ignored: &[&str] = &["*.log"];
+            permissions.set_permissions(user, perms(&[Permission::FileRead]), Some(ignored));
+
+            assert!(permissions.is_ignored(
+                &server,
+                user,
+                "server.log.upload-part",
+                FileType::File
+            ));
+            assert!(!permissions.is_ignored(
+                &server,
+                user,
+                "server.txt.upload-part",
+                FileType::File
+            ));
+        });
+    }
+
     #[test]
     fn map_update_without_ignored_keeps_existing_overrides() {
         tokio_test::block_on(async {
@@ -591,6 +667,25 @@ mod tests {
             assert!(permissions.is_ignored(&server, user, "x.log", FileType::File));
             permissions.set_permissions(user, perms(&[Permission::FileDelete]), None::<&[&str]>);
             assert!(permissions.is_ignored(&server, user, "x.log", FileType::File));
+        });
+    }
+
+    #[test]
+    fn map_uncompilable_ignored_files_hide_everything() {
+        tokio_test::block_on(async {
+            let state = crate::routes::AppState::mock();
+            let server = crate::server::Server::mock(uuid::Uuid::new_v4(), state);
+            let permissions = UserPermissionsMap::default();
+            let user = uuid::Uuid::new_v4();
+
+            // an unclosed character class cannot be compiled - the whole list is then
+            // unusable, and must hide everything rather than nothing
+            let ignored: &[&str] = &["[abc", "*.log"];
+            permissions.set_permissions(user, perms(&[Permission::FileRead]), Some(ignored));
+
+            assert!(permissions.is_ignored(&server, user, "server.log", FileType::File));
+            assert!(permissions.is_ignored(&server, user, "anything.txt", FileType::File));
+            assert!(permissions.is_ignored(&server, user, "sub", FileType::Dir));
         });
     }
 

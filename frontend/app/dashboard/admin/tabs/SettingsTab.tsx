@@ -15,6 +15,8 @@ import {
   Code,
   Eye,
   FileCode,
+  Flame,
+  Gauge,
   Globe,
   MessageSquare,
   Plus,
@@ -439,6 +441,198 @@ export default function SettingsTab({ ctx }: { ctx: any }) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* CPU Boost Settings */}
+      <div className="border border-border bg-card shadow-sm overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-border px-5 py-4 bg-gradient-to-r from-card to-secondary/20">
+          <Flame className="h-4 w-4 text-amber-400" />
+          <h3 className="text-sm font-semibold text-foreground">{t("cpuBoost.title")}</h3>
+          <p className="text-xs text-muted-foreground ml-auto">{t("cpuBoost.subtitle")}</p>
+        </div>
+        <div className="p-5 space-y-5">
+          {/* Startup CPU Boost */}
+          <div className="border border-border bg-secondary/20 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame className="h-4 w-4 text-amber-400" />
+              <h4 className="text-sm font-medium text-foreground">{t("cpuBoost.startup.title")}</h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="flex items-center justify-between text-sm">
+                  <span className="text-foreground">{t("cpuBoost.startup.enabled")}</span>
+                  <button
+                    onClick={() =>
+                      setPanelSettings((s: any) => ({
+                        ...s,
+                        cpu_boost_startup_enabled: !s.cpu_boost_startup_enabled,
+                      }))
+                    }
+                    className={cn(
+                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all",
+                      panelSettings.cpu_boost_startup_enabled ? "bg-primary" : "bg-secondary"
+                    )}
+                    role="switch"
+                    aria-checked={panelSettings.cpu_boost_startup_enabled}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                        panelSettings.cpu_boost_startup_enabled ? "translate-x-4" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </label>
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.startup.enabledHint")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("cpuBoost.startup.timeout")}</label>
+                <input
+                  type="number"
+                  min="100"
+                  max="60000"
+                  step="100"
+                  value={panelSettings.cpu_boost_startup_timeout ?? 3000}
+                  onChange={(e) =>
+                    setPanelSettings((s: any) => ({
+                      ...s,
+                      cpu_boost_startup_timeout: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.startup.timeoutHint")}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Runtime CPU Boost */}
+          <div className="border border-border bg-secondary/20 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Gauge className="h-4 w-4 text-cyan-400" />
+              <h4 className="text-sm font-medium text-foreground">{t("cpuBoost.runtime.title")}</h4>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="flex items-center justify-between text-sm">
+                  <span className="text-foreground">{t("cpuBoost.runtime.enabled")}</span>
+                  <button
+                    onClick={() =>
+                      setPanelSettings((s: any) => ({
+                        ...s,
+                        cpu_boost_runtime_enabled: !s.cpu_boost_runtime_enabled,
+                      }))
+                    }
+                    className={cn(
+                      "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-all",
+                      panelSettings.cpu_boost_runtime_enabled ? "bg-primary" : "bg-secondary"
+                    )}
+                    role="switch"
+                    aria-checked={panelSettings.cpu_boost_runtime_enabled}
+                  >
+                    <span
+                      className={cn(
+                        "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+                        panelSettings.cpu_boost_runtime_enabled ? "translate-x-4" : "translate-x-0"
+                      )}
+                    />
+                  </button>
+                </label>
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.runtime.enabledHint")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("cpuBoost.runtime.threshold")}</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  step="1"
+                  value={panelSettings.cpu_boost_runtime_threshold ?? 20}
+                  onChange={(e) =>
+                    setPanelSettings((s: any) => ({
+                      ...s,
+                      cpu_boost_runtime_threshold: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.runtime.thresholdHint")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("cpuBoost.runtime.sustained")}</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  step="1"
+                  value={panelSettings.cpu_boost_runtime_sustained ?? 5}
+                  onChange={(e) =>
+                    setPanelSettings((s: any) => ({
+                      ...s,
+                      cpu_boost_runtime_sustained: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.runtime.sustainedHint")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("cpuBoost.runtime.multiple")}</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  step="0.1"
+                  value={panelSettings.cpu_boost_runtime_multiple ?? 1.5}
+                  onChange={(e) =>
+                    setPanelSettings((s: any) => ({
+                      ...s,
+                      cpu_boost_runtime_multiple: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.runtime.multipleHint")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("cpuBoost.runtime.duration")}</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="300"
+                  step="1"
+                  value={panelSettings.cpu_boost_runtime_duration ?? 30}
+                  onChange={(e) =>
+                    setPanelSettings((s: any) => ({
+                      ...s,
+                      cpu_boost_runtime_duration: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.runtime.durationHint")}</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{t("cpuBoost.runtime.cooldown")}</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="600"
+                  step="1"
+                  value={panelSettings.cpu_boost_runtime_cooldown ?? 60}
+                  onChange={(e) =>
+                    setPanelSettings((s: any) => ({
+                      ...s,
+                      cpu_boost_runtime_cooldown: Number(e.target.value),
+                    }))
+                  }
+                  className="w-full border border-border bg-secondary/50 px-4 py-2.5 text-sm font-mono text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"
+                />
+                <p className="text-xs text-muted-foreground">{t("cpuBoost.runtime.cooldownHint")}</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

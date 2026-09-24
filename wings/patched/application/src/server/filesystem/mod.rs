@@ -1,5 +1,5 @@
 use crate::{
-    routes::MimeCacheValue,
+    routes::{MimeCacheKey, MimeCacheValue},
     server::{
         filesystem::virtualfs::{
             AsyncDirectoryStreamWalkFn, IsIgnoredFn, VirtualReadableFilesystem,
@@ -12,9 +12,9 @@ use crate::{
 use cap_std::fs::Metadata;
 use compact_str::ToCompactString;
 use std::{
+    borrow::Cow,
     collections::HashMap,
     fmt::Debug,
-    hint::unreachable_unchecked,
     ops::Deref,
     path::{Path, PathBuf},
     sync::{
@@ -23,7 +23,7 @@ use std::{
     },
 };
 use tokio::{
-    io::{AsyncReadExt, AsyncWriteExt},
+    io::AsyncWriteExt,
     sync::{RwLock, RwLockReadGuard},
 };
 
@@ -33,8 +33,11 @@ pub mod disk_checker;
 pub mod file;
 pub mod inotify;
 pub mod limiter;
+pub mod listing;
 pub mod operations;
 pub mod pull;
+pub mod sqlite;
+pub mod uploads;
 pub mod usage;
 pub mod virtualfs;
 
@@ -49,38 +52,112 @@ pub fn build_gitignore_matcher<S: AsRef<str>>(
     builder.build()
 }
 
-#[inline]
-pub fn encode_mode(mode: u32) -> compact_str::CompactString {
-    let mut mode_str = compact_str::CompactString::default();
+/// A subuser deny-list carried on a single panel request.
+///
+/// The panel checks the paths it was handed before calling, but it cannot see file
+/// types, symlink targets, or the entries inside a directory it names, so the list is
+/// applied again here.
+#[derive(Default, Clone)]
+pub struct RequestIgnored(Option<Arc<ignore::gitignore::Gitignore>>);
 
-    #[cfg(unix)]
-    mode_str.push(match rustix::fs::FileType::from_raw_mode(mode) {
-        rustix::fs::FileType::RegularFile => '-',
-        rustix::fs::FileType::Directory => 'd',
-        rustix::fs::FileType::Symlink => 'l',
-        rustix::fs::FileType::BlockDevice => 'b',
-        rustix::fs::FileType::CharacterDevice => 'c',
-        rustix::fs::FileType::Socket => 's',
-        rustix::fs::FileType::Fifo => 'p',
-        rustix::fs::FileType::Unknown => '?',
-    });
-    #[cfg(not(unix))]
-    mode_str.push('?');
+impl RequestIgnored {
+    /// Unlike [`build_gitignore_matcher`], an unusable pattern is an error rather than a
+    /// dropped line: a deny-list that compiles to nothing hides nothing.
+    pub fn compile<S: AsRef<str>>(patterns: &[S]) -> Result<Self, ignore::Error> {
+        if patterns.is_empty() {
+            return Ok(Self(None));
+        }
 
-    for i in 0u8..9 {
-        if mode & (1 << (8 - i)) != 0 {
-            mode_str.push(match i.rem_euclid(3) {
-                0 => 'r',
-                1 => 'w',
-                2 => 'x',
-                _ => unsafe { unreachable_unchecked() },
-            });
-        } else {
-            mode_str.push('-');
+        let mut builder = ignore::gitignore::GitignoreBuilder::new("");
+        for pattern in patterns {
+            builder.add_line(None, pattern.as_ref())?;
+        }
+
+        Ok(Self(Some(Arc::new(builder.build()?))))
+    }
+
+    pub async fn is_ignored(
+        &self,
+        server: &crate::server::Server,
+        path: &Path,
+        file_type: cap::FileType,
+    ) -> bool {
+        match &self.0 {
+            Some(matcher) => {
+                server
+                    .filesystem
+                    .async_is_subuser_ignored(matcher, path, file_type)
+                    .await
+            }
+            None => false,
         }
     }
 
-    mode_str
+    pub fn filter(&self, server: &crate::server::Server) -> Option<IsIgnoredFn> {
+        self.0
+            .as_ref()
+            .map(|matcher| Filesystem::subuser_deny_filter(server, Arc::clone(matcher)))
+    }
+}
+
+/// Whether a rename may materialise the destination's parent directories.
+///
+/// Renaming `f.txt` to `newdir/f.txt` creates `newdir`, so a caller acting for a user may
+/// only pass [`RenameParents::Create`] once that user has been checked for the create
+/// permission, not merely the update permission the rename itself needs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RenameParents {
+    Create,
+    Require,
+}
+
+#[inline]
+fn raw_mode(metadata: &Metadata) -> u32 {
+    #[cfg(unix)]
+    {
+        use cap_std::fs::MetadataExt;
+
+        metadata.mode()
+    }
+    #[cfg(not(unix))]
+    {
+        PortablePermissions::from(metadata.permissions()).mode() as u32
+    }
+}
+
+#[inline]
+pub fn encode_mode(mode: u32) -> compact_str::CompactString {
+    #[cfg(unix)]
+    let file_type = match rustix::fs::FileType::from_raw_mode(mode) {
+        rustix::fs::FileType::RegularFile => b'-',
+        rustix::fs::FileType::Directory => b'd',
+        rustix::fs::FileType::Symlink => b'l',
+        rustix::fs::FileType::BlockDevice => b'b',
+        rustix::fs::FileType::CharacterDevice => b'c',
+        rustix::fs::FileType::Socket => b's',
+        rustix::fs::FileType::Fifo => b'p',
+        rustix::fs::FileType::Unknown => b'?',
+    };
+    #[cfg(not(unix))]
+    let file_type = b'?';
+
+    let mut buffer = [
+        file_type, b'-', b'-', b'-', b'-', b'-', b'-', b'-', b'-', b'-',
+    ];
+    for (i, slot) in buffer.iter_mut().skip(1).enumerate() {
+        if mode & (1 << (8 - i)) != 0 {
+            *slot = match i % 3 {
+                0 => b'r',
+                1 => b'w',
+                _ => b'x',
+            };
+        }
+    }
+
+    match std::str::from_utf8(&buffer) {
+        Ok(mode_str) => compact_str::CompactString::from(mode_str),
+        Err(_) => compact_str::CompactString::const_new("?---------"),
+    }
 }
 
 pub struct Filesystem {
@@ -89,6 +166,8 @@ pub struct Filesystem {
 
     disk_checker_rescan: Arc<tokio::sync::Notify>,
     pub disk_checker_state_dirty: Arc<AtomicBool>,
+    pub chown_state_dirty: Arc<AtomicBool>,
+    chown_refused: Arc<AtomicBool>,
     pub disk_checker: tokio::task::JoinHandle<()>,
     config: Arc<crate::config::Config>,
 
@@ -111,6 +190,7 @@ pub struct Filesystem {
     pub archive_fs_cache: moka::future::Cache<PathBuf, Arc<dyn VirtualReadableFilesystem>>,
     pub pulls: RwLock<HashMap<uuid::Uuid, Arc<RwLock<pull::Download>>>>,
     pub operations: operations::OperationManager,
+    pub uploads: uploads::UploadManager,
 }
 
 impl Filesystem {
@@ -126,6 +206,7 @@ impl Filesystem {
         let base_path = config.data_path(uuid);
 
         let disk_checker_state_dirty = Arc::new(AtomicBool::new(true));
+        let chown_state_dirty = Arc::new(AtomicBool::new(true));
 
         let disk_usage = Arc::new(RwLock::new(usage::DiskUsage::default()));
         let disk_usage_cached_logical = Arc::new(AtomicU64::new(0));
@@ -134,7 +215,13 @@ impl Filesystem {
             .unwrap_or_else(|_| ignore::gitignore::Gitignore::empty());
 
         let cap_filesystem = cap::CapFilesystem::new_uninitialized(&base_path);
-        let server_notifier = inotify::InotifyServerNotifier::new(base_path.clone());
+        let server_notifier = inotify::InotifyServerNotifier::new(
+            base_path.clone(),
+            [
+                Arc::clone(&disk_checker_state_dirty),
+                Arc::clone(&chown_state_dirty),
+            ],
+        );
         let use_server_notifier = Arc::new(AtomicBool::new(false));
         let disk_checker_rescan = Arc::new(tokio::sync::Notify::new());
         let disk_check_completed = Arc::new(tokio::sync::Notify::new());
@@ -145,6 +232,8 @@ impl Filesystem {
             app_state,
             disk_checker_rescan: Arc::clone(&disk_checker_rescan),
             disk_checker_state_dirty: Arc::clone(&disk_checker_state_dirty),
+            chown_state_dirty,
+            chown_refused: Arc::new(AtomicBool::new(false)),
             disk_checker: tokio::spawn(disk_checker::run(disk_checker::DiskCheckerContext {
                 config: Arc::clone(&config),
                 disk_usage: Arc::clone(&disk_usage),
@@ -181,7 +270,8 @@ impl Filesystem {
                 .time_to_idle(std::time::Duration::from_mins(1))
                 .build(),
             pulls: RwLock::new(HashMap::new()),
-            operations: operations::OperationManager::new(sender),
+            operations: operations::OperationManager::new(sender.clone()),
+            uploads: uploads::UploadManager::new(sender),
         }
     }
 
@@ -201,10 +291,52 @@ impl Filesystem {
         self.disk_checker_rescan.notify_one();
     }
 
+    #[inline]
+    pub fn write_tracking_active(&self) -> bool {
+        self.use_server_notifier.load(Ordering::Relaxed) && self.server_notifier.is_trusted()
+    }
+
     pub async fn update_ignored(&self, deny_list: &[impl AsRef<str>]) {
         if let Ok(disk_ignored) = build_gitignore_matcher(deny_list.iter()) {
             self.disk_ignored.store(Arc::new(disk_ignored));
         }
+    }
+
+    fn subuser_deny_filter(
+        server: &crate::server::Server,
+        matcher: Arc<ignore::gitignore::Gitignore>,
+    ) -> IsIgnoredFn {
+        let (sync_server, async_server) = (server.clone(), server.clone());
+        let async_matcher = Arc::clone(&matcher);
+
+        IsIgnoredFn::new(
+            move |file_type, path: PathBuf| {
+                if sync_server
+                    .filesystem
+                    .is_subuser_ignored(&matcher, &path, file_type)
+                {
+                    None
+                } else {
+                    Some(path)
+                }
+            },
+            move |file_type, path: PathBuf| {
+                let server = async_server.clone();
+                let matcher = Arc::clone(&async_matcher);
+
+                async move {
+                    if server
+                        .filesystem
+                        .async_is_subuser_ignored(&matcher, &path, file_type)
+                        .await
+                    {
+                        None
+                    } else {
+                        Some(path)
+                    }
+                }
+            },
+        )
     }
 
     fn deny_filter(server: &crate::server::Server) -> IsIgnoredFn {
@@ -240,39 +372,84 @@ impl Filesystem {
     }
 
     pub fn is_ignored(&self, path: &Path, file_type: cap::FileType) -> bool {
-        let path = if file_type.is_symlink() {
-            self.canonicalize(path)
-                .unwrap_or_else(|_| self.relative_path(path))
-        } else {
-            self.relative_path(path)
-        };
-
-        if path.as_os_str().is_empty() {
+        let disk_ignored = self.disk_ignored.load();
+        if disk_ignored.is_empty() {
             return false;
         }
 
-        self.disk_ignored
-            .load()
-            .matched(path, file_type.is_dir())
-            .is_ignore()
+        Self::matches_ignore(&disk_ignored, &self.ignore_path(path, file_type), file_type)
     }
 
     pub async fn async_is_ignored(&self, path: &Path, file_type: cap::FileType) -> bool {
-        let path = if file_type.is_symlink() {
-            self.async_canonicalize(path)
-                .await
-                .unwrap_or_else(|_| self.relative_path(path))
-        } else {
-            self.relative_path(path)
-        };
+        if self.disk_ignored.load().is_empty() {
+            return false;
+        }
 
+        let path = self.async_ignore_path(path, file_type).await;
+
+        Self::matches_ignore(&self.disk_ignored.load(), &path, file_type)
+    }
+
+    pub fn is_subuser_ignored(
+        &self,
+        matcher: &ignore::gitignore::Gitignore,
+        path: &Path,
+        file_type: cap::FileType,
+    ) -> bool {
+        Self::matches_ignore(matcher, &self.ignore_path(path, file_type), file_type)
+    }
+
+    pub async fn async_is_subuser_ignored(
+        &self,
+        matcher: &ignore::gitignore::Gitignore,
+        path: &Path,
+        file_type: cap::FileType,
+    ) -> bool {
+        Self::matches_ignore(
+            matcher,
+            &self.async_ignore_path(path, file_type).await,
+            file_type,
+        )
+    }
+
+    fn ignore_path<'a>(&self, path: &'a Path, file_type: cap::FileType) -> Cow<'a, Path> {
+        if file_type.is_symlink() {
+            Cow::Owned(
+                self.canonicalize(path)
+                    .unwrap_or_else(|_| self.relative_path(path)),
+            )
+        } else {
+            self.relative_path_cow(path)
+        }
+    }
+
+    async fn async_ignore_path<'a>(
+        &self,
+        path: &'a Path,
+        file_type: cap::FileType,
+    ) -> Cow<'a, Path> {
+        if file_type.is_symlink() {
+            Cow::Owned(
+                self.async_canonicalize(path)
+                    .await
+                    .unwrap_or_else(|_| self.relative_path(path)),
+            )
+        } else {
+            self.relative_path_cow(path)
+        }
+    }
+
+    fn matches_ignore(
+        matcher: &ignore::gitignore::Gitignore,
+        path: &Path,
+        file_type: cap::FileType,
+    ) -> bool {
         if path.as_os_str().is_empty() {
             return false;
         }
 
-        self.disk_ignored
-            .load()
-            .matched(path, file_type.is_dir())
+        matcher
+            .matched(uploads::ignore_match_path(path), file_type.is_dir())
             .is_ignore()
     }
 
@@ -280,10 +457,27 @@ impl Filesystem {
         (**self.disk_ignored.load()).clone()
     }
 
+    pub fn symlink_name_filter(&self) -> IsIgnoredFn {
+        let matcher = self.disk_ignored.load_full();
+
+        IsIgnoredFn::from(move |file_type: cap::FileType, path: PathBuf| {
+            if !file_type.is_symlink() {
+                return Some(path);
+            }
+
+            let ignored = matcher
+                .matched(uploads::ignore_match_path(&path), file_type.is_dir())
+                .is_ignore();
+
+            if ignored { None } else { Some(path) }
+        })
+    }
+
     pub async fn diff_key(&self, path: &Path) -> PathBuf {
-        self.async_canonicalize(path)
-            .await
-            .unwrap_or_else(|_| self.relative_path(path))
+        match self.async_canonicalize(path).await {
+            Ok(path) => path,
+            Err(_) => self.async_canonicalize_parent(path).await,
+        }
     }
 
     pub async fn pulls(
@@ -358,6 +552,24 @@ impl Filesystem {
         self.disk_limit() != 0 && self.limiter_usage().await >= self.disk_limit() as u64
     }
 
+    /// Checks whether `delta` additional bytes would still fit within the disk limit,
+    /// without reserving them. Writers that go through [`file::ServerFile`] account for
+    /// their own bytes, so callers that only want to fail early must not allocate here.
+    #[inline]
+    pub fn has_headroom(&self, delta: i64) -> bool {
+        let limit = self.disk_limit();
+        if limit <= 0 || delta <= 0 {
+            return true;
+        }
+
+        delta as u64 <= (limit as u64).saturating_sub(self.get_physical_cached_size())
+    }
+
+    #[inline]
+    pub fn server_notifier(&self) -> &inotify::InotifyServerNotifier {
+        &self.server_notifier
+    }
+
     #[inline]
     pub fn base(&self) -> compact_str::CompactString {
         self.base_path.to_string_lossy().to_compact_string()
@@ -376,6 +588,17 @@ impl Filesystem {
         server: &crate::server::Server,
         path: &Path,
     ) -> (PathBuf, Arc<dyn VirtualReadableFilesystem>) {
+        self.resolve_readable_fs_ignoring(server, path, &RequestIgnored::default())
+            .await
+    }
+
+    pub async fn resolve_readable_fs_ignoring(
+        &self,
+        server: &crate::server::Server,
+        path: &Path,
+        ignored: &RequestIgnored,
+    ) -> (PathBuf, Arc<dyn VirtualReadableFilesystem>) {
+        let ignored = ignored.filter(server);
         let path = self.relative_path(path);
 
         'backupfs: {
@@ -598,7 +821,10 @@ impl Filesystem {
         let mut fs = self.cap_filesystem.get_virtual(server.clone());
         fs.is_primary_server_fs = true;
         fs.is_writable = true;
-        let fs = fs.with_is_ignored(Self::deny_filter(server));
+        let mut fs = fs.with_is_ignored(Self::deny_filter(server));
+        if let Some(ignored) = ignored.clone() {
+            fs = fs.with_is_ignored(ignored);
+        }
 
         (
             path,
@@ -614,6 +840,17 @@ impl Filesystem {
         server: &crate::server::Server,
         path: impl AsRef<Path>,
     ) -> (PathBuf, Arc<dyn VirtualWritableFilesystem>) {
+        self.resolve_writable_fs_ignoring(server, path, &RequestIgnored::default())
+            .await
+    }
+
+    pub async fn resolve_writable_fs_ignoring(
+        &self,
+        server: &crate::server::Server,
+        path: impl AsRef<Path>,
+        ignored: &RequestIgnored,
+    ) -> (PathBuf, Arc<dyn VirtualWritableFilesystem>) {
+        let ignored = ignored.filter(server);
         let path = self.relative_path(path.as_ref());
 
         let mount_match = {
@@ -669,7 +906,10 @@ impl Filesystem {
                         let mut fs = self.cap_filesystem.get_virtual(server.clone());
                         fs.is_primary_server_fs = true;
                         fs.is_writable = false;
-                        let fs = fs.with_is_ignored(Self::deny_filter(server));
+                        let mut fs = fs.with_is_ignored(Self::deny_filter(server));
+                        if let Some(ignored) = ignored.clone() {
+                            fs = fs.with_is_ignored(ignored);
+                        }
 
                         return (inner_path, Arc::new(fs));
                     }
@@ -680,7 +920,10 @@ impl Filesystem {
         let mut fs = self.cap_filesystem.get_virtual(server.clone());
         fs.is_primary_server_fs = true;
         fs.is_writable = true;
-        let fs = fs.with_is_ignored(Self::deny_filter(server));
+        let mut fs = fs.with_is_ignored(Self::deny_filter(server));
+        if let Some(ignored) = ignored.clone() {
+            fs = fs.with_is_ignored(ignored);
+        }
 
         (path, Arc::new(fs))
     }
@@ -691,7 +934,8 @@ impl Filesystem {
         let metadata = self.async_symlink_metadata(&path).await?;
 
         if metadata.is_dir() {
-            self.async_remove_dir_all(&path).await?;
+            let threads = self.config.load().api.file_delete_threads;
+            self.async_remove_dir_all(&path, threads).await?;
 
             let mut disk_usage = self.disk_usage.write().await;
             if let Some(removed) = disk_usage.remove_path(&path) {
@@ -713,6 +957,35 @@ impl Filesystem {
             }
         }
 
+        self.uploads.forget(&path, &self.cap_filesystem).await;
+
+        Ok(())
+    }
+
+    pub async fn remove_empty_dir(&self, path: impl AsRef<Path>) -> Result<(), std::io::Error> {
+        let path = self.relative_path(path.as_ref());
+
+        if path.as_os_str().is_empty() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "cannot remove the server root directory",
+            ));
+        }
+
+        self.async_remove_dir(&path).await?;
+
+        let mut disk_usage = self.disk_usage.write().await;
+        if let Some(removed) = disk_usage.remove_path(&path) {
+            drop(disk_usage);
+            self.try_update_atomics(
+                usage::SpaceDelta::new(
+                    -(removed.space.get_logical() as i64),
+                    -(removed.space.get_physical() as i64),
+                ),
+                false,
+            );
+        }
+
         Ok(())
     }
 
@@ -720,11 +993,14 @@ impl Filesystem {
         &self,
         old_path: impl AsRef<Path>,
         new_path: impl AsRef<Path>,
+        parents: RenameParents,
     ) -> Result<(), anyhow::Error> {
         let old_path = self.relative_path(old_path.as_ref());
         let new_path = self.relative_path(new_path.as_ref());
 
-        if let Some(parent) = new_path.parent() {
+        if parents == RenameParents::Create
+            && let Some(parent) = new_path.parent()
+        {
             self.async_create_dir_all(parent).await?;
         }
 
@@ -784,6 +1060,8 @@ impl Filesystem {
             }
         }
 
+        self.uploads.forget(&old_path, &self.cap_filesystem).await;
+
         Ok(())
     }
 
@@ -806,14 +1084,8 @@ impl Filesystem {
                         &path,
                         &destination_path,
                         server,
+                        Some(metadata.permissions),
                         progress.clone_bytes().as_ref(),
-                    )
-                    .await?;
-                destination_filesystem
-                    .async_set_permissions(
-                        &destination_path,
-                        metadata.file_type,
-                        metadata.permissions,
                     )
                     .await?;
             } else {
@@ -827,13 +1099,9 @@ impl Filesystem {
                 }
 
                 let mut writer = destination_filesystem
-                    .async_create_file(&destination_path)
-                    .await?;
-                destination_filesystem
-                    .async_set_permissions(
+                    .async_create_file_with_permissions(
                         &destination_path,
-                        metadata.file_type,
-                        metadata.permissions,
+                        Some(metadata.permissions),
                     )
                     .await?;
 
@@ -868,7 +1136,9 @@ impl Filesystem {
                         let destination_filesystem = destination_filesystem.clone();
                         let progress = progress.clone();
 
-                        move |_, path: PathBuf, stream| {
+                        move |entry: virtualfs::VirtualWalkEntry, stream| {
+                            let path = entry.path;
+
                             let server = server.clone();
                             let filesystem = filesystem.clone();
                             let source_path = Arc::clone(&source_path);
@@ -918,20 +1188,15 @@ impl Filesystem {
                                                 &path,
                                                 &destination_path,
                                                 &server,
+                                                Some(metadata.permissions),
                                                 progress.clone_bytes().as_ref(),
                                             )
-                                            .await?;
-                                        destination_filesystem
-                                            .async_set_permissions(&destination_path, metadata.file_type, metadata.permissions)
                                             .await?;
                                     } else {
                                         let mut reader = progress.async_counting_reader(stream);
 
                                         let mut writer = destination_filesystem
-                                            .async_create_file(&destination_path)
-                                            .await?;
-                                        destination_filesystem
-                                            .async_set_permissions(&destination_path, metadata.file_type, metadata.permissions)
+                                            .async_create_file_with_permissions(&destination_path, Some(metadata.permissions))
                                             .await?;
 
                                         tokio::io::copy(&mut reader, &mut writer).await?;
@@ -1024,7 +1289,7 @@ impl Filesystem {
         }
 
         self.disk_usage_delta_cached
-            .fetch_add(delta.logical, Ordering::Relaxed);
+            .fetch_add(delta.physical, Ordering::Relaxed);
         self.resource_usage
             .publish_disk_usage(self.get_physical_cached_size());
 
@@ -1129,7 +1394,8 @@ impl Filesystem {
         self.disk_usage_cached_physical.store(0, Ordering::Relaxed);
         self.resource_usage.publish_disk_usage(0);
 
-        self.async_remove_dir_all(Path::new("")).await
+        let threads = self.config.load().api.file_delete_threads;
+        self.async_remove_dir_all(Path::new(""), threads).await
     }
 
     fn chown_impl(
@@ -1173,15 +1439,61 @@ impl Filesystem {
         }
     }
 
+    fn absorb_chown_refusal(
+        &self,
+        result: Result<(), std::io::Error>,
+    ) -> Result<(), std::io::Error> {
+        let Err(err) = result else {
+            return Ok(());
+        };
+
+        if !self.config.load().system.user.rootless.enabled {
+            return Err(err);
+        }
+
+        if !self.chown_refused.swap(true, Ordering::Relaxed) {
+            tracing::debug!(
+                server = %self.uuid,
+                "chown refused under a rootless engine, leaving ownership as written: {}",
+                err
+            );
+        }
+
+        Ok(())
+    }
+
     pub fn chown_path(&self, path: impl AsRef<Path>) -> Result<(), std::io::Error> {
-        if self.config.load().system.user.rootless.enabled {
+        if self.chown_refused.load(Ordering::Relaxed) {
             return Ok(());
         }
 
-        Self::chown_impl(&self.config, &self.cap_filesystem, path)
+        self.absorb_chown_refusal(Self::chown_impl(&self.config, &self.cap_filesystem, path))
+    }
+
+    pub fn chown_file(&self, file: &std::fs::File) -> Result<(), std::io::Error> {
+        if self.chown_refused.load(Ordering::Relaxed) {
+            return Ok(());
+        }
+
+        #[cfg(unix)]
+        {
+            let cfg = self.config.load();
+            let owner_uid = rustix::fs::Uid::from_raw_unchecked(cfg.system.user.uid);
+            let owner_gid = rustix::fs::Gid::from_raw_unchecked(cfg.system.user.gid);
+            drop(cfg);
+
+            self.absorb_chown_refusal(
+                rustix::fs::fchown(file, Some(owner_uid), Some(owner_gid)).map_err(Into::into),
+            )
+        }
+        #[cfg(not(unix))]
+        {
+            let _ = file;
+            Ok(())
+        }
     }
     pub async fn async_chown_path(&self, path: impl AsRef<Path>) -> Result<(), std::io::Error> {
-        if self.config.load().system.user.rootless.enabled {
+        if self.chown_refused.load(Ordering::Relaxed) {
             return Ok(());
         }
 
@@ -1216,7 +1528,8 @@ impl Filesystem {
                 }
             })
             .await
-            .map_err(std::io::Error::other)?
+            .map_err(std::io::Error::other)
+            .and_then(|result| self.absorb_chown_refusal(result))
         }
         #[cfg(not(unix))]
         {
@@ -1228,7 +1541,7 @@ impl Filesystem {
         &self,
         path: impl AsRef<Path>,
     ) -> Result<(), anyhow::Error> {
-        if self.config.load().system.user.rootless.enabled {
+        if self.chown_refused.load(Ordering::Relaxed) {
             return Ok(());
         }
 
@@ -1246,7 +1559,7 @@ impl Filesystem {
                 let base_path = self.base_path.clone();
                 let root_rel = root_rel.clone();
 
-                move || -> Result<(), anyhow::Error> {
+                move || -> Result<(), std::io::Error> {
                     if root_rel.as_os_str().is_empty()
                         || root_rel == Path::new(".")
                         || root_rel == Path::new("/")
@@ -1269,9 +1582,10 @@ impl Filesystem {
                     Ok(())
                 }
             })
-            .await??;
+            .await
+            .map(|result| self.absorb_chown_refusal(result))??;
 
-            if !metadata.is_dir() {
+            if !metadata.is_dir() || self.chown_refused.load(Ordering::Relaxed) {
                 return Ok(());
             }
 
@@ -1284,8 +1598,9 @@ impl Filesystem {
                     let inner = cap_filesystem.get_inner()?;
 
                     let func = std::sync::Arc::new(
-                        move |_: crate::server::filesystem::cap::FileType, path: PathBuf| {
+                        move |entry: crate::server::filesystem::cap::WalkEntry| {
                             let fd = inner.as_fd();
+                            let path = entry.path;
 
                             let Ok(stat) = rustix::fs::statx(
                                 fd,
@@ -1441,7 +1756,7 @@ impl Filesystem {
                             let server_uuid = self.uuid;
 
                             async move {
-                                if let Err(err) = state
+                                match state
                                     .inotify_manager
                                     .register_server_with_notifier(
                                         server_notifier.clone(),
@@ -1449,12 +1764,16 @@ impl Filesystem {
                                     )
                                     .await
                                 {
-                                    tracing::error!(
-                                        "error while trying to attach server inotify listener, falling back to regular scans: {}",
-                                        err
-                                    );
-                                } else {
-                                    server_use_server_notifier.store(true, Ordering::Relaxed);
+                                    Ok(watching) => {
+                                        server_use_server_notifier
+                                            .store(watching, Ordering::Relaxed);
+                                    }
+                                    Err(err) => {
+                                        tracing::error!(
+                                            "error while trying to attach server inotify listener, falling back to regular scans: {}",
+                                            err
+                                        );
+                                    }
                                 }
                             }
                         });
@@ -1504,7 +1823,7 @@ impl Filesystem {
                             let server_uuid = self.uuid;
 
                             async move {
-                                if let Err(err) = state
+                                match state
                                     .inotify_manager
                                     .register_server_with_notifier(
                                         server_notifier.clone(),
@@ -1512,12 +1831,16 @@ impl Filesystem {
                                     )
                                     .await
                                 {
-                                    tracing::error!(
-                                        "error while trying to attach server inotify listener, falling back to regular scans: {}",
-                                        err
-                                    );
-                                } else {
-                                    server_use_server_notifier.store(true, Ordering::Relaxed);
+                                    Ok(watching) => {
+                                        server_use_server_notifier
+                                            .store(watching, Ordering::Relaxed);
+                                    }
+                                    Err(err) => {
+                                        tracing::error!(
+                                            "error while trying to attach server inotify listener, falling back to regular scans: {}",
+                                            err
+                                        );
+                                    }
                                 }
                             }
                         });
@@ -1549,12 +1872,70 @@ impl Filesystem {
             .await;
 
         if let Err(err) = self.get_disk_limiter().destroy().await {
-            tracing::error!(
+            tracing::debug!(
                 path = %self.base_path.display(),
-                "failed to delete server base directory for: {}",
+                "disk limiter destroy failed, retrying without an open handle: {}",
                 err
             );
+            self.close();
+
+            if let Err(err) = self.get_disk_limiter().destroy().await {
+                tracing::error!(
+                    path = %self.base_path.display(),
+                    "failed to delete server base directory for: {}",
+                    err
+                );
+            }
         }
+    }
+
+    pub async fn directory_entry_space(
+        &self,
+        real_path: &Path,
+        options: DirectoryEntryOptions,
+    ) -> (u64, u64) {
+        if !options.directory_size || self.config.load().api.disable_directory_size {
+            return (0, 0);
+        }
+
+        if let Some(space) = self.disk_usage.read().await.get_size(real_path) {
+            return (space.get_logical(), space.get_physical());
+        }
+
+        let canonical = match self.async_canonicalize(real_path).await {
+            Ok(canonical) if canonical != real_path => canonical,
+            _ => return (0, 0),
+        };
+
+        self.disk_usage
+            .read()
+            .await
+            .get_size(&canonical)
+            .map_or((0, 0), |space| (space.get_logical(), space.get_physical()))
+    }
+
+    fn directory_entry_space_blocking(
+        &self,
+        real_path: &Path,
+        options: DirectoryEntryOptions,
+    ) -> (u64, u64) {
+        if !options.directory_size || self.config.load().api.disable_directory_size {
+            return (0, 0);
+        }
+
+        if let Some(space) = self.disk_usage.blocking_read().get_size(real_path) {
+            return (space.get_logical(), space.get_physical());
+        }
+
+        let canonical = match self.canonicalize(real_path) {
+            Ok(canonical) if canonical != real_path => canonical,
+            _ => return (0, 0),
+        };
+
+        self.disk_usage
+            .blocking_read()
+            .get_size(&canonical)
+            .map_or((0, 0), |space| (space.get_logical(), space.get_physical()))
     }
 
     pub async fn to_api_entry_buffer(
@@ -1570,13 +1951,7 @@ impl Filesystem {
         let real_path = symlink_destination.as_ref().unwrap_or(&path);
 
         let (size, size_physical) = if real_metadata.is_dir() {
-            if options.directory_size && !self.config.load().api.disable_directory_size {
-                let space = self.disk_usage.read().await.get_size(real_path);
-
-                space.map_or((0, 0), |s| (s.get_logical(), s.get_physical()))
-            } else {
-                (0, 0)
-            }
+            self.directory_entry_space(real_path, options).await
         } else {
             (real_metadata.size_logical(), real_metadata.size_physical())
         };
@@ -1589,13 +1964,92 @@ impl Filesystem {
             crate::utils::detect_mime_type(real_path, buffer)
         };
 
+        Self::assemble_api_entry(
+            path,
+            metadata,
+            real_metadata,
+            options,
+            (size, size_physical),
+            detected_mime,
+        )
+    }
+
+    pub fn to_api_entry_buffer_blocking(
+        &self,
+        path: PathBuf,
+        metadata: &Metadata,
+        options: DirectoryEntryOptions,
+        buffer: Option<&[u8]>,
+        symlink_destination: Option<PathBuf>,
+        symlink_destination_metadata: Option<Metadata>,
+    ) -> crate::models::DirectoryEntry {
+        let real_metadata = symlink_destination_metadata.as_ref().unwrap_or(metadata);
+        let real_path = symlink_destination.as_ref().unwrap_or(&path);
+
+        let (size, size_physical) = if real_metadata.is_dir() {
+            self.directory_entry_space_blocking(real_path, options)
+        } else {
+            (real_metadata.size_logical(), real_metadata.size_physical())
+        };
+
+        let detected_mime = if real_metadata.is_dir() {
+            MimeCacheValue::directory()
+        } else if real_metadata.is_symlink() {
+            MimeCacheValue::symlink()
+        } else {
+            crate::utils::detect_mime_type(real_path, buffer)
+        };
+
+        Self::assemble_api_entry(
+            path,
+            metadata,
+            real_metadata,
+            options,
+            (size, size_physical),
+            detected_mime,
+        )
+    }
+
+    /// Synchronous counterpart of [`Self::to_api_entry_buffer`] for entries that are
+    /// not directories, whose size never needs a walk.
+    pub fn to_api_file_entry_buffer(
+        &self,
+        path: PathBuf,
+        metadata: &Metadata,
+        options: DirectoryEntryOptions,
+        buffer: Option<&[u8]>,
+    ) -> crate::models::DirectoryEntry {
+        let detected_mime = if metadata.is_symlink() {
+            MimeCacheValue::symlink()
+        } else {
+            crate::utils::detect_mime_type(&path, buffer)
+        };
+
+        Self::assemble_api_entry(
+            path,
+            metadata,
+            metadata,
+            options,
+            (metadata.size_logical(), metadata.size_physical()),
+            detected_mime,
+        )
+    }
+
+    fn assemble_api_entry(
+        path: PathBuf,
+        metadata: &Metadata,
+        real_metadata: &Metadata,
+        options: DirectoryEntryOptions,
+        (size, size_physical): (u64, u64),
+        detected_mime: MimeCacheValue,
+    ) -> crate::models::DirectoryEntry {
         crate::models::DirectoryEntry {
             name: path
                 .file_name()
                 .unwrap_or_default()
                 .to_string_lossy()
                 .into(),
-            mode: encode_mode(PortablePermissions::from(metadata.permissions()).mode() as u32),
+            mode: encode_mode(raw_mode(metadata)),
             mode_bits: compact_str::format_compact!(
                 "{:o}",
                 PortablePermissions::from(metadata.permissions()).mode()
@@ -1651,13 +2105,7 @@ impl Filesystem {
         let real_path = symlink_destination.as_ref().unwrap_or(&path);
 
         let (size, size_physical) = if real_metadata.is_dir() {
-            if options.directory_size && !self.config.load().api.disable_directory_size {
-                let space = self.disk_usage.read().await.get_size(real_path);
-
-                space.map_or((0, 0), |s| (s.get_logical(), s.get_physical()))
-            } else {
-                (0, 0)
-            }
+            self.directory_entry_space(real_path, options).await
         } else {
             (real_metadata.size_logical(), real_metadata.size_physical())
         };
@@ -1676,7 +2124,7 @@ impl Filesystem {
                 .unwrap_or_default()
                 .to_string_lossy()
                 .into(),
-            mode: encode_mode(PortablePermissions::from(metadata.permissions()).mode() as u32),
+            mode: encode_mode(raw_mode(metadata)),
             mode_bits: compact_str::format_compact!(
                 "{:o}",
                 PortablePermissions::from(metadata.permissions()).mode()
@@ -1725,7 +2173,7 @@ impl Filesystem {
         path: PathBuf,
         metadata: Metadata,
         options: DirectoryEntryOptions,
-    ) -> crate::models::DirectoryEntry {
+    ) -> Result<crate::models::DirectoryEntry, anyhow::Error> {
         let prepared = self.prepare_api_entry_cap(filesystem, path, metadata).await;
         self.finish_api_entry_cap(filesystem, prepared, options)
             .await
@@ -1761,10 +2209,42 @@ impl Filesystem {
             metadata,
             symlink_destination,
             symlink_destination_metadata,
+            directory_entry: None,
         }
     }
 
-    pub async fn prepared_entry_sort_size(
+    pub fn prepare_api_entry_cap_blocking(
+        &self,
+        filesystem: &cap::CapFilesystem,
+        path: PathBuf,
+        metadata: Metadata,
+    ) -> PreparedDirectoryEntry {
+        let symlink_destination = if metadata.is_symlink() {
+            match filesystem.read_link(&path) {
+                Ok(link) => filesystem.canonicalize(link).ok(),
+                Err(_) => None,
+            }
+        } else {
+            None
+        };
+
+        let symlink_destination_metadata =
+            if let Some(symlink_destination) = symlink_destination.clone() {
+                filesystem.symlink_metadata(&symlink_destination).ok()
+            } else {
+                None
+            };
+
+        PreparedDirectoryEntry {
+            path,
+            metadata,
+            symlink_destination,
+            symlink_destination_metadata,
+            directory_entry: None,
+        }
+    }
+
+    pub fn prepared_entry_sort_size_blocking(
         &self,
         prepared: &PreparedDirectoryEntry,
         options: DirectoryEntryOptions,
@@ -1779,13 +2259,7 @@ impl Filesystem {
             .unwrap_or(&prepared.path);
 
         if real_metadata.is_dir() {
-            if options.directory_size && !self.config.load().api.disable_directory_size {
-                let space = self.disk_usage.read().await.get_size(real_path);
-
-                space.map_or((0, 0), |s| (s.get_logical(), s.get_physical()))
-            } else {
-                (0, 0)
-            }
+            self.directory_entry_space_blocking(real_path, options)
         } else {
             (real_metadata.size_logical(), real_metadata.size_physical())
         }
@@ -1796,70 +2270,91 @@ impl Filesystem {
         filesystem: &cap::CapFilesystem,
         prepared: PreparedDirectoryEntry,
         options: DirectoryEntryOptions,
-    ) -> crate::models::DirectoryEntry {
+    ) -> Result<crate::models::DirectoryEntry, anyhow::Error> {
+        let mime_key = MimeCacheKey::from(&prepared.metadata);
+
+        let (prepared, detected_mime) =
+            if let Some(detected_mime) = self.app_state.mime_cache.get(&mime_key) {
+                (prepared, detected_mime)
+            } else if prepared.is_empty_file() {
+                (prepared, MimeCacheValue::text())
+            } else {
+                tokio::task::spawn_blocking({
+                    let filesystem = filesystem.clone();
+                    let mime_cache = self.app_state.mime_cache.clone();
+
+                    move || {
+                        let detected_mime = prepared
+                            .cached_mime_type_blocking(&mime_cache, || prepared.open(&filesystem));
+
+                        (prepared, detected_mime)
+                    }
+                })
+                .await?
+            };
+
         let PreparedDirectoryEntry {
             path,
             metadata,
             symlink_destination,
             symlink_destination_metadata,
+            ..
         } = prepared;
 
-        let mime_key = crate::routes::MimeCacheKey::from(&metadata);
-        let detected_mime =
-            if let Some(detected_mime) = self.app_state.mime_cache.get(&mime_key).await {
-                detected_mime
-            } else if (metadata.is_file() && metadata.len() == 0)
-                || (symlink_destination.is_some()
-                    && symlink_destination_metadata
-                        .as_ref()
-                        .is_some_and(|m| m.is_file() && m.len() == 0))
-            {
-                crate::routes::MimeCacheValue::text()
-            } else {
-                let mut buffer = [0; 64];
-                let buffer = if metadata.is_file()
-                    || (symlink_destination.is_some()
-                        && symlink_destination_metadata
-                            .as_ref()
-                            .is_some_and(|m| m.is_file()))
-                {
-                    match filesystem
-                        .async_open(symlink_destination.as_ref().unwrap_or(&path))
-                        .await
-                    {
-                        Ok(mut file) => {
-                            let bytes_read = file.read(&mut buffer).await.unwrap_or(0);
+        Ok(self
+            .to_api_entry_mime_type(
+                path,
+                &metadata,
+                options,
+                Some(detected_mime),
+                symlink_destination,
+                symlink_destination_metadata,
+            )
+            .await)
+    }
 
-                            buffer.get(..bytes_read)
-                        }
-                        Err(_) => None,
-                    }
-                } else {
-                    None
-                };
+    pub fn finish_api_entry_cap_blocking(
+        &self,
+        filesystem: &cap::CapFilesystem,
+        prepared: PreparedDirectoryEntry,
+        options: DirectoryEntryOptions,
+    ) -> crate::models::DirectoryEntry {
+        let detected_mime = prepared
+            .cached_mime_type_blocking(&self.app_state.mime_cache, || prepared.open(filesystem));
 
-                let detected_mime = crate::utils::detect_mime_type(
-                    symlink_destination.as_ref().unwrap_or(&path),
-                    buffer,
-                );
-
-                self.app_state
-                    .mime_cache
-                    .insert(mime_key, detected_mime)
-                    .await;
-
-                detected_mime
-            };
-
-        self.to_api_entry_mime_type(
+        let PreparedDirectoryEntry {
             path,
-            &metadata,
-            options,
-            Some(detected_mime),
+            metadata,
             symlink_destination,
             symlink_destination_metadata,
+            ..
+        } = prepared;
+
+        let real_metadata = symlink_destination_metadata.as_ref().unwrap_or(&metadata);
+        let real_path = symlink_destination.as_ref().unwrap_or(&path);
+
+        let (size, size_physical) = if real_metadata.is_dir() {
+            self.directory_entry_space_blocking(real_path, options)
+        } else {
+            (real_metadata.size_logical(), real_metadata.size_physical())
+        };
+
+        let detected_mime = if real_metadata.is_dir() {
+            MimeCacheValue::directory()
+        } else if real_metadata.is_symlink() {
+            MimeCacheValue::symlink()
+        } else {
+            detected_mime
+        };
+
+        Self::assemble_api_entry(
+            path,
+            &metadata,
+            real_metadata,
+            options,
+            (size, size_physical),
+            detected_mime,
         )
-        .await
     }
 }
 
@@ -1883,9 +2378,70 @@ pub struct PreparedDirectoryEntry {
     pub metadata: Metadata,
     pub symlink_destination: Option<PathBuf>,
     pub symlink_destination_metadata: Option<Metadata>,
+    directory_entry: Option<cap_std::fs::DirEntry>,
 }
 
 impl PreparedDirectoryEntry {
+    fn open(&self, filesystem: &cap::CapFilesystem) -> std::io::Result<std::fs::File> {
+        match &self.directory_entry {
+            Some(entry) => entry.open().map(cap_std::fs::File::into_std),
+            None => filesystem.open(self.symlink_destination.as_ref().unwrap_or(&self.path)),
+        }
+    }
+
+    fn is_empty_file(&self) -> bool {
+        (self.metadata.is_file() && self.metadata.len() == 0)
+            || (self.symlink_destination.is_some()
+                && self
+                    .symlink_destination_metadata
+                    .as_ref()
+                    .is_some_and(|metadata| metadata.is_file() && metadata.len() == 0))
+    }
+
+    fn cached_mime_type_blocking(
+        &self,
+        mime_cache: &crate::routes::MimeCache,
+        open: impl FnOnce() -> std::io::Result<std::fs::File>,
+    ) -> MimeCacheValue {
+        let mime_key = MimeCacheKey::from(&self.metadata);
+
+        if let Some(detected_mime) = mime_cache.get(&mime_key) {
+            detected_mime
+        } else if self.is_empty_file() {
+            MimeCacheValue::text()
+        } else {
+            mime_cache.get_with_by_ref(&mime_key, || {
+                let path = self.symlink_destination.as_ref().unwrap_or(&self.path);
+
+                let mut buffer = [0; 64];
+                let buffer = if self.metadata.is_file()
+                    || (self.symlink_destination.is_some()
+                        && self
+                            .symlink_destination_metadata
+                            .as_ref()
+                            .is_some_and(|metadata| metadata.is_file()))
+                {
+                    match open() {
+                        Ok(mut file) => {
+                            #[cfg(target_os = "linux")]
+                            rustix::fs::fadvise(&file, 0, None, rustix::fs::Advice::Random).ok();
+
+                            let bytes_read =
+                                std::io::Read::read(&mut file, &mut buffer).unwrap_or(0);
+
+                            buffer.get(..bytes_read)
+                        }
+                        Err(_) => None,
+                    }
+                } else {
+                    None
+                };
+
+                crate::utils::detect_mime_type(path, buffer)
+            })
+        }
+    }
+
     pub fn modified_secs(&self) -> i64 {
         self.metadata
             .modified()
@@ -1925,6 +2481,72 @@ mod tests {
     use cap::FileType;
 
     #[test]
+    fn concurrent_mime_misses_open_once() -> Result<(), anyhow::Error> {
+        use std::sync::{Barrier, atomic::AtomicUsize, mpsc};
+
+        let runtime = tokio::runtime::Builder::new_current_thread().build()?;
+        let temp = tempfile::tempdir()?;
+        std::fs::write(temp.path().join("data.bin"), b"shared MIME read")?;
+        let filesystem = runtime.block_on(cap::CapFilesystem::new(temp.path()))?;
+        let metadata = filesystem.symlink_metadata("data.bin")?;
+        let cache = crate::routes::MimeCache::new(16);
+        let start = Barrier::new(9);
+        let opens = AtomicUsize::new(0);
+        let release = AtomicBool::new(false);
+        let (started, first_open) = mpsc::channel();
+
+        let opened = std::thread::scope(|scope| {
+            let mut workers = Vec::new();
+
+            for _ in 0..8 {
+                let prepared = PreparedDirectoryEntry {
+                    path: PathBuf::from("data.bin"),
+                    metadata: metadata.clone(),
+                    symlink_destination: None,
+                    symlink_destination_metadata: None,
+                    directory_entry: None,
+                };
+
+                let (cache, start, opens, release, started, filesystem) =
+                    (&cache, &start, &opens, &release, &started, &filesystem);
+
+                workers.push(scope.spawn(move || {
+                    start.wait();
+
+                    prepared.cached_mime_type_blocking(cache, || {
+                        if opens.fetch_add(1, Ordering::Relaxed) == 0 {
+                            started.send(()).expect("notifying first MIME open failed");
+                            while !release.load(Ordering::Acquire) {
+                                std::thread::yield_now();
+                            }
+                        }
+
+                        filesystem.open("data.bin")
+                    })
+                }));
+            }
+
+            start.wait();
+
+            let opened = first_open.recv_timeout(std::time::Duration::from_secs(5));
+            std::thread::sleep(std::time::Duration::from_millis(20));
+            release.store(true, Ordering::Release);
+
+            for worker in workers {
+                let value = worker.join().expect("MIME worker panicked");
+                assert_eq!(value.mime, "application/octet-stream");
+                assert!(value.valid_utf8);
+            }
+
+            opened
+        });
+
+        opened?;
+        assert_eq!(opens.load(Ordering::Relaxed), 1);
+        Ok(())
+    }
+
+    #[test]
     fn root_is_never_ignored() {
         tokio_test::block_on(async {
             let state = crate::routes::AppState::mock();
@@ -1948,5 +2570,267 @@ mod tests {
                     .is_ignored(Path::new("server.log"), FileType::File)
             );
         });
+    }
+
+    #[test]
+    fn has_headroom_checks_the_limit_without_reserving() {
+        tokio_test::block_on(async {
+            let state = crate::routes::AppState::mock();
+            let server = crate::server::Server::mock(uuid::Uuid::new_v4(), state);
+
+            server.filesystem.update_disk_limit(0).await;
+            assert!(server.filesystem.has_headroom(i64::MAX));
+
+            server.filesystem.update_disk_limit(1024).await;
+            assert!(server.filesystem.has_headroom(1024));
+            assert!(!server.filesystem.has_headroom(1025));
+
+            assert_eq!(server.filesystem.get_physical_cached_size(), 0);
+
+            server
+                .filesystem
+                .async_allocate_in_path(Path::new(""), 512, true)
+                .await;
+
+            assert!(server.filesystem.has_headroom(512));
+            assert!(!server.filesystem.has_headroom(513));
+            assert!(server.filesystem.has_headroom(-4096));
+        });
+    }
+
+    struct CopyFixture {
+        server: crate::server::Server,
+        root: PathBuf,
+        _temp: tempfile::TempDir,
+    }
+
+    impl CopyFixture {
+        async fn new() -> Result<Self, anyhow::Error> {
+            let temp = tempfile::tempdir()?;
+            let state = crate::routes::AppState::mock();
+            state
+                .config
+                .mutate_in_place_for_testing()
+                .system
+                .data_directory =
+                crate::config::SystemPath::new(temp.path().to_string_lossy().into_owned());
+
+            let server = crate::server::Server::mock(uuid::Uuid::new_v4(), state);
+            server.filesystem.disk_checker.abort();
+
+            let root = server.filesystem.base_path.to_path_buf();
+            std::fs::create_dir_all(&root)?;
+
+            let cap = cap::CapFilesystem::new(&root).await?;
+            server.filesystem.inner.store(Some(cap.get_inner()?));
+
+            Ok(Self {
+                server,
+                root,
+                _temp: temp,
+            })
+        }
+
+        fn write_source(&self) -> Result<(), anyhow::Error> {
+            use std::os::unix::fs::PermissionsExt;
+
+            std::fs::create_dir_all(self.root.join("src/nested"))?;
+            std::fs::write(self.root.join("src/a.txt"), b"alpha")?;
+            std::fs::write(self.root.join("src/nested/b.bin"), b"\x00\x01\x02beta")?;
+            std::os::unix::fs::symlink("a.txt", self.root.join("src/link"))?;
+
+            for (path, mode) in [("src/a.txt", 0o640), ("src/nested/b.bin", 0o755)] {
+                let file = std::fs::File::open(self.root.join(path))?;
+                file.set_permissions(std::fs::Permissions::from_mode(mode))?;
+                file.set_modified(
+                    std::time::UNIX_EPOCH + std::time::Duration::from_secs(1_000_000),
+                )?;
+            }
+
+            Ok(())
+        }
+
+        async fn copy(
+            &self,
+            source: &str,
+            destination: &str,
+            destination_filesystem: Option<Arc<dyn VirtualWritableFilesystem>>,
+        ) -> Result<(), anyhow::Error> {
+            let (path, filesystem) = self
+                .server
+                .filesystem
+                .resolve_readable_fs(&self.server, Path::new(source))
+                .await;
+            let metadata = filesystem.async_metadata(&path).await?;
+            let (destination_path, writable) = match destination_filesystem {
+                Some(writable) => (PathBuf::from(destination), writable),
+                None => {
+                    self.server
+                        .filesystem
+                        .resolve_writable_fs(&self.server, destination)
+                        .await
+                }
+            };
+
+            self.server
+                .filesystem
+                .copy_path(
+                    archive::create::ArchiveProgress::default(),
+                    &self.server,
+                    metadata,
+                    path,
+                    filesystem,
+                    destination_path,
+                    writable,
+                )
+                .await
+        }
+    }
+
+    fn assert_copied_file(
+        path: &Path,
+        contents: &[u8],
+        mode: u32,
+        copied_after: std::time::SystemTime,
+    ) -> Result<(), anyhow::Error> {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        let metadata = std::fs::symlink_metadata(path)?;
+        assert!(
+            metadata.is_file(),
+            "{} is not a regular file",
+            path.display()
+        );
+        assert_eq!(std::fs::read(path)?, contents, "{}", path.display());
+        assert_eq!(
+            metadata.permissions().mode() & 0o777,
+            mode,
+            "{} mode",
+            path.display()
+        );
+        assert_eq!(metadata.uid(), rustix::process::geteuid().as_raw());
+        assert!(
+            metadata.modified()? >= copied_after,
+            "{} keeps the copy time, not the source mtime",
+            path.display()
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    #[ignore = "requires filesystem syscalls the ci containers deny (eperm)"]
+    fn copy_path_applies_mode_and_owner_on_the_open_file() -> Result<(), anyhow::Error> {
+        use std::os::unix::fs::PermissionsExt;
+
+        tokio_test::block_on(async {
+            let fixture = CopyFixture::new().await?;
+            fixture.write_source()?;
+            let started = std::time::SystemTime::now() - std::time::Duration::from_secs(1);
+
+            fixture.copy("src/a.txt", "copied.txt", None).await?;
+            assert_copied_file(&fixture.root.join("copied.txt"), b"alpha", 0o640, started)?;
+
+            fixture.copy("src", "tree", None).await?;
+            assert_copied_file(&fixture.root.join("tree/a.txt"), b"alpha", 0o640, started)?;
+            assert_copied_file(
+                &fixture.root.join("tree/nested/b.bin"),
+                b"\x00\x01\x02beta",
+                0o755,
+                started,
+            )?;
+            assert!(std::fs::symlink_metadata(fixture.root.join("tree/link"))?.is_symlink());
+
+            std::fs::write(
+                fixture.root.join("existing.txt"),
+                b"a much longer previous body",
+            )?;
+            std::fs::set_permissions(
+                fixture.root.join("existing.txt"),
+                std::fs::Permissions::from_mode(0o600),
+            )?;
+            fixture.copy("src/a.txt", "existing.txt", None).await?;
+            assert_copied_file(&fixture.root.join("existing.txt"), b"alpha", 0o640, started)?;
+
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn copy_path_across_filesystems_applies_mode_on_the_open_file() -> Result<(), anyhow::Error> {
+        tokio_test::block_on(async {
+            let fixture = CopyFixture::new().await?;
+            fixture.write_source()?;
+            let started = std::time::SystemTime::now() - std::time::Duration::from_secs(1);
+
+            let other = tempfile::tempdir()?;
+            let other_cap = cap::CapFilesystem::new(other.path()).await?;
+            let mut destination = other_cap.get_virtual(fixture.server.clone());
+            destination.is_writable = true;
+            let destination: Arc<dyn VirtualWritableFilesystem> = Arc::new(destination);
+
+            fixture
+                .copy("src/a.txt", "copied.txt", Some(destination.clone()))
+                .await?;
+            assert_copied_file(&other.path().join("copied.txt"), b"alpha", 0o640, started)?;
+
+            fixture.copy("src", "tree", Some(destination)).await?;
+            assert_copied_file(&other.path().join("tree/a.txt"), b"alpha", 0o640, started)?;
+            assert_copied_file(
+                &other.path().join("tree/nested/b.bin"),
+                b"\x00\x01\x02beta",
+                0o755,
+                started,
+            )?;
+            assert!(std::fs::symlink_metadata(other.path().join("tree/link"))?.is_symlink());
+
+            Ok(())
+        })
+    }
+
+    #[test]
+    #[ignore = "timing and syscall probe for copy_path, run with --ignored under strace"]
+    fn copy_path_many_files_probe() -> Result<(), anyhow::Error> {
+        tokio_test::block_on(async {
+            let fixture = CopyFixture::new().await?;
+            let files: usize = std::env::var("COPY_PROBE_FILES")
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(2000);
+
+            std::fs::create_dir_all(fixture.root.join("src/nested"))?;
+            for index in 0..files {
+                let directory = if index % 2 == 0 { "src" } else { "src/nested" };
+                std::fs::write(
+                    fixture
+                        .root
+                        .join(directory)
+                        .join(format!("file-{index:05}.bin")),
+                    b"0123456789abcdef",
+                )?;
+            }
+
+            let other = tempfile::tempdir()?;
+            let destination = if std::env::var_os("COPY_PROBE_CROSS").is_some() {
+                let mut destination = cap::CapFilesystem::new(other.path())
+                    .await?
+                    .get_virtual(fixture.server.clone());
+                destination.is_writable = true;
+
+                Some(Arc::new(destination) as Arc<dyn VirtualWritableFilesystem>)
+            } else {
+                None
+            };
+
+            let started = std::time::Instant::now();
+            fixture.copy("src", "tree", destination).await?;
+            eprintln!(
+                "copy_path probe: {files} files in {:?} ({:.1} us/file)",
+                started.elapsed(),
+                started.elapsed().as_secs_f64() * 1e6 / files as f64
+            );
+
+            Ok(())
+        })
     }
 }

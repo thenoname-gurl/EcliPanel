@@ -153,4 +153,16 @@ export class Node {
 
   @Column({ default: false })
   isStorageNode: boolean;
+
+  @Column({ default: true, type: 'boolean' })
+  tundraEnabled: boolean;
+
+  @Column({ nullable: true, type: 'int' })
+  tundraTunnelPort?: number;
+
+  @Column({ nullable: true, type: 'text' })
+  tundraCertSha256?: string;
+
+  @Column({ nullable: true, type: 'text' })
+  tundraHost?: string;
 }

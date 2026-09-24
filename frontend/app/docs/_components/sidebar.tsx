@@ -14,12 +14,13 @@ import {
   Trophy,
   Zap,
   Settings,
+  Link2,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import meta from "../meta.json";
 
-const icons = { BookOpen, Sparkles, Server, Cpu, Rocket, Clock, LifeBuoy, Trophy, Zap, Settings };
+const icons = { BookOpen, Sparkles, Server, Cpu, Rocket, Clock, LifeBuoy, Trophy, Zap, Settings, Link2 };
 
 export function Sidebar() {
   const router = useRouter();

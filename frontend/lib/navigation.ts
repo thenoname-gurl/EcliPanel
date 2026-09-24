@@ -191,6 +191,7 @@ export const ADMIN_NAVIGATION: NavSection[] = [
       { label: "Eggs", href: "/dashboard/admin?tab=eggs", icon: Package },
       { label: "Databases", href: "/dashboard/admin?tab=databases", icon: Database },
       { label: "Tunnels", href: "/dashboard/admin?tab=tunnels", icon: Share2 },
+      { label: "Tundra", href: "/dashboard/admin?tab=tundra", icon: Network },
       { label: "Backup Configs", href: "/dashboard/admin?tab=backup-configs", icon: Archive },
     ],
   },

@@ -8,7 +8,10 @@ use crate::{
     response::ApiResponse,
     routes::MimeCacheValue,
     server::{
-        backup::{Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt},
+        backup::{
+            Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt, BackupStream,
+            BackupStreamCreateExt, BackupStreamExt, DumpReader,
+        },
         filesystem::{
             archive::StreamableArchiveFormat,
             cap::FileType,
@@ -37,6 +40,7 @@ use std::{
 use tokio::io::AsyncBufReadExt;
 
 const BACKUP_UUID_TAG: &str = "backup-uuid";
+const MAX_TREE_DEPTH: usize = 1024;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -87,6 +91,12 @@ impl KopiaBackup {
         config
             .resolve_as_path(|cfg| &cfg.system.backup_directory)
             .join(".kopia")
+    }
+
+    fn get_dump_staging_path(config: &crate::config::Config, uuid: uuid::Uuid) -> PathBuf {
+        Self::get_kopia_state_path(config)
+            .join("dumps")
+            .join(uuid.to_string())
     }
 
     fn get_config_file_path(
@@ -347,8 +357,8 @@ impl BackupCreateExt for KopiaBackup {
                     let mut walker = filesystem
                         .walk_dir(Path::new(""))?
                         .with_is_ignored(ignore.into());
-                    while let Some(Ok((_, path))) = walker.next_entry() {
-                        let metadata = match filesystem.symlink_metadata(&path) {
+                    while let Some(Ok(entry)) = walker.next_entry() {
+                        let metadata = match entry.metadata() {
                             Ok(metadata) => metadata,
                             Err(_) => continue,
                         };
@@ -471,6 +481,136 @@ impl BackupCreateExt for KopiaBackup {
 }
 
 #[async_trait::async_trait]
+impl BackupStreamCreateExt for KopiaBackup {
+    async fn create_from_stream(
+        state: &crate::routes::State,
+        uuid: uuid::Uuid,
+        extension: &str,
+        mut reader: DumpReader,
+    ) -> Result<RawServerBackup, anyhow::Error> {
+        let remote = state.config.client.backup_kopia_configuration(uuid).await?;
+
+        let config_file = Self::get_config_file_path(&state.config, &remote);
+        let cache_dir = Self::get_cache_dir_path(&state.config, &remote);
+        Self::ensure_connected(&config_file, &cache_dir, &remote).await?;
+
+        let staging_dir = Self::get_dump_staging_path(&state.config, uuid);
+        tokio::fs::create_dir_all(&staging_dir).await?;
+        let staged_file = staging_dir.join(format!("{uuid}.{extension}"));
+
+        let result =
+            async {
+                let mut file = tokio::fs::File::create(&staged_file).await?;
+                tokio::io::copy(&mut reader, &mut file).await?;
+                file.sync_all().await?;
+                drop(file);
+
+                let output =
+                    Self::get_tokio_command(&config_file, &remote)
+                        .arg("snapshot")
+                        .arg("create")
+                        .arg(&staged_file)
+                        .arg("--json")
+                        .arg("--description")
+                        .arg(format!("wings database backup {uuid}"))
+                        .arg("--tags")
+                        .arg(format!("{BACKUP_UUID_TAG}:{uuid}"))
+                        .args(remote.tags.iter().flat_map(|(key, value)| {
+                            ["--tags".to_string(), format!("{key}:{value}")]
+                        }))
+                        .stdout(std::process::Stdio::piped())
+                        .stderr(std::process::Stdio::piped())
+                        .output()
+                        .await?;
+
+                if !output.status.success() {
+                    return Err(anyhow::anyhow!(
+                        "failed to create Kopia snapshot: {}",
+                        String::from_utf8_lossy(&output.stderr)
+                    ));
+                }
+
+                let manifest: KopiaManifest = serde_json::from_slice(&output.stdout)?;
+                let size = tokio::fs::metadata(&staged_file).await?.len();
+
+                Ok::<_, anyhow::Error>((manifest.id, size))
+            }
+            .await;
+
+        if let Err(err) = tokio::fs::remove_dir_all(&staging_dir).await {
+            tracing::warn!(backup = %uuid, "failed to remove kopia dump staging directory: {:?}", err);
+        }
+
+        let (checksum, size) = result?;
+
+        Ok(RawServerBackup {
+            checksum,
+            checksum_type: "kopia".into(),
+            size,
+            files: 0,
+            successful: true,
+            browsable: false,
+            streaming: false,
+            parts: vec![],
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamExt for KopiaBackup {
+    async fn read_stream(
+        &self,
+        _state: &crate::routes::State,
+        _download_url: Option<compact_str::CompactString>,
+    ) -> Result<BackupStream, anyhow::Error> {
+        let cache_dir = Self::get_cache_dir_path(&self.config, &self.remote);
+        Self::ensure_connected(&self.config_file, &cache_dir, &self.remote).await?;
+
+        let output = Self::get_tokio_command(&self.config_file, &self.remote)
+            .arg("snapshot")
+            .arg("list")
+            .arg("--json")
+            .arg("--all")
+            .arg("--tags")
+            .arg(format!("{BACKUP_UUID_TAG}:{}", self.uuid))
+            .output()
+            .await?;
+        if !output.status.success() {
+            return Err(anyhow::anyhow!(
+                "failed to list Kopia snapshots: {}",
+                String::from_utf8_lossy(&output.stderr)
+            ));
+        }
+
+        let manifests: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout)?;
+        let file_name = manifests
+            .iter()
+            .find(|manifest| {
+                manifest.get("id").and_then(|id| id.as_str()) == Some(&self.manifest_id)
+            })
+            .and_then(|manifest| manifest.get("source"))
+            .and_then(|source| source.get("path"))
+            .and_then(|path| path.as_str())
+            .and_then(|path| Path::new(path).file_name())
+            .and_then(|name| name.to_str())
+            .map(compact_str::CompactString::from)
+            .ok_or_else(|| anyhow::anyhow!("kopia snapshot does not contain a database dump"))?;
+
+        let child = Self::get_tokio_command(&self.config_file, &self.remote)
+            .arg("show")
+            .arg(&self.root_oid)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()?;
+        BackupStream::from_process(
+            child,
+            (self.total_size > 0).then_some(self.total_size),
+            file_name,
+        )
+    }
+}
+
+#[async_trait::async_trait]
 impl BackupExt for KopiaBackup {
     #[inline]
     fn uuid(&self) -> uuid::Uuid {
@@ -485,7 +625,8 @@ impl BackupExt for KopiaBackup {
     ) -> Result<ApiResponse, anyhow::Error> {
         let compression_level = state.config.load().system.backups.compression_level;
         let file_compression_threads = state.config.load().api.file_compression_threads;
-        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
+        let (reader, signal) = crate::io::fallible_reader::FallibleReader::new_with_eof(reader);
 
         let spawn_restore = || {
             tokio::task::block_in_place(|| {
@@ -505,8 +646,8 @@ impl BackupExt for KopiaBackup {
             StreamableArchiveFormat::Zip => {
                 let child = spawn_restore()?;
 
-                crate::spawn_blocking_handled(move || -> Result<(), anyhow::Error> {
-                    let writer = tokio_util::io::SyncIoBridge::new(writer);
+                crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
+                    let writer = writer.into_sync();
                     let mut archive = zip::ZipWriter::new_stream(writer);
 
                     let stdout = child
@@ -568,9 +709,9 @@ impl BackupExt for KopiaBackup {
             f if f.is_tar() => {
                 let child = spawn_restore()?;
 
-                crate::spawn_blocking_handled(move || -> Result<(), anyhow::Error> {
+                crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
                     let mut writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         file_compression_threads,
@@ -1071,11 +1212,21 @@ impl VirtualKopiaBackup {
         &'a self,
         rel: PathBuf,
         oid: Arc<str>,
+        depth: usize,
         is_ignored: &'a IsIgnoredFn,
         out: &'a mut Vec<(FileType, PathBuf, String)>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<(), anyhow::Error>> + Send + 'a>>
     {
         Box::pin(async move {
+            if depth >= MAX_TREE_DEPTH {
+                tracing::warn!(
+                    rel = %rel.display(),
+                    "kopia flatten_walk exceeded the maximum tree depth, skipping subtree",
+                );
+
+                return Ok(());
+            }
+
             let dir = match self.load_dir(&oid).await {
                 Ok(dir) => dir,
                 Err(err) => {
@@ -1107,8 +1258,14 @@ impl VirtualKopiaBackup {
                 if let Some(filtered) = (is_ignored)(FileType::Dir, child_path.clone()) {
                     out.push((FileType::Dir, filtered, String::new()));
                 }
-                self.flatten_walk(child_path, Arc::from(entry.oid.as_str()), is_ignored, out)
-                    .await?;
+                self.flatten_walk(
+                    child_path,
+                    Arc::from(entry.oid.as_str()),
+                    depth + 1,
+                    is_ignored,
+                    out,
+                )
+                .await?;
             }
 
             Ok(())
@@ -1119,9 +1276,19 @@ impl VirtualKopiaBackup {
         &self,
         rel: PathBuf,
         oid: Arc<str>,
+        depth: usize,
         is_ignored: &IsIgnoredFn,
         out: &mut Vec<(FileType, PathBuf, String)>,
     ) -> Result<(), anyhow::Error> {
+        if depth >= MAX_TREE_DEPTH {
+            tracing::warn!(
+                rel = %rel.display(),
+                "kopia flatten_walk exceeded the maximum tree depth, skipping subtree",
+            );
+
+            return Ok(());
+        }
+
         let dir = match self.load_dir_blocking(&oid) {
             Ok(dir) => dir,
             Err(err) => {
@@ -1153,7 +1320,13 @@ impl VirtualKopiaBackup {
             if let Some(filtered) = (is_ignored)(FileType::Dir, child_path.clone()) {
                 out.push((FileType::Dir, filtered, String::new()));
             }
-            self.flatten_walk_blocking(child_path, Arc::from(entry.oid.as_str()), is_ignored, out)?;
+            self.flatten_walk_blocking(
+                child_path,
+                Arc::from(entry.oid.as_str()),
+                depth + 1,
+                is_ignored,
+                out,
+            )?;
         }
 
         Ok(())
@@ -1212,6 +1385,19 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
         }
         let entry = self.lookup_entry(path).await?;
         Ok(Self::directory_entry(path, &entry, None))
+    }
+
+    fn directory_entry_buffer(
+        &self,
+        path: &(dyn AsRef<Path> + Send + Sync),
+        buffer: &[u8],
+    ) -> Result<DirectoryEntry, anyhow::Error> {
+        let path = path.as_ref();
+        if path == Path::new("") || path == Path::new("/") {
+            return Ok(Self::directory_entry(path, &self.root_entry(), None));
+        }
+        let entry = self.lookup_entry_blocking(path)?;
+        Ok(Self::directory_entry(path, &entry, Some(buffer)))
     }
     async fn async_directory_entry_buffer(
         &self,
@@ -1309,7 +1495,7 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
         let mut flat: Vec<(FileType, PathBuf, String)> = Vec::new();
 
         if let Ok(oid) = self.resolve_dir_oid_blocking(&base) {
-            self.flatten_walk_blocking(base, oid, &is_ignored, &mut flat)?;
+            self.flatten_walk_blocking(base, oid, 0, &is_ignored, &mut flat)?;
         }
 
         struct TreeWalk {
@@ -1337,7 +1523,8 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
         let mut flat: Vec<(FileType, PathBuf, String)> = Vec::new();
 
         if let Ok(oid) = self.resolve_dir_oid(&base).await {
-            self.flatten_walk(base, oid, &is_ignored, &mut flat).await?;
+            self.flatten_walk(base, oid, 0, &is_ignored, &mut flat)
+                .await?;
         }
 
         struct TreeWalk {
@@ -1408,8 +1595,6 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
 
             crate::spawn_handled(async move {
                 tokio::task::spawn_blocking(move || -> Result<(), anyhow::Error> {
-                    let runtime = tokio::runtime::Handle::current();
-
                     let child = KopiaBackup::get_std_command(&config_file, &remote)
                         .arg("restore")
                         .arg(base_oid.as_ref())
@@ -1445,18 +1630,26 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
                             continue;
                         };
 
-                        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+                        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
                         entry_channel_tx.blocking_send(Ok((
                             file_type,
                             entry_path,
                             Box::new(reader) as AsyncReadableFileStream,
                         )))?;
 
-                        let mut writer = tokio_util::io::SyncIoBridge::new(writer);
+                        let mut writer = writer.into_sync();
                         crate::io::copy(&mut entry, &mut writer)?;
                         writer.shutdown()?;
 
-                        runtime.block_on(entry_wanted_notifier.notified());
+                        if !futures::executor::block_on(async {
+                            tokio::select! {
+                                biased;
+                                _ = entry_channel_tx.closed() => false,
+                                _ = entry_wanted_notifier.notified() => true,
+                            }
+                        }) {
+                            return Ok(());
+                        }
                     }
 
                     entry_wanted_notifier.notify_one();
@@ -1569,7 +1762,7 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
         compression_level: CompressionLevel,
         progress: crate::server::filesystem::archive::create::ArchiveProgress,
         is_ignored: IsIgnoredFn,
-    ) -> Result<crate::io::fallible_reader::FallibleSimplexReader, anyhow::Error> {
+    ) -> Result<crate::io::fallible_reader::FalliblePipeReader, anyhow::Error> {
         let base_path = path.as_ref().to_path_buf();
         let base_oid = match self.resolve_dir_oid(&base_path).await {
             Ok(oid) => oid,
@@ -1585,7 +1778,7 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
             .file_compression_threads;
         let config_file = self.config_file.clone();
         let remote = Arc::clone(&self.remote);
-        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
         let (reader, signal) = crate::io::fallible_reader::FallibleReader::new(reader);
 
         let spawn_restore = move || -> Result<std::process::ChildStdout, anyhow::Error> {
@@ -1608,7 +1801,7 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
                 crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
                     let stdout = spawn_restore()?;
 
-                    let writer = tokio_util::io::SyncIoBridge::new(writer);
+                    let writer = writer.into_sync();
                     let mut zip = zip::ZipWriter::new_stream(writer);
 
                     let mut subtar = tar::Archive::new(stdout);
@@ -1695,7 +1888,7 @@ impl VirtualReadableFilesystem for VirtualKopiaBackup {
                     let stdout = spawn_restore()?;
 
                     let writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         threads,

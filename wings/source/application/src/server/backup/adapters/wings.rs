@@ -1,12 +1,22 @@
 use crate::{
     io::{
-        SafeDigestExt, compression::reader::CompressionReaderMt, limited_reader::LimitedReader,
-        limited_writer::LimitedWriter, range_reader::AsyncRangeReader,
+        SafeDigestExt,
+        compression::{
+            CompressionType,
+            reader::{AsyncCompressionReader, CompressionReaderMt},
+            writer::CompressionWriter,
+        },
+        limited_reader::LimitedReader,
+        limited_writer::LimitedWriter,
+        range_reader::AsyncRangeReader,
     },
     remote::backups::RawServerBackup,
     response::ApiResponse,
     server::{
-        backup::{Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt},
+        backup::{
+            Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt, BackupStream,
+            BackupStreamCreateExt, BackupStreamExt, DumpReader,
+        },
         filesystem::{
             archive::{
                 ArchiveFormat, StreamableArchiveFormat, multi_reader::MultiReader,
@@ -22,7 +32,6 @@ use crate::{
     utils::PortablePermissions,
 };
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
-use parking_lot::RwLock;
 use sha2::Digest;
 use std::{
     io::Write,
@@ -34,14 +43,147 @@ use std::{
 };
 use tokio::io::AsyncReadExt;
 
+pub enum WingsBackupFile {
+    Archive(ArchiveFormat),
+    Dump {
+        extension: compact_str::CompactString,
+        compression: CompressionType,
+    },
+}
+
+impl WingsBackupFile {
+    #[inline]
+    pub fn compression_suffix(compression: CompressionType) -> &'static str {
+        match compression {
+            CompressionType::None => "",
+            CompressionType::Gz => ".gz",
+            CompressionType::Xz => ".xz",
+            CompressionType::Lzip => ".lz",
+            CompressionType::Bz2 => ".bz2",
+            CompressionType::Lz4 => ".lz4",
+            CompressionType::Zstd => ".zst",
+        }
+    }
+
+    #[inline]
+    pub fn extension(&self) -> compact_str::CompactString {
+        match self {
+            Self::Archive(format) => format.extension().into(),
+            Self::Dump {
+                extension,
+                compression,
+            } => compact_str::format_compact!(
+                "{extension}{}",
+                Self::compression_suffix(*compression)
+            ),
+        }
+    }
+
+    #[inline]
+    pub fn mime_type(&self) -> &'static str {
+        match self {
+            Self::Archive(format) => format.mime_type(),
+            Self::Dump { compression, .. } => match compression {
+                CompressionType::None => "application/octet-stream",
+                CompressionType::Gz => "application/gzip",
+                CompressionType::Xz => "application/x-xz",
+                CompressionType::Lzip => "application/x-lzip",
+                CompressionType::Bz2 => "application/x-bzip2",
+                CompressionType::Lz4 => "application/x-lz4",
+                CompressionType::Zstd => "application/zstd",
+            },
+        }
+    }
+
+    #[inline]
+    pub fn archive_format(&self) -> Option<ArchiveFormat> {
+        match self {
+            Self::Archive(format) => Some(*format),
+            Self::Dump { .. } => None,
+        }
+    }
+
+    pub fn parse_dump(rest: &str) -> Option<Self> {
+        if rest.is_empty() || rest.ends_with(".part") || rest.contains(".s3.") {
+            return None;
+        }
+
+        let compression = CompressionType::from_file_name(rest);
+        let extension = rest
+            .strip_suffix(Self::compression_suffix(compression))
+            .unwrap_or(rest);
+        if crate::server::backup::validate_dump_extension(extension).is_err() {
+            return None;
+        }
+
+        Some(Self::Dump {
+            extension: extension.into(),
+            compression,
+        })
+    }
+}
+
 pub struct WingsBackup {
     uuid: uuid::Uuid,
-    pub format: ArchiveFormat,
+    pub format: WingsBackupFile,
 
     pub path: PathBuf,
 }
 
 impl WingsBackup {
+    #[inline]
+    fn get_dump_file_name(
+        config: &crate::config::Config,
+        uuid: uuid::Uuid,
+        extension: &str,
+        compression: CompressionType,
+    ) -> PathBuf {
+        config
+            .resolve_as_path(|cfg| &cfg.system.backup_directory)
+            .join(format!(
+                "{uuid}.{extension}{}",
+                WingsBackupFile::compression_suffix(compression)
+            ))
+    }
+
+    async fn find_dump_file(
+        config: &crate::config::Config,
+        uuid: uuid::Uuid,
+    ) -> Option<(WingsBackupFile, PathBuf)> {
+        let mut futures = Vec::new();
+        futures.reserve_exact(
+            super::super::DATABASE_DUMP_EXTENSIONS.len() * CompressionType::variants().len(),
+        );
+        for extension in super::super::DATABASE_DUMP_EXTENSIONS {
+            for compression in CompressionType::variants() {
+                let file_name = Self::get_dump_file_name(config, uuid, extension, *compression);
+                futures.push(async move {
+                    (
+                        tokio::fs::metadata(&file_name).await.is_ok(),
+                        *extension,
+                        *compression,
+                        file_name,
+                    )
+                });
+            }
+        }
+
+        let results = futures::future::join_all(futures).await;
+        for (found, extension, compression, file_name) in results {
+            if found {
+                return Some((
+                    WingsBackupFile::Dump {
+                        extension: extension.into(),
+                        compression,
+                    },
+                    file_name,
+                ));
+            }
+        }
+
+        None
+    }
+
     #[inline]
     fn get_format_file_name(
         config: &crate::config::Config,
@@ -66,7 +208,7 @@ impl WingsBackup {
     pub async fn get_first_file_name(
         config: &crate::config::Config,
         uuid: uuid::Uuid,
-    ) -> Result<(ArchiveFormat, PathBuf), anyhow::Error> {
+    ) -> Result<(WingsBackupFile, PathBuf), anyhow::Error> {
         let mut futures = Vec::new();
         futures.reserve_exact(ArchiveFormat::variants().len());
         for format in ArchiveFormat::variants() {
@@ -83,11 +225,138 @@ impl WingsBackup {
         let results = futures::future::join_all(futures).await;
         for (found, format, file_name) in results {
             if found {
-                return Ok((format, file_name));
+                return Ok((WingsBackupFile::Archive(format), file_name));
             }
         }
 
+        if let Some(found) = Self::find_dump_file(config, uuid).await {
+            return Ok(found);
+        }
+
         Err(anyhow::anyhow!("no backup file found for backup {}", uuid))
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamCreateExt for WingsBackup {
+    async fn create_from_stream(
+        state: &crate::routes::State,
+        uuid: uuid::Uuid,
+        extension: &str,
+        reader: DumpReader,
+    ) -> Result<RawServerBackup, anyhow::Error> {
+        let config = state.config.load();
+        let compression = config
+            .system
+            .backups
+            .wings
+            .archive_format
+            .compression_format();
+        let compression_level = config.system.backups.compression_level;
+        let threads = config.system.backups.wings.create_threads;
+        let write_limit = config.system.backups.write_limit.as_bytes();
+        drop(config);
+
+        let file_name = Self::get_dump_file_name(&state.config, uuid, extension, compression);
+        let part_file_name = file_name.with_extension(format!(
+            "{}.part",
+            file_name
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .unwrap_or_default()
+        ));
+
+        let file = tokio::fs::File::create(&part_file_name)
+            .await?
+            .into_std()
+            .await;
+
+        let write_result = tokio::task::spawn_blocking(move || -> Result<(), anyhow::Error> {
+            let writer = LimitedWriter::new_with_bytes_per_second(file, write_limit);
+            let mut writer =
+                CompressionWriter::new(writer, compression, compression_level, threads)?;
+            let mut reader = tokio_util::io::SyncIoBridge::new(reader);
+
+            crate::io::copy(&mut reader, &mut writer)?;
+            writer.finish()?.into_inner().sync_all()?;
+
+            Ok(())
+        })
+        .await?;
+
+        if let Err(err) = write_result {
+            tokio::fs::remove_file(&part_file_name).await.ok();
+
+            return Err(err);
+        }
+
+        tokio::fs::rename(&part_file_name, &file_name).await?;
+
+        let mut checksum_writer = sha2::Sha256::new();
+        let mut file = tokio::fs::File::open(&file_name).await?;
+        let mut buffer = vec![0; crate::BUFFER_SIZE];
+
+        loop {
+            match file.read(&mut buffer).await? {
+                0 => break,
+                bytes_read => checksum_writer.safe_update(&buffer, bytes_read)?,
+            }
+        }
+
+        let size = tokio::fs::metadata(&file_name).await?.len();
+
+        if size == 0 {
+            tokio::fs::remove_file(&file_name).await.ok();
+
+            return Err(anyhow::anyhow!("database dump is 0 bytes"));
+        }
+
+        Ok(RawServerBackup {
+            checksum: hex::encode(checksum_writer.finalize()),
+            checksum_type: "sha256".into(),
+            size,
+            files: 0,
+            successful: true,
+            browsable: false,
+            streaming: false,
+            parts: vec![],
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamExt for WingsBackup {
+    async fn read_stream(
+        &self,
+        _state: &crate::routes::State,
+        _download_url: Option<compact_str::CompactString>,
+    ) -> Result<BackupStream, anyhow::Error> {
+        let WingsBackupFile::Dump {
+            extension,
+            compression,
+        } = &self.format
+        else {
+            return Err(anyhow::anyhow!("backup is not a database dump"));
+        };
+
+        let file = tokio::fs::File::open(&self.path).await?;
+        let file_name = compact_str::format_compact!("{}.{extension}", self.uuid);
+
+        Ok(match compression {
+            CompressionType::None => BackupStream {
+                size: Some(file.metadata().await?.len()),
+                reader: Box::new(file),
+                file_name,
+            },
+            compression => BackupStream {
+                size: None,
+                reader: Box::new(AsyncCompressionReader::new(
+                    file.into_std().await,
+                    *compression,
+                )),
+                file_name,
+            },
+        })
     }
 }
 
@@ -132,8 +401,8 @@ impl BackupCreateExt for WingsBackup {
                     let mut walker = filesystem
                         .walk_dir(Path::new(""))?
                         .with_is_ignored(ignore.into());
-                    while let Some(Ok((_, path))) = walker.next_entry() {
-                        let metadata = match filesystem.symlink_metadata(&path) {
+                    while let Some(Ok(entry)) = walker.next_entry() {
+                        let metadata = match entry.metadata() {
                             Ok(metadata) => metadata,
                             Err(_) => continue,
                         };
@@ -231,6 +500,14 @@ impl BackupCreateExt for WingsBackup {
                                     .system
                                     .backups
                                     .compression_level,
+                                threads: server
+                                    .app_state
+                                    .config
+                                    .load()
+                                    .system
+                                    .backups
+                                    .wings
+                                    .create_threads,
                             },
                         )
                         .await
@@ -333,7 +610,7 @@ impl BackupExt for WingsBackup {
             .map(|metadata| metadata.len());
 
         Ok(crate::server::backup::BackupDownloadInfo {
-            archive_format: Some(self.format),
+            archive_format: self.format.archive_format(),
             size,
         })
     }
@@ -388,9 +665,16 @@ impl BackupExt for WingsBackup {
         total: Arc<AtomicU64>,
         _download_url: Option<compact_str::CompactString>,
     ) -> Result<(), anyhow::Error> {
+        let WingsBackupFile::Archive(format) = &self.format else {
+            return Err(anyhow::anyhow!(
+                "database dumps cannot be restored to server files"
+            ));
+        };
+        let format = *format;
+
         let file = tokio::fs::File::open(&self.path).await?.into_std().await;
 
-        match self.format {
+        match format {
             ArchiveFormat::Tar
             | ArchiveFormat::TarGz
             | ArchiveFormat::TarXz
@@ -398,7 +682,7 @@ impl BackupExt for WingsBackup {
             | ArchiveFormat::TarBz2
             | ArchiveFormat::TarLz4
             | ArchiveFormat::TarZstd => {
-                let compression_type = self.format.compression_format();
+                let compression_type = format.compression_format();
                 let server = server.clone();
 
                 tokio::task::spawn_blocking(move || -> Result<(), anyhow::Error> {
@@ -548,11 +832,11 @@ impl BackupExt for WingsBackup {
                         total.fetch_add(entry.size(), Ordering::SeqCst);
                     }
 
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(server.app_state.config.load().system.backups.wings.restore_threads)
-                        .build()?;
+                    let pool = crate::threading::build_pool(
+                        server.app_state.config.load().system.backups.wings.restore_threads,
+                    )?;
 
-                    let error = Arc::new(RwLock::new(None));
+                    let error = Arc::new(crate::threading::SharedError::new());
 
                     pool.in_place_scope(|scope| {
                         let archive = archive.clone();
@@ -570,7 +854,7 @@ impl BackupExt for WingsBackup {
                                 let mut read_buffer = vec![0; crate::BUFFER_SIZE];
 
                                 loop {
-                                    if error_clone2.read().is_some() {
+                                    if error_clone2.stopped() {
                                         return Ok(());
                                     }
 
@@ -647,7 +931,7 @@ impl BackupExt for WingsBackup {
                             };
 
                             if let Err(err) = run() {
-                                error_clone.write().replace(err);
+                                error_clone.fail(err);
                             }
                         });
                     });
@@ -678,7 +962,7 @@ impl BackupExt for WingsBackup {
                         }
                     }
 
-                    if let Some(err) = error.write().take() {
+                    if let Some(err) = error.take() {
                         Err(err)
                     } else {
                         Ok(())
@@ -699,20 +983,18 @@ impl BackupExt for WingsBackup {
                         Ordering::Relaxed,
                     );
 
-                    let pool = rayon::ThreadPoolBuilder::new()
-                        .num_threads(
-                            server
-                                .app_state
-                                .config
-                                .load()
-                                .system
-                                .backups
-                                .wings
-                                .restore_threads,
-                        )
-                        .build()?;
+                    let pool = crate::threading::build_pool(
+                        server
+                            .app_state
+                            .config
+                            .load()
+                            .system
+                            .backups
+                            .wings
+                            .restore_threads,
+                    )?;
 
-                    let error = Arc::new(RwLock::new(None));
+                    let error = Arc::new(crate::threading::SharedError::new());
 
                     pool.in_place_scope(|scope| {
                         for block_index in 0..archive.blocks.len() {
@@ -723,7 +1005,7 @@ impl BackupExt for WingsBackup {
                             let error_clone = Arc::clone(&error);
 
                             scope.spawn(move |_| {
-                                if error_clone.read().is_some() {
+                                if error_clone.stopped() {
                                     return;
                                 }
 
@@ -801,13 +1083,13 @@ impl BackupExt for WingsBackup {
 
                                     Ok(true)
                                 }) {
-                                    error_clone.write().replace(err);
+                                    error_clone.fail(err);
                                 }
                             });
                         }
                     });
 
-                    if let Some(err) = error.write().take() {
+                    if let Some(err) = error.take() {
                         Err(err.into())
                     } else {
                         for entry in archive.files {
@@ -862,8 +1144,8 @@ impl BackupExt for WingsBackup {
         &self,
         server: &crate::server::Server,
     ) -> Result<Arc<dyn VirtualReadableFilesystem>, anyhow::Error> {
-        match self.format {
-            ArchiveFormat::Zip => {
+        match &self.format {
+            WingsBackupFile::Archive(ArchiveFormat::Zip) => {
                 let reader = Arc::new(tokio::fs::File::open(&self.path).await?.into_std().await);
                 let archive = tokio::task::spawn_blocking(move || {
                     zip::ZipArchive::new(MultiReader::new(reader)?)
@@ -880,7 +1162,7 @@ impl BackupExt for WingsBackup {
                         .map_or_else(|_| Default::default(), |dt| dt.into()),
                 )))
             }
-            ArchiveFormat::SevenZip => {
+            WingsBackupFile::Archive(ArchiveFormat::SevenZip) => {
                 let reader = Arc::new(tokio::fs::File::open(&self.path).await?.into_std().await);
                 let password = sevenz_rust2::Password::empty();
                 let (reader, archive) = tokio::task::spawn_blocking(move || {
@@ -915,11 +1197,36 @@ impl BackupExt for WingsBackup {
 impl BackupCleanExt for WingsBackup {
     async fn clean(server: &crate::server::Server, uuid: uuid::Uuid) -> Result<(), anyhow::Error> {
         let file_name = Self::get_file_name(&server.app_state.config, uuid);
-        if tokio::fs::metadata(&file_name).await.is_err() {
-            return Ok(());
+        if tokio::fs::metadata(&file_name).await.is_ok() {
+            tokio::fs::remove_file(&file_name).await?;
         }
 
-        tokio::fs::remove_file(&file_name).await?;
+        let prefix = format!("{uuid}.");
+        let mut entries = tokio::fs::read_dir(
+            server
+                .app_state
+                .config
+                .resolve_as_path(|cfg| &cfg.system.backup_directory),
+        )
+        .await?;
+
+        while let Some(entry) = entries.next_entry().await? {
+            let file_name = entry.file_name();
+            let Some(rest) = file_name
+                .to_str()
+                .and_then(|name| name.strip_prefix(&prefix))
+            else {
+                continue;
+            };
+
+            if rest.contains(".s3.") {
+                continue;
+            }
+
+            if rest.ends_with(".part") || WingsBackupFile::parse_dump(rest).is_some() {
+                tokio::fs::remove_file(entry.path()).await?;
+            }
+        }
 
         Ok(())
     }

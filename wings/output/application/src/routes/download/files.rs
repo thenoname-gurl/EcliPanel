@@ -5,7 +5,7 @@ mod get {
     use crate::{
         response::{ApiResponse, ApiResponseResult},
         routes::GetState,
-        server::filesystem::archive::StreamableArchiveFormat,
+        server::filesystem::archive::{StreamableArchiveFormat, generated_archive_name},
     };
     use axum::{
         extract::Query,
@@ -30,8 +30,20 @@ mod get {
 
         pub file_path: compact_str::CompactString,
         pub file_paths: Vec<compact_str::CompactString>,
+        #[serde(default)]
+        pub ignored_files: Vec<compact_str::CompactString>,
         pub server_uuid: uuid::Uuid,
         pub unique_id: compact_str::CompactString,
+    }
+
+    impl FilesJwtPayload {
+        fn ignored(&self) -> Result<Option<ignore::gitignore::Gitignore>, ignore::Error> {
+            if self.ignored_files.is_empty() {
+                return Ok(None);
+            }
+
+            crate::server::filesystem::build_gitignore_matcher(self.ignored_files.iter()).map(Some)
+        }
     }
 
     #[utoipa::path(get, path = "/", responses(
@@ -84,36 +96,14 @@ mod get {
             .resolve_readable_fs(&server, Path::new(&payload.file_path))
             .await;
 
-        let mut folder_ascii = String::new();
-        for (i, file_path) in payload.file_paths.iter().enumerate() {
-            let file_name = Path::new(file_path)
-                .file_name()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
-
-            for c in file_name.chars() {
-                if c.is_ascii() {
-                    folder_ascii.push(c);
-                } else {
-                    folder_ascii.push('_');
-                }
-            }
-
-            if i < payload.file_paths.len() - 1 {
-                folder_ascii.push('_');
-            }
-        }
-
-        folder_ascii.push('.');
-        folder_ascii.push_str(data.archive_format.extension());
+        let archive_name = generated_archive_name(data.archive_format.extension());
 
         let mut headers = HeaderMap::new();
         headers.insert(
             "Content-Disposition",
             format!(
                 "attachment; filename={}",
-                serde_json::Value::String(folder_ascii)
+                serde_json::Value::String(archive_name.into_string())
             )
             .parse()?,
         );
@@ -132,11 +122,27 @@ mod get {
                 .ok();
         }
 
-        let ignore = if filesystem.is_primary_server_fs() {
-            server.filesystem.get_ignored().into()
-        } else {
-            Default::default()
-        };
+        let mut ignore = crate::server::filesystem::virtualfs::IsIgnoredFn::default();
+        if filesystem.is_primary_server_fs() {
+            ignore = server.filesystem.get_ignored().into();
+
+            match payload.ignored() {
+                Ok(Some(ignored)) => ignore = ignore.merge(ignored.into()),
+                Ok(None) => {}
+                Err(err) => {
+                    tracing::error!(
+                        server = %server.uuid,
+                        "failed to compile subuser ignored files, denying download: {:#?}",
+                        err
+                    );
+
+                    return ApiResponse::error("directory not found")
+                        .with_status(StatusCode::NOT_FOUND)
+                        .ok();
+                }
+            }
+        }
+
         let reader = filesystem
             .async_read_dir_files_archive(
                 &path,

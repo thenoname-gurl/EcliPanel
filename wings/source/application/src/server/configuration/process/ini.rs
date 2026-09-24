@@ -3,12 +3,11 @@ use compact_str::ToCompactString;
 
 pub struct IniFileParser;
 
-struct PendingReplacement {
+struct PendingReplacement<'a> {
     section: Option<compact_str::CompactString>,
     key: compact_str::CompactString,
-    value: compact_str::CompactString,
-    insert_new: bool,
-    update_existing: bool,
+    resolved: super::ResolvedReplacement<'a>,
+    insert_value: Option<compact_str::CompactString>,
     applied: bool,
 }
 
@@ -26,11 +25,8 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
 
         let mut pending: Vec<PendingReplacement> = Vec::with_capacity(config.replace.len());
         for replacement in &config.replace {
-            let value = ServerConfigurationFile::replace_all_placeholders(
-                server,
-                &replacement.replace_with,
-            )
-            .await?;
+            let resolved = super::ResolvedReplacement::new(server, replacement, true).await?;
+            let insert_value = resolved.text(None);
 
             let (section, key) = parse_ini_path(&replacement.r#match);
             pending.push(PendingReplacement {
@@ -40,9 +36,8 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
                     Some(section)
                 },
                 key,
-                value,
-                insert_new: replacement.insert_new.unwrap_or(true),
-                update_existing: replacement.update_existing,
+                resolved,
+                insert_value,
                 applied: false,
             });
         }
@@ -59,10 +54,13 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
             match item {
                 ini_roundtrip::Item::SectionEnd => {
                     for p in pending.iter_mut() {
-                        if !p.applied && p.insert_new && p.section == current_section {
+                        if !p.applied
+                            && p.section == current_section
+                            && let Some(value) = &p.insert_value
+                        {
                             out.push_str(&p.key);
                             out.push('=');
-                            out.push_str(&p.value);
+                            out.push_str(value);
                             out.push_str(newline);
                             p.applied = true;
                         }
@@ -73,7 +71,7 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
                     out.push_str(raw);
                     out.push_str(newline);
                 }
-                ini_roundtrip::Item::Property { key, val: _, raw } => {
+                ini_roundtrip::Item::Property { key, val, raw } => {
                     let matched = pending
                         .iter_mut()
                         .find(|p| !p.applied && p.section == current_section && p.key == key);
@@ -81,10 +79,13 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
                     match matched {
                         Some(p) => {
                             p.applied = true;
-                            if p.update_existing {
-                                out.push_str(&rewrite_property(raw, key, &p.value));
-                            } else {
-                                out.push_str(raw);
+                            let existing = strip_inline_comment(val.unwrap_or_default().trim());
+
+                            match p.resolved.text(Some(existing)) {
+                                Some(value) => {
+                                    out.push_str(&rewrite_property(raw, key, &value));
+                                }
+                                None => out.push_str(raw),
                             }
                             out.push_str(newline);
                         }
@@ -105,7 +106,8 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
 
         let mut seen_sections: Vec<&str> = Vec::new();
         for p in &pending {
-            if let (false, true, Some(section)) = (p.applied, p.insert_new, p.section.as_deref())
+            if let (false, Some(_), Some(section)) =
+                (p.applied, p.insert_value.as_ref(), p.section.as_deref())
                 && !seen_sections.contains(&section)
             {
                 seen_sections.push(section);
@@ -122,10 +124,13 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
             out.push_str(newline);
 
             for p in &pending {
-                if !p.applied && p.insert_new && p.section.as_deref() == Some(section) {
+                if !p.applied
+                    && p.section.as_deref() == Some(section)
+                    && let Some(value) = &p.insert_value
+                {
                     out.push_str(&p.key);
                     out.push('=');
-                    out.push_str(&p.value);
+                    out.push_str(value);
                     out.push_str(newline);
                 }
             }
@@ -133,6 +138,20 @@ impl super::ProcessConfigurationFileParser for IniFileParser {
 
         Ok(out.into_bytes())
     }
+}
+
+fn strip_inline_comment(value: &str) -> &str {
+    let mut after_whitespace = false;
+
+    for (index, ch) in value.char_indices() {
+        if after_whitespace && (ch == ';' || ch == '#') {
+            return value.get(..index).unwrap_or(value).trim_end();
+        }
+
+        after_whitespace = ch.is_whitespace();
+    }
+
+    value
 }
 
 fn rewrite_property(raw: &str, key: &str, new_value: &str) -> compact_str::CompactString {
@@ -206,6 +225,20 @@ mod tests {
             if_value: None,
             insert_new,
             update_existing,
+            replace_with: value,
+        }
+    }
+
+    fn gated(
+        m: &str,
+        value: serde_json::Value,
+        if_value: &str,
+    ) -> ServerConfigurationFileReplacement {
+        ServerConfigurationFileReplacement {
+            r#match: m.into(),
+            if_value: Some(if_value.into()),
+            insert_new: None,
+            update_existing: true,
             replace_with: value,
         }
     }
@@ -347,5 +380,42 @@ mod tests {
             run("[a]\nx=1\n", vec![rep("g", json!("1"), Some(true), true)]),
             "g=1\n[a]\nx=1\n"
         );
+    }
+
+    #[test]
+    fn if_value_gates_on_the_existing_value() {
+        let out = run(
+            "[net]\nhost=0.0.0.0\nother=1.2.3.4\n",
+            vec![
+                gated("net.host", json!("10.0.0.1"), "0.0.0.0"),
+                gated("net.other", json!("10.0.0.1"), "0.0.0.0"),
+            ],
+        );
+        assert!(out.contains("host=10.0.0.1"), "{out}");
+        assert!(out.contains("other=1.2.3.4"), "{out}");
+    }
+
+    #[test]
+    fn if_value_ignores_an_inline_comment() {
+        let out = run(
+            "[net]\nhost=0.0.0.0 ; bind address\n",
+            vec![gated("net.host", json!("10.0.0.1"), "0.0.0.0")],
+        );
+        assert!(out.contains("host=10.0.0.1"), "{out}");
+    }
+
+    #[test]
+    fn if_value_blocks_insertion_of_a_missing_key() {
+        let out = run("[net]\n", vec![gated("net.host", json!("x"), "0.0.0.0")]);
+        assert!(!out.contains("host"), "{out}");
+    }
+
+    #[test]
+    fn regex_if_value_substitutes_within_the_existing_value() {
+        let out = run(
+            "[db]\nurl=mysql://127.0.0.1:3306/x\n",
+            vec![gated("db.url", json!("10.0.0.1"), r"regex:127\.0\.0\.1")],
+        );
+        assert!(out.contains("url=mysql://10.0.0.1:3306/x"), "{out}");
     }
 }

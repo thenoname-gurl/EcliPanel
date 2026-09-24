@@ -22,6 +22,7 @@ use utoipa::ToSchema;
 
 pub mod handler;
 mod jwt;
+pub mod limiter;
 mod message_handler;
 
 #[derive(Deserialize)]
@@ -88,6 +89,8 @@ pub enum WebsocketEvent {
     ServerImagePullCompleted,
     #[serde(rename = "install started")]
     ServerInstallStarted,
+    #[serde(rename = "install progress")]
+    ServerInstallProgress,
     #[serde(rename = "install completed")]
     ServerInstallCompleted,
     #[serde(rename = "daemon message")]
@@ -106,6 +109,12 @@ pub enum WebsocketEvent {
     ServerBackupRestoreProgress,
     #[serde(rename = "backup restore completed")]
     ServerBackupRestoreCompleted,
+    #[serde(rename = "database backup restore started")]
+    ServerDatabaseBackupRestoreStarted,
+    #[serde(rename = "database backup restore progress")]
+    ServerDatabaseBackupRestoreProgress,
+    #[serde(rename = "database backup restore completed")]
+    ServerDatabaseBackupRestoreCompleted,
     #[serde(rename = "transfer logs")]
     ServerTransferLogs,
     #[serde(rename = "transfer status")]
@@ -126,6 +135,10 @@ pub enum WebsocketEvent {
     ServerOperationError,
     #[serde(rename = "operation completed")]
     ServerOperationCompleted,
+    #[serde(rename = "operation aborted")]
+    ServerOperationAborted,
+    #[serde(rename = "file uploads")]
+    ServerFileUploads,
 
     #[serde(rename = "file collab subscribe")]
     FileCollabSubscribe,
@@ -149,6 +162,90 @@ pub enum WebsocketEvent {
     FileCollabConflict,
     #[serde(rename = "file collab error")]
     FileCollabError,
+}
+
+pub enum BroadcastPermission {
+    Denied,
+    Authenticated,
+    Required(Permission),
+    CalagopusOr(Permission, bool),
+}
+
+impl WebsocketEvent {
+    pub fn broadcast_permission(self) -> BroadcastPermission {
+        match self {
+            Self::ServerStats
+            | Self::ServerStatus
+            | Self::ServerPendingRestart
+            | Self::ServerImagePullProgress
+            | Self::ServerImagePullCompleted
+            | Self::ServerInstallStarted
+            | Self::ServerInstallProgress
+            | Self::ServerInstallCompleted
+            | Self::ServerTransferStatus => BroadcastPermission::Authenticated,
+
+            Self::ServerConsoleOutput | Self::ServerDaemonMessage => {
+                BroadcastPermission::CalagopusOr(Permission::ControlReadConsole, true)
+            }
+
+            Self::ServerInstallOutput => {
+                BroadcastPermission::Required(Permission::AdminWebsocketInstall)
+            }
+            Self::ServerTransferLogs | Self::ServerTransferProgress => {
+                BroadcastPermission::Required(Permission::AdminWebsocketTransfer)
+            }
+            Self::ServerBackupStarted
+            | Self::ServerBackupProgress
+            | Self::ServerBackupCompleted
+            | Self::ServerBackupDeleted
+            | Self::ServerBackupRestoreStarted
+            | Self::ServerBackupRestoreProgress
+            | Self::ServerBackupRestoreCompleted
+            | Self::ServerDatabaseBackupRestoreStarted
+            | Self::ServerDatabaseBackupRestoreProgress
+            | Self::ServerDatabaseBackupRestoreCompleted => {
+                BroadcastPermission::Required(Permission::BackupRead)
+            }
+            Self::ServerScheduleStarted
+            | Self::ServerScheduleStepStatus
+            | Self::ServerScheduleStepError
+            | Self::ServerScheduleCompleted => {
+                BroadcastPermission::Required(Permission::ScheduleRead)
+            }
+            Self::ServerOperationProgress
+            | Self::ServerOperationError
+            | Self::ServerOperationCompleted
+            | Self::ServerOperationAborted
+            | Self::ServerFileUploads => BroadcastPermission::Required(Permission::FileRead),
+
+            Self::AuthenticationSuccess
+            | Self::TokenExpiring
+            | Self::TokenExpired
+            | Self::Authentication
+            | Self::ConfigureSocket
+            | Self::SetState
+            | Self::SendServerLogs
+            | Self::SendCommand
+            | Self::SendStats
+            | Self::SendStatus
+            | Self::Error
+            | Self::JwtError
+            | Self::Ping
+            | Self::Pong
+            | Self::ServerCustomEvent
+            | Self::FileCollabSubscribe
+            | Self::FileCollabUnsubscribe
+            | Self::FileCollabUpdate
+            | Self::FileCollabAwareness
+            | Self::FileCollabSave
+            | Self::FileCollabSync
+            | Self::FileCollabParticipants
+            | Self::FileCollabSaved
+            | Self::FileCollabReload
+            | Self::FileCollabConflict
+            | Self::FileCollabError => BroadcastPermission::Denied,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -322,24 +419,29 @@ pub struct ServerWebsocketHandler {
     pub connection_id: uuid::Uuid,
     sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
     state: crate::routes::State,
+    server: crate::server::Server,
     socket_jwt: SocketJwt,
     closed: AtomicBool,
     binary_mode: AtomicBool,
+    missed_targeted: AtomicBool,
 }
 
 impl ServerWebsocketHandler {
     fn new(
         sender: Arc<Mutex<SplitSink<WebSocket, Message>>>,
         state: crate::routes::State,
+        server: crate::server::Server,
         socket_jwt: SocketJwt,
     ) -> Self {
         Self {
             connection_id: uuid::Uuid::new_v4(),
             sender,
             state,
+            server,
             socket_jwt,
             closed: AtomicBool::new(false),
             binary_mode: AtomicBool::new(false),
+            missed_targeted: AtomicBool::new(false),
         }
     }
 
@@ -362,13 +464,7 @@ impl ServerWebsocketHandler {
             return Err(anyhow::anyhow!("invalid token: {err}"));
         }
 
-        for server in self.state.server_manager.get_servers().await.iter() {
-            if server.uuid == jwt.server_uuid {
-                return Ok((jwt.user_uuid, server.clone()));
-            }
-        }
-
-        Err(anyhow::anyhow!("unable to find jwt server"))
+        Ok((jwt.user_uuid, self.server.clone()))
     }
 
     async fn has_permission(&self, permission: Permission) -> Result<bool, anyhow::Error> {
@@ -389,6 +485,37 @@ impl ServerWebsocketHandler {
         Ok(server
             .user_permissions
             .has_calagopus_permission_or(user_uuid, permission, default))
+    }
+
+    async fn filter_upload_entries(
+        &self,
+        message: WebsocketMessage,
+    ) -> Result<WebsocketMessage, anyhow::Error> {
+        let (user_uuid, server) = self.get_server().await?;
+
+        if !server.user_permissions.has_ignored_files(user_uuid) {
+            return Ok(message);
+        }
+
+        let entries: Vec<_> = server
+            .filesystem
+            .uploads
+            .entries(&server.filesystem)
+            .await
+            .into_iter()
+            .filter(|entry| {
+                !server.user_permissions.is_ignored(
+                    &server,
+                    user_uuid,
+                    std::path::Path::new(entry.directory.as_str()).join(entry.target_name.as_str()),
+                    crate::server::filesystem::cap::FileType::File,
+                )
+            })
+            .collect();
+
+        Ok(WebsocketMessage::builder(message.event)
+            .structured_arg(&entries)
+            .build())
     }
 
     async fn close(&self, reason: &str) {

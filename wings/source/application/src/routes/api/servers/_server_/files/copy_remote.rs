@@ -12,7 +12,7 @@ mod post {
         server::{
             filesystem::{
                 cap::FileType,
-                virtualfs::{AsyncDirectoryStreamWalkFn, IsIgnoredFn},
+                virtualfs::{AsyncDirectoryStreamWalkFn, IsIgnoredFn, VirtualWalkEntry},
             },
             transfer::TransferArchiveFormat,
         },
@@ -52,6 +52,11 @@ mod post {
         destination_server: uuid::Uuid,
         destination_path: compact_str::CompactString,
 
+        #[serde(default)]
+        ignored: Vec<compact_str::CompactString>,
+        #[serde(default)]
+        destination_ignored: Vec<compact_str::CompactString>,
+
         #[serde(default = "foreground")]
         foreground: bool,
     }
@@ -81,9 +86,27 @@ mod post {
         server: GetServer,
         crate::Payload(data): crate::Payload<Payload>,
     ) -> ApiResponseResult {
+        let (source_ignored, destination_ignored) = match (
+            crate::server::filesystem::RequestIgnored::compile(&data.ignored),
+            crate::server::filesystem::RequestIgnored::compile(&data.destination_ignored),
+        ) {
+            (Ok(source), Ok(destination)) => (source, destination),
+            (Err(err), _) | (_, Err(err)) => {
+                tracing::error!(
+                    server = %server.uuid,
+                    "rejecting request, subuser ignored files cannot be compiled: {:#?}",
+                    err
+                );
+
+                return ApiResponse::error("file not found")
+                    .with_status(StatusCode::NOT_FOUND)
+                    .ok();
+            }
+        };
+
         let (root, filesystem) = server
             .filesystem
-            .resolve_readable_fs(&server, Path::new(&data.root))
+            .resolve_readable_fs_ignoring(&server, Path::new(&data.root), &source_ignored)
             .await;
 
         let metadata = filesystem.async_metadata(&root).await;
@@ -137,7 +160,11 @@ mod post {
 
             let (destination_path, destination_filesystem) = destination_server
                 .filesystem
-                .resolve_writable_fs(&destination_server, &data.destination_path)
+                .resolve_writable_fs_ignoring(
+                    &destination_server,
+                    &data.destination_path,
+                    &destination_ignored,
+                )
                 .await;
 
             let (tx, rx) = tokio::sync::oneshot::channel::<()>();
@@ -146,7 +173,10 @@ mod post {
                 server.filesystem.get_ignored(),
                 destination_server.filesystem.get_ignored(),
             ];
-            let ignored = IsIgnoredFn::from(ignored);
+            let mut ignored = IsIgnoredFn::from(ignored);
+            if let Some(source_ignored) = source_ignored.filter(&server) {
+                ignored = ignored.merge(source_ignored);
+            }
 
             let (identifier, task) = server
                 .filesystem
@@ -198,7 +228,9 @@ mod post {
                                             let bytes_processed = Arc::clone(&bytes_processed);
                                             let files_processed = Arc::clone(&files_processed);
 
-                                            move |_, path: PathBuf, stream| {
+                                            move |entry: VirtualWalkEntry, stream| {
+                                                let path = entry.path;
+
                                                 let server = server.clone();
                                                 let filesystem = filesystem.clone();
                                                 let source_path = Arc::clone(&source_path);
@@ -248,6 +280,7 @@ mod post {
                                                                     &source_path,
                                                                     &destination_path,
                                                                     &destination_server,
+                                                                    Some(metadata.permissions),
                                                                     Some(&bytes_processed),
                                                                 )
                                                                 .await?;
@@ -258,10 +291,7 @@ mod post {
                                                             );
 
                                                             let mut writer = destination_filesystem
-                                                                .async_create_file(&destination_path)
-                                                                .await?;
-                                                            destination_filesystem
-                                                                .async_set_permissions(&destination_path, metadata.file_type, metadata.permissions)
+                                                                .async_create_file_with_permissions(&destination_path, Some(metadata.permissions))
                                                                 .await?;
 
                                                             tokio::io::copy(&mut reader, &mut writer).await?;
@@ -404,8 +434,8 @@ mod post {
                             let (checksum_sender, checksum_receiver) =
                                 tokio::sync::oneshot::channel();
                             let (mut checksummed_reader, mut checksummed_writer) =
-                                tokio::io::simplex(crate::BUFFER_SIZE);
-                            let (reader, mut writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+                                crate::io::pipe::pipe(crate::BUFFER_SIZE);
+                            let (reader, mut writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
 
                             let archive_task = async {
                                 let is_ignored = if filesystem.is_primary_server_fs() {
@@ -480,6 +510,7 @@ mod post {
                             let response = reqwest::Client::builder()
                                 .connect_timeout(std::time::Duration::from_secs(15))
                                 .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
+                                .http1_only()
                                 .build()?
                                 .post(&data.url)
                                 .header("Authorization", &data.token)

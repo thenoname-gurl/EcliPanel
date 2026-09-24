@@ -6,8 +6,13 @@ mod put {
         response::{ApiResponse, ApiResponseResult},
         routes::{ApiError, api::servers::_server_::GetServer},
     };
+    use axum::http::StatusCode;
     use serde::{Deserialize, Serialize};
     use utoipa::ToSchema;
+
+    fn true_fn() -> bool {
+        true
+    }
 
     #[derive(ToSchema, Deserialize)]
     pub struct Payload {
@@ -16,6 +21,11 @@ mod put {
 
         #[schema(inline)]
         files: Vec<crate::models::RenameFile>,
+
+        #[serde(default)]
+        ignored: Vec<compact_str::CompactString>,
+        #[serde(default = "true_fn")]
+        create_directories: bool,
     }
 
     #[derive(ToSchema, Serialize)]
@@ -37,10 +47,31 @@ mod put {
         server: GetServer,
         crate::Payload(data): crate::Payload<Payload>,
     ) -> ApiResponseResult {
+        let ignored = match crate::server::filesystem::RequestIgnored::compile(&data.ignored) {
+            Ok(ignored) => ignored,
+            Err(err) => {
+                tracing::error!(
+                    server = %server.uuid,
+                    "rejecting request, subuser ignored files cannot be compiled: {:#?}",
+                    err
+                );
+
+                return ApiResponse::error("file not found")
+                    .with_status(StatusCode::NOT_FOUND)
+                    .ok();
+            }
+        };
+
         let (root, filesystem) = server
             .filesystem
-            .resolve_writable_fs(&server, &data.root)
+            .resolve_writable_fs_ignoring(&server, &data.root, &ignored)
             .await;
+
+        let parents = if data.create_directories {
+            crate::server::filesystem::RenameParents::Create
+        } else {
+            crate::server::filesystem::RenameParents::Require
+        };
 
         let mut renamed_count = 0;
         for file in data.files {
@@ -81,15 +112,17 @@ mod put {
                     .unwrap_or_else(|_| server.filesystem.relative_path(&from));
                 let to_path = server.filesystem.relative_path(&to);
 
-                if let Err(err) = server.filesystem.rename_path(&from, &to).await {
+                if let Err(err) = server.filesystem.rename_path(&from, &to, parents).await {
                     tracing::debug!(
                         server = %server.uuid,
                         "failed to rename file: {:#?}",
                         err
                     );
-                } else {
-                    renamed_count += 1;
+
+                    continue;
                 }
+
+                renamed_count += 1;
 
                 if let Err(err) = server
                     .diff

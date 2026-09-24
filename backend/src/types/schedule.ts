@@ -3,6 +3,7 @@ export type ScheduleTrigger =
   | { type: 'power_action'; action: 'start' | 'stop' | 'restart' | 'kill' }
   | { type: 'server_state'; state: 'offline' | 'starting' | 'running' | 'stopping' }
   | { type: 'backup_status'; status: string }
+  | { type: 'database_backup_status'; status: string }
   | { type: 'schedule_completion'; schedule: string; successful: boolean }
   | { type: 'resource_usage'; metric: 'cpu' | 'memory' | 'disk' | 'network_rx' | 'network_tx'; comparator: ScheduleConditionComparator; value: number; for_seconds?: number }
   | { type: 'resource_usage_over_time'; metric: 'cpu' | 'memory' | 'disk' | 'network_rx' | 'network_tx'; comparator: ScheduleConditionComparator; value: number; sustained_for_seconds: number; sample_interval_seconds?: number }
@@ -63,9 +64,20 @@ export type ScheduleActionPayload =
   | { type: 'rename_files'; ignore_failure?: boolean; root: ScheduleDynamicParameter; files: { from: string; to: string }[] }
   | { type: 'compress_files'; ignore_failure?: boolean; foreground?: boolean; root: ScheduleDynamicParameter; files: string[]; format: string; name: ScheduleDynamicParameter }
   | { type: 'decompress_file'; ignore_failure?: boolean; foreground?: boolean; root: ScheduleDynamicParameter; file: ScheduleDynamicParameter }
+  | { type: 'pull_file'; ignore_failure?: boolean; foreground?: boolean; root: ScheduleDynamicParameter; url: ScheduleDynamicParameter; file_name?: ScheduleDynamicParameter; use_header?: boolean }
+  | { type: 'create_database_backup'; ignore_failure?: boolean; foreground?: boolean; name?: ScheduleDynamicParameter; database_instance_uuid: string; backup_group_uuid?: string; output_into?: ScheduleVariable | null }
+  | { type: 'delete_database_backup'; ignore_failure?: boolean; backup: ScheduleBackupSelector; database_instance_uuid?: string }
+  | { type: 'move_database_backup'; ignore_failure?: boolean; backup: ScheduleBackupSelector; database_instance_uuid?: string; backup_group_uuid?: string }
+  | { type: 'restore_database_backup'; ignore_failure?: boolean; backup: ScheduleBackupSelector; source_database_instance_uuid?: string; database_instance_uuid?: string }
   | { type: 'update_startup_variable'; ignore_failure?: boolean; env_variable: ScheduleDynamicParameter; value: ScheduleDynamicParameter }
   | { type: 'update_startup_command'; ignore_failure?: boolean; command: ScheduleDynamicParameter }
   | { type: 'update_startup_docker_image'; ignore_failure?: boolean; image: ScheduleDynamicParameter };
+
+export type ScheduleBackupSelector =
+  | { mode: 'latest'; backup_group_uuid?: string }
+  | { mode: 'oldest'; backup_group_uuid?: string }
+  | { mode: 'uuid'; uuid: ScheduleDynamicParameter }
+  | { mode: 'name'; name: ScheduleDynamicParameter; backup_group_uuid?: string; oldest?: boolean };
 
 export interface ScheduleAction {
   uuid: string;

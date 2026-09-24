@@ -7,10 +7,8 @@ mod get {
     use crate::{
         response::{ApiResponse, ApiResponseResult},
         routes::GetState,
-        server::filesystem::archive::ArchiveFormat,
     };
     use serde::Serialize;
-    use std::str::FromStr;
     use utoipa::ToSchema;
 
     #[derive(ToSchema, Serialize)]
@@ -40,20 +38,19 @@ mod get {
         )
         .await?;
         while let Ok(Some(entry)) = directory.next_entry().await {
-            let metadata = match entry.metadata().await {
-                Ok(metadata) => metadata,
-                Err(_) => continue,
+            let Ok(metadata) = entry.metadata().await else {
+                continue;
             };
 
             if !metadata.is_file() {
                 continue;
             }
 
+            let name: compact_str::CompactString = entry.file_name().to_string_lossy().into();
+
             log_files.push(ResponseLogFile {
-                name: entry.file_name().to_string_lossy().into(),
-                compression_type: ArchiveFormat::from_str(&entry.file_name().to_string_lossy())
-                    .map(|format| format.compression_format())
-                    .unwrap_or_default(),
+                compression_type: crate::io::compression::CompressionType::from_file_name(&name),
+                name,
                 size: metadata.len(),
                 last_modified: chrono::DateTime::from_timestamp(
                     metadata
@@ -67,7 +64,7 @@ mod get {
             });
         }
 
-        log_files.sort_by_key(|l1| l1.last_modified);
+        log_files.sort_by_key(|log_file| log_file.last_modified);
 
         ApiResponse::new_serialized(Response { log_files }).ok()
     }

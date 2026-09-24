@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm"
 import { useAuth, hasPermission } from "@/hooks/useAuth"
 import { apiFetch } from "@/lib/api-client"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import { apiWsUrl } from "@/lib/ws-url"
 import { isExternalUrlSync } from "@/lib/internal-domains"
 import { Loader2, Lock, Paperclip, X, Link2, PanelLeft, Globe, Hash, Users, Plus, TriangleAlert, Phone, Sparkles } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
@@ -313,10 +314,7 @@ export default function ChatPage() {
   useEffect(() => {
     if (!activeChannel) return
 
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin
-    const protocol = backendUrl.startsWith('https:') ? 'wss:' : 'ws:'
-    const host = backendUrl.replace(/^https?:\/\//, '')
-    const ws = new WebSocket(`${protocol}//${host}${API_ENDPOINTS.chatWs}`)
+    const ws = new WebSocket(apiWsUrl(API_ENDPOINTS.chatWs))
     wsRef.current = ws
 
     const queue: string[] = []

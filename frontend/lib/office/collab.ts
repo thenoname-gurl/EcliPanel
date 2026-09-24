@@ -1,6 +1,7 @@
 import * as Y from "yjs"
 import * as awarenessProtocol from "y-protocols/awareness"
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import { apiWsUrl } from "@/lib/ws-url"
 import type { OfficeEditorStatus, OfficePermission } from "./types"
 
 function b64ToBytes(b64: string): Uint8Array {
@@ -18,13 +19,6 @@ function bytesToB64(bytes: Uint8Array): string {
   let bin = ""
   for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
   return btoa(bin)
-}
-
-function wsUrl(): string {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin
-  const protocol = backendUrl.startsWith('https:') ? 'wss:' : 'ws:'
-  const host = backendUrl.replace(/^https?:\/\//, '')
-  return `${protocol}//${host}${API_ENDPOINTS.officeWs}`
 }
 
 type Listener = (...args: any[]) => void
@@ -202,7 +196,7 @@ export class OfficeProvider {
   }
 
   private openSocket() {
-    const ws = new WebSocket(wsUrl())
+    const ws = new WebSocket(apiWsUrl(API_ENDPOINTS.officeWs))
     this.ws = ws
     this.setStatus("connecting")
 

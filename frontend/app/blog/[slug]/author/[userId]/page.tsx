@@ -1,3 +1,4 @@
+"use client"
 import type { Metadata } from "next"
 import { AuthorPageClient } from "./AuthorPageClient"
 import { safeUrl } from "@/lib/url-utils"

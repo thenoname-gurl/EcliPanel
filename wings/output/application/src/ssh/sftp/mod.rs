@@ -2,7 +2,7 @@ use crate::{
     routes::State,
     server::{
         activity::{Activity, ActivityEvent},
-        filesystem::cap::FileType,
+        filesystem::{RenameParents, cap::FileType},
         permissions::Permission,
     },
     utils::PortablePermissions,
@@ -496,7 +496,12 @@ impl russh_sftp::server::Handler for SftpSession {
 
         let path = match self.server.filesystem.async_canonicalize(&filename).await {
             Ok(path) => path,
-            Err(_) => PathBuf::from(filename),
+            Err(_) => {
+                self.server
+                    .filesystem
+                    .async_canonicalize_parent(&filename)
+                    .await
+            }
         };
 
         if let Ok(metadata) = self.server.filesystem.async_symlink_metadata(&path).await {
@@ -583,6 +588,10 @@ impl russh_sftp::server::Handler for SftpSession {
             Err(_) => return Err(StatusCode::NoSuchFile),
         };
 
+        if path.components().next().is_none() {
+            return Err(StatusCode::NoSuchFile);
+        }
+
         if let Ok(metadata) = self.server.filesystem.async_symlink_metadata(&path).await {
             if !metadata.is_dir() {
                 return Err(StatusCode::NoSuchFile);
@@ -592,10 +601,14 @@ impl russh_sftp::server::Handler for SftpSession {
                 return Err(StatusCode::NoSuchFile);
             }
 
-            if path != self.server.filesystem.base_path
-                && self.server.filesystem.truncate_path(&path).await.is_err()
+            if self
+                .server
+                .filesystem
+                .remove_empty_dir(&path)
+                .await
+                .is_err()
             {
-                return Err(StatusCode::NoSuchFile);
+                return Err(StatusCode::Failure);
             }
 
             self.server.activity.log_activity(Activity {
@@ -636,9 +649,13 @@ impl russh_sftp::server::Handler for SftpSession {
             return Err(StatusCode::PermissionDenied);
         }
 
-        let path = Path::new(&path);
+        let path = self
+            .server
+            .filesystem
+            .async_canonicalize_parent(&path)
+            .await;
 
-        if self.async_is_ignored(path, FileType::Dir).await {
+        if self.async_is_ignored(&path, FileType::Dir).await {
             return Err(StatusCode::NoSuchFile);
         }
         if self
@@ -666,7 +683,7 @@ impl russh_sftp::server::Handler for SftpSession {
             return Err(StatusCode::NoSuchFile);
         }
 
-        if let Err(err) = self.server.filesystem.async_chown_path(path).await {
+        if let Err(err) = self.server.filesystem.async_chown_path(&path).await {
             tracing::warn!("failed to chown new directory: {:?}", err);
         }
         if let Some(permissions) = attrs.permissions
@@ -685,7 +702,7 @@ impl russh_sftp::server::Handler for SftpSession {
             user: Some(self.user_uuid),
             ip: Some(self.user_ip),
             metadata: Some(json!({
-                "files": [self.server.filesystem.relative_path(path)],
+                "files": [self.server.filesystem.relative_path(&path)],
             })),
             schedule: None,
             timestamp: chrono::Utc::now(),
@@ -721,7 +738,11 @@ impl russh_sftp::server::Handler for SftpSession {
             Ok(path) => path,
             Err(_) => return Err(StatusCode::NoSuchFile),
         };
-        let new_path = PathBuf::from(new_path);
+        let new_path = self
+            .server
+            .filesystem
+            .async_canonicalize_parent(&new_path)
+            .await;
 
         let old_metadata = match self
             .server
@@ -768,7 +789,15 @@ impl russh_sftp::server::Handler for SftpSession {
         if self
             .server
             .filesystem
-            .rename_path(&old_path, &new_path)
+            .rename_path(
+                &old_path,
+                &new_path,
+                if self.has_permission(Permission::FileCreate) {
+                    RenameParents::Create
+                } else {
+                    RenameParents::Require
+                },
+            )
             .await
             .is_err()
         {
@@ -988,7 +1017,11 @@ impl russh_sftp::server::Handler for SftpSession {
             return Err(StatusCode::PermissionDenied);
         }
 
-        let path = Path::new(&path);
+        let path = self
+            .server
+            .filesystem
+            .async_canonicalize_parent(&path)
+            .await;
 
         let metadata = match self.server.filesystem.async_symlink_metadata(&path).await {
             Ok(metadata) => metadata,
@@ -996,19 +1029,19 @@ impl russh_sftp::server::Handler for SftpSession {
         };
 
         if self
-            .async_is_ignored(path, metadata.file_type().into())
+            .async_is_ignored(&path, metadata.file_type().into())
             .await
         {
             return Err(StatusCode::NoSuchFile);
         }
 
         let target_metadata = if metadata.is_symlink() {
-            self.server.filesystem.async_metadata(path).await.ok()
+            self.server.filesystem.async_metadata(&path).await.ok()
         } else {
             None
         };
 
-        let file = Self::convert_entry(path, metadata, target_metadata);
+        let file = Self::convert_entry(&path, metadata, target_metadata);
 
         Ok(russh_sftp::protocol::Attrs {
             id,
@@ -1078,11 +1111,12 @@ impl russh_sftp::server::Handler for SftpSession {
             return Err(StatusCode::NoSuchFile);
         }
 
-        let linkpath = PathBuf::from(linkpath);
-        let targetpath = match self.server.filesystem.async_canonicalize(&targetpath).await {
-            Ok(path) => path,
-            Err(_) => return Err(StatusCode::NoSuchFile),
-        };
+        let linkpath = self.server.filesystem.relative_path(Path::new(&linkpath));
+        let (contents, targetpath) =
+            crate::server::filesystem::cap::CapFilesystem::resolve_symlink_contents(
+                &linkpath,
+                Path::new(&targetpath),
+            );
 
         let metadata = match self
             .server
@@ -1094,10 +1128,9 @@ impl russh_sftp::server::Handler for SftpSession {
             Err(_) => return Err(StatusCode::NoSuchFile),
         };
 
-        if !metadata.is_file()
-            || self
-                .async_is_ignored(&targetpath, metadata.file_type().into())
-                .await
+        if self
+            .async_is_ignored(&targetpath, metadata.file_type().into())
+            .await
             || self.async_is_ignored(&linkpath, FileType::File).await
         {
             return Err(StatusCode::NoSuchFile);
@@ -1106,14 +1139,14 @@ impl russh_sftp::server::Handler for SftpSession {
         if self
             .server
             .filesystem
-            .async_symlink(&targetpath, &linkpath)
+            .async_symlink_contents(&contents, &linkpath)
             .await
             .is_err()
         {
             return Err(StatusCode::Failure);
         }
 
-        if let Err(err) = self.server.filesystem.async_chown_path(&targetpath).await {
+        if let Err(err) = self.server.filesystem.async_chown_path(&linkpath).await {
             tracing::warn!("failed to chown new symlink: {:?}", err);
         }
 

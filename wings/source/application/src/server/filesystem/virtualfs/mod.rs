@@ -11,9 +11,9 @@ use crate::{
 };
 use axum::http::{HeaderMap, HeaderValue};
 pub use functions::{
-    AsyncDirectoryStreamWalkFn, AsyncDirectoryWalkFn, DirectoryWalkFn, IsIgnoredFn,
+    AsyncDirectoryStreamWalkFn, AsyncDirectoryWalkFn, DirectoryWalkFilterFn, DirectoryWalkFn,
+    IsIgnoredFn,
 };
-use parking_lot::RwLock;
 use std::{
     ops::Bound,
     path::{Path, PathBuf},
@@ -265,53 +265,166 @@ impl From<std::fs::Metadata> for FileMetadata {
     }
 }
 
+pub struct VirtualWalkEntry {
+    pub file_type: FileType,
+    pub path: PathBuf,
+    source: Option<crate::server::filesystem::cap::WalkEntry>,
+}
+
+impl VirtualWalkEntry {
+    pub fn new(file_type: FileType, path: PathBuf) -> Self {
+        Self {
+            file_type,
+            path,
+            source: None,
+        }
+    }
+
+    pub fn with_source(source: crate::server::filesystem::cap::WalkEntry) -> Self {
+        Self {
+            file_type: source.file_type(),
+            path: source.path.clone(),
+            source: Some(source),
+        }
+    }
+
+    pub fn metadata(
+        &self,
+        filesystem: &dyn VirtualReadableFilesystem,
+    ) -> Result<FileMetadata, anyhow::Error> {
+        match &self.source {
+            Some(source) => Ok(source.metadata()?.into()),
+            None => filesystem.symlink_metadata(&self.path),
+        }
+    }
+
+    pub async fn async_metadata(
+        &self,
+        filesystem: &dyn VirtualReadableFilesystem,
+    ) -> Result<FileMetadata, anyhow::Error> {
+        match &self.source {
+            Some(source) => Ok(source.async_metadata().await?.into()),
+            None => filesystem.async_symlink_metadata(&self.path).await,
+        }
+    }
+
+    /// Metadata taken straight from the directory entry the walker read (a single
+    /// `statx` on the parent directory), when this walk has one.
+    pub fn source_metadata(&self) -> Option<Result<cap_std::fs::Metadata, std::io::Error>> {
+        self.source.as_ref().map(|source| source.metadata())
+    }
+
+    /// Opens the entry relative to the directory the walker read it from, when this
+    /// walk has one. The walker already applied its ignore filter to this path.
+    pub fn open_source(&self) -> Option<Result<std::fs::File, std::io::Error>> {
+        self.source.as_ref().map(|source| source.open())
+    }
+}
+
 pub trait DirectoryWalk {
     fn next_entry(&mut self) -> Option<Result<(FileType, PathBuf), anyhow::Error>>;
+
+    fn next_walk_entry(&mut self) -> Option<Result<VirtualWalkEntry, anyhow::Error>> {
+        Some(
+            self.next_entry()?
+                .map(|(file_type, path)| VirtualWalkEntry::new(file_type, path)),
+        )
+    }
 
     fn run_multithreaded(
         &mut self,
         threads: usize,
         func: DirectoryWalkFn,
     ) -> Result<(), anyhow::Error> {
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(threads)
-            .build()?;
-        let error = Arc::new(RwLock::new(None));
+        self.run_multithreaded_filtered(threads, None, func)
+    }
+
+    fn run_multithreaded_filtered(
+        &mut self,
+        threads: usize,
+        filter: Option<DirectoryWalkFilterFn>,
+        func: DirectoryWalkFn,
+    ) -> Result<(), anyhow::Error> {
+        let pool = crate::threading::build_pool(threads)?;
+        let error = Arc::new(crate::threading::SharedError::new());
+        let in_flight =
+            crate::threading::InFlightLimit::new(crate::threading::WALK_BATCHES_IN_FLIGHT);
 
         pool.in_place_scope(|scope| {
-            while let Some(entry) = self.next_entry() {
+            let mut batch = Vec::with_capacity(crate::threading::WALK_BATCH_SIZE);
+
+            while let Some(entry) = self.next_walk_entry() {
                 match entry {
-                    Ok((file_type, path)) => {
-                        if crate::unlikely(error.read().is_some()) {
+                    Ok(entry) => {
+                        if crate::unlikely(error.stopped()) {
                             break;
                         }
 
-                        let error = Arc::clone(&error);
-                        let func = func.clone();
+                        if let Some(filter) = &filter
+                            && !filter(entry.file_type, &entry.path)
+                        {
+                            continue;
+                        }
 
-                        scope.spawn(move |_| {
-                            if crate::unlikely(error.read().is_some()) {
-                                return;
-                            }
+                        batch.push(entry);
+                        if batch.len() < crate::threading::WALK_BATCH_SIZE {
+                            continue;
+                        }
 
-                            if let Err(err) = func(file_type, path) {
-                                *error.write() = Some(err);
-                            }
-                        });
+                        let batch = std::mem::replace(
+                            &mut batch,
+                            Vec::with_capacity(crate::threading::WALK_BATCH_SIZE),
+                        );
+                        let permit = in_flight.acquire();
+
+                        crate::threading::spawn_walk_batch(
+                            scope,
+                            Arc::clone(&error),
+                            {
+                                let func = func.clone();
+                                move |entry| func(entry)
+                            },
+                            permit,
+                            batch,
+                        );
                     }
                     Err(err) => {
-                        *error.write() = Some(err);
+                        error.fail(err);
                         break;
                     }
                 }
             }
+
+            if !batch.is_empty() {
+                let permit = in_flight.acquire();
+
+                crate::threading::spawn_walk_batch(
+                    scope,
+                    Arc::clone(&error),
+                    {
+                        let func = func.clone();
+                        move |entry| func(entry)
+                    },
+                    permit,
+                    batch,
+                );
+            }
         });
 
-        if let Some(err) = error.write().take() {
+        if let Some(err) = error.take() {
             return Err(err);
         }
 
         Ok(())
+    }
+
+    fn run_parallel(
+        &mut self,
+        threads: usize,
+        filter: Option<DirectoryWalkFilterFn>,
+        func: DirectoryWalkFn,
+    ) -> Result<(), anyhow::Error> {
+        self.run_multithreaded_filtered(threads, filter, func)
     }
 }
 
@@ -319,18 +432,27 @@ pub trait DirectoryWalk {
 pub trait AsyncDirectoryWalk {
     async fn next_entry(&mut self) -> Option<Result<(FileType, PathBuf), anyhow::Error>>;
 
+    async fn next_walk_entry(&mut self) -> Option<Result<VirtualWalkEntry, anyhow::Error>> {
+        Some(
+            self.next_entry()
+                .await?
+                .map(|(file_type, path)| VirtualWalkEntry::new(file_type, path)),
+        )
+    }
+
     async fn run_multithreaded(
         &mut self,
         threads: usize,
         func: AsyncDirectoryWalkFn,
     ) -> Result<(), anyhow::Error> {
+        let threads = crate::threading::resolve_threads(threads);
         let semaphore = Arc::new(Semaphore::new(threads));
-        let error = Arc::new(RwLock::new(None));
+        let error = Arc::new(crate::threading::SharedError::new());
 
-        while let Some(entry) = self.next_entry().await {
+        while let Some(entry) = self.next_walk_entry().await {
             match entry {
-                Ok((file_type, path)) => {
-                    if crate::unlikely(error.read().is_some()) {
+                Ok(entry) => {
+                    if crate::unlikely(error.stopped()) {
                         break;
                     }
 
@@ -344,10 +466,10 @@ pub trait AsyncDirectoryWalk {
                     };
                     tokio::spawn(async move {
                         let _permit = permit;
-                        match func(file_type, path).await {
+                        match func(entry).await {
                             Ok(_) => {}
                             Err(err) => {
-                                *error.write() = Some(err);
+                                error.fail(err);
                             }
                         }
                     });
@@ -358,7 +480,7 @@ pub trait AsyncDirectoryWalk {
 
         semaphore.acquire_many(threads as u32).await.ok();
 
-        if let Some(err) = error.write().take() {
+        if let Some(err) = error.take() {
             return Err(err);
         }
 
@@ -377,22 +499,33 @@ pub trait AsyncDirectoryStreamWalk {
         &mut self,
     ) -> Option<Result<(FileType, PathBuf, AsyncReadableFileStream), anyhow::Error>>;
 
+    async fn next_walk_entry(
+        &mut self,
+    ) -> Option<Result<(VirtualWalkEntry, AsyncReadableFileStream), anyhow::Error>> {
+        Some(
+            self.next_entry()
+                .await?
+                .map(|(file_type, path, stream)| (VirtualWalkEntry::new(file_type, path), stream)),
+        )
+    }
+
     async fn run_multithreaded(
         &mut self,
         threads: usize,
         func: AsyncDirectoryStreamWalkFn,
     ) -> Result<(), anyhow::Error> {
+        let threads = crate::threading::resolve_threads(threads);
         let semaphore = Arc::new(Semaphore::new(threads));
-        let error = Arc::new(RwLock::new(None));
+        let error = Arc::new(crate::threading::SharedError::new());
 
-        while let Some(entry) = self.next_entry().await {
+        while let Some(entry) = self.next_walk_entry().await {
             match entry {
-                Ok((file_type, path, stream)) => {
+                Ok((entry, stream)) => {
                     let semaphore = Arc::clone(&semaphore);
                     let error = Arc::clone(&error);
                     let func = func.clone();
 
-                    if crate::unlikely(error.read().is_some()) {
+                    if crate::unlikely(error.stopped()) {
                         break;
                     }
 
@@ -403,15 +536,15 @@ pub trait AsyncDirectoryStreamWalk {
                         };
                         tokio::spawn(async move {
                             let _permit = permit;
-                            match func(file_type, path, stream).await {
+                            match func(entry, stream).await {
                                 Ok(_) => {}
                                 Err(err) => {
-                                    *error.write() = Some(err);
+                                    error.fail(err);
                                 }
                             }
                         });
                     } else {
-                        match func(file_type, path, stream).await {
+                        match func(entry, stream).await {
                             Ok(_) => {}
                             Err(err) => return Err(err),
                         }
@@ -423,7 +556,7 @@ pub trait AsyncDirectoryStreamWalk {
 
         semaphore.acquire_many(threads as u32).await.ok();
 
-        if let Some(err) = error.write().take() {
+        if let Some(err) = error.take() {
             return Err(err);
         }
 
@@ -466,11 +599,24 @@ pub trait VirtualReadableFilesystem: Send + Sync {
         &self,
         path: &(dyn AsRef<Path> + Send + Sync),
     ) -> Result<DirectoryEntry, anyhow::Error>;
+    fn directory_entry_buffer(
+        &self,
+        path: &(dyn AsRef<Path> + Send + Sync),
+        buffer: &[u8],
+    ) -> Result<DirectoryEntry, anyhow::Error>;
     async fn async_directory_entry_buffer(
         &self,
         path: &(dyn AsRef<Path> + Send + Sync),
         buffer: &[u8],
     ) -> Result<DirectoryEntry, anyhow::Error>;
+    fn directory_entry_from_metadata(
+        &self,
+        _path: &Path,
+        _metadata: &cap_std::fs::Metadata,
+        _buffer: Option<&[u8]>,
+    ) -> Option<DirectoryEntry> {
+        None
+    }
 
     async fn async_read_dir(
         &self,
@@ -558,7 +704,7 @@ pub trait VirtualReadableFilesystem: Send + Sync {
         compression_level: CompressionLevel,
         progress: super::archive::create::ArchiveProgress,
         is_ignored: IsIgnoredFn,
-    ) -> Result<crate::io::fallible_reader::FallibleSimplexReader, anyhow::Error>;
+    ) -> Result<crate::io::fallible_reader::FalliblePipeReader, anyhow::Error>;
     async fn async_read_dir_files_archive(
         &self,
         path: &(dyn AsRef<Path> + Send + Sync),
@@ -567,7 +713,7 @@ pub trait VirtualReadableFilesystem: Send + Sync {
         compression_level: CompressionLevel,
         progress: super::archive::create::ArchiveProgress,
         is_ignored: IsIgnoredFn,
-    ) -> Result<crate::io::fallible_reader::FallibleSimplexReader, anyhow::Error> {
+    ) -> Result<crate::io::fallible_reader::FalliblePipeReader, anyhow::Error> {
         let root_path = path.as_ref().to_path_buf();
         let is_ignored = move |file_type, path: PathBuf| {
             let stripped_path = path.strip_prefix(&root_path).unwrap_or(&path);
@@ -618,17 +764,41 @@ pub trait VirtualWritableFilesystem: VirtualReadableFilesystem {
         original: &(dyn AsRef<Path> + Send + Sync),
         link: &(dyn AsRef<Path> + Send + Sync),
     ) -> Result<(), anyhow::Error>;
+    async fn async_create_symlink_contents(
+        &self,
+        contents: &(dyn AsRef<Path> + Send + Sync),
+        link: &(dyn AsRef<Path> + Send + Sync),
+    ) -> Result<(), anyhow::Error>;
     fn create_file(
         &self,
         path: &(dyn AsRef<Path> + Send + Sync),
     ) -> Result<WritableFileStream, anyhow::Error> {
         Ok(self.create_seekable_file(path)? as WritableFileStream)
     }
+    fn create_file_with_metadata(
+        &self,
+        path: &(dyn AsRef<Path> + Send + Sync),
+        permissions: Option<PortablePermissions>,
+        modified: Option<std::time::SystemTime>,
+    ) -> Result<WritableFileStream, anyhow::Error>;
     async fn async_create_file(
         &self,
         path: &(dyn AsRef<Path> + Send + Sync),
     ) -> Result<AsyncWritableFileStream, anyhow::Error> {
         Ok(self.async_create_seekable_file(path).await? as AsyncWritableFileStream)
+    }
+    async fn async_create_file_with_permissions(
+        &self,
+        path: &(dyn AsRef<Path> + Send + Sync),
+        permissions: Option<PortablePermissions>,
+    ) -> Result<AsyncWritableFileStream, anyhow::Error> {
+        let file = self.async_create_file(path).await?;
+        if let Some(permissions) = permissions {
+            self.async_set_permissions(path, FileType::File, permissions)
+                .await?;
+        }
+
+        Ok(file)
     }
     fn create_seekable_file(
         &self,

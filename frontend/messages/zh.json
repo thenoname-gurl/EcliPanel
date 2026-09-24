@@ -61,7 +61,8 @@
     "actions": {
       "backToOrganisations": "返回组织",
       "accept": "接受",
-      "reject": "拒绝"
+      "reject": "拒绝",
+      "refresh": "刷新"
     },
     "loading": "加载邀请中...",
     "emptyTitle": "没有待处理的组织邀请",
@@ -155,7 +156,8 @@
       "save": "保存",
       "copy": "复制",
       "favorite": "添加到收藏",
-      "unfavorite": "取消收藏"
+      "unfavorite": "取消收藏",
+      "refresh": "刷新"
     },
     "details": {
       "sender": "发件人",
@@ -278,7 +280,8 @@
         "numberedList": "有序列表",
         "inlineCode": "行内代码",
         "link": "链接",
-        "divider": "分隔线"
+        "divider": "分隔线",
+        "refresh": "刷新"
       }
     },
     "toast": {
@@ -781,7 +784,8 @@
       "retryThisPage": "→ 重试此页面",
       "returnHome": "→ 返回首页",
       "goDashboard": "→ 前往仪表盘",
-      "hardReload": "→ 强制刷新页面"
+      "hardReload": "→ 强制刷新页面",
+      "refresh": "刷新"
     },
     "recovery": {
       "warn": "警告：",
@@ -1127,7 +1131,8 @@
   "organisationAcceptPage": {
     "title": "接受组织邀请",
     "actions": {
-      "acceptInvite": "接受邀请"
+      "acceptInvite": "接受邀请",
+      "refresh": "刷新"
     },
     "messages": {
       "accepted": "邀请已接受。正在重定向...",
@@ -1187,7 +1192,8 @@
       "transmitting": "提交中...",
       "submit": "提交",
       "navigateHome": "返回首页",
-      "loginRequired": "需要登录才能提交"
+      "loginRequired": "需要登录才能提交",
+      "refresh": "刷新"
     },
     "messages": {
       "transmitted": "提交已成功传输。"
@@ -1456,7 +1462,8 @@
     "actions": {
       "backToHome": "返回首页",
       "previous": "上一页",
-      "next": "下一页"
+      "next": "下一页",
+      "refresh": "刷新"
     },
     "header": {
       "github": "GitHub",
@@ -1575,7 +1582,8 @@
       "actions": {
         "acknowledge": "确认",
         "resolve": "解决",
-        "falsePositive": "误报"
+        "falsePositive": "误报",
+        "refresh": "刷新"
       },
       "source": {
         "internal": "内部扫描",
@@ -1594,7 +1602,8 @@
       "working": "工作中…",
       "confirmReveal": "确认以显示",
       "rehidePrivateData": "隐藏私密数据",
-      "open": "开启"
+      "open": "开启",
+      "refresh": "刷新"
     },
     "privacy": {
       "sensitiveDataPrefix": "敏感数据当前",
@@ -1666,7 +1675,8 @@
       "feedback": "反馈",
       "chat": "聊天",
       "companyMailboxes": "公司邮箱",
-      "studentVerifications": "学生验证"
+      "studentVerifications": "学生验证",
+      "tundra": "Tundra Mesh"
     },
     "shortUrls": {
       "overview": {
@@ -1703,7 +1713,8 @@
         "create": "创建短链接",
         "update": "更新短链接",
         "cancel": "取消",
-        "confirmDelete": "删除此短链接？"
+        "confirmDelete": "删除此短链接？",
+        "refresh": "刷新"
       },
       "errors": {
         "failedLoad": "加载短链接失败。",
@@ -2370,7 +2381,8 @@
       "test": "测试",
       "sendBroadcast": "发送广播",
       "broadcast": "广播",
-      "tapToPreview": "点击预览邮件"
+      "tapToPreview": "点击预览邮件",
+      "refresh": "刷新"
     }
   },
   "adminFraudTab": {
@@ -2421,7 +2433,8 @@
       "dismissing": "忽略中…",
       "dismiss": "忽略",
       "suspend": "暂停",
-      "rescan": "重新扫描"
+      "rescan": "重新扫描",
+      "refresh": "刷新"
     }
   },
   "adminDeletionsTab": {
@@ -2617,7 +2630,8 @@
       "cancel": "取消",
       "saving": "保存中…",
       "saveChanges": "保存更改",
-      "createPlan": "创建套餐"
+      "createPlan": "创建套餐",
+      "refresh": "刷新"
     }
   },
   "adminOauthTab": {
@@ -2705,7 +2719,8 @@
       "rotating": "轮换中…",
       "privacyPolicy": "隐私政策",
       "termsOfService": "服务条款",
-      "removeLogo": "移除所选徽标"
+      "removeLogo": "移除所选徽标",
+      "refresh": "刷新"
     }
   },
   "adminEggsTab": {
@@ -2948,7 +2963,8 @@
     "actions": {
       "saving": "保存中…",
       "saveSettings": "保存设置",
-      "save": "保存"
+      "save": "保存",
+      "refresh": "刷新"
     },
     "states": {
       "changesSaved": "更改已保存",
@@ -3202,7 +3218,8 @@
       "createHost": "创建主机",
       "test": "测试",
       "confirm": "确认",
-      "cancel": "取消"
+      "cancel": "取消",
+      "refresh": "刷新"
     }
   },
   "adminAiTab": {
@@ -3709,7 +3726,8 @@
       "saving": "保存中...",
       "saveChanges": "保存更改",
       "updating": "更新中...",
-      "uploading": "上传中..."
+      "uploading": "上传中...",
+      "refresh": "刷新"
     },
     "portal": {
       "free": "Free Portal",
@@ -4106,7 +4124,8 @@
       "submitForVerification": "提交验证",
       "verifySelfieAge": "验证自拍年龄",
       "verifyStudent": "验证学生身份",
-      "viewBenefits": "查看福利"
+      "viewBenefits": "查看福利",
+      "refresh": "刷新"
     },
     "messages": {
       "submittedForReview": "验证已提交 - 您的文件正在审核中。"
@@ -4259,7 +4278,8 @@
     },
     "actions": {
       "prev": "上一页",
-      "next": "下一页"
+      "next": "下一页",
+      "refresh": "刷新"
     },
     "export": {
       "title": "导出",
@@ -4318,7 +4338,8 @@
       "restart": "重启",
       "console": "控制台",
       "newServer": "新建服务器",
-      "deployServer": "部署服务器"
+      "deployServer": "部署服务器",
+      "refresh": "刷新"
     },
     "stats": {
       "total": "总计",
@@ -4477,7 +4498,8 @@
         "cancel": "取消",
         "deploying": "部署中…",
         "deploy": "部署服务器",
-        "close": "好的。关闭"
+        "close": "好的。关闭",
+        "refresh": "刷新"
       },
       "result": {
         "blackjackTitle": "🃏 Blackjack Server Creation Result",
@@ -4556,7 +4578,8 @@
       "cancel": "取消",
       "reconnect": "重新连接",
       "fullscreen": "全屏",
-      "exitFullscreen": "退出全屏"
+      "exitFullscreen": "退出全屏",
+      "refresh": "刷新"
     },
     "terminal": {
       "errorTag": "ERROR",
@@ -4648,7 +4671,8 @@
       "disableWrap": "Disable word wrap",
       "enableWrap": "Enable word wrap",
       "search": "Search (Ctrl+F)",
-      "copyAll": "Copy all"
+      "copyAll": "Copy all",
+      "refresh": "刷新"
     },
     "states": {
       "loadingEditor": "Loading editor..."
@@ -4726,7 +4750,10 @@
       "openSftp": "通过 SFTP 打开",
       "openQemuFolder": "打开 QEMU 文件夹",
       "hide": "隐藏",
-      "details": "详情"
+      "details": "详情",
+      "search": "搜索",
+      "newSymlink": "新建符号链接",
+      "refresh": "刷新"
     },
     "table": {
       "name": "名称",
@@ -4741,7 +4768,9 @@
     "inputs": {
       "fileNamePlaceholder": "文件名.txt",
       "folderNamePlaceholder": "文件夹名称",
-      "sftpPassword": "SFTP 密码"
+      "sftpPassword": "SFTP 密码",
+      "symlinkNamePlaceholder": "链接名称",
+      "symlinkTargetPlaceholder": "目标路径（必填）"
     },
     "preview": {
       "zoomOut": "缩小",
@@ -4782,7 +4811,8 @@
       "vmFilesystemViaSftp": "通过 SFTP 访问虚拟机文件系统",
       "sftpModeDescription": "使用直接 SFTP 访问客户机文件系统。",
       "sftpCommand": "SFTP 命令",
-      "sftpPassword": "SFTP 密码"
+      "sftpPassword": "SFTP 密码",
+      "uploadConflict": "冲突"
     },
     "confirm": {
       "openUnknownType": "此文件类型可能无法正确显示。仍然打开？",
@@ -4792,7 +4822,12 @@
       "deleteFile": "删除 \"{name}\"？",
       "fileExistsOpen": "\"{name}\" 已存在。是否改为打开它？",
       "applyRecursive": "递归应用？",
-      "deleteSelected": "删除 {count} 个项目？"
+      "deleteSelected": "删除 {count} 个项目？",
+      "uploadConflictTitle": "名称冲突",
+      "uploadConflictDescription": "其中 {count} 个文件已存在于该目录中。",
+      "uploadOverwrite": "覆盖现有文件",
+      "uploadSkip": "仅跳过现有文件",
+      "uploadAbort": "取消上传"
     },
     "prompts": {
       "renameTo": "重命名为：",
@@ -4873,6 +4908,16 @@
       "good": "好",
       "excellent": "非常好",
       "helpsImprove": "您的反馈有助于我们改进面板。"
+    },
+    "search": {
+      "title": "搜索文件",
+      "placeholder": "搜索文件名或内容…",
+      "run": "搜索",
+      "searchContent": "搜索文件内容",
+      "caseInsensitive": "不区分大小写",
+      "noResults": "未找到文件",
+      "failed": "搜索失败",
+      "resultCount": "条结果"
     }
   },
   "verification": {
@@ -4925,6 +4970,8 @@
       "dbShort": "数据库",
       "schedules": "计划任务",
       "network": "网络",
+      "tunnel": "隧道",
+      "tunnelShort": "隧道",
       "firewall": "防火墙",
       "netShort": "网络",
       "backups": "备份",
@@ -5052,7 +5099,8 @@
       "refreshServer": "刷新服务器",
       "backToServers": "返回服务器",
       "cancel": "取消",
-      "confirm": "确认"
+      "confirm": "确认",
+      "refresh": "刷新"
     },
     "toasts": {
       "diceDeniedTitle": "骰子拒绝",
@@ -5317,7 +5365,8 @@
         "rejectedSubuserInvite": "拒绝了服务器子用户邀请",
         "serverSuspend": "暂停了服务器",
         "serverUnsuspend": "恢复了服务器",
-        "updatedProfile": "更新了个人资料设置"
+        "updatedProfile": "更新了个人资料设置",
+        "refresh": "刷新"
       }
     },
     "filters": {
@@ -5482,6 +5531,38 @@
       "nodeIssueDescription": "此节点上的服务器可能不可用或无响应。",
       "nodesIssueDescription": "以下节点上的服务器可能不可用或无响应：{nodes}。",
       "learnMore": "在 /status 了解更多"
+    },
+    "nativeFirewall": {
+      "loading": "加载中…",
+      "loadFailed": "无法加载防火墙和性能提升设置。",
+      "saveFailed": "保存失败：{reason}",
+      "save": "保存",
+      "saved": "已保存",
+      "firewallTitle": "防火墙与性能",
+      "featuresTitle": "性能",
+      "rulesTitle": "入站防火墙规则",
+      "rulesHint": "Wings 应用的容器网络规则（nftables/iptables）。deny 阻止流量，allow 放行。",
+      "addRule": "添加规则",
+      "noRules": "暂无防火墙规则。添加规则以控制入站流量。",
+      "removeRule": "移除规则",
+      "allow": "允许",
+      "deny": "拒绝",
+      "from": "来自",
+      "allProtocols": "全部",
+      "allSources": "0.0.0.0/0",
+      "allPorts": "全部",
+      "portsPlaceholder": "端口 (25565, 25566)",
+      "sourcesPlaceholder": "来源 IP/CIDR (1.2.3.4, 10.0.0.0/8)",
+      "startupBoost": "启动 CPU 提升",
+      "startupEnable": "服务器启动时提升 CPU",
+      "startupTimeout": "提升时长",
+      "runtimeBoost": "运行期 CPU 提升",
+      "runtimeEnable": "负载高峰时提升 CPU",
+      "runtimeThreshold": "触发阈值",
+      "runtimeSustained": "持续时间",
+      "runtimeMultiple": "CPU 倍率",
+      "runtimeDuration": "提升时长",
+      "runtimeCooldown": "提升后冷却"
     }
   },
   "tunnelsPage": {
@@ -5528,7 +5609,8 @@
       "manage": "管理",
       "copy": "复制",
       "regenerateToken": "重新生成令牌",
-      "deleteDevice": "删除设备"
+      "deleteDevice": "删除设备",
+      "refresh": "刷新"
     },
     "prompts": {
       "nameForDevice": "设备名称",
@@ -5725,7 +5807,8 @@
       }
     },
     "actions": {
-      "newTicket": "新建工单"
+      "newTicket": "新建工单",
+      "refresh": "刷新"
     },
     "states": {
       "loading": "Loading tickets...",
@@ -5792,7 +5875,8 @@
       "backToTickets": "Back to Tickets",
       "cancel": "取消",
       "submitting": "提交中...",
-      "submitTicket": "Submit Ticket"
+      "submitTicket": "Submit Ticket",
+      "refresh": "刷新"
     },
     "errors": {
       "requiredFields": "Subject and message are required.",
@@ -5896,7 +5980,8 @@
       "deleteTicket": "Delete Ticket",
       "deleting": "删除中…",
       "reply": "回复",
-      "send": "发送"
+      "send": "发送",
+      "refresh": "刷新"
     },
     "confirm": {
       "deleteTicket": "Delete this ticket permanently?",
@@ -5949,7 +6034,8 @@
     },
     "actions": {
       "newOrganisation": "新建组织",
-      "viaBilling": "$1（通过账单）"
+      "viaBilling": "$1（通过账单）",
+      "refresh": "刷新"
     },
     "states": {
       "loading": "加载中...",
@@ -5987,7 +6073,8 @@
     "actions": {
       "creating": "创建中...",
       "create": "创建",
-      "cancel": "取消"
+      "cancel": "取消",
+      "refresh": "刷新"
     },
     "errors": {
       "failedCreate": "创建组织失败"
@@ -6148,7 +6235,8 @@
         "serverDelete": "删除了服务器",
         "serverUpdate": "更新了服务器",
         "serverSuspend": "暂停了服务器",
-        "serverUnsuspend": "恢复了服务器"
+        "serverUnsuspend": "恢复了服务器",
+        "refresh": "刷新"
       }
     },
     "stats": {
@@ -6282,7 +6370,8 @@
       "bestPractices": "Best practices"
     },
     "actions": {
-      "clearChat": "Clear chat"
+      "clearChat": "Clear chat",
+      "refresh": "刷新"
     },
     "states": {
       "thinking": "思考中..."
@@ -7214,7 +7303,8 @@
     "permissions": "此应用将能够：",
     "actions": {
       "authorize": "授权",
-      "cancel": "取消"
+      "cancel": "取消",
+      "refresh": "刷新"
     },
     "loginRequired": {
       "title": "需要登录",
@@ -7579,7 +7669,8 @@
       "restore": "还原",
       "deleteForever": "永久删除",
       "cancel": "取消",
-      "preview": "预览"
+      "preview": "预览",
+      "refresh": "刷新"
     },
     "dialogs": {
       "createTitle": "新建文件",
@@ -7721,5 +7812,48 @@
     "renameHint": "为“{name}”选择新名称。",
     "renameError": "重命名失败",
     "sharedLinks": "共享链接"
+  },
+  "adminTundraTab": {
+    "loading": "正在加载 Tundra 网格…",
+    "refresh": "刷新",
+    "globalConfig": "全局配置",
+    "masterSwitch": "主开关 — 面板控制所有节点",
+    "enabled": "已启用",
+    "disabled": "已禁用",
+    "enable": "启用",
+    "disable": "禁用",
+    "nodesJoined": "节点",
+    "defaultTunnelPort": "默认隧道端口",
+    "fullMesh": "跨租户全网状",
+    "fullMeshHint": "允许每个服务器访问任何其他服务器（安全风险）。关闭 = 仅同所有者互通。",
+    "nodesTitle": "节点",
+    "nodesHint": "具有节点 ID 的 Wings 节点自动加入网格。展开节点进行配置。",
+    "noNodes": "未找到 Wings 节点。",
+    "locallyEnabled": "本地已启用",
+    "locallyDisabled": "本地已禁用",
+    "certPresent": "已上报证书",
+    "certMissing": "尚无证书",
+    "participate": "参与网格",
+    "participateHint": "将节点包含在快照中，让 Wings 启动隧道 shim。",
+    "nodeIdMissing": "节点没有 ID — 注册时请设置。",
+    "tunnelPort": "隧道端口",
+    "host": "主机",
+    "certFingerprint": "证书指纹",
+    "sync": "同步",
+    "rotate": "轮换",
+    "metrics": "指标",
+    "clearCert": "清除证书",
+    "aclsTitle": "ACL 规则",
+    "aclsHint": "显式可达性规则（源 → 目标）。同所有者的服务器对自动允许。",
+    "srcServer": "源服务器",
+    "dstServer": "目标服务器",
+    "addAcl": "添加 ACL",
+    "createdAt": "创建时间",
+    "actions": "操作",
+    "noAcls": "没有显式 ACL 规则。",
+    "saved": "已保存",
+    "saveError": "保存失败",
+    "loadError": "加载 Tundra 配置失败",
+    "aclRequired": "需要两个服务器 UUID"
   }
 }

@@ -96,7 +96,7 @@ pub async fn create_itaf<W: Write + Send + 'static>(
                     .collect::<Vec<_>>();
 
                 while let Some(entry) = walker.next_entry() {
-                    let (_, path) = match entry {
+                    let entry = match entry {
                         Ok(entry) => entry,
                         Err(err) => {
                             tracing::debug!("failed to read directory entry while creating itaf archive: {err:#}");
@@ -104,12 +104,14 @@ pub async fn create_itaf<W: Write + Send + 'static>(
                         }
                     };
 
+                    let path = &entry.path;
+
                     let rel = match path.strip_prefix(&base) {
                         Ok(r) => r,
                         Err(_) => continue,
                     };
 
-                    let metadata = match filesystem.symlink_metadata(&path) {
+                    let metadata = match entry.metadata() {
                         Ok(m) => m,
                         Err(err) => {
                             tracing::debug!(path = %path.display(), "skipping entry while creating itaf archive, failed to read metadata: {err:#}");
@@ -135,7 +137,7 @@ pub async fn create_itaf<W: Write + Send + 'static>(
 
                         progress.increment_bytes(metadata.len());
                     } else if metadata.is_file() {
-                        let file = filesystem.open(&path)?;
+                        let file = filesystem.open(path)?;
                         let reader = progress.counting_reader(file);
                         let reader =
                             FixedReader::new_with_fixed_bytes(reader, metadata.len() as usize);
@@ -143,14 +145,14 @@ pub async fn create_itaf<W: Write + Send + 'static>(
                         archive
                             .add_file(&entry_name, &entry_meta, metadata.len(), &mut { reader })?;
                         progress.increment_files();
-                    } else if let Ok(link_target) = filesystem.read_link_contents(&path) {
+                    } else if let Ok(link_target) = filesystem.read_link_contents(path) {
                         let target = link_target.to_string_lossy();
 
                         if itaf::spec::validate_name(&entry_name).is_ok() {
                             archive.add_symlink(
                                 &entry_name,
                                 &target,
-                                metadata.is_dir(),
+                                symlink_targets_dir(&filesystem, path),
                                 &entry_meta,
                             )?;
                             progress.increment_bytes(metadata.len());
@@ -172,7 +174,7 @@ pub async fn create_itaf<W: Write + Send + 'static>(
                     Some(n) => n.clone(),
                     None => continue,
                 };
-                let enclosing = components.get_slice(..components.len() - 1)?;
+                let enclosing = components.get_slice(..components.len().saturating_sub(1))?;
 
                 enter_path_components(&mut archive, enclosing, &meta)?;
 
@@ -191,13 +193,18 @@ pub async fn create_itaf<W: Write + Send + 'static>(
                     Some(n) => n.clone(),
                     None => continue,
                 };
-                let enclosing = components.get_slice(..components.len() - 1)?;
+                let enclosing = components.get_slice(..components.len().saturating_sub(1))?;
 
                 enter_path_components(&mut archive, enclosing, &meta)?;
 
                 let target = link_target.to_string_lossy();
                 if itaf::spec::validate_name(&name).is_ok() {
-                    archive.add_symlink(&name, &target, source_metadata.is_dir(), &meta)?;
+                    archive.add_symlink(
+                        &name,
+                        &target,
+                        symlink_targets_dir(&filesystem, &source),
+                        &meta,
+                    )?;
                 }
 
                 exit_path_components(&mut archive, enclosing.len())?;
@@ -264,7 +271,7 @@ pub async fn create_itaf_distributed<W: Write + Send + 'static>(
             }
 
             if metadata.is_dir() {
-                let parent_components = components.get_slice(..components.len() - 1)?;
+                let parent_components = components.get_slice(..components.len().saturating_sub(1))?;
                 sync_dir_stack_with_meta(
                     &mut archive,
                     &mut dir_stack,
@@ -281,7 +288,7 @@ pub async fn create_itaf_distributed<W: Write + Send + 'static>(
 
                 progress.increment_bytes(metadata.len());
             } else if metadata.is_file() {
-                let dir_components = components.get_slice(..components.len() - 1)?;
+                let dir_components = components.get_slice(..components.len().saturating_sub(1))?;
                 sync_dir_stack_with_meta(
                     &mut archive,
                     &mut dir_stack,
@@ -301,7 +308,7 @@ pub async fn create_itaf_distributed<W: Write + Send + 'static>(
                 archive.add_file(name, &meta, metadata.len(), &mut { reader })?;
                 progress.increment_files();
             } else if let Ok(link_target) = filesystem.read_link_contents(&full) {
-                let dir_components = components.get_slice(..components.len() - 1)?;
+                let dir_components = components.get_slice(..components.len().saturating_sub(1))?;
                 sync_dir_stack_with_meta(
                     &mut archive,
                     &mut dir_stack,
@@ -315,7 +322,12 @@ pub async fn create_itaf_distributed<W: Write + Send + 'static>(
                 };
                 let target = link_target.to_string_lossy();
                 if itaf::spec::validate_name(name).is_ok() {
-                    archive.add_symlink(name, &target, metadata.is_dir(), &meta)?;
+                    archive.add_symlink(
+                        name,
+                        &target,
+                        symlink_targets_dir(&filesystem, &full),
+                        &meta,
+                    )?;
                 }
 
                 progress.increment_bytes(metadata.len());
@@ -331,6 +343,16 @@ pub async fn create_itaf_distributed<W: Write + Send + 'static>(
         Ok(inner)
     })
     .await?
+}
+
+fn symlink_targets_dir(
+    filesystem: &crate::server::filesystem::cap::CapFilesystem,
+    path: &Path,
+) -> bool {
+    filesystem
+        .metadata(path)
+        .map(|metadata| metadata.is_dir())
+        .unwrap_or(false)
 }
 
 fn path_components<'a>(path: &'a Path) -> Vec<Cow<'a, str>> {

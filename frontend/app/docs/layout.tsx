@@ -1,3 +1,5 @@
+"use client";
+
 import { Sidebar } from "./_components/sidebar";
 import { TableOfContents } from "./_components/toc";
 import { DocSearch } from "./_components/cmdk";

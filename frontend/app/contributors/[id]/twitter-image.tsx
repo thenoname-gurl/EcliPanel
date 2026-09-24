@@ -1,3 +1,4 @@
+"use client"
 import { ImageResponse } from "next/og";
 import { formatContributorDescription, getContributorMetaById } from "./contributor-meta";
 

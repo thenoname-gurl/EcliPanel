@@ -21,6 +21,7 @@ nestify::nest! {
 
         pub cpu_absolute: f64,
         pub cpu_limit_absolute: u32,
+
         pub uptime: u64,
     }
 }

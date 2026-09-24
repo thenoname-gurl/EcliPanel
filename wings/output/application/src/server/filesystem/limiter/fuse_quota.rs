@@ -4,7 +4,7 @@ use std::{
     path::PathBuf,
     sync::{
         Arc, OnceLock,
-        atomic::{AtomicI64, Ordering},
+        atomic::{AtomicI64, AtomicU64, Ordering},
     },
 };
 use tokio::{
@@ -13,8 +13,37 @@ use tokio::{
     sync::RwLock,
 };
 
-type DeltaSyncMap = HashMap<uuid::Uuid, Arc<AtomicI64>>;
+struct DeltaSyncEntry {
+    delta: Arc<AtomicI64>,
+    last_synced_disk_check: AtomicU64,
+}
+
+type DeltaSyncMap = HashMap<uuid::Uuid, Arc<DeltaSyncEntry>>;
 static DELTA_SYNC_REGISTRY: OnceLock<Arc<RwLock<DeltaSyncMap>>> = OnceLock::new();
+
+#[derive(Debug)]
+enum SocketCommandError {
+    NotApplied(std::io::Error),
+    MaybeApplied(std::io::Error),
+}
+
+impl From<SocketCommandError> for std::io::Error {
+    fn from(err: SocketCommandError) -> Self {
+        match err {
+            SocketCommandError::NotApplied(err) | SocketCommandError::MaybeApplied(err) => err,
+        }
+    }
+}
+
+impl std::fmt::Display for SocketCommandError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SocketCommandError::NotApplied(err) | SocketCommandError::MaybeApplied(err) => {
+                err.fmt(f)
+            }
+        }
+    }
+}
 
 pub struct FuseQuotaLimiter<'a> {
     pub filesystem: &'a crate::server::filesystem::Filesystem,
@@ -36,11 +65,27 @@ impl<'a> FuseQuotaLimiter<'a> {
         socket_path
     }
 
-    async fn talk_to_socket(&self, cmd: &str) -> Result<String, std::io::Error> {
+    async fn talk_to_socket(&self, cmd: &str) -> Result<String, SocketCommandError> {
         let socket_path = self.get_fusequota_socket_path();
 
-        let run = async || -> Result<String, std::io::Error> {
-            let (reader, mut writer) = UnixStream::connect(socket_path).await?.into_split();
+        let stream = match tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            UnixStream::connect(socket_path),
+        )
+        .await
+        {
+            Ok(Ok(stream)) => stream,
+            Ok(Err(err)) => return Err(SocketCommandError::NotApplied(err)),
+            Err(err) => {
+                return Err(SocketCommandError::NotApplied(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    err,
+                )));
+            }
+        };
+
+        let run = async {
+            let (reader, mut writer) = stream.into_split();
 
             writer.write_all(format!("{}\n", cmd).as_bytes()).await?;
             writer.shutdown().await?;
@@ -54,18 +99,27 @@ impl<'a> FuseQuotaLimiter<'a> {
                 line.clear();
             }
 
-            for line in response.lines() {
-                if line.starts_with("ERROR:") {
-                    return Err(std::io::Error::other(format!(
-                        "fusequota socket returned error: {line}"
-                    )));
-                }
-            }
-
-            Ok(response)
+            Ok::<String, std::io::Error>(response)
         };
 
-        let response = tokio::time::timeout(std::time::Duration::from_secs(5), run()).await??;
+        let response = match tokio::time::timeout(std::time::Duration::from_secs(5), run).await {
+            Ok(Ok(response)) => response,
+            Ok(Err(err)) => return Err(SocketCommandError::MaybeApplied(err)),
+            Err(err) => {
+                return Err(SocketCommandError::MaybeApplied(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    err,
+                )));
+            }
+        };
+
+        for line in response.lines() {
+            if line.starts_with("ERROR:") {
+                return Err(SocketCommandError::NotApplied(std::io::Error::other(
+                    format!("fusequota socket returned error: {line}"),
+                )));
+            }
+        }
 
         Ok(response)
     }
@@ -93,14 +147,7 @@ impl<'a> FuseQuotaLimiter<'a> {
             .arg("--quota")
             .arg(self.filesystem.disk_limit().to_string())
             .arg("--quota-rescan-interval")
-            .arg(
-                self.filesystem
-                    .config
-                    .load()
-                    .system
-                    .disk_check_interval
-                    .to_string(),
-            )
+            .arg("0")
             .arg("--clone-fd")
             .arg("--communication-socket-path")
             .arg(&socket_path)
@@ -131,36 +178,83 @@ impl<'a> FuseQuotaLimiter<'a> {
 
                 async move {
                     loop {
-                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
-                        for (uuid, delta) in registry_map.read().await.iter() {
-                            let Some(server) = state.server_manager.get_server(*uuid).await else {
+                        let entries = registry_map
+                            .read()
+                            .await
+                            .iter()
+                            .map(|(uuid, entry)| (*uuid, Arc::clone(entry)))
+                            .collect::<Vec<_>>();
+
+                        for (uuid, entry) in entries {
+                            let Some(server) = state.server_manager.get_server(uuid).await else {
                                 continue;
                             };
-
-                            let delta = delta.swap(0, Ordering::Relaxed);
-
-                            if delta == 0 {
-                                continue;
-                            }
-
-                            tracing::debug!(
-                                server = %server.uuid,
-                                delta = delta,
-                                "syncing fusequota disk usage delta"
-                            );
 
                             let limiter = FuseQuotaLimiter {
                                 filesystem: &server.filesystem,
                             };
 
-                            if let Err(err) = if delta > 0 {
+                            let current_check =
+                                server.filesystem.last_disk_check.load(Ordering::Relaxed);
+                            if current_check != entry.last_synced_disk_check.load(Ordering::Relaxed)
+                            {
+                                let usage = server.filesystem.get_physical_cached_size();
+                                let pending = entry.delta.load(Ordering::Relaxed);
+
+                                tracing::debug!(
+                                    server = %server.uuid,
+                                    usage = usage,
+                                    "syncing fusequota disk usage from completed scan"
+                                );
+
+                                match limiter
+                                    .talk_to_socket(&format!("set quota_used = {}", usage))
+                                    .await
+                                {
+                                    Ok(response) if response.contains("OK") => {
+                                        entry.delta.fetch_sub(pending, Ordering::Relaxed);
+                                        entry
+                                            .last_synced_disk_check
+                                            .store(current_check, Ordering::Relaxed);
+                                    }
+                                    Ok(_) => {}
+                                    Err(err) => {
+                                        tracing::warn!(
+                                            server = %server.uuid,
+                                            "failed to sync fusequota disk usage: {}",
+                                            err
+                                        );
+                                    }
+                                }
+
+                                continue;
+                            }
+
+                            if entry.delta.load(Ordering::Relaxed) == 0 {
+                                continue;
+                            }
+
+                            let delta_value = entry.delta.swap(0, Ordering::Relaxed);
+
+                            if delta_value == 0 {
+                                continue;
+                            }
+
+                            tracing::debug!(
+                                server = %server.uuid,
+                                delta = delta_value,
+                                "syncing fusequota disk usage delta"
+                            );
+
+                            if let Err(err) = if delta_value > 0 {
                                 limiter
-                                    .talk_to_socket(&format!("add quota_used = {}", delta))
+                                    .talk_to_socket(&format!("add quota_used = {}", delta_value))
                                     .await
                             } else {
                                 limiter
-                                    .talk_to_socket(&format!("rem quota_used = {}", -delta))
+                                    .talk_to_socket(&format!("rem quota_used = {}", -delta_value))
                                     .await
                             } {
                                 tracing::warn!(
@@ -168,7 +262,10 @@ impl<'a> FuseQuotaLimiter<'a> {
                                     "failed to sync fusequota delta: {}",
                                     err
                                 );
-                                continue;
+
+                                if let SocketCommandError::NotApplied(_) = err {
+                                    entry.delta.fetch_add(delta_value, Ordering::Relaxed);
+                                }
                             }
                         }
                     }
@@ -180,7 +277,12 @@ impl<'a> FuseQuotaLimiter<'a> {
 
         registry.write().await.insert(
             self.filesystem.uuid,
-            Arc::clone(&self.filesystem.disk_usage_delta_cached),
+            Arc::new(DeltaSyncEntry {
+                delta: Arc::clone(&self.filesystem.disk_usage_delta_cached),
+                last_synced_disk_check: AtomicU64::new(
+                    self.filesystem.last_disk_check.load(Ordering::Relaxed),
+                ),
+            }),
         );
     }
 }
@@ -230,6 +332,10 @@ impl<'a> DiskLimiterExt for FuseQuotaLimiter<'a> {
             .set_base_fs_mount_path(base_fuse_path)
             .await?;
 
+        if self.is_socket_functional().await {
+            self.register_delta_sync().await;
+        }
+
         Ok(())
     }
 
@@ -240,6 +346,9 @@ impl<'a> DiskLimiterExt for FuseQuotaLimiter<'a> {
         );
 
         if !self.is_socket_functional().await {
+            self.filesystem
+                .disk_usage_delta_cached
+                .store(0, Ordering::Relaxed);
             self.spawn_fusequota_daemon().await?;
         }
 
@@ -280,10 +389,17 @@ impl<'a> DiskLimiterExt for FuseQuotaLimiter<'a> {
             if line.starts_with("quota_used =")
                 && let Some(val_str) = line.split('=').nth(1)
             {
-                return val_str
+                let usage = val_str
                     .trim()
                     .parse::<u64>()
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e));
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+                let pending = self
+                    .filesystem
+                    .disk_usage_delta_cached
+                    .load(Ordering::Relaxed);
+
+                return Ok(usage.saturating_add_signed(pending));
             }
         }
 

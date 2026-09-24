@@ -1,5 +1,10 @@
-use super::{AsyncReadableFileStream, FileType};
-use std::{ops::Deref, path::PathBuf, sync::Arc};
+use super::{AsyncReadableFileStream, FileType, VirtualWalkEntry};
+use crate::server::filesystem::uploads::ignore_match_path;
+use std::{
+    ops::Deref,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 type IsIgnoredFnInner = dyn Fn(FileType, PathBuf) -> Option<PathBuf> + Send + Sync + 'static;
 type AsyncIsIgnoredFnInner = dyn Fn(FileType, PathBuf) -> futures::future::BoxFuture<'static, Option<PathBuf>>
@@ -27,7 +32,7 @@ impl IsIgnoredFn {
     /// Pairs a blocking body with the async one it mirrors.
     ///
     /// Both must accept and reject exactly the same paths; only how they get
-    /// there may differ. For anything that does no I/O, prefer `from` — the
+    /// there may differ. For anything that does no I/O, prefer `from` - the
     /// single body is then reused for both.
     pub fn new<S, A, Fut>(sync: S, r#async: A) -> Self
     where
@@ -73,6 +78,16 @@ impl IsIgnoredFn {
         }
     }
 
+    pub fn excluding(self, path: PathBuf) -> Self {
+        self.merge(IsIgnoredFn::from(move |_, candidate: PathBuf| {
+            if candidate == path {
+                None
+            } else {
+                Some(candidate)
+            }
+        }))
+    }
+
     #[inline]
     fn from_sync(sync: Arc<IsIgnoredFnInner>) -> Self {
         Self {
@@ -99,11 +114,11 @@ impl Deref for IsIgnoredFn {
 impl From<ignore::gitignore::Gitignore> for IsIgnoredFn {
     fn from(gi: ignore::gitignore::Gitignore) -> Self {
         Self::from_sync(Arc::new(move |file_type, path| {
-            if gi.matched(&path, file_type.is_dir()).is_ignore() {
-                None
-            } else {
-                Some(path)
-            }
+            let ignored = gi
+                .matched(ignore_match_path(&path), file_type.is_dir())
+                .is_ignore();
+
+            if ignored { None } else { Some(path) }
         }))
     }
 }
@@ -111,12 +126,12 @@ impl From<ignore::gitignore::Gitignore> for IsIgnoredFn {
 impl From<Vec<ignore::gitignore::Gitignore>> for IsIgnoredFn {
     fn from(gis: Vec<ignore::gitignore::Gitignore>) -> Self {
         Self::from_sync(Arc::new(move |file_type, path| {
-            for gi in &gis {
-                if gi.matched(&path, file_type.is_dir()).is_ignore() {
-                    return None;
-                }
-            }
-            Some(path)
+            let match_path = ignore_match_path(&path);
+            let ignored = gis
+                .iter()
+                .any(|gi| gi.matched(&match_path, file_type.is_dir()).is_ignore());
+
+            if ignored { None } else { Some(path) }
         }))
     }
 }
@@ -127,13 +142,32 @@ impl<T: Fn(FileType, PathBuf) -> Option<PathBuf> + Send + Sync + 'static> From<T
     }
 }
 
+type DirectoryWalkFilterFnInner = dyn Fn(FileType, &Path) -> bool + Send + Sync + 'static;
+
+#[derive(Clone)]
+pub struct DirectoryWalkFilterFn(Arc<DirectoryWalkFilterFnInner>);
+
+impl<T: Fn(FileType, &Path) -> bool + Send + Sync + 'static> From<T> for DirectoryWalkFilterFn {
+    fn from(f: T) -> Self {
+        Self(Arc::new(f))
+    }
+}
+
+impl Deref for DirectoryWalkFilterFn {
+    type Target = DirectoryWalkFilterFnInner;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.0
+    }
+}
+
 type DirectoryWalkFnInner =
-    dyn Fn(FileType, PathBuf) -> Result<(), anyhow::Error> + Send + Sync + 'static;
+    dyn Fn(VirtualWalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static;
 
 #[derive(Clone)]
 pub struct DirectoryWalkFn(Arc<DirectoryWalkFnInner>);
 
-impl<T: Fn(FileType, PathBuf) -> Result<(), anyhow::Error> + Send + Sync + 'static> From<T>
+impl<T: Fn(VirtualWalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static> From<T>
     for DirectoryWalkFn
 {
     fn from(f: T) -> Self {
@@ -149,7 +183,7 @@ impl Deref for DirectoryWalkFn {
     }
 }
 
-type AsyncDirectoryWalkFnInner = dyn Fn(FileType, PathBuf) -> futures::future::BoxFuture<'static, Result<(), anyhow::Error>>
+type AsyncDirectoryWalkFnInner = dyn Fn(VirtualWalkEntry) -> futures::future::BoxFuture<'static, Result<(), anyhow::Error>>
     + Send
     + Sync
     + 'static;
@@ -158,13 +192,13 @@ type AsyncDirectoryWalkFnInner = dyn Fn(FileType, PathBuf) -> futures::future::B
 pub struct AsyncDirectoryWalkFn(Arc<AsyncDirectoryWalkFnInner>);
 
 impl<
-    T: Fn(FileType, PathBuf) -> Fut + Send + Sync + 'static,
+    T: Fn(VirtualWalkEntry) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<(), anyhow::Error>> + Send + 'static,
 > From<T> for AsyncDirectoryWalkFn
 {
     fn from(f: T) -> Self {
-        Self(Arc::new(move |file_type, path| {
-            let fut = f(file_type, path);
+        Self(Arc::new(move |entry| {
+            let fut = f(entry);
             Box::pin(fut)
         }))
     }
@@ -179,8 +213,7 @@ impl Deref for AsyncDirectoryWalkFn {
 }
 
 type DirectoryStreamWalkFnInner = dyn Fn(
-        FileType,
-        PathBuf,
+        VirtualWalkEntry,
         AsyncReadableFileStream,
     ) -> futures::future::BoxFuture<'static, Result<(), anyhow::Error>>
     + Send
@@ -191,13 +224,13 @@ type DirectoryStreamWalkFnInner = dyn Fn(
 pub struct AsyncDirectoryStreamWalkFn(Arc<DirectoryStreamWalkFnInner>);
 
 impl<
-    T: Fn(FileType, PathBuf, AsyncReadableFileStream) -> Fut + Send + Sync + 'static,
+    T: Fn(VirtualWalkEntry, AsyncReadableFileStream) -> Fut + Send + Sync + 'static,
     Fut: Future<Output = Result<(), anyhow::Error>> + Send + 'static,
 > From<T> for AsyncDirectoryStreamWalkFn
 {
     fn from(f: T) -> Self {
-        Self(Arc::new(move |file_type, path, stream| {
-            let fut = f(file_type, path, stream);
+        Self(Arc::new(move |entry, stream| {
+            let fut = f(entry, stream);
             Box::pin(fut)
         }))
     }

@@ -43,6 +43,24 @@ function formatRateLimitMessage(retryAfter?: string | number | null) {
   return "You’re doing that too often. Please wait a moment and try again."
 }
 
+function isAllowedRequestUrl(url: string, base: string): boolean {
+  if (url.startsWith('//')) return false
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(url)) return true
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
+  const allowedHosts = new Set<string>()
+  if (typeof window !== 'undefined') allowedHosts.add(window.location.hostname)
+  if (base) {
+    try { allowedHosts.add(new URL(base).hostname) } catch {}
+  }
+  return allowedHosts.has(parsed.hostname)
+}
+
 // Concurrency cap + in-flight dedupe for idempotent GETs. Many dashboard
 // components fire the same GET in parallel on mount; without this every one
 // becomes its own network round-trip. Only plain GETs (no body, no step-up/sudo
@@ -148,6 +166,9 @@ async function apiFetchRaw(
     url = `${base}${path}`;
   }
 
+  if (!isAllowedRequestUrl(url, base)) {
+    throw new Error(`Invalid API URL: ${url}`);
+  }
 
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> | undefined),

@@ -47,6 +47,15 @@ function filterScopes(requested: string[], allowed: string[]): string[] {
   return requested.filter(s => allowed.includes(s) && OAUTH_SCOPES.includes(s as any));
 }
 
+function withImpliedOpenIdScopes(requested: string[], granted: string[]): string[] {
+  if (!requested.includes('openid')) return granted;
+  const merged: string[] = [];
+  for (const s of ['openid', 'profile', 'email', ...granted]) {
+    if (!merged.includes(s)) merged.push(s);
+  }
+  return merged;
+}
+
 function verifyPkce(verifier: string, challenge: string, method: string | undefined): boolean {
   if (!method || method === 'plain') {
     return timingSafeEqual(verifier, challenge);
@@ -62,6 +71,67 @@ const ACCESS_TOKEN_TTL = 3600;
 const REFRESH_TOKEN_TTL = 30 * 86400;
 const AUTH_CODE_TTL = 600;
 
+function oauthIssuerBase(): string {
+  return process.env.PANEL_API_URL || process.env.PANEL_URL || 'https://ecli.app';
+}
+
+function oauthIdTokenSecret(): string {
+  const secret = process.env.OAUTH_ID_TOKEN_SECRET || process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('OIDC id_token signing secret is not configured: set OAUTH_ID_TOKEN_SECRET (or JWT_SECRET)');
+  }
+  return secret;
+}
+
+function oauthPreferredUsername(user: User): string {
+  const local = String(user.email || '')
+    .split('@')[0]
+    .replace(/[^a-zA-Z0-9._~-]/g, '');
+  return local || `user${user.id}`;
+}
+
+function oauthDisplayName(user: User): string {
+  const full = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+  return user.displayName || full || oauthPreferredUsername(user);
+}
+
+function oidcStandardClaims(user: User): Record<string, any> {
+  const uname = oauthPreferredUsername(user);
+  const claims: Record<string, any> = {
+    sub: String(user.id),
+    name: oauthDisplayName(user),
+    preferred_username: uname,
+    nickname: uname,
+    email: user.email,
+    email_verified: user.emailVerified ?? false,
+  };
+  if (user.firstName) claims.given_name = user.firstName;
+  if (user.lastName) claims.family_name = user.lastName;
+  if (user.avatarUrl) claims.picture = user.avatarUrl;
+  return claims;
+}
+
+function base64urlJson(value: Record<string, any>): string {
+  return Buffer.from(JSON.stringify(value)).toString('base64url');
+}
+
+function buildIdToken(user: User, app: OAuthApp): string {
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64urlJson({ alg: 'HS256', typ: 'JWT' });
+  const payload = base64urlJson({
+    iss: oauthIssuerBase(),
+    aud: app.clientId,
+    iat: now,
+    exp: now + ACCESS_TOKEN_TTL,
+    ...oidcStandardClaims(user),
+  });
+  const signingInput = `${header}.${payload}`;
+  const signature = new Bun.CryptoHasher('sha256', oauthIdTokenSecret())
+    .update(signingInput)
+    .digest('base64url');
+  return `${signingInput}.${signature}`;
+}
+
 function oauthOwnerDisplayName(owner?: User | null): string {
   if (!owner) return 'Eclipse Systems';
   const fullName = [owner.firstName, owner.lastName].filter(Boolean).join(' ').trim();
@@ -69,29 +139,53 @@ function oauthOwnerDisplayName(owner?: User | null): string {
 }
 
 export async function oauthWellKnownRoutes(app: any, prefix = '') {
+  const wellKnown = async (ctx: any) => {
+    const f = await requireFeature(ctx, 'oauth');
+    if (f !== true) return f;
+    const base = oauthIssuerBase();
+    return {
+      issuer: base,
+      authorization_endpoint: `${base}/oauth/authorize`,
+      token_endpoint: `${base}/api/oauth/token`,
+      revocation_endpoint: `${base}/api/oauth/token/revoke`,
+      userinfo_endpoint: `${base}/api/oauth/userinfo`,
+      introspection_endpoint: `${base}/api/oauth/token/introspect`,
+      scopes_supported: [...OAUTH_SCOPES],
+      response_types_supported: ['code'],
+      grant_types_supported: ['authorization_code', 'client_credentials', 'refresh_token'],
+      token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
+      code_challenge_methods_supported: ['S256', 'plain'],
+      subject_types_supported: ['public'],
+      id_token_signing_alg_values_supported: ['HS256'],
+      claims_supported: [
+        'sub',
+        'name',
+        'preferred_username',
+        'nickname',
+        'email',
+        'email_verified',
+        'given_name',
+        'family_name',
+        'picture',
+      ],
+      service_documentation: `${base}/api/oauth/docs`,
+    };
+  };
+
   app.get(
     prefix + '/.well-known/oauth-authorization-server',
-    async ctx => {
-      const f = await requireFeature(ctx, 'oauth');
-      if (f !== true) return f;
-      const base = process.env.PANEL_API_URL || process.env.PANEL_URL || 'https://ecli.app';
-      return {
-        issuer: base,
-        authorization_endpoint: `${base}/api/oauth/authorize`,
-        token_endpoint: `${base}/api/oauth/token`,
-        revocation_endpoint: `${base}/api/oauth/token/revoke`,
-        userinfo_endpoint: `${base}/api/oauth/userinfo`,
-        introspection_endpoint: `${base}/api/oauth/token/introspect`,
-        scopes_supported: [...OAUTH_SCOPES],
-        response_types_supported: ['code'],
-        grant_types_supported: ['authorization_code', 'client_credentials', 'refresh_token'],
-        token_endpoint_auth_methods_supported: ['client_secret_post', 'client_secret_basic'],
-        code_challenge_methods_supported: ['S256', 'plain'],
-        service_documentation: `${base}/api/oauth/docs`,
-      };
-    },
+    wellKnown,
     {
       detail: { summary: 'OAuth 2.0 discovery document', tags: ['OAuth'] },
+      response: { 200: t.Any() },
+    }
+  );
+
+  app.get(
+    prefix + '/.well-known/openid-configuration',
+    wellKnown,
+    {
+      detail: { summary: 'OpenID Connect discovery document', tags: ['OAuth'] },
       response: { 200: t.Any() },
     }
   );
@@ -531,7 +625,12 @@ export async function oauthRoutes(app: any, prefix = '') {
       }
 
       const requestedScopes = scope ? scope.split(' ') : ['profile'];
-      const grantableScopes = filterScopes(requestedScopes, oauthApp.allowedScopes);
+      const grantableScopes = withImpliedOpenIdScopes(
+        requestedScopes,
+        filterScopes(requestedScopes, oauthApp.allowedScopes)
+      );
+
+      const userScopes = grantableScopes.filter(s => s !== 'openid');
 
       return {
         app: {
@@ -543,7 +642,7 @@ export async function oauthRoutes(app: any, prefix = '') {
           termsOfServiceUrl: oauthApp.termsOfServiceUrl,
           ownerName: oauthOwnerDisplayName(oauthApp.owner),
         },
-        requestedScopes: grantableScopes,
+        requestedScopes: userScopes,
         state: state || null,
         redirect_uri,
         code_challenge: code_challenge || null,
@@ -605,7 +704,10 @@ export async function oauthRoutes(app: any, prefix = '') {
       }
 
       const requestedScopes = scope ? scope.split(' ') : ['profile'];
-      const grantedScopes = filterScopes(requestedScopes, oauthApp.allowedScopes);
+      const grantedScopes = withImpliedOpenIdScopes(
+        requestedScopes,
+        filterScopes(requestedScopes, oauthApp.allowedScopes)
+      );
 
       // Don't grant 'admin' to non-admin users
       const finalScopes = grantedScopes.filter(
@@ -769,13 +871,17 @@ export async function oauthRoutes(app: any, prefix = '') {
         });
         await tokenRepo.save(tokenEntity);
 
-        return {
+        const authRes: Record<string, any> = {
           access_token: accessToken,
           token_type: 'Bearer',
           expires_in: ACCESS_TOKEN_TTL,
           refresh_token: refreshToken,
           scope: authCode.scopes.join(' '),
         };
+        if (authCode.scopes.includes('openid')) {
+          authRes.id_token = buildIdToken(authCode.user, oauthApp);
+        }
+        return authRes;
       }
 
       if (grant_type === 'client_credentials') {
@@ -866,13 +972,17 @@ export async function oauthRoutes(app: any, prefix = '') {
         });
         await tokenRepo.save(newToken);
 
-        return {
+        const refreshRes: Record<string, any> = {
           access_token: newAccessToken,
           token_type: 'Bearer',
           expires_in: ACCESS_TOKEN_TTL,
           refresh_token: newRefreshToken,
           scope: existing.scopes.join(' '),
         };
+        if (existing.scopes.includes('openid') && existing.user) {
+          refreshRes.id_token = buildIdToken(existing.user, oauthApp);
+        }
+        return refreshRes;
       }
 
       ctx.set.status = 400;
@@ -972,10 +1082,19 @@ export async function oauthRoutes(app: any, prefix = '') {
         out.avatarUrl = user.avatarUrl || null;
         out.portalType = user.portalType;
         out.role = user.role || null;
+        const uname = oauthPreferredUsername(user);
+        const full = [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
+        out.name = user.displayName || full || uname;
+        out.preferred_username = uname;
+        out.nickname = uname;
+        if (user.firstName) out.given_name = user.firstName;
+        if (user.lastName) out.family_name = user.lastName;
+        if (user.avatarUrl) out.picture = user.avatarUrl;
       }
       if (scopes.includes('email')) {
         out.email = user.email;
         out.emailVerified = user.emailVerified ?? false;
+        out.email_verified = user.emailVerified ?? false;
       }
       if (scopes.includes('orgs:read')) {
         const orgMemberRepo = AppDataSource.getRepository(

@@ -1,3 +1,4 @@
+"use client"
 import ScreenViewer from "@/components/office/ScreenViewer"
 
 export default async function ScreenSharePage({ params }: { params: Promise<{ token: string }> }) {

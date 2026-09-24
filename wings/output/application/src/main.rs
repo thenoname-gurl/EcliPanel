@@ -12,7 +12,10 @@ use russh::server::Server;
 use std::{
     fmt::Debug,
     net::SocketAddr,
-    sync::{Arc, OnceLock},
+    sync::{
+        Arc, LazyLock, OnceLock,
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+    },
     time::Instant,
 };
 use utoipa::openapi::security::{ApiKey, ApiKeyValue, SecurityScheme};
@@ -35,7 +38,10 @@ mod routes;
 mod server;
 mod ssh;
 mod stats;
+mod threading;
 mod tls;
+#[cfg(unix)]
+mod tundra;
 mod utils;
 
 use payload::Payload;
@@ -49,6 +55,8 @@ const TARGET: &str = env!("CARGO_TARGET");
 const BUFFER_SIZE: usize = 32 * 1024;
 /// 4 MiB - used for transfers
 const TRANSFER_BUFFER_SIZE: usize = 4 * 1024 * 1024;
+/// 4 KiB - used for WebSocket read buffer
+const WS_READ_BUFFER_SIZE: usize = 4 * 1024;
 
 fn full_version() -> String {
     if GIT_BRANCH == "unknown" {
@@ -164,6 +172,16 @@ macro_rules! exit_error {
 #[global_allocator]
 static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+const MALLOC_CONF: &std::ffi::CStr = c"background_thread:true,dirty_decay_ms:1000,muzzy_decay_ms:0,narenas:4,tcache_nslots_small_max:20,tcache_max:4096";
+
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+#[unsafe(export_name = "_rjem_malloc_conf")]
+static MALLOC_CONF_PTR: Option<&'static std::ffi::c_char> =
+    // SAFETY: MALLOC_CONF is a 'static nul-terminated C string, which is what
+    // jemalloc reads this symbol as during its initialization.
+    Some(unsafe { &*MALLOC_CONF.as_ptr() });
+
 fn handle_panic(err: Box<dyn std::any::Any + Send + 'static>) -> Response<Body> {
     let details = if let Some(s) = err.downcast_ref::<String>() {
         s.as_str()
@@ -180,13 +198,73 @@ fn handle_panic(err: Box<dyn std::any::Any + Send + 'static>) -> Response<Body> 
         .into_response()
 }
 
-async fn handle_request(req: Request<Body>, next: Next) -> Result<Response<Body>, StatusCode> {
-    tracing::info!(
-        path = req.uri().path(),
-        query = req.uri().query().unwrap_or_default(),
-        "http {}",
-        req.method().to_string().to_lowercase(),
-    );
+struct RequestLogBudget {
+    second: AtomicU64,
+    logged: AtomicUsize,
+    suppressed: AtomicU64,
+}
+
+impl RequestLogBudget {
+    fn take(&self, limit: usize) -> (bool, u64) {
+        static START: LazyLock<Instant> = LazyLock::new(Instant::now);
+
+        let now = START.elapsed().as_secs();
+        let second = self.second.load(Ordering::Relaxed);
+        let suppressed = if second != now
+            && self
+                .second
+                .compare_exchange(second, now, Ordering::AcqRel, Ordering::Relaxed)
+                .is_ok()
+        {
+            self.logged.store(0, Ordering::Relaxed);
+            self.suppressed.swap(0, Ordering::Relaxed)
+        } else {
+            0
+        };
+
+        if self.logged.fetch_add(1, Ordering::Relaxed) < limit {
+            (true, suppressed)
+        } else {
+            self.suppressed.fetch_add(1, Ordering::Relaxed);
+            (false, suppressed)
+        }
+    }
+}
+
+static REQUEST_LOG_BUDGET: RequestLogBudget = RequestLogBudget {
+    second: AtomicU64::new(0),
+    logged: AtomicUsize::new(0),
+    suppressed: AtomicU64::new(0),
+};
+
+async fn handle_request(
+    state: GetState,
+    req: Request<Body>,
+    next: Next,
+) -> Result<Response<Body>, StatusCode> {
+    let limit = state.config.load().api.request_log_limit;
+    let (log, suppressed) = if limit == 0 {
+        (true, 0)
+    } else {
+        REQUEST_LOG_BUDGET.take(limit)
+    };
+
+    if suppressed > 0 {
+        tracing::info!(
+            "suppressed {} http request log lines (api.request_log_limit = {})",
+            suppressed,
+            limit
+        );
+    }
+
+    if log {
+        tracing::info!(
+            path = req.uri().path(),
+            query = %crate::utils::redact_query(req.uri().query().unwrap_or_default()),
+            "http {}",
+            req.method().to_string().to_lowercase(),
+        );
+    }
 
     Ok(crate::response::ACCEPT_HEADER
         .scope(crate::response::accept_from_headers(req.headers()), async {
@@ -344,7 +422,7 @@ async fn main_rt() {
         let socket = sntpc_net_tokio::UdpSocketWrapper::from(socket);
         let context = sntpc::NtpContext::new(sntpc::StdTimestampGen::default());
 
-        let pool_ntp_addrs = tokio::net::lookup_host(("pool.ntp.org", 123))
+        let pool_ntp_addrs = crate::net::lookup_host("pool.ntp.org", 123)
             .await
             .context("failed to resolve pool.ntp.org")?;
 
@@ -402,9 +480,9 @@ async fn main_rt() {
     });
 
     tracing::info!("connecting to docker");
-    let docker = {
+    let (executor, docker) = {
         let config_ref = config.load();
-        Arc::new(
+        let docker = Arc::new(
             match if config_ref.docker.socket.starts_with("http://")
                 || config_ref.docker.socket.starts_with("tcp://")
             {
@@ -423,14 +501,22 @@ async fn main_rt() {
                 Ok(docker) => docker,
                 Err(err) => exit_error!("failed to connect to docker: {:?}", err),
             },
+        );
+
+        let own_container =
+            crate::server::executor::docker::DockerExecutor::own_container(&docker).await;
+        let firewall =
+            crate::server::firewall::create(&config, &docker, own_container.as_ref()).await;
+
+        (
+            Arc::new(crate::server::executor::docker::DockerExecutor::new(
+                Arc::clone(&docker),
+                config.clone(),
+                firewall,
+            )),
+            docker,
         )
     };
-    let executor = Arc::new(crate::server::executor::docker::DockerExecutor::new(
-        Arc::clone(&docker),
-        config.clone(),
-    ));
-
-    tracing::info!("running server executor boot tasks");
     if let Err(err) = executor.boot().await {
         exit_error!("failed to boot server executor: {:?}", err);
     }
@@ -456,6 +542,34 @@ async fn main_rt() {
         Err(err) => exit_error!("failed to fetch servers from remote: {:?}", err),
     };
 
+for attempt in 1..=3 {
+        match executor.reconcile_firewall(&servers).await {
+            Ok(()) => break,
+            Err(err) if attempt < 3 => {
+                tracing::warn!(
+                    "failed to reconcile server firewall rules, retrying: {:#}",
+                    err
+                );
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+            Err(err) => {
+                tracing::error!("failed to reconcile server firewall rules: {:#}", err);
+            }
+        }
+    }
+
+    #[cfg(unix)]
+    let tundra = if config.load().tundra.enabled {
+        match crate::tundra::TundraManager::create(&config, Arc::clone(&docker)) {
+            Ok(tundra) => Some(tundra),
+            Err(err) => exit_error!("failed to set up the tundra control plane: {:?}", err),
+        }
+    } else {
+        None
+    };
+    #[cfg(not(unix))]
+    let _ = docker;
+
     let detection_rules: Arc<tokio::sync::RwLock<Vec<crate::routes::DetectionRule>>> =
         Arc::new(tokio::sync::RwLock::new(vec![]));
 
@@ -474,12 +588,18 @@ async fn main_rt() {
         stats_manager: Arc::new(crate::stats::StatsManager::default()),
         server_manager: Arc::new(crate::server::manager::ServerManager::new(&servers)),
         backup_manager: Arc::new(crate::server::backup::manager::BackupManager::default()),
-        inotify_manager: Arc::new(
-            crate::server::filesystem::inotify::InotifyManager::new()
-                .expect("failed to initialize inotify manager"),
-        ),
-        mime_cache: moka::future::Cache::new(20480),
+        inotify_manager: Arc::new(crate::server::filesystem::inotify::InotifyManager::new()),
+        websocket_limiter: Arc::new(crate::server::websocket::limiter::WebsocketLimiter::new(
+            Arc::clone(&config),
+        )),
+        mime_cache: crate::routes::MimeCache::new(crate::routes::mime_cache_capacity(
+            config.load().api.directory_entry_limit,
+        )),
+        fingerprint_cache: crate::routes::FingerprintCache::default(),
+        listing_work: Arc::new(crate::server::filesystem::listing::ListingWork::default()),
         detection_rules: Arc::clone(&detection_rules),
+        #[cfg(unix)]
+        tundra,
     });
 
     // Start embedded anti-abuse detection engine
@@ -508,6 +628,21 @@ async fn main_rt() {
         }
     });
 
+    #[cfg(unix)]
+    if state.tundra.is_some() {
+        tokio::spawn({
+            let state = Arc::clone(&state);
+
+            async move {
+                if let Err(err) = crate::tundra::shim::serve(state).await {
+                    tracing::error!("the tundra control plane stopped: {:#}", err);
+                }
+            }
+        });
+
+        tokio::spawn(crate::tundra::run(Arc::clone(&state)));
+    }
+
     let app = OpenApiRouter::new()
         .merge(crate::routes::router(&state))
         .fallback(|state: GetState, req: Request| async move {
@@ -527,7 +662,10 @@ async fn main_rt() {
             state.clone(),
             handle_cors,
         ))
-        .layer(axum::middleware::from_fn(handle_request))
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            handle_request,
+        ))
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(
             handle_panic,
         ))
@@ -694,14 +832,22 @@ async fn main_rt() {
                     state.start_time.elapsed().as_millis()
                 );
 
-                match server.run_on_address(Arc::new(config), address).await {
-                    Ok(_) => {}
+                let listener = match tokio::net::TcpListener::bind(address).await {
+                    Ok(listener) => listener,
                     Err(err) => {
                         if err.kind() == std::io::ErrorKind::AddrInUse {
                             exit_error!("failed to start ssh server ({} already in use)", address);
                         } else {
                             exit_error!("failed to start ssh server: {:?}", err);
                         }
+                    }
+                };
+                crate::net::apply_socket_congestion_control(&listener, &state.config);
+
+                match server.run_on_socket(Arc::new(config), &listener).await {
+                    Ok(_) => {}
+                    Err(err) => {
+                        exit_error!("failed to start ssh server: {:?}", err);
                     }
                 }
             }
@@ -791,24 +937,59 @@ async fn main_rt() {
             tracing::info!("https listening on {}", address.to_string());
 
             #[cfg(target_os = "linux")]
-            let result = match ktls_ciphers {
-                Some(ciphers) => {
-                    axum_server::bind(address)
-                        .acceptor(crate::tls::KtlsAcceptor::new(rustls_config, ciphers))
-                        .serve(router.into_make_service_with_connect_info::<SocketAddr>())
-                        .await
-                }
-                None => {
-                    axum_server::bind_rustls(address, rustls_config)
-                        .serve(router.into_make_service_with_connect_info::<SocketAddr>())
-                        .await
+            let result = {
+                let listener = match std::net::TcpListener::bind(address)
+                    .and_then(|listener| listener.set_nonblocking(true).map(|()| listener))
+                {
+                    Ok(listener) => listener,
+                    Err(err) => {
+                        if err.kind() == std::io::ErrorKind::AddrInUse {
+                            exit_error!(
+                                "failed to start https server ({} already in use)",
+                                address
+                            );
+                        } else {
+                            exit_error!("failed to start https server: {:?}", err);
+                        }
+                    }
+                };
+                crate::net::apply_socket_congestion_control(&listener, &config);
+
+                match ktls_ciphers {
+                    Some(ciphers) => match axum_server::from_tcp(listener) {
+                        Ok(mut server) => {
+                            server.http_builder().http2().adaptive_window(true);
+
+                            server
+                                .acceptor(crate::tls::KtlsAcceptor::new(rustls_config, ciphers))
+                                .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+                                .await
+                        }
+                        Err(err) => exit_error!("failed to start https server: {:?}", err),
+                    },
+                    None => match axum_server::tls_rustls::from_tcp_rustls(listener, rustls_config)
+                    {
+                        Ok(mut server) => {
+                            server.http_builder().http2().adaptive_window(true);
+
+                            server
+                                .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+                                .await
+                        }
+                        Err(err) => exit_error!("failed to start https server: {:?}", err),
+                    },
                 }
             };
 
             #[cfg(not(target_os = "linux"))]
-            let result = axum_server::bind_rustls(address, rustls_config)
-                .serve(router.into_make_service_with_connect_info::<SocketAddr>())
-                .await;
+            let result = {
+                let mut server = axum_server::bind_rustls(address, rustls_config);
+                server.http_builder().http2().adaptive_window(true);
+
+                server
+                    .serve(router.into_make_service_with_connect_info::<SocketAddr>())
+                    .await
+            };
 
             match result {
                 Ok(_) => {}
@@ -823,17 +1004,20 @@ async fn main_rt() {
         } else {
             tracing::info!("http listening on {}", address.to_string());
 
-            match axum::serve(
-                match tokio::net::TcpListener::bind(address).await {
-                    Ok(listener) => listener,
-                    Err(err) => {
-                        if err.kind() == std::io::ErrorKind::AddrInUse {
-                            exit_error!("failed to start http server ({} already in use)", address);
-                        } else {
-                            exit_error!("failed to start http server: {:?}", err);
-                        }
+            let listener = match tokio::net::TcpListener::bind(address).await {
+                Ok(listener) => listener,
+                Err(err) => {
+                    if err.kind() == std::io::ErrorKind::AddrInUse {
+                        exit_error!("failed to start http server ({} already in use)", address);
+                    } else {
+                        exit_error!("failed to start http server: {:?}", err);
                     }
-                },
+                }
+            };
+            crate::net::apply_socket_congestion_control(&listener, &config);
+
+            match axum::serve(
+                listener,
                 router.into_make_service_with_connect_info::<SocketAddr>(),
             )
             .await
@@ -901,4 +1085,31 @@ fn main() {
         .build()
         .expect("failed to build Tokio runtime")
         .block_on(main_rt());
+}
+
+#[cfg(test)]
+mod tests {
+    #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+    #[test]
+    fn malloc_conf_is_applied() {
+        use tikv_jemalloc_ctl::raw;
+
+        // SAFETY: opt.narenas is a read-only unsigned int option.
+        let narenas: std::ffi::c_uint =
+            unsafe { raw::read(b"opt.narenas\0") }.expect("read opt.narenas");
+        assert_eq!(narenas, 4, "narenas from MALLOC_CONF was not applied");
+
+        // SAFETY: opt.background_thread is a read-only bool option.
+        let background: bool =
+            unsafe { raw::read(b"opt.background_thread\0") }.expect("read opt.background_thread");
+        assert!(
+            background,
+            "background_thread from MALLOC_CONF was not applied"
+        );
+
+        // SAFETY: opt.dirty_decay_ms is a read-only ssize_t option.
+        let dirty_decay: isize =
+            unsafe { raw::read(b"opt.dirty_decay_ms\0") }.expect("read opt.dirty_decay_ms");
+        assert_eq!(dirty_decay, 1000, "dirty_decay_ms was not applied");
+    }
 }

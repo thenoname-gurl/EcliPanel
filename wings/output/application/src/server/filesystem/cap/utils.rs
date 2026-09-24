@@ -1,7 +1,14 @@
-use crate::server::filesystem::virtualfs::IsIgnoredFn;
-use parking_lot::RwLock;
-use std::{collections::VecDeque, path::PathBuf, sync::Arc};
-use tokio::sync::Semaphore;
+use crate::server::filesystem::virtualfs::{DirectoryWalkFilterFn, IsIgnoredFn};
+use std::{
+    borrow::Cow,
+    collections::VecDeque,
+    path::PathBuf,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+};
+use tokio::{sync::Semaphore, task::JoinSet};
 
 #[derive(Clone, Copy, Debug)]
 pub enum FileType {
@@ -59,13 +66,13 @@ impl From<std::fs::FileType> for FileType {
     }
 }
 
-pub struct AsyncCapReadDir(
+pub struct AsyncReadDir(
     pub Option<cap_std::fs::ReadDir>,
-    pub Option<VecDeque<std::io::Result<(FileType, String)>>>,
+    pub Option<VecDeque<std::io::Result<cap_std::fs::DirEntry>>>,
 );
 
-impl AsyncCapReadDir {
-    async fn next_entry(&mut self) -> Option<std::io::Result<(FileType, String)>> {
+impl AsyncReadDir {
+    pub async fn next(&mut self) -> Option<std::io::Result<cap_std::fs::DirEntry>> {
         if let Some(buffer) = self.1.as_mut()
             && !buffer.is_empty()
         {
@@ -78,12 +85,7 @@ impl AsyncCapReadDir {
         match tokio::task::spawn_blocking(move || {
             for _ in 0..128 {
                 if let Some(entry) = read_dir.next() {
-                    buffer.push_back(entry.map(|e| {
-                        (
-                            e.file_type().map_or(FileType::Unknown, FileType::from),
-                            e.file_name().to_string_lossy().to_string(),
-                        )
-                    }));
+                    buffer.push_back(entry);
                 } else {
                     break;
                 }
@@ -102,80 +104,81 @@ impl AsyncCapReadDir {
             Err(_) => None,
         }
     }
-}
 
-pub struct AsyncTokioReadDir(pub tokio::fs::ReadDir);
-
-impl AsyncTokioReadDir {
-    async fn next_entry(&mut self) -> Option<std::io::Result<(FileType, String)>> {
-        match self.0.next_entry().await {
-            Ok(Some(entry)) => Some(Ok((
-                entry
-                    .file_type()
-                    .await
-                    .map_or(FileType::Unknown, FileType::from),
-                entry.file_name().to_string_lossy().to_string(),
-            ))),
-            Ok(None) => None,
-            Err(err) => Some(Err(err)),
-        }
-    }
-}
-
-pub enum AsyncReadDir {
-    Cap(AsyncCapReadDir),
-    Tokio(AsyncTokioReadDir),
-}
-
-impl AsyncReadDir {
     pub async fn next_entry(&mut self) -> Option<std::io::Result<(FileType, String)>> {
-        match self {
-            AsyncReadDir::Cap(read_dir) => read_dir.next_entry().await,
-            AsyncReadDir::Tokio(read_dir) => read_dir.next_entry().await,
-        }
+        Some(self.next().await?.map(|entry| name_and_type(&entry)))
     }
 }
 
-pub struct CapReadDir(pub cap_std::fs::ReadDir);
-
-impl CapReadDir {
-    pub fn next_entry(&mut self) -> Option<std::io::Result<(FileType, String)>> {
-        match self.0.next() {
-            Some(Ok(entry)) => Some(Ok((
-                entry.file_type().map_or(FileType::Unknown, FileType::from),
-                entry.file_name().to_string_lossy().to_string(),
-            ))),
-            Some(Err(err)) => Some(Err(err)),
-            None => None,
-        }
-    }
-}
-
-pub struct StdReadDir(pub std::fs::ReadDir);
-
-impl StdReadDir {
-    pub fn next_entry(&mut self) -> Option<std::io::Result<(FileType, String)>> {
-        match self.0.next() {
-            Some(Ok(entry)) => Some(Ok((
-                entry.file_type().map_or(FileType::Unknown, FileType::from),
-                entry.file_name().to_string_lossy().to_string(),
-            ))),
-            Some(Err(err)) => Some(Err(err)),
-            None => None,
-        }
-    }
-}
-
-pub enum ReadDir {
-    Cap(CapReadDir),
-    Std(StdReadDir),
-}
+pub struct ReadDir(pub cap_std::fs::ReadDir);
 
 impl ReadDir {
+    pub fn next(&mut self) -> Option<std::io::Result<cap_std::fs::DirEntry>> {
+        self.0.next()
+    }
+
     pub fn next_entry(&mut self) -> Option<std::io::Result<(FileType, String)>> {
-        match self {
-            ReadDir::Cap(read_dir) => read_dir.next_entry(),
-            ReadDir::Std(read_dir) => read_dir.next_entry(),
+        Some(self.next()?.map(|entry| name_and_type(&entry)))
+    }
+}
+
+pub fn name_and_type(entry: &cap_std::fs::DirEntry) -> (FileType, String) {
+    (
+        entry.file_type().map_or(FileType::Unknown, FileType::from),
+        entry
+            .file_name()
+            .into_string()
+            .unwrap_or_else(|name| name.to_string_lossy().into_owned()),
+    )
+}
+
+enum StatSource {
+    Entry(cap_std::fs::DirEntry),
+    Path(super::CapFilesystem),
+}
+
+pub struct WalkEntry {
+    pub path: PathBuf,
+    file_type: FileType,
+    source: StatSource,
+}
+
+impl WalkEntry {
+    #[inline]
+    pub fn file_type(&self) -> FileType {
+        self.file_type
+    }
+
+    #[allow(dead_code)]
+    pub fn name(&self) -> Cow<'_, str> {
+        match self.path.file_name() {
+            Some(name) => name.to_string_lossy(),
+            None => Cow::Borrowed(""),
+        }
+    }
+
+    pub fn metadata(&self) -> Result<cap_std::fs::Metadata, std::io::Error> {
+        match &self.source {
+            StatSource::Entry(entry) => entry.metadata(),
+            StatSource::Path(cap_filesystem) => cap_filesystem.symlink_metadata(&self.path),
+        }
+    }
+
+    /// Opens the entry for reading relative to the directory it was listed from,
+    /// which skips resolving the whole path from the sandbox root again.
+    pub fn open(&self) -> Result<std::fs::File, std::io::Error> {
+        match &self.source {
+            StatSource::Entry(entry) => Ok(entry.open()?.into_std()),
+            StatSource::Path(cap_filesystem) => cap_filesystem.open(&self.path),
+        }
+    }
+
+    pub async fn async_metadata(&self) -> Result<cap_std::fs::Metadata, std::io::Error> {
+        match &self.source {
+            StatSource::Entry(entry) => entry.metadata(),
+            StatSource::Path(cap_filesystem) => {
+                cap_filesystem.async_symlink_metadata(&self.path).await
+            }
         }
     }
 }
@@ -207,17 +210,20 @@ impl AsyncWalkDir {
         self
     }
 
+    /// Yields descendants before their directories. Multithreaded walks also wait
+    /// for descendant callbacks to finish before invoking a directory callback.
     #[allow(dead_code)]
     pub fn reversed(mut self) -> Self {
         self.reversed = true;
         self
     }
 
-    pub async fn next_entry(&mut self) -> Option<Result<(FileType, PathBuf), std::io::Error>> {
+    pub async fn next_entry(&mut self) -> Option<Result<WalkEntry, std::io::Error>> {
         'stack: while let Some((parent_path, read_dir)) = self.stack.last_mut() {
-            match read_dir.next_entry().await {
-                Some(Ok((file_type, name))) => {
-                    let full_path = parent_path.join(&name);
+            match read_dir.next().await {
+                Some(Ok(entry)) => {
+                    let file_type = entry.file_type().map_or(FileType::Unknown, FileType::from);
+                    let full_path = parent_path.join(entry.file_name());
 
                     let Some(full_path) = self.is_ignored.call_async(file_type, full_path).await
                     else {
@@ -235,14 +241,22 @@ impl AsyncWalkDir {
                         }
                     }
 
-                    return Some(Ok((file_type, full_path)));
+                    return Some(Ok(WalkEntry {
+                        path: full_path,
+                        file_type,
+                        source: StatSource::Entry(entry),
+                    }));
                 }
                 Some(Err(err)) => return Some(Err(err)),
                 None => {
                     let (path, _) = self.stack.pop()?;
 
                     if self.reversed && !self.stack.is_empty() {
-                        return Some(Ok((FileType::Dir, path)));
+                        return Some(Ok(WalkEntry {
+                            path,
+                            file_type: FileType::Dir,
+                            source: StatSource::Path(self.cap_filesystem.clone()),
+                        }));
                     }
                 }
             }
@@ -252,52 +266,108 @@ impl AsyncWalkDir {
     }
 
     pub async fn run_multithreaded<
-        F: Fn(FileType, PathBuf) -> Fut + Send + Sync + 'static,
+        F: Fn(WalkEntry) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<(), anyhow::Error>> + Send + 'static,
     >(
         &mut self,
         threads: usize,
         func: Arc<F>,
     ) -> Result<(), anyhow::Error> {
+        let threads = crate::threading::resolve_threads(threads);
         let semaphore = Arc::new(Semaphore::new(threads));
-        let error = Arc::new(RwLock::new(None));
+        let pending = Arc::new(Semaphore::new(if self.reversed {
+            crate::threading::WALK_IN_FLIGHT_LIMIT
+        } else {
+            threads
+        }));
+        let error = Arc::new(crate::threading::SharedError::new());
+        let mut tasks = vec![JoinSet::new()];
 
         while let Some(entry) = self.next_entry().await {
-            match entry {
-                Ok((file_type, path)) => {
-                    let semaphore = Arc::clone(&semaphore);
-                    let error = Arc::clone(&error);
-                    let func = Arc::clone(&func);
-
-                    if crate::unlikely(error.read().is_some()) {
-                        break;
-                    }
-
-                    let permit = match semaphore.acquire_owned().await {
-                        Ok(permit) => permit,
-                        Err(_) => break,
-                    };
-                    tokio::spawn(async move {
-                        let _permit = permit;
-                        match func(file_type, path).await {
-                            Ok(_) => {}
-                            Err(err) => {
-                                *error.write() = Some(err);
-                            }
-                        }
-                    });
-                }
-                Err(err) => return Err(err.into()),
+            if crate::unlikely(error.stopped()) {
+                break;
             }
+
+            let entry = match entry {
+                Ok(entry) => entry,
+                Err(err) => {
+                    error.fail(err.into());
+                    break;
+                }
+            };
+
+            let directory = self.reversed && entry.file_type.is_dir();
+            if self.reversed {
+                // a reversed directory entry has already been popped by next_entry
+                let depth = self.stack.len() + usize::from(directory);
+
+                while tasks.len() < depth {
+                    tasks.push(JoinSet::new());
+                }
+            }
+
+            let children = if directory {
+                tasks.pop().expect("completed directory has a task frame")
+            } else {
+                JoinSet::new()
+            };
+
+            let parent = tasks.last_mut().expect("walk root has a task frame");
+            while let Some(result) = parent.try_join_next() {
+                if let Err(err) = result {
+                    error.fail(err.into());
+                }
+            }
+
+            let permit = match Arc::clone(&pending).acquire_owned().await {
+                Ok(permit) => permit,
+                Err(_) => break,
+            };
+            let semaphore = Arc::clone(&semaphore);
+            let error = Arc::clone(&error);
+            let func = Arc::clone(&func);
+
+            parent.spawn(async move {
+                let _pending = permit;
+
+                finish_walk_tasks(children, &error).await;
+                if crate::unlikely(error.stopped()) {
+                    return;
+                }
+
+                let Ok(_permit) = semaphore.acquire_owned().await else {
+                    return;
+                };
+                if crate::unlikely(error.stopped()) {
+                    return;
+                }
+
+                if let Err(err) = func(entry).await {
+                    error.fail(err);
+                }
+            });
         }
 
-        semaphore.acquire_many(threads as u32).await.ok();
+        for tasks in tasks.into_iter().rev() {
+            finish_walk_tasks(tasks, &error).await;
+        }
 
-        if let Some(err) = error.write().take() {
+        if let Some(err) = error.take() {
             return Err(err);
         }
 
         Ok(())
+    }
+}
+
+async fn finish_walk_tasks(
+    mut tasks: JoinSet<()>,
+    error: &crate::threading::SharedError<anyhow::Error>,
+) {
+    while let Some(result) = tasks.join_next().await {
+        if let Err(err) = result {
+            error.fail(err.into());
+        }
     }
 }
 
@@ -328,16 +398,21 @@ impl WalkDir {
         self
     }
 
+    /// Yields descendants before their directories. Multithreaded walks also wait
+    /// for descendant callbacks to finish before invoking a directory callback.
+    /// Only the walker tests use it since `remove_dir_all` stopped walking.
+    #[cfg_attr(not(test), allow(dead_code))]
     pub fn reversed(mut self) -> Self {
         self.reversed = true;
         self
     }
 
-    pub fn next_entry(&mut self) -> Option<Result<(FileType, PathBuf), std::io::Error>> {
+    pub fn next_entry(&mut self) -> Option<Result<WalkEntry, std::io::Error>> {
         'stack: while let Some((parent_path, read_dir)) = self.stack.last_mut() {
-            match read_dir.next_entry() {
-                Some(Ok((file_type, name))) => {
-                    let full_path = parent_path.join(&name);
+            match read_dir.next() {
+                Some(Ok(entry)) => {
+                    let file_type = entry.file_type().map_or(FileType::Unknown, FileType::from);
+                    let full_path = parent_path.join(entry.file_name());
 
                     let Some(full_path) = (self.is_ignored)(file_type, full_path) else {
                         continue 'stack;
@@ -354,7 +429,11 @@ impl WalkDir {
                         }
                     }
 
-                    return Some(Ok((file_type, full_path)));
+                    return Some(Ok(WalkEntry {
+                        path: full_path,
+                        file_type,
+                        source: StatSource::Entry(entry),
+                    }));
                 }
                 Some(Err(err)) => {
                     return Some(Err(err));
@@ -363,7 +442,11 @@ impl WalkDir {
                     let (path, _) = self.stack.pop()?;
 
                     if self.reversed && !self.stack.is_empty() {
-                        return Some(Ok((FileType::Dir, path)));
+                        return Some(Ok(WalkEntry {
+                            path,
+                            file_type: FileType::Dir,
+                            source: StatSource::Path(self.cap_filesystem.clone()),
+                        }));
                     }
                 }
             }
@@ -373,50 +456,261 @@ impl WalkDir {
     }
 
     pub fn run_multithreaded<
-        F: Fn(FileType, PathBuf) -> Result<(), anyhow::Error> + Send + Sync + 'static,
+        F: Fn(WalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static,
     >(
         &mut self,
         threads: usize,
         func: Arc<F>,
     ) -> Result<(), anyhow::Error> {
-        let pool = rayon::ThreadPoolBuilder::new()
-            .num_threads(threads)
-            .build()?;
-        let error = Arc::new(RwLock::new(None));
+        self.run_multithreaded_filtered(threads, None, func)
+    }
 
-        pool.in_place_scope(|scope| {
-            while let Some(entry) = self.next_entry() {
-                match entry {
-                    Ok((file_type, path)) => {
-                        if crate::unlikely(error.read().is_some()) {
-                            break;
+    pub fn run_multithreaded_filtered<
+        F: Fn(WalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static,
+    >(
+        &mut self,
+        threads: usize,
+        filter: Option<DirectoryWalkFilterFn>,
+        func: Arc<F>,
+    ) -> Result<(), anyhow::Error> {
+        self.run_multithreaded_with_error_handler(threads, filter, func, |err| Err(err.into()))
+    }
+
+    pub(super) fn run_multithreaded_with_error_handler<
+        F: Fn(WalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static,
+        E: FnMut(std::io::Error) -> Result<(), anyhow::Error>,
+    >(
+        &mut self,
+        threads: usize,
+        filter: Option<DirectoryWalkFilterFn>,
+        func: Arc<F>,
+        mut on_error: E,
+    ) -> Result<(), anyhow::Error> {
+        let pool = crate::threading::build_pool(threads)?;
+        let error = Arc::new(crate::threading::SharedError::new());
+        let in_flight =
+            crate::threading::InFlightLimit::new(crate::threading::WALK_BATCHES_IN_FLIGHT);
+
+        loop {
+            let directory = pool.in_place_scope(|scope| {
+                let mut directory = None;
+                let mut batch = Vec::with_capacity(crate::threading::WALK_BATCH_SIZE);
+
+                while let Some(entry) = self.next_entry() {
+                    match entry {
+                        Ok(entry) => {
+                            if crate::unlikely(error.stopped()) {
+                                break;
+                            }
+
+                            if let Some(filter) = &filter
+                                && !filter(entry.file_type, &entry.path)
+                            {
+                                continue;
+                            }
+
+                            if self.reversed && entry.file_type.is_dir() {
+                                directory = Some(entry);
+                                break;
+                            }
+
+                            batch.push(entry);
+                            if batch.len() < crate::threading::WALK_BATCH_SIZE {
+                                continue;
+                            }
+
+                            let batch = std::mem::replace(
+                                &mut batch,
+                                Vec::with_capacity(crate::threading::WALK_BATCH_SIZE),
+                            );
+                            let permit = in_flight.acquire();
+
+                            crate::threading::spawn_walk_batch(
+                                scope,
+                                Arc::clone(&error),
+                                {
+                                    let func = Arc::clone(&func);
+                                    move |entry| func(entry)
+                                },
+                                permit,
+                                batch,
+                            );
                         }
-
-                        let error = Arc::clone(&error);
-                        let func = Arc::clone(&func);
-
-                        scope.spawn(move |_| {
-                            if crate::unlikely(error.read().is_some()) {
-                                return;
+                        Err(err) => {
+                            if let Err(err) = on_error(err) {
+                                error.fail(err);
+                                break;
                             }
-
-                            if let Err(err) = func(file_type, path) {
-                                *error.write() = Some(err);
-                            }
-                        });
-                    }
-                    Err(err) => {
-                        *error.write() = Some(err.into());
-                        break;
+                        }
                     }
                 }
+
+                if !batch.is_empty() {
+                    let permit = in_flight.acquire();
+
+                    crate::threading::spawn_walk_batch(
+                        scope,
+                        Arc::clone(&error),
+                        {
+                            let func = Arc::clone(&func);
+                            move |entry| func(entry)
+                        },
+                        permit,
+                        batch,
+                    );
+                }
+
+                directory
+            });
+
+            if let Some(err) = error.take() {
+                return Err(err);
             }
+
+            match directory {
+                Some(entry) => func(entry)?,
+                None => break,
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Reads directories as independent pool tasks instead of from one producer
+    /// thread. Entries arrive in no particular order; a directory that fails to
+    /// open fails the walk like the serial walker does. Only a fresh, pre-order
+    /// walker can be split this way, anything else takes the serial path.
+    pub fn run_parallel<F: Fn(WalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static>(
+        &mut self,
+        threads: usize,
+        filter: Option<DirectoryWalkFilterFn>,
+        func: Arc<F>,
+    ) -> Result<(), anyhow::Error> {
+        if self.reversed || self.stack.len() != 1 {
+            return self.run_multithreaded_filtered(threads, filter, func);
+        }
+
+        let (root, root_read_dir) = self.stack.pop().expect("stack holds the root");
+        let pool = crate::threading::build_pool(threads)?;
+        let context = ParallelWalkContext {
+            cap_filesystem: self.cap_filesystem.clone(),
+            is_ignored: self.is_ignored.clone(),
+            filter,
+            func,
+            error: crate::threading::SharedError::new(),
+            queued: AtomicUsize::new(0),
+        };
+
+        pool.in_place_scope(|scope| {
+            parallel_walk_visit(scope, &context, root, Some(root_read_dir));
         });
 
-        if let Some(err) = error.write().take() {
+        if let Some(err) = context.error.take() {
             return Err(err);
         }
 
         Ok(())
+    }
+}
+
+struct ParallelWalkContext<F> {
+    cap_filesystem: super::CapFilesystem,
+    is_ignored: IsIgnoredFn,
+    filter: Option<DirectoryWalkFilterFn>,
+    func: Arc<F>,
+    error: crate::threading::SharedError<anyhow::Error>,
+    queued: AtomicUsize,
+}
+
+impl<F: Fn(WalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static> ParallelWalkContext<F> {
+    fn process_batch(&self, batch: Vec<WalkEntry>) {
+        for entry in batch {
+            if crate::unlikely(self.error.stopped()) {
+                return;
+            }
+
+            if let Err(err) = (self.func)(entry) {
+                self.error.fail(err);
+                return;
+            }
+        }
+    }
+}
+
+fn parallel_walk_visit<'scope, F>(
+    scope: &rayon::Scope<'scope>,
+    context: &'scope ParallelWalkContext<F>,
+    path: PathBuf,
+    read_dir: Option<ReadDir>,
+) where
+    F: Fn(WalkEntry) -> Result<(), anyhow::Error> + Send + Sync + 'static,
+{
+    if context.error.stopped() {
+        return;
+    }
+
+    let mut read_dir = match read_dir {
+        Some(read_dir) => read_dir,
+        None => match context.cap_filesystem.read_dir(&path) {
+            Ok(read_dir) => read_dir,
+            Err(err) => return context.error.fail(err.into()),
+        },
+    };
+    let queue_limit = crate::threading::WALK_BATCHES_IN_FLIGHT;
+    let mut batch = Vec::with_capacity(crate::threading::WALK_BATCH_SIZE);
+
+    while let Some(entry) = read_dir.next() {
+        if context.error.stopped() {
+            return;
+        }
+
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(err) => return context.error.fail(err.into()),
+        };
+        let file_type = entry.file_type().map_or(FileType::Unknown, FileType::from);
+        let full_path = path.join(entry.file_name());
+
+        let Some(full_path) = (context.is_ignored)(file_type, full_path) else {
+            continue;
+        };
+
+        if file_type.is_dir() {
+            let child = full_path.clone();
+            scope.spawn(move |scope| parallel_walk_visit(scope, context, child, None));
+        }
+
+        if let Some(filter) = &context.filter
+            && !filter(file_type, &full_path)
+        {
+            continue;
+        }
+
+        batch.push(WalkEntry {
+            path: full_path,
+            file_type,
+            source: StatSource::Entry(entry),
+        });
+        if batch.len() < crate::threading::WALK_BATCH_SIZE {
+            continue;
+        }
+
+        let batch = std::mem::replace(
+            &mut batch,
+            Vec::with_capacity(crate::threading::WALK_BATCH_SIZE),
+        );
+        if context.queued.load(Ordering::Relaxed) < queue_limit {
+            context.queued.fetch_add(1, Ordering::Relaxed);
+            scope.spawn(move |_| {
+                context.process_batch(batch);
+                context.queued.fetch_sub(1, Ordering::Relaxed);
+            });
+        } else {
+            context.process_batch(batch);
+        }
+    }
+
+    if !batch.is_empty() {
+        context.process_batch(batch);
     }
 }

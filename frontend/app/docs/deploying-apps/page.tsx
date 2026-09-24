@@ -1,3 +1,4 @@
+"use client"
 import { Md } from "../_components/md";
 
 const content = `

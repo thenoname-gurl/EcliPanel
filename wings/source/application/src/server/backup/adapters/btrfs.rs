@@ -2,7 +2,10 @@ use crate::{
     remote::backups::RawServerBackup,
     response::ApiResponse,
     server::{
-        backup::{Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt},
+        backup::{
+            Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt, BackupStream,
+            BackupStreamCreateExt, BackupStreamExt, DumpReader,
+        },
         filesystem::{
             archive::StreamableArchiveFormat,
             virtualfs::{ByteRange, VirtualReadableFilesystem},
@@ -202,7 +205,7 @@ impl BtrfsBackup {
         state: &crate::routes::State,
         archive_format: StreamableArchiveFormat,
         compression_level: crate::io::compression::CompressionLevel,
-    ) -> Result<crate::io::fallible_reader::FallibleSimplexReader, anyhow::Error> {
+    ) -> Result<crate::io::fallible_reader::FalliblePipeReader, anyhow::Error> {
         let subvolume_path = Self::get_subvolume_path(&state.config, self.uuid);
 
         if tokio::fs::metadata(&subvolume_path).await.is_err() {
@@ -218,11 +221,11 @@ impl BtrfsBackup {
         let ignore = Self::get_ignore(&state.config, self.uuid).await?;
         let threads = state.config.load().api.file_compression_threads;
 
-        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
         let (reader, signal) = crate::io::fallible_reader::FallibleReader::new(reader);
 
         tokio::spawn(async move {
-            let writer = tokio_util::io::SyncIoBridge::new(writer);
+            let writer = writer.into_sync();
 
             let result = match archive_format {
                 StreamableArchiveFormat::Zip => {
@@ -235,6 +238,7 @@ impl BtrfsBackup {
                         ignore.into(),
                         crate::server::filesystem::archive::create::CreateZipOptions {
                             compression_level,
+                            threads,
                         },
                     )
                     .await
@@ -348,8 +352,8 @@ impl BackupCreateExt for BtrfsBackup {
                         .with_is_ignored(ignore.into());
                     let mut total_size = 0;
                     let mut total_files = 0;
-                    while let Some(Ok((_, path))) = walker.next_entry() {
-                        let metadata = match filesystem.symlink_metadata(&path) {
+                    while let Some(Ok(entry)) = walker.next_entry() {
+                        let metadata = match entry.metadata() {
                             Ok(metadata) => metadata,
                             Err(_) => continue,
                         };
@@ -520,20 +524,22 @@ impl BackupExt for BtrfsBackup {
             let ignore = ignore.clone();
 
             async move {
-                let mut walker = filesystem
-                    .async_walk_dir(&PathBuf::from(""))
-                    .await?
-                    .with_is_ignored(ignore.into());
-                while let Some(Ok((_, path))) = walker.next_entry().await {
-                    let metadata = match filesystem.async_symlink_metadata(&path).await {
-                        Ok(metadata) => metadata,
-                        Err(_) => continue,
-                    };
+                tokio::task::spawn_blocking(move || {
+                    let mut walker = filesystem
+                        .walk_dir(Path::new(""))?
+                        .with_is_ignored(ignore.into());
+                    while let Some(Ok(entry)) = walker.next_entry() {
+                        let metadata = match entry.metadata() {
+                            Ok(metadata) => metadata,
+                            Err(_) => continue,
+                        };
 
-                    total.fetch_add(metadata.len(), Ordering::Relaxed);
-                }
+                        total.fetch_add(metadata.len(), Ordering::Relaxed);
+                    }
 
-                Ok::<(), anyhow::Error>(())
+                    Ok::<(), anyhow::Error>(())
+                })
+                .await?
             }
         };
 
@@ -550,17 +556,17 @@ impl BackupExt for BtrfsBackup {
                         let filesystem = filesystem.clone();
                         let progress = progress.clone();
 
-                        move |_, path: PathBuf| {
+                        move |entry: crate::server::filesystem::cap::WalkEntry| {
                             let server = server.clone();
                             let filesystem = filesystem.clone();
                             let progress = progress.clone();
 
                             async move {
-                                let metadata =
-                                    match filesystem.async_symlink_metadata(&path).await {
-                                        Ok(metadata) => metadata,
-                                        Err(_) => return Ok(()),
-                                    };
+                                let metadata = match entry.async_metadata().await {
+                                    Ok(metadata) => metadata,
+                                    Err(_) => return Ok(()),
+                                };
+                                let path = entry.path;
 
                                 if metadata.is_file() {
                                     server.log_daemon(compact_str::format_compact!("(restoring): {}", path.display()));
@@ -569,7 +575,7 @@ impl BackupExt for BtrfsBackup {
                                         server.filesystem.async_create_dir_all(parent).await?;
                                     }
 
-                                    filesystem.async_quota_copy(&path, &path, &server, progress.clone_bytes().as_ref()).await?;
+                                    filesystem.async_quota_copy(&path, &path, &server, None, progress.clone_bytes().as_ref()).await?;
                                     progress.increment_files();
                                 } else if metadata.is_dir() {
                                     server.filesystem.async_create_dir_all(&path).await?;
@@ -698,6 +704,31 @@ impl BackupExt for BtrfsBackup {
                 .get_virtual(server.clone())
                 .with_is_ignored(ignore.into()),
         ))
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamCreateExt for BtrfsBackup {
+    async fn create_from_stream(
+        _state: &crate::routes::State,
+        _uuid: uuid::Uuid,
+        _extension: &str,
+        _reader: DumpReader,
+    ) -> Result<RawServerBackup, anyhow::Error> {
+        Err(anyhow::anyhow!(
+            "btrfs backups snapshot the server dataset and cannot store database dumps"
+        ))
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamExt for BtrfsBackup {
+    async fn read_stream(
+        &self,
+        _state: &crate::routes::State,
+        _download_url: Option<compact_str::CompactString>,
+    ) -> Result<BackupStream, anyhow::Error> {
+        Err(anyhow::anyhow!("btrfs backups do not store database dumps"))
     }
 }
 

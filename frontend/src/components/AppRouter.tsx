@@ -1,9 +1,11 @@
 "use client";
 
-import React, { Suspense } from "react";
+import React, { Suspense, lazy } from "react";
 import { usePathname } from "@/components/shims/navigation";
 import { RouteSkeleton } from "@/components/ui/route-skeleton";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const DocsLayout = lazy(() => import("../../app/docs/layout"));
 
 type Loader = () => Promise<{ default: React.ComponentType<any> }>;
 type RouteMatch = { loader: Loader; params: Record<string, string> };
@@ -36,6 +38,7 @@ const staticRoutes: Record<string, Loader> = {
   "/docs/eclipanel": () => import("@/app/docs/eclipanel/page"),
   "/docs/elo": () => import("@/app/docs/elo/page"),
   "/docs/blog-handbook": () => import("@/app/docs/blog-handbook/page"),
+  "/docs/tunnels": () => import("@/app/docs/tunnels/page"),
   "/legal": () => import("@/app/legal/page"),
   "/legal/privacy-policy": () => import("@/app/legal/privacy-policy/page"),
   "/legal/terms-of-service": () => import("@/app/legal/terms-of-service/page"),
@@ -169,8 +172,11 @@ export default function AppRouter({ serverPathname }: { serverPathname?: string 
       return <Suspense fallback={<Loading />}><LazyLayout>{children}</LazyLayout></Suspense>;
     }
     if (isDocs) {
-      const LazyLayout = React.lazy(() => import("@/app/docs/layout"));
-      return <Suspense fallback={<PublicLoading />}><LazyLayout>{children}</LazyLayout></Suspense>;
+      return (
+        <Suspense fallback={<PublicLoading />}>
+          <DocsLayout>{children}</DocsLayout>
+        </Suspense>
+      );
     }
     return <>{children}</>;
   }

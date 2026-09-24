@@ -32,6 +32,20 @@ pub fn draw_progress_bar(width: usize, current: f64, total: f64) -> String {
     format!("[{bar}] {formatted_percentage}")
 }
 
+#[inline]
+pub fn slice_up_to(s: &str, max_len: usize) -> &str {
+    if max_len >= s.len() || s.is_empty() {
+        return s;
+    }
+
+    let mut idx = max_len;
+    while !s.is_char_boundary(idx) {
+        idx -= 1;
+    }
+
+    s.get(..idx).unwrap_or(s)
+}
+
 pub fn is_single_component_file_name(name: &str) -> bool {
     let mut components = Path::new(name).components();
 
@@ -205,6 +219,60 @@ pub fn strip_paths(value: &mut serde_json::Value, paths: &[&str]) {
             }
         }
     }
+}
+
+const SENSITIVE_QUERY_KEY_PARTS: [&str; 6] = [
+    "token",
+    "secret",
+    "password",
+    "key",
+    "signature",
+    "credential",
+];
+const SENSITIVE_QUERY_KEYS: [&str; 2] = ["code", "data"];
+
+fn contains_ignore_ascii_case(haystack: &str, needle: &str) -> bool {
+    haystack
+        .as_bytes()
+        .windows(needle.len())
+        .any(|window| window.eq_ignore_ascii_case(needle.as_bytes()))
+}
+
+fn is_sensitive_query_key(key: &str) -> bool {
+    SENSITIVE_QUERY_KEYS
+        .iter()
+        .any(|sensitive| key.eq_ignore_ascii_case(sensitive))
+        || SENSITIVE_QUERY_KEY_PARTS
+            .iter()
+            .any(|part| contains_ignore_ascii_case(key, part))
+}
+
+pub fn redact_query(query: &str) -> std::borrow::Cow<'_, str> {
+    fn is_sensitive_pair(pair: &str) -> bool {
+        pair.split_once('=')
+            .is_some_and(|(key, _)| is_sensitive_query_key(key))
+    }
+
+    if !query.split('&').any(is_sensitive_pair) {
+        return std::borrow::Cow::Borrowed(query);
+    }
+
+    let mut redacted = String::with_capacity(query.len());
+    for (index, pair) in query.split('&').enumerate() {
+        if index > 0 {
+            redacted.push('&');
+        }
+
+        match pair.split_once('=') {
+            Some((key, _)) if is_sensitive_query_key(key) => {
+                redacted.push_str(key);
+                redacted.push_str("=<redacted>");
+            }
+            _ => redacted.push_str(pair),
+        }
+    }
+
+    std::borrow::Cow::Owned(redacted)
 }
 
 pub(crate) trait IntoMode {
@@ -428,9 +496,16 @@ pub trait CmpExt {
 
 impl CmpExt for str {
     fn cmp_ascii_case_insensitive(&self, other: &Self) -> std::cmp::Ordering {
-        self.bytes()
-            .map(|b| b.to_ascii_lowercase())
-            .cmp(other.bytes().map(|b| b.to_ascii_lowercase()))
+        let (a, b) = (self.as_bytes(), other.as_bytes());
+
+        for (x, y) in a.iter().zip(b) {
+            let (x, y) = (x.to_ascii_lowercase(), y.to_ascii_lowercase());
+            if x != y {
+                return x.cmp(&y);
+            }
+        }
+
+        a.len().cmp(&b.len())
     }
 }
 
@@ -448,6 +523,29 @@ impl CmpExt for Path {
                     .map(|b| b.to_ascii_lowercase()),
             )
     }
+}
+
+#[cfg(target_os = "linux")]
+pub fn process_memory_usage() -> Option<u64> {
+    let status = std::fs::read_to_string("/proc/self/status").ok()?;
+
+    status
+        .lines()
+        .find_map(|line| line.strip_prefix("RssAnon:"))
+        .and_then(|value| {
+            value
+                .trim()
+                .trim_end_matches("kB")
+                .trim()
+                .parse::<u64>()
+                .ok()
+        })
+        .map(|kib| kib * 1024)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn process_memory_usage() -> Option<u64> {
+    None
 }
 
 #[cfg(test)]
@@ -732,5 +830,62 @@ mod tests {
             Path::new("a").cmp_ascii_case_insensitive(Path::new("B")),
             Ordering::Less,
         );
+    }
+
+    // redact_query
+
+    #[test]
+    fn redact_query_leaves_harmless_queries_borrowed() {
+        let query = "directory=%2F&ignored=&per_page=100&page=1";
+
+        assert!(matches!(redact_query(query), std::borrow::Cow::Borrowed(_)));
+        assert_eq!(redact_query(query), query);
+        assert_eq!(redact_query(""), "");
+    }
+
+    #[test]
+    fn redact_query_redacts_the_download_and_upload_tokens() {
+        assert_eq!(
+            redact_query(
+                "token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzY29wZSI6ImJhY2t1cC1kb3dubG9hZCJ9.sig"
+            ),
+            "token=<redacted>"
+        );
+        assert_eq!(
+            redact_query("token=eyJ0eXAi.eyJzY29wZSJ9.sig&archive_format=tar_gz"),
+            "token=<redacted>&archive_format=tar_gz"
+        );
+    }
+
+    #[test]
+    fn redact_query_redacts_the_password_reset_and_oauth_parameters() {
+        assert_eq!(
+            redact_query("token=6RnJvbTNoZVNoYWRvd3NPZlRoZURlZXBXZUNhbGxUb1RoZWU"),
+            "token=<redacted>"
+        );
+        assert_eq!(
+            redact_query("code=abc123&state=xyz"),
+            "code=<redacted>&state=xyz"
+        );
+        assert_eq!(redact_query("data=eyJ1c2VyIjp7fX0="), "data=<redacted>");
+    }
+
+    #[test]
+    fn redact_query_matches_keys_case_insensitively_and_by_substring() {
+        assert_eq!(redact_query("Token=abc"), "Token=<redacted>");
+        assert_eq!(redact_query("access_token=abc"), "access_token=<redacted>");
+        assert_eq!(redact_query("api_key=abc"), "api_key=<redacted>");
+        assert_eq!(
+            redact_query("X-Amz-Signature=abc&X-Amz-Credential=def&X-Amz-Date=20260825T000000Z"),
+            "X-Amz-Signature=<redacted>&X-Amz-Credential=<redacted>&X-Amz-Date=20260825T000000Z"
+        );
+    }
+
+    #[test]
+    fn redact_query_keeps_valueless_and_malformed_pairs_intact() {
+        assert_eq!(redact_query("token"), "token");
+        assert_eq!(redact_query("token="), "token=<redacted>");
+        assert_eq!(redact_query("&&"), "&&");
+        assert_eq!(redact_query("token=a=b&x=1"), "token=<redacted>&x=1");
     }
 }

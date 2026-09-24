@@ -8,7 +8,7 @@ use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap},
     fs::File,
-    io::BufRead,
+    io::{BufRead, BufWriter, IsTerminal},
     path::{Path, PathBuf},
     str::FromStr,
     sync::Arc,
@@ -37,14 +37,23 @@ fn api_server_remote_download_limit() -> usize {
 fn api_remote_download_blocked_cidrs() -> Vec<cidr::IpCidr> {
     unsafe {
         Vec::from([
+            cidr::IpCidr::from_str("0.0.0.0/8").unwrap_unchecked(),
             cidr::IpCidr::from_str("127.0.0.0/8").unwrap_unchecked(),
             cidr::IpCidr::from_str("10.0.0.0/8").unwrap_unchecked(),
+            cidr::IpCidr::from_str("100.64.0.0/10").unwrap_unchecked(),
             cidr::IpCidr::from_str("172.16.0.0/12").unwrap_unchecked(),
             cidr::IpCidr::from_str("192.168.0.0/16").unwrap_unchecked(),
             cidr::IpCidr::from_str("169.254.0.0/16").unwrap_unchecked(),
+            cidr::IpCidr::from_str("192.0.0.0/24").unwrap_unchecked(),
+            cidr::IpCidr::from_str("198.18.0.0/15").unwrap_unchecked(),
+            cidr::IpCidr::from_str("224.0.0.0/4").unwrap_unchecked(),
+            cidr::IpCidr::from_str("240.0.0.0/4").unwrap_unchecked(),
+            cidr::IpCidr::from_str("::/128").unwrap_unchecked(),
             cidr::IpCidr::from_str("::1/128").unwrap_unchecked(),
             cidr::IpCidr::from_str("fe80::/10").unwrap_unchecked(),
             cidr::IpCidr::from_str("fc00::/7").unwrap_unchecked(),
+            cidr::IpCidr::from_str("2002::/16").unwrap_unchecked(),
+            cidr::IpCidr::from_str("ff00::/8").unwrap_unchecked(),
         ])
     }
 }
@@ -61,9 +70,16 @@ fn api_schedule_steps_http_request_blocked_cidrs() -> Vec<cidr::IpCidr> {
             cidr::IpCidr::from_str("172.16.0.0/12").unwrap_unchecked(),
             cidr::IpCidr::from_str("192.168.0.0/16").unwrap_unchecked(),
             cidr::IpCidr::from_str("169.254.0.0/16").unwrap_unchecked(),
+            cidr::IpCidr::from_str("192.0.0.0/24").unwrap_unchecked(),
+            cidr::IpCidr::from_str("198.18.0.0/15").unwrap_unchecked(),
+            cidr::IpCidr::from_str("224.0.0.0/4").unwrap_unchecked(),
+            cidr::IpCidr::from_str("240.0.0.0/4").unwrap_unchecked(),
+            cidr::IpCidr::from_str("::/128").unwrap_unchecked(),
             cidr::IpCidr::from_str("::1/128").unwrap_unchecked(),
             cidr::IpCidr::from_str("fe80::/10").unwrap_unchecked(),
             cidr::IpCidr::from_str("fc00::/7").unwrap_unchecked(),
+            cidr::IpCidr::from_str("2002::/16").unwrap_unchecked(),
+            cidr::IpCidr::from_str("ff00::/8").unwrap_unchecked(),
         ])
     }
 }
@@ -73,8 +89,6 @@ fn api_schedule_steps_http_request_requests() -> u32 {
 fn api_schedule_steps_http_request_window_seconds() -> u64 {
     60
 }
-/// Kept at or below [`crate::server::schedule::MAX_VARIABLE_SIZE`], since a
-/// captured body larger than a variable may hold would fail the step outright.
 fn api_schedule_steps_http_request_max_response_size() -> usize {
     16 * 1024
 }
@@ -84,20 +98,35 @@ fn api_directory_entry_limit() -> usize {
 fn api_file_search_threads() -> usize {
     4
 }
+fn api_file_search_context_max_matches() -> usize {
+    100
+}
+fn api_file_search_context_max_response_size() -> u64 {
+    8 * 1024 * 1024
+}
 fn api_file_copy_threads() -> usize {
     4
 }
-fn api_file_decompression_threads() -> usize {
+fn api_file_delete_threads() -> usize {
     2
+}
+fn api_file_decompression_threads() -> usize {
+    4
 }
 fn api_file_compression_threads() -> usize {
     2
+}
+fn api_file_fingerprint_threads() -> usize {
+    4
 }
 fn api_upload_limit() -> MiB {
     100u64.into()
 }
 fn api_max_jwt_uses() -> usize {
     5
+}
+fn api_request_log_limit() -> usize {
+    250
 }
 
 fn system_root_directory() -> SystemPath {
@@ -222,6 +251,9 @@ fn system_activity_send_interval() -> u64 {
 fn system_activity_send_count() -> usize {
     100
 }
+fn system_tcp_congestion_control() -> String {
+    "bbr".to_string()
+}
 fn system_check_permissions_on_boot() -> bool {
     true
 }
@@ -336,6 +368,25 @@ fn system_file_collaboration_max_cursors_per_connection() -> u64 {
 }
 fn system_file_collaboration_session_grace_period() -> u64 {
     30
+}
+
+fn system_websocket_max_message_size() -> u64 {
+    1024 * 1024
+}
+fn system_websocket_max_frame_size() -> u64 {
+    1024 * 1024
+}
+fn system_websocket_read_buffer_size() -> u64 {
+    8 * 1024
+}
+fn system_websocket_authentication_timeout() -> u64 {
+    60
+}
+fn system_websocket_unauthenticated_connections_per_ip() -> usize {
+    32
+}
+fn system_websocket_max_connections_total() -> usize {
+    0
 }
 
 fn system_backup_mounting_enabled() -> bool {
@@ -471,6 +522,13 @@ fn docker_network_interfaces_v6_gateway() -> String {
     "fdba:17c8:6c94::1011".to_string()
 }
 
+fn docker_firewall_source_file_max_entries() -> u64 {
+    10000
+}
+fn docker_firewall_source_file_max_bytes() -> u64 {
+    1024 * 1024
+}
+
 fn docker_registry_image_fetch_cache_enabled() -> bool {
     true
 }
@@ -478,14 +536,50 @@ fn docker_registry_image_fetch_cache_duration() -> u64 {
     5 * 60
 }
 
-fn docker_tmpfs_size() -> u64 {
-    100
+fn docker_tmpfs_size() -> MiB {
+    100u64.into()
 }
 fn docker_container_pid_limit() -> u64 {
     5120
 }
 fn docker_container_apply_seccomp() -> bool {
     true
+}
+fn docker_numa_memory_binding() -> bool {
+    true
+}
+fn docker_cpu_period() -> u64 {
+    100000
+}
+fn docker_cfs_burst_enabled() -> bool {
+    true
+}
+fn docker_cfs_burst_multiple() -> f64 {
+    1.0
+}
+pub(crate) fn docker_startup_boost_timeout() -> u64 {
+    120
+}
+fn docker_startup_boost_max_concurrent() -> u64 {
+    3
+}
+pub(crate) fn docker_runtime_boost_threshold() -> u64 {
+    90
+}
+pub(crate) fn docker_runtime_boost_sustained() -> u64 {
+    10
+}
+pub(crate) fn docker_runtime_boost_multiple() -> f64 {
+    2.0
+}
+pub(crate) fn docker_runtime_boost_duration() -> u64 {
+    60
+}
+pub(crate) fn docker_runtime_boost_cooldown() -> u64 {
+    300
+}
+fn docker_runtime_boost_max_concurrent() -> u64 {
+    3
 }
 
 fn docker_installer_limits_timeout() -> u64 {
@@ -522,6 +616,29 @@ fn throttles_lines() -> u64 {
 }
 fn throttles_line_reset_interval() -> u64 {
     100
+}
+
+fn tundra_data_directory() -> SystemPath {
+    #[cfg(unix)]
+    {
+        SystemPath::new("{root_directory}/tundra")
+    }
+    #[cfg(windows)]
+    {
+        SystemPath::new("{root_directory}\\tundra")
+    }
+}
+fn tundra_enabled() -> bool {
+    true
+}
+fn tundra_image() -> String {
+    "debian:trixie-slim".to_string()
+}
+fn tundra_source_image() -> String {
+    "ghcr.io/calagopus/tundra:latest".to_string()
+}
+fn tundra_metrics_port() -> u16 {
+    7101
 }
 
 fn remote_query_timeout() -> u64 {
@@ -657,16 +774,30 @@ nestify::nest! {
             pub send_offline_server_logs: bool,
             #[serde(default = "api_file_search_threads")]
             pub file_search_threads: usize,
+            #[serde(default)]
+            #[schema(inline)]
+            pub file_search_context: #[derive(Clone, Copy, ToSchema, Deserialize, Serialize, DefaultFromSerde)] #[serde(default)] pub struct ApiFileSearchContext {
+                #[serde(default = "api_file_search_context_max_matches")]
+                pub max_matches: usize,
+                #[serde(default = "api_file_search_context_max_response_size")]
+                pub max_response_size: u64,
+            },
             #[serde(default = "api_file_copy_threads")]
             pub file_copy_threads: usize,
+            #[serde(default = "api_file_delete_threads")]
+            pub file_delete_threads: usize,
             #[serde(default = "api_file_decompression_threads")]
             pub file_decompression_threads: usize,
             #[serde(default = "api_file_compression_threads")]
             pub file_compression_threads: usize,
+            #[serde(default = "api_file_fingerprint_threads")]
+            pub file_fingerprint_threads: usize,
             #[serde(default = "api_upload_limit")]
             pub upload_limit: MiB,
             #[serde(default = "api_max_jwt_uses")]
             pub max_jwt_uses: usize,
+            #[serde(default = "api_request_log_limit")]
+            pub request_log_limit: usize,
             #[serde(default)]
             #[schema(value_type = Vec<String>)]
             pub trusted_proxies: Vec<cidr::IpCidr>,
@@ -781,6 +912,8 @@ nestify::nest! {
             pub check_permissions_on_boot_threads: usize,
             #[serde(default = "system_websocket_log_count")]
             pub websocket_log_count: usize,
+            #[serde(default = "system_tcp_congestion_control")]
+            pub tcp_congestion_control: String,
 
             #[serde(default)]
             #[schema(inline)]
@@ -906,6 +1039,25 @@ nestify::nest! {
 
                 #[serde(default = "system_file_collaboration_session_grace_period")]
                 pub session_grace_period: u64,
+            },
+
+            #[serde(default)]
+            #[schema(inline)]
+            pub websocket: #[derive(ToSchema, Deserialize, Serialize, DefaultFromSerde)] #[serde(default)] pub struct SystemWebsocket {
+                #[serde(default = "system_websocket_max_message_size")]
+                pub max_message_size: u64,
+                #[serde(default = "system_websocket_max_frame_size")]
+                pub max_frame_size: u64,
+                #[serde(default = "system_websocket_read_buffer_size")]
+                pub read_buffer_size: u64,
+
+                #[serde(default = "system_websocket_authentication_timeout")]
+                pub authentication_timeout: u64,
+
+                #[serde(default = "system_websocket_unauthenticated_connections_per_ip")]
+                pub unauthenticated_connections_per_ip: usize,
+                #[serde(default = "system_websocket_max_connections_total")]
+                pub max_connections_total: usize,
             },
 
             #[serde(default)]
@@ -1072,6 +1224,17 @@ nestify::nest! {
             },
 
             #[serde(default)]
+            #[schema(inline)]
+            pub firewall: #[derive(ToSchema, Deserialize, Serialize, DefaultFromSerde)] #[serde(default)] pub struct DockerFirewall {
+                #[serde(default)]
+                pub backend: crate::server::firewall::FirewallBackendKind,
+                #[serde(default = "docker_firewall_source_file_max_entries")]
+                pub source_file_max_entries: u64,
+                #[serde(default = "docker_firewall_source_file_max_bytes")]
+                pub source_file_max_bytes: u64,
+            },
+
+            #[serde(default)]
             pub domainname: String,
             #[serde(default)]
             #[schema(inline)]
@@ -1086,14 +1249,74 @@ nestify::nest! {
                 pub enabled: bool,
                 #[serde(default = "docker_registry_image_fetch_cache_duration")]
                 pub duration: u64,
+                #[serde(default)]
+                pub background_refresh: bool,
             },
 
             #[serde(default = "docker_tmpfs_size")]
-            pub tmpfs_size: u64,
+            pub tmpfs_size: MiB,
+            #[serde(default)]
+            pub shm_size: MiB,
             #[serde(default = "docker_container_pid_limit")]
             pub container_pid_limit: u64,
             #[serde(default = "docker_container_apply_seccomp")]
             pub container_apply_seccomp: bool,
+            #[serde(default)]
+            pub container_apparmor_profile: String,
+            #[serde(default)]
+            #[schema(inline)]
+            pub container_ulimits: Vec<#[derive(Clone, ToSchema, Deserialize, Serialize)] pub struct DockerUlimit {
+                pub name: String,
+                pub soft: i64,
+                pub hard: i64,
+            }>,
+            #[serde(default)]
+            pub container_sysctls: HashMap<String, String>,
+            #[serde(default = "docker_numa_memory_binding")]
+            pub numa_memory_binding: bool,
+
+            #[serde(default = "docker_cpu_period")]
+            pub cpu_period: u64,
+
+            #[serde(default)]
+            #[schema(inline)]
+            pub cfs_burst: #[derive(Clone, Copy, ToSchema, Deserialize, Serialize, DefaultFromSerde)] #[serde(default)] pub struct DockerCfsBurst {
+                #[serde(default = "docker_cfs_burst_enabled")]
+                pub enabled: bool,
+                #[serde(default = "docker_cfs_burst_multiple")]
+                pub multiple: f64,
+            },
+
+            #[serde(default)]
+            #[schema(inline)]
+            pub startup_boost: #[derive(Clone, Copy, ToSchema, Deserialize, Serialize, DefaultFromSerde)] #[serde(default)] pub struct DockerStartupBoost {
+                #[serde(default)]
+                pub enabled: bool,
+                #[serde(default = "docker_startup_boost_timeout")]
+                pub timeout: u64,
+                #[serde(default = "docker_startup_boost_max_concurrent")]
+                pub max_concurrent: u64,
+            },
+
+            #[serde(default)]
+            #[schema(inline)]
+            pub runtime_boost: #[derive(Clone, Copy, ToSchema, Deserialize, Serialize, DefaultFromSerde)] #[serde(default)] pub struct DockerRuntimeBoost {
+                #[serde(default)]
+                pub enabled: bool,
+                #[serde(default = "docker_runtime_boost_threshold")]
+                /// % of the configured cpu limit
+                pub threshold: u64,
+                #[serde(default = "docker_runtime_boost_sustained")]
+                pub sustained: u64,
+                #[serde(default = "docker_runtime_boost_multiple")]
+                pub multiple: f64,
+                #[serde(default = "docker_runtime_boost_duration")]
+                pub duration: u64,
+                #[serde(default = "docker_runtime_boost_cooldown")]
+                pub cooldown: u64,
+                #[serde(default = "docker_runtime_boost_max_concurrent")]
+                pub max_concurrent: u64,
+            },
 
             #[serde(default)]
             #[schema(inline)]
@@ -1147,6 +1370,27 @@ nestify::nest! {
         },
 
         #[serde(default)]
+        #[schema(inline)]
+        pub tundra: #[derive(ToSchema, Deserialize, Serialize, DefaultFromSerde)] #[serde(default)] pub struct Tundra {
+            #[serde(default = "tundra_enabled")]
+            pub enabled: bool,
+
+            #[serde(default = "tundra_data_directory")]
+            pub data_directory: SystemPath,
+
+            #[serde(default)]
+            /// when empty, the binary is extracted from source_image
+            pub binary: SystemPath,
+
+            #[serde(default = "tundra_image")]
+            pub image: String,
+            #[serde(default = "tundra_source_image")]
+            pub source_image: String,
+            #[serde(default = "tundra_metrics_port")]
+            pub metrics_port: u16,
+        },
+
+        #[serde(default)]
         pub remote: String,
         #[serde(default)]
         #[schema(inline)]
@@ -1173,6 +1417,13 @@ nestify::nest! {
         pub ignore_panel_config_updates: bool,
         #[serde(default)]
         pub ignore_panel_wings_upgrades: bool,
+    }
+}
+
+impl Docker {
+    /// The configured CFS period in microseconds, clamped to what the kernel accepts.
+    pub fn cpu_period_us(&self) -> i64 {
+        self.cpu_period.clamp(1000, 1000000) as i64
     }
 }
 
@@ -1235,7 +1486,20 @@ pub const FORBIDDEN_PATHS: &[&str] = &[
     "system.user",
     "system.passwd",
     "docker.socket",
+    "tundra.data_directory",
+    "tundra.binary",
+    "tundra.image",
+    "tundra.source_image",
     "allowed_mounts",
+    "ignore_panel_config_updates",
+    "ignore_panel_wings_upgrades",
+    "api.host",
+    "api.port",
+    "api.ssl",
+    "api.trusted_proxies",
+    "api.disable_remote_download",
+    "api.remote_download_blocked_cidrs",
+    "api.schedule.steps.http_request",
 ];
 
 #[allow(dead_code)]
@@ -1247,6 +1511,8 @@ pub struct ConfigGuard(
 pub type ConfigSnapshot = arc_swap::Guard<Arc<InnerConfig>>;
 type ReloadHandle =
     tracing_subscriber::reload::Handle<Targets, Layered<LevelFilter, tracing_subscriber::Registry>>;
+
+const LOG_CHANNEL_LINES: usize = 4096;
 
 fn log_filter(debug: bool) -> Targets {
     let crate_level = if debug {
@@ -1310,7 +1576,10 @@ impl Config {
 
         Self::ensure_directories(&inner)?;
 
-        let (stdout_writer, stdout_guard) = tracing_appender::non_blocking(std::io::stdout());
+        let (stdout_writer, stdout_guard) =
+            tracing_appender::non_blocking::NonBlockingBuilder::default()
+                .buffered_lines_limit(LOG_CHANNEL_LINES)
+                .finish(BufWriter::new(std::io::stdout()));
 
         let latest_log_path = inner.system.log_directory.as_path(&inner).join("wings.log");
         let latest_file = std::fs::OpenOptions::new()
@@ -1328,8 +1597,8 @@ impl Config {
             .context("failed to create rolling log file appender")?;
 
         let (file_appender, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
-            .buffered_lines_limit(50)
-            .finish(latest_file.and(rolling_appender));
+            .buffered_lines_limit(LOG_CHANNEL_LINES)
+            .finish(BufWriter::new(latest_file.and(rolling_appender)));
 
         #[cfg(unix)]
         {
@@ -1353,6 +1622,7 @@ impl Config {
                 "%Y-%m-%d %H:%M:%S %z".to_string(),
             ))
             .with_writer(stdout_writer.and(file_appender))
+            .with_ansi(std::io::stdout().is_terminal())
             .with_target(false)
             .with_level(true)
             .with_file(true)
@@ -1497,20 +1767,33 @@ impl Config {
                 .any(|cidr| cidr.contains(&connect_info.ip()));
 
         if trusted {
+            fn find_forwarded_ip(
+                forwarded: &str,
+                trusted_proxies: &[cidr::IpCidr],
+            ) -> Option<std::net::IpAddr> {
+                for entry in forwarded.rsplit(',') {
+                    let ip: std::net::IpAddr = entry.trim().parse().ok()?;
+
+                    if !trusted_proxies.iter().any(|cidr| cidr.contains(&ip)) {
+                        return Some(ip);
+                    }
+                }
+
+                None
+            }
+
             if let Some(forwarded) = headers.get("X-Forwarded-For")
                 && let Ok(forwarded) = forwarded.to_str()
-                && let Some(ip) = forwarded.split(',').next()
+                && let Some(ip) = find_forwarded_ip(forwarded, &cfg.api.trusted_proxies)
             {
-                return ip.trim().parse().unwrap_or_else(|_| connect_info.ip());
+                return ip;
             }
 
             if let Some(forwarded) = headers.get("X-Real-IP")
                 && let Ok(forwarded) = forwarded.to_str()
+                && let Ok(ip) = forwarded.trim().parse()
             {
-                return forwarded
-                    .trim()
-                    .parse()
-                    .unwrap_or_else(|_| connect_info.ip());
+                return ip;
             }
         }
 
@@ -1651,6 +1934,18 @@ impl Config {
     }
 
     #[cfg(unix)]
+    fn ensure_rootless_userns_mode(cfg: &mut InnerConfig) {
+        if !cfg.docker.userns_mode.is_empty() {
+            return;
+        }
+
+        cfg.docker.userns_mode = format!(
+            "keep-id:uid={},gid={}",
+            cfg.system.user.rootless.container_uid, cfg.system.user.rootless.container_gid
+        );
+    }
+
+    #[cfg(unix)]
     fn ensure_user(cfg: &mut InnerConfig) -> Result<(), anyhow::Error> {
         let release =
             std::fs::read_to_string("/etc/os-release").unwrap_or_else(|_| "unknown".to_string());
@@ -1664,6 +1959,10 @@ impl Config {
             cfg.system.user.gid = std::env::var("WINGS_GID")
                 .unwrap_or_else(|_| "988".to_string())
                 .parse()?;
+
+            if cfg.system.user.rootless.enabled {
+                Self::ensure_rootless_userns_mode(cfg);
+            }
 
             return Ok(());
         }
@@ -1698,10 +1997,7 @@ impl Config {
                     ));
                 }
 
-                cfg.docker.userns_mode = format!(
-                    "keep-id:uid={},gid={}",
-                    cfg.system.user.rootless.container_uid, cfg.system.user.rootless.container_gid
-                );
+                Self::ensure_rootless_userns_mode(cfg);
 
                 return Ok(());
             }

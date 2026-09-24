@@ -1,3 +1,4 @@
+"use client"
 import { motion } from "framer-motion";
 import { useMemo, useId } from "react";
 import { useTranslations } from "next-intl";

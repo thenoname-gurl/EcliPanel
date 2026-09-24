@@ -3,7 +3,7 @@ use crate::{
     io::{SafeDigestExt, SafeSliceExt, SafeWriteExt},
     server::{
         activity::{Activity, ActivityEvent},
-        filesystem::cap::FileType,
+        filesystem::{RenameParents, cap::FileType},
         permissions::Permission,
     },
     utils::PortablePermissions,
@@ -11,11 +11,7 @@ use crate::{
 use russh_sftp::protocol::{Status, StatusCode};
 use serde::{Deserialize, Serialize};
 use sha1::Digest;
-use std::{
-    io::SeekFrom,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
+use std::{io::SeekFrom, path::PathBuf, sync::Arc};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::bytes::BufMut;
 
@@ -388,10 +384,14 @@ pub async fn handle_extended(
                 return Err(StatusCode::NoSuchFile);
             }
 
-            let destination_path = Path::new(&request.destination);
+            let destination_path = sftp_session
+                .server
+                .filesystem
+                .async_canonicalize_parent(&request.destination)
+                .await;
 
             if sftp_session
-                .async_is_ignored(destination_path, FileType::File)
+                .async_is_ignored(&destination_path, FileType::File)
                 .await
             {
                 return Err(StatusCode::NoSuchFile);
@@ -400,7 +400,7 @@ pub async fn handle_extended(
             if let Ok(metadata) = sftp_session
                 .server
                 .filesystem
-                .async_symlink_metadata(destination_path)
+                .async_symlink_metadata(&destination_path)
                 .await
             {
                 if metadata.is_dir() {
@@ -414,7 +414,13 @@ pub async fn handle_extended(
             sftp_session
                 .server
                 .filesystem
-                .async_quota_copy(&source_path, &destination_path, &sftp_session.server, None)
+                .async_quota_copy(
+                    &source_path,
+                    &destination_path,
+                    &sftp_session.server,
+                    None,
+                    None,
+                )
                 .await
                 .map_err(|_| StatusCode::NoSuchFile)?;
 
@@ -423,7 +429,7 @@ pub async fn handle_extended(
                 user: Some(sftp_session.user_uuid),
                 ip: Some(sftp_session.user_ip),
                 metadata: Some(serde_json::json!({
-                    "files": [sftp_session.server.filesystem.relative_path(destination_path)],
+                    "files": [sftp_session.server.filesystem.relative_path(&destination_path)],
                 })),
                 schedule: None,
                 timestamp: chrono::Utc::now(),
@@ -615,7 +621,11 @@ pub async fn handle_extended(
                 return Err(StatusCode::PermissionDenied);
             }
 
-            let linkpath = PathBuf::from(request.link_name);
+            let linkpath = sftp_session
+                .server
+                .filesystem
+                .async_canonicalize_parent(&request.link_name)
+                .await;
             let targetpath = PathBuf::from(request.target);
 
             if linkpath == targetpath {
@@ -865,7 +875,11 @@ pub async fn handle_extended(
                 Ok(path) => path,
                 Err(_) => return Err(StatusCode::NoSuchFile),
             };
-            let new_path = PathBuf::from(request.newpath);
+            let new_path = sftp_session
+                .server
+                .filesystem
+                .async_canonicalize_parent(&request.newpath)
+                .await;
 
             let old_metadata = match sftp_session
                 .server
@@ -906,7 +920,15 @@ pub async fn handle_extended(
             if sftp_session
                 .server
                 .filesystem
-                .rename_path(&old_path, &new_path)
+                .rename_path(
+                    &old_path,
+                    &new_path,
+                    if sftp_session.has_permission(Permission::FileCreate) {
+                        RenameParents::Create
+                    } else {
+                        RenameParents::Require
+                    },
+                )
                 .await
                 .is_err()
             {

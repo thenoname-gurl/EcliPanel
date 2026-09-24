@@ -15,6 +15,8 @@ import { isValidIpv6Cidr } from '../utils/ipv6';
 import { getUnhealthyNodeIds } from '../utils/nodeHealth';
 import { withRedisCache } from '../config/redis';
 import { WingsApiService } from '../services/wingsApiService';
+import { getSetting as getTundraSetting, setSetting as setTundraSetting, bumpEpoch as bumpTundraEpoch } from '../services/tundraService';
+import { TundraAcl } from '../models/tundraAcl.entity';
 import { t } from 'elysia';
 import { errorMessage, sanitizeError } from '../utils/sanitizeError';
 import { randomHex } from '../utils/bunCrypto';
@@ -1532,6 +1534,272 @@ export async function nodeRoutes(app: NodeApp, prefix = '') {
     {
       beforeHandle: [authenticate, authorize('nodes:transfers')],
       detail: { summary: 'List transferring servers on node', tags: ['Nodes'] },
+    }
+  );
+
+  function wingsServiceForNode(node: Node): WingsApiService {
+    const base = node.backendWingsUrl || node.url;
+    return new WingsApiService(base, node.token);
+  }
+
+  async function getWingsNode(ctx: AuthenticatedHandlerContext): Promise<Node | null> {
+    const nodeId = Number((ctx.params as any).nodeId);
+    if (!Number.isFinite(nodeId)) {
+      ctx.set.status = 400;
+      return null;
+    }
+    const nodeRepo = AppDataSource.getRepository(Node);
+    const node = await nodeRepo.findOneBy({ id: nodeId });
+    if (!node) {
+      ctx.set.status = 404;
+      return null;
+    }
+    return node;
+  }
+
+  app.get(
+    prefix + '/admin/nodes/:nodeId/tundra',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const node = await getWingsNode(ctx);
+      if (!node) return { error: 'Node not found' };
+      try {
+        const res = await wingsServiceForNode(node).getTundraStatus();
+        return res.data && typeof res.data === 'object' ? res.data : res;
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e as Error, 'Tundra status check failed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'Get tundra private network status for node', tags: ['Nodes'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/nodes/:nodeId/tundra/sync',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const node = await getWingsNode(ctx);
+      if (!node) return { error: 'Node not found' };
+      try {
+        const res = await wingsServiceForNode(node).syncTundra();
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e as Error, 'Tundra sync failed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'Trigger tundra sync on node', tags: ['Nodes'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/nodes/:nodeId/tundra/rotate',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const node = await getWingsNode(ctx);
+      if (!node) return { error: 'Node not found' };
+      try {
+        const res = await wingsServiceForNode(node).rotateTundraToken();
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e as Error, 'Tundra token rotate failed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'Rotate tundra token on node', tags: ['Nodes'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/nodes/:nodeId/tundra/metrics',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const node = await getWingsNode(ctx);
+      if (!node) return { error: 'Node not found' };
+      try {
+        const res = await wingsServiceForNode(node).getTundraMetrics();
+        return res.data && typeof res.data === 'object' ? res.data : res;
+      } catch (e: unknown) {
+        ctx.set.status = 502;
+        return { error: errorMessage(e as Error, 'Tundra metrics check failed') };
+      }
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 502: t.Object({ error: t.String() }) },
+      detail: { summary: 'Get tundra metrics for node', tags: ['Nodes'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/tundra/config',
+    async () => {
+      const [enabledRaw, portRaw, fullMeshRaw] = await Promise.all([
+        getTundraSetting('tundra.enabled'),
+        getTundraSetting('tundra.default_tunnel_port'),
+        getTundraSetting('tundra.full_mesh_cross_tenant'),
+      ]);
+      return {
+        enabled: enabledRaw === undefined || enabledRaw === 'true' || enabledRaw === '1',
+        defaultTunnelPort: Number(portRaw || 5000) || 5000,
+        fullMeshCrossTenant: fullMeshRaw === 'true',
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any() },
+      detail: { summary: 'Get panel tundra config (master switch)', tags: ['Nodes'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/tundra/config',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const body = (ctx.body || {}) as {
+        enabled?: boolean;
+        defaultTunnelPort?: number;
+        fullMeshCrossTenant?: boolean;
+      };
+      const settings: Array<[string, string]> = [];
+      if (body.enabled !== undefined) settings.push(['tundra.enabled', body.enabled ? 'true' : 'false']);
+      if (body.defaultTunnelPort !== undefined) {
+        const p = Math.min(65535, Math.max(1, Number(body.defaultTunnelPort) || 5000));
+        settings.push(['tundra.default_tunnel_port', String(p)]);
+      }
+      if (body.fullMeshCrossTenant !== undefined) {
+        settings.push(['tundra.full_mesh_cross_tenant', body.fullMeshCrossTenant ? 'true' : 'false']);
+      }
+      for (const [k, v] of settings) await setTundraSetting(k, v);
+      await bumpTundraEpoch();
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any() },
+      detail: { summary: 'Update panel tundra config (master switch)', tags: ['Nodes'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/nodes/:nodeId/tundra/config',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const node = await getWingsNode(ctx);
+      if (!node) return { error: 'Node not found' };
+      return {
+        tundraEnabled: node.tundraEnabled !== false,
+        tunnelPort: node.tundraTunnelPort || null,
+        host: node.tundraHost || null,
+        resolvedHost: node.tundraHost || node.fqdn || node.defaultIp || node.url,
+        certSha256: node.tundraCertSha256 || null,
+        nodeId: node.nodeId || null,
+      };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 404: t.Any() },
+      detail: { summary: 'Get per-node tundra config', tags: ['Nodes'] },
+    }
+  );
+
+  app.put(
+    prefix + '/admin/nodes/:nodeId/tundra/config',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { bumpEpoch: bump } = await import('../services/tundraService');
+      const node = await getWingsNode(ctx);
+      if (!node) return { error: 'Node not found' };
+      const body = (ctx.body || {}) as {
+        tundraEnabled?: boolean;
+        tunnelPort?: number | null;
+        host?: string | null;
+        clearCert?: boolean;
+      };
+      if (body.tundraEnabled !== undefined) node.tundraEnabled = body.tundraEnabled !== false;
+      if (body.tunnelPort !== undefined) {
+        const p = Number(body.tunnelPort);
+        node.tundraTunnelPort = p > 0 && p <= 65535 ? p : undefined;
+      }
+      if (body.host !== undefined) {
+        const h = String(body.host ?? '').trim();
+        node.tundraHost = h || undefined;
+      }
+      if (body.clearCert) node.tundraCertSha256 = undefined;
+      await AppDataSource.getRepository(Node).save(node);
+      await bump();
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 404: t.Any() },
+      detail: { summary: 'Update per-node tundra config', tags: ['Nodes'] },
+    }
+  );
+
+  app.get(
+    prefix + '/admin/tundra/acls',
+    async () => {
+      const rows = await AppDataSource.getRepository(TundraAcl).find({
+        order: { createdAt: 'DESC' },
+      });
+      return { acls: rows };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any() },
+      detail: { summary: 'List tundra ACL entries', tags: ['Nodes'] },
+    }
+  );
+
+  app.post(
+    prefix + '/admin/tundra/acls',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const body = (ctx.body || {}) as { srcServer?: string; dstServer?: string };
+      const src = String(body.srcServer || '').trim();
+      const dst = String(body.dstServer || '').trim();
+      if (!src || !dst || src === dst) {
+        ctx.set.status = 400;
+        return { error: 'srcServer and dstServer are required and must differ' };
+      }
+      const repo = AppDataSource.getRepository(TundraAcl);
+      const existing = await repo.findOneBy({ srcServer: src, dstServer: dst });
+      if (existing) {
+        ctx.set.status = 409;
+        return { error: 'ACL entry already exists' };
+      }
+      const row = await repo.save(repo.create({ srcServer: src, dstServer: dst }));
+      await bumpTundraEpoch();
+      return { acl: row };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 400: t.Any(), 409: t.Any() },
+      detail: { summary: 'Create a tundra ACL entry', tags: ['Nodes'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/admin/tundra/acls/:id',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const id = Number((ctx.params as any).id);
+      const repo = AppDataSource.getRepository(TundraAcl);
+      const row = await repo.findOneBy({ id });
+      if (!row) {
+        ctx.set.status = 404;
+        return { error: 'ACL entry not found' };
+      }
+      await repo.remove(row);
+      await bumpTundraEpoch();
+      return { success: true };
+    },
+    {
+      beforeHandle: [authenticate, authorize('nodes:tundra')],
+      response: { 200: t.Any(), 404: t.Any() },
+      detail: { summary: 'Delete a tundra ACL entry', tags: ['Nodes'] },
     }
   );
 }

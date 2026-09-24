@@ -1,3 +1,4 @@
+"use client"
 import { cn } from "@/lib/utils";
 import { CheckCircle2 } from "lucide-react";
 

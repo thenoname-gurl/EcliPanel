@@ -164,6 +164,10 @@ const TunnelsTab = dynamic(() => import("./tabs/TunnelsTab"), {
   ssr: false,
 })
 
+const TundraTab = dynamic(() => import("./tabs/TundraTab"), {
+  ssr: false,
+})
+
 const BackupConfigsTab = dynamic(() => import("./tabs/BackupConfigsTab"), {
   ssr: false,
 })
@@ -1000,6 +1004,7 @@ export default function AdminPanel() {
     { value: 'eggs', label: t('tabs.eggs'), category: 'infrastructure', permissions: ['eggs:read'] },
     { value: 'databases', label: t('tabs.databases'), category: 'infrastructure', permissions: ['databases:read'] },
     { value: 'tunnels', label: t('tabs.tunnels'), category: 'infrastructure', feature: 'tunnels', permissions: ['tunnels:read', 'admin:tunnels:read'] },
+    { value: 'tundra', label: t('tabs.tundra'), category: 'infrastructure', permissions: ['nodes:tundra'] },
     { value: 'backup-configs', label: 'Backup Configs', category: 'infrastructure', permissions: ['admin:read'] },
     { value: 'organisations', label: t('tabs.organisations'), category: 'billing', permissions: ['org:read'] },
     { value: 'plans', label: t('tabs.plans'), category: 'billing', permissions: ['admin:plans:view', 'admin:plans:manage', 'admin:plans:delete', 'admin:plans:reapply', 'admin:plans:forcereapply'] },
@@ -1685,6 +1690,14 @@ export default function AdminPanel() {
   const [esEggId, setEsEggId] = useState<string | undefined>(undefined)
   const [esReinstalling, setEsReinstalling] = useState(false)
   const [esAutoSyncOnEggChange, setEsAutoSyncOnEggChange] = useState<boolean>(true)
+  const [esCpuBoostStartupEnabled, setEsCpuBoostStartupEnabled] = useState(false)
+  const [esCpuBoostStartupTimeout, setEsCpuBoostStartupTimeout] = useState(3000)
+  const [esCpuBoostRuntimeEnabled, setEsCpuBoostRuntimeEnabled] = useState(false)
+  const [esCpuBoostRuntimeThreshold, setEsCpuBoostRuntimeThreshold] = useState(20)
+  const [esCpuBoostRuntimeSustained, setEsCpuBoostRuntimeSustained] = useState(5)
+  const [esCpuBoostRuntimeMultiple, setEsCpuBoostRuntimeMultiple] = useState(1.5)
+  const [esCpuBoostRuntimeDuration, setEsCpuBoostRuntimeDuration] = useState(30)
+  const [esCpuBoostRuntimeCooldown, setEsCpuBoostRuntimeCooldown] = useState(60)
   const [esAttachedMounts, setEsAttachedMounts] = useState<any[]>([])
   const [esAvailableMounts, setEsAvailableMounts] = useState<any[]>([])
   const [esSelectedMountId, setEsSelectedMountId] = useState<string>("")
@@ -2817,6 +2830,19 @@ export default function AdminPanel() {
           : undefined
     )
     setEsAutoSyncOnEggChange(mergedAny?.configuration?.autoSyncOnEggChange !== false)
+
+    const feats = mergedAny?.configuration?.features || mergedAny?.features || {}
+    const scb = feats.startup_cpu_boost || {}
+    const rcb = feats.runtime_cpu_boost || {}
+    setEsCpuBoostStartupEnabled(!!scb.enabled)
+    setEsCpuBoostStartupTimeout(Number(scb.timeout) || 3000)
+    setEsCpuBoostRuntimeEnabled(!!rcb.enabled)
+    setEsCpuBoostRuntimeThreshold(Number(rcb.threshold) || 20)
+    setEsCpuBoostRuntimeSustained(Number(rcb.sustained) || 5)
+    setEsCpuBoostRuntimeMultiple(Number(rcb.multiple) || 1.5)
+    setEsCpuBoostRuntimeDuration(Number(rcb.duration) || 30)
+    setEsCpuBoostRuntimeCooldown(Number(rcb.cooldown) || 60)
+
     setEditServerDialog(mergedServer)
     setEsEnvironment({})
     setEsEnvVarDefs([])
@@ -2964,6 +2990,17 @@ export default function AdminPanel() {
           eggId: esEggId && esEggId !== "none" ? Number(esEggId) : undefined,
           ignoreAntiAbuse: esIgnoreAntiAbuse,
           autoSyncOnEggChange: esAutoSyncOnEggChange,
+          features: {
+            startup_cpu_boost: esCpuBoostStartupEnabled ? { enabled: true, timeout: esCpuBoostStartupTimeout } : undefined,
+            runtime_cpu_boost: esCpuBoostRuntimeEnabled ? {
+              enabled: true,
+              threshold: esCpuBoostRuntimeThreshold,
+              sustained: esCpuBoostRuntimeSustained,
+              multiple: esCpuBoostRuntimeMultiple,
+              duration: esCpuBoostRuntimeDuration,
+              cooldown: esCpuBoostRuntimeCooldown,
+            } : undefined,
+          },
         }),
       })
       if (esEnvModified) {
@@ -6311,6 +6348,9 @@ remote: ${panelUrl}`
             <TabsContent value="tunnels" className="mt-4">
               {activeTab === "tunnels" ? <TunnelsTab /> : null}
             </TabsContent>
+            <TabsContent value="tundra" className="mt-4">
+              {activeTab === "tundra" ? <TundraTab /> : null}
+            </TabsContent>
             {/* ═══════════════ EGGS ═══════════════════════════════════════════ */}
             <TabsContent value="backup-configs" className="mt-4">
               {activeTab === "backup-configs" ? <BackupConfigsTab /> : null}
@@ -7527,6 +7567,49 @@ remote: ${panelUrl}`
                 </div>
                 {esDedicatedIpError && <p className="text-xs text-destructive">{esDedicatedIpError}</p>}
                 {esDedicatedIpSuccess && <p className="text-xs text-green-400">{esDedicatedIpSuccess}</p>}
+              </div>
+
+              {/* CPU Boost Settings */}
+              <div className="col-span-2 flex flex-col gap-3 border-t border-border pt-3 mt-1">
+                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{t("editDialog.cpuBoost.title")}</label>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{t("editDialog.cpuBoost.startupEnabled")}</span>
+                      <input type="checkbox" checked={esCpuBoostStartupEnabled} onChange={(e) => setEsCpuBoostStartupEnabled(e.target.checked)} className="h-4 w-4 accent-primary" />
+                    </label>
+                    <input type="number" min="100" max="60000" step="100" placeholder="ms" value={esCpuBoostStartupTimeout} onChange={(e) => setEsCpuBoostStartupTimeout(Number(e.target.value))} disabled={!esCpuBoostStartupEnabled} className="border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" />
+                    <p className="text-[10px] text-muted-foreground">{t("editDialog.cpuBoost.startupTimeoutHint")}</p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{t("editDialog.cpuBoost.runtimeEnabled")}</span>
+                      <input type="checkbox" checked={esCpuBoostRuntimeEnabled} onChange={(e) => setEsCpuBoostRuntimeEnabled(e.target.checked)} className="h-4 w-4 accent-primary" />
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] text-muted-foreground uppercase">{t("editDialog.cpuBoost.runtimeThreshold")}</label>
+                        <input type="number" min="1" max="100" value={esCpuBoostRuntimeThreshold} onChange={(e) => setEsCpuBoostRuntimeThreshold(Number(e.target.value))} disabled={!esCpuBoostRuntimeEnabled} className="border border-border bg-secondary/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] text-muted-foreground uppercase">{t("editDialog.cpuBoost.runtimeSustained")}</label>
+                        <input type="number" min="1" max="60" value={esCpuBoostRuntimeSustained} onChange={(e) => setEsCpuBoostRuntimeSustained(Number(e.target.value))} disabled={!esCpuBoostRuntimeEnabled} className="border border-border bg-secondary/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] text-muted-foreground uppercase">{t("editDialog.cpuBoost.runtimeMultiple")}</label>
+                        <input type="number" min="1" max="10" step="0.1" value={esCpuBoostRuntimeMultiple} onChange={(e) => setEsCpuBoostRuntimeMultiple(Number(e.target.value))} disabled={!esCpuBoostRuntimeEnabled} className="border border-border bg-secondary/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] text-muted-foreground uppercase">{t("editDialog.cpuBoost.runtimeDuration")}</label>
+                        <input type="number" min="1" max="300" value={esCpuBoostRuntimeDuration} onChange={(e) => setEsCpuBoostRuntimeDuration(Number(e.target.value))} disabled={!esCpuBoostRuntimeEnabled} className="border border-border bg-secondary/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] text-muted-foreground uppercase">{t("editDialog.cpuBoost.runtimeCooldown")}</label>
+                        <input type="number" min="1" max="600" value={esCpuBoostRuntimeCooldown} onChange={(e) => setEsCpuBoostRuntimeCooldown(Number(e.target.value))} disabled={!esCpuBoostRuntimeEnabled} className="border border-border bg-secondary/50 px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary/50 disabled:opacity-50" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
               {canManageServerMounts && (
                 <div className="col-span-2 flex flex-col gap-3">

@@ -61,7 +61,8 @@
     "actions": {
       "backToOrganisations": "組織一覧に戻る",
       "accept": "承認",
-      "reject": "拒否"
+      "reject": "拒否",
+      "refresh": "更新"
     },
     "loading": "招待を読み込み中...",
     "emptyTitle": "保留中の組織招待はありません",
@@ -155,7 +156,8 @@
       "save": "保存",
       "copy": "コピー",
       "favorite": "お気に入りに追加",
-      "unfavorite": "お気に入りから削除"
+      "unfavorite": "お気に入りから削除",
+      "refresh": "更新"
     },
     "details": {
       "sender": "送信元",
@@ -278,7 +280,8 @@
         "numberedList": "番号付きリスト",
         "inlineCode": "インラインコード",
         "link": "リンク",
-        "divider": "区切り線"
+        "divider": "区切り線",
+        "refresh": "更新"
       }
     },
     "toast": {
@@ -781,7 +784,8 @@
       "retryThisPage": "→ このページを再試行",
       "returnHome": "→ ホームに戻る",
       "goDashboard": "→ ダッシュボードに移動",
-      "hardReload": "→ ページをハードリロード"
+      "hardReload": "→ ページをハードリロード",
+      "refresh": "更新"
     },
     "recovery": {
       "warn": "WARN:",
@@ -1127,7 +1131,8 @@
   "organisationAcceptPage": {
     "title": "組織招待を承認",
     "actions": {
-      "acceptInvite": "招待を承認"
+      "acceptInvite": "招待を承認",
+      "refresh": "更新"
     },
     "messages": {
       "accepted": "招待が承認されました。リダイレクト中...",
@@ -1187,7 +1192,8 @@
       "transmitting": "送信中...",
       "submit": "送信",
       "navigateHome": "ホームに戻る",
-      "loginRequired": "送信にはログインが必要です"
+      "loginRequired": "送信にはログインが必要です",
+      "refresh": "更新"
     },
     "messages": {
       "transmitted": "送信が正常に送信されました。"
@@ -1307,7 +1313,8 @@
       "actions": {
         "acknowledge": "確認",
         "resolve": "解決",
-        "falsePositive": "誤検知"
+        "falsePositive": "誤検知",
+        "refresh": "更新"
       },
       "source": {
         "internal": "内部スキャン",
@@ -1326,7 +1333,8 @@
       "working": "処理中…",
       "confirmReveal": "表示するには確認してください",
       "rehidePrivateData": "プライベートデータを非表示",
-      "open": "オープン"
+      "open": "オープン",
+      "refresh": "更新"
     },
     "privacy": {
       "sensitiveDataPrefix": "機密データは現在",
@@ -1398,7 +1406,8 @@
       "feedback": "フィードバック",
       "chat": "チャット",
       "companyMailboxes": "会社メールボックス",
-      "studentVerifications": "学生認証"
+      "studentVerifications": "学生認証",
+      "tundra": "Tundra Mesh"
     },
     "shortUrls": {
       "overview": {
@@ -1435,7 +1444,8 @@
         "create": "短縮URLを作成",
         "update": "短縮URLを更新",
         "cancel": "キャンセル",
-        "confirmDelete": "この短縮URLを削除しますか？"
+        "confirmDelete": "この短縮URLを削除しますか？",
+        "refresh": "更新"
       },
       "errors": {
         "failedLoad": "短縮URLの読み込みに失敗しました。",
@@ -2102,7 +2112,8 @@
       "test": "テスト",
       "sendBroadcast": "一斉送信",
       "broadcast": "一斉送信",
-      "tapToPreview": "タップしてメールをプレビュー"
+      "tapToPreview": "タップしてメールをプレビュー",
+      "refresh": "更新"
     }
   },
   "adminFraudTab": {
@@ -2153,7 +2164,8 @@
       "dismissing": "却下中…",
       "dismiss": "却下",
       "suspend": "停止",
-      "rescan": "再スキャン"
+      "rescan": "再スキャン",
+      "refresh": "更新"
     }
   },
   "adminDeletionsTab": {
@@ -2349,7 +2361,8 @@
       "cancel": "キャンセル",
       "saving": "保存中…",
       "saveChanges": "変更を保存",
-      "createPlan": "プランを作成"
+      "createPlan": "プランを作成",
+      "refresh": "更新"
     }
   },
   "adminOauthTab": {
@@ -2437,7 +2450,8 @@
       "rotating": "ローテーション中…",
       "privacyPolicy": "プライバシーポリシー",
       "termsOfService": "利用規約",
-      "removeLogo": "選択したロゴを削除"
+      "removeLogo": "選択したロゴを削除",
+      "refresh": "更新"
     }
   },
   "adminEggsTab": {
@@ -2680,7 +2694,8 @@
     "actions": {
       "saving": "保存中…",
       "saveSettings": "設定を保存",
-      "save": "保存"
+      "save": "保存",
+      "refresh": "更新"
     },
     "states": {
       "changesSaved": "変更が保存されました",
@@ -2934,7 +2949,8 @@
       "createHost": "ホストを作成",
       "test": "テスト",
       "confirm": "確認",
-      "cancel": "キャンセル"
+      "cancel": "キャンセル",
+      "refresh": "更新"
     }
   },
   "adminAiTab": {
@@ -3441,7 +3457,8 @@
       "saving": "保存中...",
       "saveChanges": "変更を保存",
       "updating": "更新中...",
-      "uploading": "アップロード中..."
+      "uploading": "アップロード中...",
+      "refresh": "更新"
     },
     "portal": {
       "free": "無料ポータル",
@@ -3838,7 +3855,8 @@
       "submitForVerification": "確認を送信",
       "verifySelfieAge": "自撮り年齢確認",
       "verifyStudent": "学生ステータスを確認",
-      "viewBenefits": "特典を表示"
+      "viewBenefits": "特典を表示",
+      "refresh": "更新"
     },
     "messages": {
       "submittedForReview": "確認書類が送信されました - 書類は審査中です。"
@@ -3991,7 +4009,8 @@
     },
     "actions": {
       "prev": "前",
-      "next": "次"
+      "next": "次",
+      "refresh": "更新"
     },
     "export": {
       "title": "エクスポート",
@@ -4050,7 +4069,8 @@
       "restart": "再起動",
       "console": "コンソール",
       "newServer": "新しいサーバー",
-      "deployServer": "サーバーをデプロイ"
+      "deployServer": "サーバーをデプロイ",
+      "refresh": "更新"
     },
     "stats": {
       "total": "合計",
@@ -4209,7 +4229,8 @@
         "cancel": "キャンセル",
         "deploying": "デプロイ中…",
         "deploy": "サーバーをデプロイ",
-        "close": "了解。閉じる"
+        "close": "了解。閉じる",
+        "refresh": "更新"
       },
       "result": {
         "blackjackTitle": "🃏 ブラックジャックサーバー作成結果",
@@ -4288,7 +4309,8 @@
       "cancel": "キャンセル",
       "reconnect": "再接続",
       "fullscreen": "全画面",
-      "exitFullscreen": "全画面を終了"
+      "exitFullscreen": "全画面を終了",
+      "refresh": "更新"
     },
     "terminal": {
       "errorTag": "ERROR",
@@ -4380,7 +4402,8 @@
       "disableWrap": "ワードラップを無効",
       "enableWrap": "ワードラップを有効",
       "search": "検索（Ctrl+F）",
-      "copyAll": "すべてコピー"
+      "copyAll": "すべてコピー",
+      "refresh": "更新"
     },
     "states": {
       "loadingEditor": "エディタを読み込み中..."
@@ -4458,7 +4481,10 @@
       "openSftp": "SFTPで開く",
       "openQemuFolder": "QEMUフォルダを開く",
       "hide": "非表示",
-      "details": "詳細"
+      "details": "詳細",
+      "search": "検索",
+      "newSymlink": "シンボリックリンク作成",
+      "refresh": "更新"
     },
     "table": {
       "name": "名前",
@@ -4473,7 +4499,9 @@
     "inputs": {
       "fileNamePlaceholder": "filename.txt",
       "folderNamePlaceholder": "folder-name",
-      "sftpPassword": "SFTPパスワード"
+      "sftpPassword": "SFTPパスワード",
+      "symlinkNamePlaceholder": "リンク名",
+      "symlinkTargetPlaceholder": "ターゲットパス（必須）"
     },
     "preview": {
       "zoomOut": "縮小",
@@ -4514,7 +4542,8 @@
       "vmFilesystemViaSftp": "SFTP経由のVMファイルシステム",
       "sftpModeDescription": "ゲストファイルシステムへの直接SFTPアクセスを使用します。",
       "sftpCommand": "SFTPコマンド",
-      "sftpPassword": "SFTPパスワード"
+      "sftpPassword": "SFTPパスワード",
+      "uploadConflict": "競合"
     },
     "confirm": {
       "openUnknownType": "このファイルタイプは正しく表示されない可能性があります。それでも開きますか？",
@@ -4524,7 +4553,12 @@
       "deleteFile": "「{name}」を削除しますか？",
       "fileExistsOpen": "「{name}」は既に存在します。代わりに開きますか？",
       "applyRecursive": "再帰的に適用しますか？",
-      "deleteSelected": "{count}個のアイテムを削除しますか？"
+      "deleteSelected": "{count}個のアイテムを削除しますか？",
+      "uploadConflictTitle": "名前の競合",
+      "uploadConflictDescription": "このうち {count} 件のファイルはこのディレクトリに既に存在します。",
+      "uploadOverwrite": "既存を上書き",
+      "uploadSkip": "既存のみスキップ",
+      "uploadAbort": "アップロードをキャンセル"
     },
     "prompts": {
       "renameTo": "名前変更：",
@@ -4605,6 +4639,16 @@
       "good": "良い",
       "excellent": "非常に良い",
       "helpsImprove": "お客様のフィードバックはパネルの改善に役立ちます。"
+    },
+    "search": {
+      "title": "ファイルの検索",
+      "placeholder": "ファイル名または内容を検索…",
+      "run": "検索",
+      "searchContent": "ファイル内容を検索",
+      "caseInsensitive": "大文字と小文字を区別しない",
+      "noResults": "ファイルが見つかりません",
+      "failed": "検索に失敗しました",
+      "resultCount": "件の結果"
     }
   },
   "eloPage": {
@@ -4843,7 +4887,8 @@
     "actions": {
       "backToHome": "ホームに戻る",
       "previous": "前へ",
-      "next": "次へ"
+      "next": "次へ",
+      "refresh": "更新"
     },
     "header": {
       "github": "GitHub",
@@ -4924,6 +4969,8 @@
       "dbShort": "DB",
       "schedules": "スケジュール",
       "network": "ネットワーク",
+      "tunnel": "トンネル",
+      "tunnelShort": "トンネル",
       "firewall": "ファイアウォール",
       "netShort": "ネット",
       "backups": "バックアップ",
@@ -5051,7 +5098,8 @@
       "refreshServer": "サーバーを更新",
       "backToServers": "サーバー一覧に戻る",
       "cancel": "キャンセル",
-      "confirm": "確認"
+      "confirm": "確認",
+      "refresh": "更新"
     },
     "toasts": {
       "diceDeniedTitle": "ダイス拒否",
@@ -5316,7 +5364,8 @@
         "rejectedSubuserInvite": "サーバーサブユーザー招待を拒否しました",
         "serverSuspend": "サーバーを停止しました",
         "serverUnsuspend": "サーバーの停止を解除しました",
-        "updatedProfile": "プロフィール設定を更新しました"
+        "updatedProfile": "プロフィール設定を更新しました",
+        "refresh": "更新"
       }
     },
     "filters": {
@@ -5481,6 +5530,38 @@
       "nodeIssueDescription": "このノード上のサーバーは利用できないか、応答しない可能性があります。",
       "nodesIssueDescription": "これらのノード上のサーバーは利用できないか、応答しない可能性があります：{nodes}。",
       "learnMore": "/statusで詳細を確認"
+    },
+    "nativeFirewall": {
+      "loading": "読み込み中…",
+      "loadFailed": "ファイアウォールとブースト設定の読み込みに失敗しました。",
+      "saveFailed": "保存に失敗しました: {reason}",
+      "save": "保存",
+      "saved": "保存しました",
+      "firewallTitle": "ファイアウォールとブースト",
+      "featuresTitle": "パフォーマンス",
+      "rulesTitle": "受信ファイアウォールルール",
+      "rulesHint": "Wingsが適用するコンテナネットワークルール（nftables/iptables）。denyはトラフィックを遮断し、allowは開放します。",
+      "addRule": "ルールを追加",
+      "noRules": "ファイアウォールルールはまだありません。受信トラフィックを制御するルールを追加します。",
+      "removeRule": "ルールを削除",
+      "allow": "許可",
+      "deny": "拒否",
+      "from": "from",
+      "allProtocols": "すべて",
+      "allSources": "0.0.0.0/0",
+      "allPorts": "すべて",
+      "portsPlaceholder": "ポート (25565, 25566)",
+      "sourcesPlaceholder": "送信元 IP/CIDR (1.2.3.4, 10.0.0.0/8)",
+      "startupBoost": "起動時 CPU ブースト",
+      "startupEnable": "サーバー起動時に CPU をブースト",
+      "startupTimeout": "ブースト時間",
+      "runtimeBoost": "実行時 CPU ブースト",
+      "runtimeEnable": "負荷スパイク時に CPU をブースト",
+      "runtimeThreshold": "トリガーしきい値",
+      "runtimeSustained": "持続時間",
+      "runtimeMultiple": "CPU 倍率",
+      "runtimeDuration": "ブースト時間",
+      "runtimeCooldown": "ブースト後のクールダウン"
     }
   },
   "tunnelsPage": {
@@ -5527,7 +5608,8 @@
       "manage": "管理",
       "copy": "コピー",
       "regenerateToken": "トークンを再生成",
-      "deleteDevice": "デバイスを削除"
+      "deleteDevice": "デバイスを削除",
+      "refresh": "更新"
     },
     "prompts": {
       "nameForDevice": "デバイス名",
@@ -5724,7 +5806,8 @@
       }
     },
     "actions": {
-      "newTicket": "新しいチケット"
+      "newTicket": "新しいチケット",
+      "refresh": "更新"
     },
     "states": {
       "loading": "チケットを読み込み中...",
@@ -5791,7 +5874,8 @@
       "backToTickets": "チケット一覧に戻る",
       "cancel": "キャンセル",
       "submitting": "送信中...",
-      "submitTicket": "チケットを送信"
+      "submitTicket": "チケットを送信",
+      "refresh": "更新"
     },
     "errors": {
       "requiredFields": "件名とメッセージは必須です。",
@@ -5895,7 +5979,8 @@
       "deleteTicket": "チケットを削除",
       "deleting": "削除中…",
       "reply": "返信",
-      "send": "送信"
+      "send": "送信",
+      "refresh": "更新"
     },
     "confirm": {
       "deleteTicket": "このチケットを完全に削除しますか？",
@@ -5948,7 +6033,8 @@
     },
     "actions": {
       "newOrganisation": "新しい組織",
-      "viaBilling": "$1（請求経由）"
+      "viaBilling": "$1（請求経由）",
+      "refresh": "更新"
     },
     "states": {
       "loading": "読み込み中...",
@@ -5986,7 +6072,8 @@
     "actions": {
       "creating": "作成中...",
       "create": "作成",
-      "cancel": "キャンセル"
+      "cancel": "キャンセル",
+      "refresh": "更新"
     },
     "errors": {
       "failedCreate": "組織の作成に失敗しました"
@@ -6147,7 +6234,8 @@
         "serverDelete": "サーバーを削除しました",
         "serverUpdate": "サーバーを更新しました",
         "serverSuspend": "サーバーを停止しました",
-        "serverUnsuspend": "サーバーの停止を解除しました"
+        "serverUnsuspend": "サーバーの停止を解除しました",
+        "refresh": "更新"
       }
     },
     "stats": {
@@ -6281,7 +6369,8 @@
       "bestPractices": "ベストプラクティス"
     },
     "actions": {
-      "clearChat": "チャットをクリア"
+      "clearChat": "チャットをクリア",
+      "refresh": "更新"
     },
     "states": {
       "thinking": "思考中..."
@@ -7213,7 +7302,8 @@
     "permissions": "このアプリができること：",
     "actions": {
       "authorize": "承認",
-      "cancel": "キャンセル"
+      "cancel": "キャンセル",
+      "refresh": "更新"
     },
     "loginRequired": {
       "title": "ログインが必要です",
@@ -7578,7 +7668,8 @@
       "restore": "復元",
       "deleteForever": "完全に削除",
       "cancel": "キャンセル",
-      "preview": "プレビュー"
+      "preview": "プレビュー",
+      "refresh": "更新"
     },
     "dialogs": {
       "createTitle": "新しいファイルを作成",
@@ -7720,5 +7811,48 @@
     "renameHint": "「{name}」の新しい名前を選択してください。",
     "renameError": "名前の変更に失敗しました",
     "sharedLinks": "共有リンク"
+  },
+  "adminTundraTab": {
+    "loading": "Tundra メッシュを読み込み中…",
+    "refresh": "更新",
+    "globalConfig": "グローバル設定",
+    "masterSwitch": "マスタースイッチ — パネルが全ノードを制御",
+    "enabled": "有効",
+    "disabled": "無効",
+    "enable": "有効化",
+    "disable": "無効化",
+    "nodesJoined": "ノード",
+    "defaultTunnelPort": "デフォルトトンネルポート",
+    "fullMesh": "テナント間フルメッシュ",
+    "fullMeshHint": "全サーバー間の相互接続を許可（セキュリティリスク）。オフ＝同一所有者のみ相互接続。",
+    "nodesTitle": "ノード",
+    "nodesHint": "ノードIDを持つ Wings ノードは自動的にメッシュに参加します。ノードを展開して設定します。",
+    "noNodes": "Wings ノードが見つかりません。",
+    "locallyEnabled": "ローカルで有効",
+    "locallyDisabled": "ローカルで無効",
+    "certPresent": "証明書あり",
+    "certMissing": "証明書なし",
+    "participate": "メッシュに参加",
+    "participateHint": "スナップショットにこのノードを含め、Wings がトンネルシムを起動します。",
+    "nodeIdMissing": "ノードにIDがありません — 登録時に設定してください。",
+    "tunnelPort": "トンネルポート",
+    "host": "ホスト",
+    "certFingerprint": "証明書フィンガープリント",
+    "sync": "同期",
+    "rotate": "ローテート",
+    "metrics": "メトリクス",
+    "clearCert": "証明書をクリア",
+    "aclsTitle": "ACLルール",
+    "aclsHint": "明示的な到達可能性ルール（送信元→宛先）。同一所有者のペアは自動的に許可されます。",
+    "srcServer": "送信元サーバー",
+    "dstServer": "宛先サーバー",
+    "addAcl": "ACLを追加",
+    "createdAt": "作成日",
+    "actions": "操作",
+    "noAcls": "明示的なACLルールはありません。",
+    "saved": "保存しました",
+    "saveError": "保存に失敗",
+    "loadError": "Tundra設定の読み込みに失敗",
+    "aclRequired": "両方のサーバーUUIDが必要です"
   }
 }

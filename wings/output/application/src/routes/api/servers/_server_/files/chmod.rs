@@ -5,12 +5,13 @@ mod post {
     use crate::{
         response::{ApiResponse, ApiResponseResult},
         routes::{ApiError, GetState, api::servers::_server_::GetServer},
-        server::filesystem::{cap::FileType, virtualfs::AsyncDirectoryWalkFn},
+        server::filesystem::virtualfs::{AsyncDirectoryWalkFn, VirtualWalkEntry},
         utils::PortablePermissions,
     };
+    use axum::http::StatusCode;
     use serde::{Deserialize, Serialize};
     use std::{
-        path::{Path, PathBuf},
+        path::Path,
         sync::{
             Arc,
             atomic::{AtomicUsize, Ordering},
@@ -33,6 +34,9 @@ mod post {
 
         #[schema(inline)]
         files: Vec<ChmodFile>,
+
+        #[serde(default)]
+        ignored: Vec<compact_str::CompactString>,
     }
 
     #[derive(ToSchema, Serialize)]
@@ -56,35 +60,58 @@ mod post {
         server: GetServer,
         crate::Payload(data): crate::Payload<Payload>,
     ) -> ApiResponseResult {
+        let ignored = match crate::server::filesystem::RequestIgnored::compile(&data.ignored) {
+            Ok(ignored) => ignored,
+            Err(err) => {
+                tracing::error!(
+                    server = %server.uuid,
+                    "rejecting request, subuser ignored files cannot be compiled: {:#?}",
+                    err
+                );
+
+                return ApiResponse::error("file not found")
+                    .with_status(StatusCode::NOT_FOUND)
+                    .ok();
+            }
+        };
+
         let mut updated_count = 0;
         for file in data.files {
             let (source, filesystem) = server
                 .filesystem
-                .resolve_writable_fs(&server, Path::new(&data.root).join(&file.file))
+                .resolve_writable_fs_ignoring(
+                    &server,
+                    Path::new(&data.root).join(&file.file),
+                    &ignored,
+                )
                 .await;
             if source.as_os_str().is_empty() || source == Path::new(&data.root) {
                 continue;
             }
-
-            let metadata = match filesystem.async_symlink_metadata(&source).await {
-                Ok(metadata) => metadata,
-                Err(_) => continue,
-            };
 
             let mode = match u32::from_str_radix(&file.mode, 8) {
                 Ok(mode) => mode,
                 Err(_) => continue,
             };
 
-            if filesystem
-                .async_set_permissions(
-                    &source,
-                    metadata.file_type,
-                    PortablePermissions::from_mode_file(mode),
-                )
+            let applied = {
+                let filesystem = filesystem.clone();
+                let source = source.clone();
+
+                tokio::task::spawn_blocking(move || -> Result<_, anyhow::Error> {
+                    let metadata = filesystem.symlink_metadata(&source)?;
+                    filesystem.set_permissions(
+                        &source,
+                        metadata.file_type,
+                        PortablePermissions::from_mode_file(mode),
+                    )?;
+
+                    Ok(metadata)
+                })
                 .await
-                .is_ok()
-            {
+            };
+
+            if let Ok(Ok(metadata)) = applied {
                 updated_count += 1;
 
                 if metadata.file_type.is_dir() && file.recursive {
@@ -103,7 +130,10 @@ mod post {
                                     let updated_count_arc = updated_count_arc.clone();
                                     let mode = PortablePermissions::from_mode_file(mode);
 
-                                    move |file_type: FileType, path: PathBuf| {
+                                    move |entry: VirtualWalkEntry| {
+                                        let file_type = entry.file_type;
+                                        let path = entry.path;
+
                                         let filesystem = filesystem.clone();
                                         let updated_count_arc = updated_count_arc.clone();
 

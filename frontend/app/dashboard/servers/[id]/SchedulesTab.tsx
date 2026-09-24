@@ -12,9 +12,9 @@ import { FormAdvancedSection } from '@/components/ui/form-advanced-section';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
-type TriggerType = 'cron' | 'power_action' | 'server_state' | 'backup_status' | 'schedule_completion' | 'resource_usage' | 'resource_usage_over_time' | 'console_line' | 'crash';
+type TriggerType = 'cron' | 'power_action' | 'server_state' | 'backup_status' | 'database_backup_status' | 'schedule_completion' | 'resource_usage' | 'resource_usage_over_time' | 'console_line' | 'crash';
 type ConditionType = 'none' | 'and' | 'or' | 'xor' | 'not' | 'server_state' | 'uptime' | 'resource_usage' | 'backup_exists' | 'backup_age' | 'file_exists' | 'variable_exists' | 'variable_equals' | 'variable_contains' | 'variable_starts_with' | 'variable_ends_with';
-type StepType = 'sleep' | 'ensure' | 'if' | 'else_if' | 'else' | 'end_if' | 'exit' | 'format' | 'match_regex' | 'wait_for_console_line' | 'wait_for_state' | 'send_power' | 'send_command' | 'create_backup' | 'restore_backup' | 'delete_backup' | 'move_backup' | 'export_backup' | 'http_request' | 'create_directory' | 'write_file' | 'copy_file' | 'delete_files' | 'rename_files' | 'compress_files' | 'decompress_file' | 'update_startup_variable' | 'update_startup_command' | 'update_startup_docker_image';
+type StepType = 'sleep' | 'ensure' | 'if' | 'else_if' | 'else' | 'end_if' | 'exit' | 'format' | 'match_regex' | 'wait_for_console_line' | 'wait_for_state' | 'send_power' | 'send_command' | 'create_backup' | 'restore_backup' | 'delete_backup' | 'move_backup' | 'export_backup' | 'http_request' | 'create_directory' | 'write_file' | 'copy_file' | 'delete_files' | 'rename_files' | 'compress_files' | 'decompress_file' | 'pull_file' | 'create_database_backup' | 'delete_database_backup' | 'move_database_backup' | 'restore_database_backup' | 'update_startup_variable' | 'update_startup_command' | 'update_startup_docker_image';
 
 // ─── Cron helpers (5-field, Vixie-style: dom+dow both restricted → OR) ──────
 
@@ -135,6 +135,7 @@ const newTrigger = (type: TriggerType): any => {
     case 'power_action': return { type: 'power_action', action: 'start' };
     case 'server_state': return { type: 'server_state', state: 'running' };
     case 'backup_status': return { type: 'backup_status', status: 'completed' };
+    case 'database_backup_status': return { type: 'database_backup_status', status: 'completed' };
     case 'schedule_completion': return { type: 'schedule_completion', schedule: '', successful: true };
     case 'console_line': return { type: 'console_line', contains: '' };
     case 'crash': return { type: 'crash' };
@@ -162,6 +163,11 @@ const newStep = (type: StepType): any => {
     case 'decompress_file': return { ...base, root: '/home/container', file: '' };
     case 'sleep': return { ...base, duration: 5 };
     case 'exit': return { ...base, successful: true };
+    case 'pull_file': return { ...base, foreground: true, root: '/home/container', url: '', file_name: '', use_header: false };
+    case 'create_database_backup': return { ...base, name: 'database-backup', database_instance_uuid: '', backup_group_uuid: '', output_into: null };
+    case 'delete_database_backup': return { ...base, backup: { mode: 'oldest' }, database_instance_uuid: '' };
+    case 'move_database_backup': return { ...base, backup: { mode: 'latest' }, database_instance_uuid: '', backup_group_uuid: '' };
+    case 'restore_database_backup': return { ...base, backup: { mode: 'latest' }, source_database_instance_uuid: '', database_instance_uuid: '' };
     default: return base;
   }
 };
@@ -294,6 +300,7 @@ export function SchedulesTab({ serverId }: { serverId: string }) {
     { value: 'power_action', label: 'Power Action' },
     { value: 'server_state', label: 'Server State' },
     { value: 'backup_status', label: 'Backup Status' },
+    { value: 'database_backup_status', label: 'Database Backup Status' },
     { value: 'schedule_completion', label: 'Schedule Completion' },
     { value: 'resource_usage', label: 'Resource Usage (instant)' },
     { value: 'resource_usage_over_time', label: 'Resource Usage (sustained)' },
@@ -312,7 +319,12 @@ export function SchedulesTab({ serverId }: { serverId: string }) {
     { value: 'delete_backup', label: 'Delete Backup', category: 'backup' },
     { value: 'move_backup', label: 'Move Backup', category: 'backup' },
     { value: 'export_backup', label: 'Export Backup to Filesystem', category: 'backup' },
+    { value: 'create_database_backup', label: 'Create Database Backup', category: 'db-backup' },
+    { value: 'delete_database_backup', label: 'Delete Database Backup', category: 'db-backup' },
+    { value: 'move_database_backup', label: 'Move Database Backup', category: 'db-backup' },
+    { value: 'restore_database_backup', label: 'Restore Database Backup', category: 'db-backup' },
     { value: 'http_request', label: 'HTTP Request', category: 'web' },
+    { value: 'pull_file', label: 'Pull File from URL', category: 'web' },
     { value: 'copy_file', label: 'Copy File', category: 'files' },
     { value: 'create_directory', label: 'Create Directory', category: 'files' },
     { value: 'write_file', label: 'Write File', category: 'files' },
@@ -665,6 +677,44 @@ export function SchedulesTab({ serverId }: { serverId: string }) {
                   )}
                   {step.type === 'sleep' && (
                     <input type="number" value={step.duration || 5} onChange={e => updateStep(idx, { duration: Number(e.target.value) })} placeholder="Seconds" className="w-full sm:w-24 border border-border bg-muted/30 px-2 py-1 text-xs rounded" />
+                  )}
+                  {step.type === 'pull_file' && (
+                    <div className="flex gap-2 flex-wrap">
+                      <input type="text" value={step.url || ''} onChange={e => updateStep(idx, { url: e.target.value })} placeholder="https://example.com/file.zip" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[160px]" />
+                      <input type="text" value={step.root || '/home/container'} onChange={e => updateStep(idx, { root: e.target.value })} placeholder="Destination dir" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[120px]" />
+                      <input type="text" value={step.file_name || ''} onChange={e => updateStep(idx, { file_name: e.target.value })} placeholder="File name (optional)" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[120px]" />
+                      <label className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <input type="checkbox" checked={step.use_header || false} onChange={e => updateStep(idx, { use_header: e.target.checked })} />
+                        Use content-disposition header
+                      </label>
+                    </div>
+                  )}
+                  {step.type === 'create_database_backup' && (
+                    <div className="flex gap-2 flex-wrap">
+                      <input type="text" value={step.database_instance_uuid || ''} onChange={e => updateStep(idx, { database_instance_uuid: e.target.value })} placeholder="Database instance UUID" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[160px]" />
+                      <input type="text" value={step.name || ''} onChange={e => updateStep(idx, { name: e.target.value })} placeholder="Backup name" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[120px]" />
+                      <input type="text" value={step.backup_group_uuid || ''} onChange={e => updateStep(idx, { backup_group_uuid: e.target.value })} placeholder="Group UUID" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded w-full sm:w-40" />
+                    </div>
+                  )}
+                  {(step.type === 'delete_database_backup' || step.type === 'move_database_backup' || step.type === 'restore_database_backup') && (
+                    <div className="flex gap-2 flex-wrap">
+                      <select value={step.backup?.mode || 'latest'} onChange={e => updateStep(idx, { backup: { ...(step.backup || {}), mode: e.target.value } })} className="border border-border bg-muted/30 px-2 py-1 text-xs rounded">
+                        <option value="latest">Latest</option><option value="oldest">Oldest</option><option value="uuid">By UUID</option><option value="name">By Name Pattern</option>
+                      </select>
+                      {step.backup?.mode === 'uuid' && (
+                        <input type="text" value={step.backup?.uuid || ''} onChange={e => updateStep(idx, { backup: { ...step.backup, uuid: e.target.value } })} placeholder="Backup UUID" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[140px]" />
+                      )}
+                      {step.backup?.mode === 'name' && (
+                        <input type="text" value={step.backup?.name || ''} onChange={e => updateStep(idx, { backup: { ...step.backup, name: e.target.value } })} placeholder="Name pattern" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[140px]" />
+                      )}
+                      <input type="text" value={step.database_instance_uuid || step.source_database_instance_uuid || ''} onChange={e => {
+                        const key = step.type === 'restore_database_backup' ? 'source_database_instance_uuid' : 'database_instance_uuid';
+                        updateStep(idx, { [key]: e.target.value });
+                      }} placeholder={step.type === 'restore_database_backup' ? 'Source DB instance UUID' : 'DB instance UUID'} className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[140px]" />
+                      {step.type === 'move_database_backup' && (
+                        <input type="text" value={step.backup_group_uuid || ''} onChange={e => updateStep(idx, { backup_group_uuid: e.target.value })} placeholder="Destination group UUID" className="border border-border bg-muted/30 px-2 py-1 text-xs rounded flex-1 min-w-[140px]" />
+                      )}
+                    </div>
                   )}
                   {(step.type === 'copy_file' || step.type === 'create_directory' || step.type === 'write_file') && (
                     <div className="flex gap-2 flex-wrap">

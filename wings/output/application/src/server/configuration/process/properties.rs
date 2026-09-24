@@ -15,6 +15,11 @@ impl super::ProcessConfigurationFileParser for PropertiesFileParser {
             "processing properties file"
         );
 
+        let mut replacements = Vec::with_capacity(config.replace.len());
+        for replacement in &config.replace {
+            replacements.push(super::ResolvedReplacement::new(server, replacement, true).await?);
+        }
+
         let mut result = Vec::new();
         let property_iter = PropertiesParser::new(content.as_bytes());
         let mut found_keys = HashSet::new();
@@ -26,29 +31,14 @@ impl super::ProcessConfigurationFileParser for PropertiesFileParser {
                     result.extend_from_slice(b"\n");
                 }
                 PropertyLine::Pair(key, mut existing_value) => {
-                    for replacement in &config.replace {
-                        if replacement.r#match != key || !replacement.update_existing {
+                    for resolved in &replacements {
+                        if resolved.replacement.r#match != key {
                             continue;
                         }
 
-                        let value = ServerConfigurationFile::replace_all_placeholders(
-                            server,
-                            &replacement.replace_with,
-                        )
-                        .await?;
-
-                        if let Some(if_value) = &replacement.if_value
-                            && existing_value != if_value
-                        {
-                            tracing::debug!(
-                                server = %server.uuid,
-                                "skipping replacement for '{}': value '{}' != '{}'",
-                                replacement.r#match, existing_value, if_value
-                            );
-                            continue;
+                        if let Some(value) = resolved.text(Some(&existing_value)) {
+                            existing_value = value;
                         }
-
-                        existing_value = value;
                     }
 
                     result.extend_from_slice(key.as_bytes());
@@ -76,19 +66,16 @@ impl super::ProcessConfigurationFileParser for PropertiesFileParser {
             }
         }
 
-        for replacement in &config.replace {
-            let insert_new = replacement.insert_new.unwrap_or(true);
-            if found_keys.contains(&replacement.r#match) || !insert_new {
+        for resolved in &replacements {
+            if found_keys.contains(&resolved.replacement.r#match) {
                 continue;
             }
 
-            let value = ServerConfigurationFile::replace_all_placeholders(
-                server,
-                &replacement.replace_with,
-            )
-            .await?;
+            let Some(value) = resolved.text(None) else {
+                continue;
+            };
 
-            result.extend_from_slice(replacement.r#match.as_bytes());
+            result.extend_from_slice(resolved.replacement.r#match.as_bytes());
             result.extend_from_slice(b"=");
             result.extend_from_slice(quote_to_ascii(&value).as_bytes());
             result.extend_from_slice(b"\n");
@@ -354,6 +341,20 @@ mod tests {
         }
     }
 
+    fn gated(
+        m: &str,
+        value: serde_json::Value,
+        if_value: &str,
+    ) -> ServerConfigurationFileReplacement {
+        ServerConfigurationFileReplacement {
+            r#match: m.into(),
+            if_value: Some(if_value.into()),
+            insert_new: None,
+            update_existing: true,
+            replace_with: value,
+        }
+    }
+
     fn run(content: &str, replace: Vec<ServerConfigurationFileReplacement>) -> String {
         tokio_test::block_on(async {
             let state = crate::routes::AppState::mock();
@@ -483,5 +484,20 @@ mod tests {
     fn round_trips_unicode_through_escapes() {
         // value is decoded on read and re-encoded canonically on write
         assert_eq!(run("motd=Caf\\u00e9\n", vec![]), "motd=Caf\\u00e9\n");
+    }
+
+    #[test]
+    fn regex_if_value_substitutes_within_the_existing_value() {
+        let out = run(
+            "level-seed=world-127\n",
+            vec![gated("level-seed", json!("200"), "regex:127$")],
+        );
+        assert!(out.contains("level-seed=world-200"), "{out}");
+    }
+
+    #[test]
+    fn if_value_blocks_appending_a_missing_key() {
+        let out = run("a=1\n", vec![gated("zzz", json!("x"), "anything")]);
+        assert!(!out.contains("zzz"), "{out}");
     }
 }

@@ -106,16 +106,19 @@ import {
   Star,
   Edit,
   GitBranch,
+  Share2,
 } from "lucide-react"
 
 import { ConsoleTab } from "./ConsoleTab"
 const StatsTabLazy = lazy(() => import("./StatsTab").then((m) => ({ default: m.StatsTab })))
 const FilesTabLazy = lazy(() => import("./FilesTab").then((m) => ({ default: m.FilesTab })))
 const FirewallTabLazy = lazy(() => import("./FirewallTab").then((m) => ({ default: m.FirewallTab })))
+const NativeFirewallTabLazy = lazy(() => import("./NativeFirewallTab").then((m) => ({ default: m.NativeFirewallTab })))
 const SharesTabLazy = lazy(() => import("./SharesTab").then((m) => ({ default: m.SharesTab })))
 const MinecraftTabLazy = lazy(() => import("./MinecraftTab").then((m) => ({ default: m.MinecraftTab })))
 const BackupsTabLazy = lazy(() => import("./BackupsTab").then((m) => ({ default: m.BackupsTab })))
 const SchedulesTabLazy = lazy(() => import("./SchedulesTab").then((m) => ({ default: m.SchedulesTab })))
+const TunnelTabLazy = lazy(() => import("./TunnelTab").then((m) => ({ default: m.TunnelTab })))
 import { ServerTransferModal } from "./ServerTransferModal"
 
 // ─── Shared UI Primitives ────────────────────────────────────────────────────
@@ -1168,7 +1171,8 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       { id: "databases", label: t("tabs.databases"), icon: Database, shortLabel: t("tabs.dbShort") },
       { id: "schedules", label: t("tabs.schedules"), icon: Clock },
       { id: "network", label: t("tabs.network"), icon: Network, shortLabel: t("tabs.netShort") },
-      ...(isKvm ? [{ id: "firewall", label: t("tabs.firewall"), icon: Shield }] : []),
+      { id: "tunnel", label: t("tabs.tunnel"), icon: Share2, shortLabel: t("tabs.tunnelShort") },
+      { id: "firewall", label: t("tabs.firewall"), icon: Shield },
       { id: "backups", label: t("tabs.backups"), icon: HardDrive },
       { id: "activity", label: t("tabs.activity"), icon: Activity },
       { id: "subusers", label: t("tabs.subusers"), icon: Users },
@@ -1194,6 +1198,7 @@ export default function ServerDetailPage({ params }: { params: Promise<{ id: str
       activity: "activity",
       stats: "stats",
       network: "network",
+      tunnel: "tunnel",
       mounts: "mounts",
     }),
     []
@@ -1563,9 +1568,16 @@ const dmcaAlert = isDmcaProtected ? (
               </Suspense>
             )}
             {activeTab === "network" && <NetworkTab serverId={id} server={server} />}
+            {activeTab === "tunnel" && (
+              <Suspense fallback={<LoadingState message={t("states.loadingTunnel")} />}>
+                <TunnelTabLazy serverId={id} />
+              </Suspense>
+            )}
             {activeTab === "firewall" && (
               <Suspense fallback={<LoadingState message={t("states.loadingFirewall")} />}>
-                <FirewallTabLazy serverId={id} server={server} />
+                {isKvm
+                  ? <FirewallTabLazy serverId={id} server={server} />
+                  : <NativeFirewallTabLazy serverId={id} />}
               </Suspense>
             )}
             {activeTab === "mounts" && <MountsTab serverId={id} isKvm={isKvm} />}
@@ -3980,6 +3992,7 @@ function SubusersTab({
     { key: "activity", label: t("tabs.activity") },
     { key: "stats", label: t("tabs.statistics") },
     { key: "network", label: t("tabs.network") },
+    { key: "tunnel", label: t("tabs.tunnel") },
     { key: "mounts", label: t("tabs.mounts") },
     { key: "file-sharing", label: "File Sharing" },
     { key: "power", label: "Power" },

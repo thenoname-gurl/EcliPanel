@@ -22,27 +22,30 @@ impl super::ProcessConfigurationFileParser for YamlFileParser {
         };
 
         for replacement in &config.replace {
-            let value = match &replacement.replace_with {
-                serde_json::Value::String(_) => {
-                    let resolved = ServerConfigurationFile::replace_all_placeholders(
-                        server,
-                        &replacement.replace_with,
-                    )
-                    .await?;
-                    serde_json::from_str(&resolved)
-                        .unwrap_or(serde_json::Value::String(resolved.into()))
-                }
-                other => other.clone(),
-            };
+            let resolved = super::ResolvedReplacement::new(server, replacement, true).await?;
 
-            let path = super::json::parse_path(&replacement.r#match);
-            super::json::set_nested_value(
-                &mut json,
-                &path,
-                value,
-                replacement.insert_new.unwrap_or(true),
-                replacement.update_existing,
-            );
+            for path in super::json::expand_match_path(&json, &replacement.r#match) {
+                let existing = super::json::get_nested_value(&json, &path);
+                let existing_is_string = existing.is_some_and(serde_json::Value::is_string);
+                let existing = existing.map(super::json::value_to_text);
+
+                let Some(gate) = resolved.gate(existing.as_deref()) else {
+                    continue;
+                };
+
+                super::json::set_nested_value(
+                    &mut json,
+                    &path,
+                    super::json::coerce_value(
+                        replacement,
+                        &resolved.value,
+                        gate,
+                        existing_is_string,
+                    ),
+                    resolved.insert_new,
+                    resolved.update_existing,
+                );
+            }
         }
 
         Ok(serde_norway::to_string(&json)?.into_bytes())
@@ -65,6 +68,20 @@ mod tests {
             if_value: None,
             insert_new,
             update_existing,
+            replace_with: value,
+        }
+    }
+
+    fn gated(
+        m: &str,
+        value: serde_json::Value,
+        if_value: &str,
+    ) -> ServerConfigurationFileReplacement {
+        ServerConfigurationFileReplacement {
+            r#match: m.into(),
+            if_value: Some(if_value.into()),
+            insert_new: None,
+            update_existing: true,
             replace_with: value,
         }
     }
@@ -135,5 +152,38 @@ mod tests {
             run("keep: 1\n", vec![rep("add", json!(2), None, true)]),
             json!({"keep": 1, "add": 2})
         );
+    }
+
+    #[test]
+    fn wildcard_updates_every_listener() {
+        let out = run(
+            "listeners:\n  one:\n    host: 0.0.0.0\n  two:\n    host: 0.0.0.0\n",
+            vec![rep("listeners.*.host", json!("10.0.0.1"), None, true)],
+        );
+        assert_eq!(
+            out,
+            json!({"listeners": {"one": {"host": "10.0.0.1"}, "two": {"host": "10.0.0.1"}}})
+        );
+    }
+
+    #[test]
+    fn if_value_gates_the_replacement() {
+        let out = run(
+            "host: 0.0.0.0\nother: 1.2.3.4\n",
+            vec![
+                gated("host", json!("10.0.0.1"), "0.0.0.0"),
+                gated("other", json!("10.0.0.1"), "0.0.0.0"),
+            ],
+        );
+        assert_eq!(out, json!({"host": "10.0.0.1", "other": "1.2.3.4"}));
+    }
+
+    #[test]
+    fn regex_if_value_substitutes_within_the_existing_value() {
+        let out = run(
+            "url: http://127.0.0.1:8080/api\n",
+            vec![gated("url", json!("10.0.0.1"), r"regex:127\.0\.0\.1")],
+        );
+        assert_eq!(out, json!({"url": "http://10.0.0.1:8080/api"}));
     }
 }

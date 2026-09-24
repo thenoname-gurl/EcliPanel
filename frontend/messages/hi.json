@@ -61,7 +61,8 @@
     "actions": {
       "backToOrganisations": "संगठनों पर वापस जाएं",
       "accept": "स्वीकार करें",
-      "reject": "अस्वीकार करें"
+      "reject": "अस्वीकार करें",
+      "refresh": "ताज़ा करें"
     },
     "loading": "आमंत्रण लोड हो रहे हैं...",
     "emptyTitle": "कोई लंबित संगठन आमंत्रण नहीं",
@@ -155,7 +156,8 @@
       "save": "सहेजें",
       "copy": "कॉपी करें",
       "favorite": "पसंदीदा में जोड़ें",
-      "unfavorite": "पसंदीदा से हटाएं"
+      "unfavorite": "पसंदीदा से हटाएं",
+      "refresh": "ताज़ा करें"
     },
     "details": {
       "sender": "प्रेषक",
@@ -278,7 +280,8 @@
         "numberedList": "क्रमांकित सूची",
         "inlineCode": "इनलाइन कोड",
         "link": "लिंक",
-        "divider": "विभाजक"
+        "divider": "विभाजक",
+        "refresh": "ताज़ा करें"
       }
     },
     "toast": {
@@ -781,7 +784,8 @@
       "retryThisPage": "→ इस पृष्ठ को पुनः प्रयास करें",
       "returnHome": "→ होम पर लौटें",
       "goDashboard": "→ डैशबोर्ड पर जाएं",
-      "hardReload": "→ पृष्ठ को हार्ड रीलोड करें"
+      "hardReload": "→ पृष्ठ को हार्ड रीलोड करें",
+      "refresh": "ताज़ा करें"
     },
     "recovery": {
       "warn": "चेतावनी:",
@@ -1127,7 +1131,8 @@
   "organisationAcceptPage": {
     "title": "संगठन आमंत्रण स्वीकार करें",
     "actions": {
-      "acceptInvite": "आमंत्रण स्वीकार करें"
+      "acceptInvite": "आमंत्रण स्वीकार करें",
+      "refresh": "ताज़ा करें"
     },
     "messages": {
       "accepted": "आमंत्रण स्वीकार किया गया। रीडायरेक्ट किया जा रहा है...",
@@ -1187,7 +1192,8 @@
       "transmitting": "जमा हो रहा है...",
       "submit": "जमा करें",
       "navigateHome": "होम पर लौटें",
-      "loginRequired": "जमा करने के लिए लॉगिन आवश्यक"
+      "loginRequired": "जमा करने के लिए लॉगिन आवश्यक",
+      "refresh": "ताज़ा करें"
     },
     "messages": {
       "transmitted": "सबमिशन सफलतापूर्वक प्रेषित किया गया।"
@@ -1307,7 +1313,8 @@
       "actions": {
         "acknowledge": "स्वीकार करें",
         "resolve": "समाधान करें",
-        "falsePositive": "गलत सकारात्मक"
+        "falsePositive": "गलत सकारात्मक",
+        "refresh": "ताज़ा करें"
       },
       "source": {
         "internal": "आंतरिक स्कैन",
@@ -1326,7 +1333,8 @@
       "working": "काम हो रहा है…",
       "confirmReveal": "प्रकट करने के लिए पुष्टि करें",
       "rehidePrivateData": "निजी डेटा छुपाएं",
-      "open": "खुला"
+      "open": "खुला",
+      "refresh": "ताज़ा करें"
     },
     "privacy": {
       "sensitiveDataPrefix": "संवेदनशील डेटा वर्तमान में",
@@ -1398,7 +1406,8 @@
       "feedback": "प्रतिक्रिया",
       "chat": "चैट",
       "companyMailboxes": "कंपनी मेलबॉक्स",
-      "studentVerifications": "छात्र सत्यापन"
+      "studentVerifications": "छात्र सत्यापन",
+      "tundra": "Tundra Mesh"
     },
     "shortUrls": {
       "overview": {
@@ -1435,7 +1444,8 @@
         "create": "छोटा URL बनाएं",
         "update": "छोटा URL अपडेट करें",
         "cancel": "रद्द करें",
-        "confirmDelete": "यह छोटा URL हटाएं?"
+        "confirmDelete": "यह छोटा URL हटाएं?",
+        "refresh": "ताज़ा करें"
       },
       "errors": {
         "failedLoad": "छोटे URLs लोड करने में विफल।",
@@ -2102,7 +2112,8 @@
       "test": "परीक्षण",
       "sendBroadcast": "प्रसारण भेजें",
       "broadcast": "प्रसारण",
-      "tapToPreview": "ईमेल पूर्वावलोकन के लिए टैप करें"
+      "tapToPreview": "ईमेल पूर्वावलोकन के लिए टैप करें",
+      "refresh": "ताज़ा करें"
     }
   },
   "adminFraudTab": {
@@ -2153,7 +2164,8 @@
       "dismissing": "खारिज किया जा रहा है…",
       "dismiss": "खारिज करें",
       "suspend": "निलंबित करें",
-      "rescan": "पुनः स्कैन करें"
+      "rescan": "पुनः स्कैन करें",
+      "refresh": "ताज़ा करें"
     }
   },
   "adminDeletionsTab": {
@@ -2349,7 +2361,8 @@
       "cancel": "रद्द करें",
       "saving": "सहेजा जा रहा है…",
       "saveChanges": "परिवर्तन सहेजें",
-      "createPlan": "योजना बनाएं"
+      "createPlan": "योजना बनाएं",
+      "refresh": "ताज़ा करें"
     }
   },
   "adminOauthTab": {
@@ -2437,7 +2450,8 @@
       "rotating": "रोटेट हो रहा है…",
       "privacyPolicy": "गोपनीयता नीति",
       "termsOfService": "सेवा की शर्तें",
-      "removeLogo": "चयनित लोगो हटाएं"
+      "removeLogo": "चयनित लोगो हटाएं",
+      "refresh": "ताज़ा करें"
     }
   },
   "adminEggsTab": {
@@ -2680,7 +2694,8 @@
     "actions": {
       "saving": "सहेजा जा रहा है…",
       "saveSettings": "सेटिंग्स सहेजें",
-      "save": "सहेजें"
+      "save": "सहेजें",
+      "refresh": "ताज़ा करें"
     },
     "states": {
       "changesSaved": "परिवर्तन सहेजे गए",
@@ -2934,7 +2949,8 @@
       "createHost": "होस्ट बनाएं",
       "test": "परीक्षण",
       "confirm": "पुष्टि करें",
-      "cancel": "रद्द करें"
+      "cancel": "रद्द करें",
+      "refresh": "ताज़ा करें"
     }
   },
   "adminAiTab": {
@@ -3441,7 +3457,8 @@
       "saving": "सहेजा जा रहा है...",
       "saveChanges": "परिवर्तन सहेजें",
       "updating": "अपडेट हो रहा है...",
-      "uploading": "अपलोड हो रहा है..."
+      "uploading": "अपलोड हो रहा है...",
+      "refresh": "ताज़ा करें"
     },
     "portal": {
       "free": "मुफ़्त पोर्टल",
@@ -3838,7 +3855,8 @@
       "submitForVerification": "सत्यापन के लिए जमा करें",
       "verifySelfieAge": "सेल्फ़ी आयु सत्यापित करें",
       "verifyStudent": "छात्र स्थिति सत्यापित करें",
-      "viewBenefits": "लाभ देखें"
+      "viewBenefits": "लाभ देखें",
+      "refresh": "ताज़ा करें"
     },
     "messages": {
       "submittedForReview": "सत्यापन जमा किया गया - आपके दस्तावेज़ समीक्षाधीन हैं।"
@@ -3991,7 +4009,8 @@
     },
     "actions": {
       "prev": "पिछला",
-      "next": "अगला"
+      "next": "अगला",
+      "refresh": "ताज़ा करें"
     },
     "export": {
       "title": "निर्यात",
@@ -4050,7 +4069,8 @@
       "restart": "पुनः आरंभ करें",
       "console": "कंसोल",
       "newServer": "नया सर्वर",
-      "deployServer": "सर्वर तैनात करें"
+      "deployServer": "सर्वर तैनात करें",
+      "refresh": "ताज़ा करें"
     },
     "stats": {
       "total": "कुल",
@@ -4209,7 +4229,8 @@
         "cancel": "रद्द करें",
         "deploying": "तैनात हो रहा है…",
         "deploy": "सर्वर तैनात करें",
-        "close": "अच्छा। बंद करें"
+        "close": "अच्छा। बंद करें",
+        "refresh": "ताज़ा करें"
       },
       "result": {
         "blackjackTitle": "🃏 ब्लैकजैक सर्वर निर्माण परिणाम",
@@ -4288,7 +4309,8 @@
       "cancel": "रद्द करें",
       "reconnect": "पुनः कनेक्ट करें",
       "fullscreen": "पूर्ण स्क्रीन",
-      "exitFullscreen": "पूर्ण स्क्रीन से बाहर निकलें"
+      "exitFullscreen": "पूर्ण स्क्रीन से बाहर निकलें",
+      "refresh": "ताज़ा करें"
     },
     "terminal": {
       "errorTag": "त्रुटि",
@@ -4380,7 +4402,8 @@
       "disableWrap": "वर्ड रैप अक्षम करें",
       "enableWrap": "वर्ड रैप सक्षम करें",
       "search": "खोजें (Ctrl+F)",
-      "copyAll": "सभी कॉपी करें"
+      "copyAll": "सभी कॉपी करें",
+      "refresh": "ताज़ा करें"
     },
     "states": {
       "loadingEditor": "एडिटर लोड हो रहा है..."
@@ -4458,7 +4481,10 @@
       "openSftp": "SFTP के माध्यम से खोलें",
       "openQemuFolder": "QEMU फ़ोल्डर खोलें",
       "hide": "छुपाएं",
-      "details": "विवरण"
+      "details": "विवरण",
+      "search": "खोजें",
+      "newSymlink": "नया सिमलिंक",
+      "refresh": "ताज़ा करें"
     },
     "table": {
       "name": "नाम",
@@ -4473,7 +4499,9 @@
     "inputs": {
       "fileNamePlaceholder": "फ़ाइलनाम.txt",
       "folderNamePlaceholder": "फ़ोल्डर-नाम",
-      "sftpPassword": "SFTP पासवर्ड"
+      "sftpPassword": "SFTP पासवर्ड",
+      "symlinkNamePlaceholder": "लिंक-नाम",
+      "symlinkTargetPlaceholder": "लक्ष्य पथ (आवश्यक)"
     },
     "preview": {
       "zoomOut": "ज़ूम आउट",
@@ -4514,7 +4542,8 @@
       "vmFilesystemViaSftp": "SFTP के माध्यम से VM फ़ाइलसिस्टम",
       "sftpModeDescription": "अतिथि फ़ाइलसिस्टम तक सीधी SFTP पहुंच का उपयोग करें।",
       "sftpCommand": "SFTP कमांड",
-      "sftpPassword": "SFTP पासवर्ड"
+      "sftpPassword": "SFTP पासवर्ड",
+      "uploadConflict": "संघर्ष"
     },
     "confirm": {
       "openUnknownType": "यह फ़ाइल प्रकार सही ढंग से प्रदर्शित नहीं हो सकता। फिर भी खोलें?",
@@ -4524,7 +4553,12 @@
       "deleteFile": "\"{name}\" हटाएं?",
       "fileExistsOpen": "\"{name}\" मौजूद है। इसके बजाय इसे खोलें?",
       "applyRecursive": "पुनरावर्ती रूप से लागू करें?",
-      "deleteSelected": "{count} आइटम हटाएं?"
+      "deleteSelected": "{count} आइटम हटाएं?",
+      "uploadConflictTitle": "नाम संघर्ष",
+      "uploadConflictDescription": "इनमें से {count} फ़ाइलें इस निर्देशिका में पहले से मौजूद हैं।",
+      "uploadOverwrite": "मौजूदा ओवरराइट करें",
+      "uploadSkip": "सिर्फ़ मौजूदा छोड़ें",
+      "uploadAbort": "अपलोड रद्द करें"
     },
     "prompts": {
       "renameTo": "नया नाम:",
@@ -4605,6 +4639,16 @@
       "good": "अच्छा",
       "excellent": "उत्कृष्ट",
       "helpsImprove": "आपकी प्रतिक्रिया हमें पैनल को बेहतर बनाने में मदद करती है।"
+    },
+    "search": {
+      "title": "फ़ाइलें खोजें",
+      "placeholder": "फ़ाइल नाम या सामग्री खोजें…",
+      "run": "खोजें",
+      "searchContent": "फ़ाइल सामग्री में खोजें",
+      "caseInsensitive": "केस-असंवेदनशील",
+      "noResults": "कोई फ़ाइल नहीं मिली",
+      "failed": "खोज विफल",
+      "resultCount": "परिणाम"
     }
   },
   "eloPage": {
@@ -4843,7 +4887,8 @@
     "actions": {
       "backToHome": "होम पर वापस जाएं",
       "previous": "पिछला",
-      "next": "अगला"
+      "next": "अगला",
+      "refresh": "ताज़ा करें"
     },
     "header": {
       "github": "GitHub",
@@ -4924,6 +4969,8 @@
       "dbShort": "DB",
       "schedules": "शेड्यूल",
       "network": "नेटवर्क",
+      "tunnel": "टनल",
+      "tunnelShort": "टनल",
       "firewall": "फ़ायरवॉल",
       "netShort": "नेट",
       "backups": "बैकअप",
@@ -5051,7 +5098,8 @@
       "refreshServer": "सर्वर रीफ़्रेश करें",
       "backToServers": "सर्वर पर वापस जाएं",
       "cancel": "रद्द करें",
-      "confirm": "पुष्टि करें"
+      "confirm": "पुष्टि करें",
+      "refresh": "ताज़ा करें"
     },
     "toasts": {
       "diceDeniedTitle": "पासा अस्वीकृत",
@@ -5316,7 +5364,8 @@
         "rejectedSubuserInvite": "सर्वर सबयूज़र आमंत्रण अस्वीकार किया",
         "serverSuspend": "सर्वर निलंबित",
         "serverUnsuspend": "सर्वर निलंबन हटाया",
-        "updatedProfile": "प्रोफ़ाइल सेटिंग्स अपडेट की"
+        "updatedProfile": "प्रोफ़ाइल सेटिंग्स अपडेट की",
+        "refresh": "ताज़ा करें"
       }
     },
     "filters": {
@@ -5481,6 +5530,38 @@
       "nodeIssueDescription": "इस नोड पर सर्वर अनुपलब्ध या अनुत्तरदायी हो सकते हैं।",
       "nodesIssueDescription": "इन नोड्स पर सर्वर अनुपलब्ध या अनुत्तरदायी हो सकते हैं: {nodes}।",
       "learnMore": "/status पर अधिक जानें"
+    },
+    "nativeFirewall": {
+      "loading": "लोड हो रहा है…",
+      "loadFailed": "फ़ायरवॉल और बूस्ट सेटिंग्स लोड नहीं हो सकीं।",
+      "saveFailed": "सहेजना विफल: {reason}",
+      "save": "सहेजें",
+      "saved": "सहेजा गया",
+      "firewallTitle": "फ़ायरवॉल और बूस्ट",
+      "featuresTitle": "प्रदर्शन",
+      "rulesTitle": "इनबाउंड फ़ायरवॉल नियम",
+      "rulesHint": "Wings द्वारा लागू कंटेनर नेटवर्क नियम (nftables/iptables)। Deny ट्रैफ़िक रोकता है, allow खोलता है।",
+      "addRule": "नियम जोड़ें",
+      "noRules": "अभी कोई फ़ायरवॉल नियम नहीं है। इनबाउंड ट्रैफ़िक नियंत्रित करने के लिए नियम जोड़ें।",
+      "removeRule": "नियम हटाएं",
+      "allow": "अनुमति",
+      "deny": "अस्वीकार",
+      "from": "से",
+      "allProtocols": "कोई भी",
+      "allSources": "0.0.0.0/0",
+      "allPorts": "कोई भी",
+      "portsPlaceholder": "पोर्ट (25565, 25566)",
+      "sourcesPlaceholder": "स्रोत IP/CIDR (1.2.3.4, 10.0.0.0/8)",
+      "startupBoost": "स्टार्टअप CPU बूस्ट",
+      "startupEnable": "सर्वर शुरू होने पर CPU बूस्ट",
+      "startupTimeout": "बूस्ट अवधि",
+      "runtimeBoost": "रनटाइम CPU बूस्ट",
+      "runtimeEnable": "लोड स्पाइक पर CPU बूस्ट",
+      "runtimeThreshold": "ट्रिगर सीमा",
+      "runtimeSustained": "स्थिर समय",
+      "runtimeMultiple": "CPU गुणक",
+      "runtimeDuration": "बूस्ट अवधि",
+      "runtimeCooldown": "बूस्ट के बाद कूलडाउन"
     }
   },
   "tunnelsPage": {
@@ -5527,7 +5608,8 @@
       "manage": "प्रबंधित करें",
       "copy": "कॉपी करें",
       "regenerateToken": "टोकन पुनः उत्पन्न करें",
-      "deleteDevice": "डिवाइस हटाएं"
+      "deleteDevice": "डिवाइस हटाएं",
+      "refresh": "ताज़ा करें"
     },
     "prompts": {
       "nameForDevice": "डिवाइस के लिए नाम",
@@ -5724,7 +5806,8 @@
       }
     },
     "actions": {
-      "newTicket": "नया टिकट"
+      "newTicket": "नया टिकट",
+      "refresh": "ताज़ा करें"
     },
     "states": {
       "loading": "टिकट लोड हो रहे हैं...",
@@ -5791,7 +5874,8 @@
       "backToTickets": "टिकट पर वापस जाएं",
       "cancel": "रद्द करें",
       "submitting": "जमा हो रहा है...",
-      "submitTicket": "टिकट जमा करें"
+      "submitTicket": "टिकट जमा करें",
+      "refresh": "ताज़ा करें"
     },
     "errors": {
       "requiredFields": "विषय और संदेश आवश्यक हैं।",
@@ -5895,7 +5979,8 @@
       "deleteTicket": "टिकट हटाएं",
       "deleting": "हटाया जा रहा है…",
       "reply": "उत्तर दें",
-      "send": "भेजें"
+      "send": "भेजें",
+      "refresh": "ताज़ा करें"
     },
     "confirm": {
       "deleteTicket": "यह टिकट स्थायी रूप से हटाएं?",
@@ -5948,7 +6033,8 @@
     },
     "actions": {
       "newOrganisation": "नया संगठन",
-      "viaBilling": "$1 बिलिंग के माध्यम से"
+      "viaBilling": "$1 बिलिंग के माध्यम से",
+      "refresh": "ताज़ा करें"
     },
     "states": {
       "loading": "लोड हो रहा है...",
@@ -5986,7 +6072,8 @@
     "actions": {
       "creating": "बनाया जा रहा है...",
       "create": "बनाएं",
-      "cancel": "रद्द करें"
+      "cancel": "रद्द करें",
+      "refresh": "ताज़ा करें"
     },
     "errors": {
       "failedCreate": "संगठन बनाने में विफल"
@@ -6147,7 +6234,8 @@
         "serverDelete": "सर्वर हटाया",
         "serverUpdate": "सर्वर अपडेट किया",
         "serverSuspend": "सर्वर निलंबित",
-        "serverUnsuspend": "सर्वर निलंबन हटाया"
+        "serverUnsuspend": "सर्वर निलंबन हटाया",
+        "refresh": "ताज़ा करें"
       }
     },
     "stats": {
@@ -6281,7 +6369,8 @@
       "bestPractices": "सर्वोत्तम अभ्यास"
     },
     "actions": {
-      "clearChat": "चैट साफ़ करें"
+      "clearChat": "चैट साफ़ करें",
+      "refresh": "ताज़ा करें"
     },
     "states": {
       "thinking": "सोच रहा है..."
@@ -7213,7 +7302,8 @@
     "permissions": "यह ऐप इन कामों में सक्षम होगा:",
     "actions": {
       "authorize": "अधिकृत करें",
-      "cancel": "रद्द करें"
+      "cancel": "रद्द करें",
+      "refresh": "ताज़ा करें"
     },
     "loginRequired": {
       "title": "साइन इन आवश्यक",
@@ -7578,7 +7668,8 @@
       "restore": "पुनर्स्थापित करें",
       "deleteForever": "हमेशा के लिए हटाएं",
       "cancel": "रद्द करें",
-      "preview": "पूर्वावलोकन"
+      "preview": "पूर्वावलोकन",
+      "refresh": "ताज़ा करें"
     },
     "dialogs": {
       "createTitle": "नई फ़ाइल बनाएं",
@@ -7720,5 +7811,48 @@
     "renameHint": "\"{name}\" के लिए नया नाम चुनें।",
     "renameError": "नाम नहीं बदला जा सका",
     "sharedLinks": "साझा लिंक"
+  },
+  "adminTundraTab": {
+    "loading": "टन्ड्रा मेश लोड हो रहा है…",
+    "refresh": "रीफ़्रेश",
+    "globalConfig": "वैश्विक कॉन्फ़िगरेशन",
+    "masterSwitch": "मास्टर स्विच — पैनल सभी नोड को नियंत्रित करता है",
+    "enabled": "सक्षम",
+    "disabled": "अक्षम",
+    "enable": "सक्षम करें",
+    "disable": "अक्षम करें",
+    "nodesJoined": "नोड",
+    "defaultTunnelPort": "डिफ़ॉल्ट टनल पोर्ट",
+    "fullMesh": "क्रॉस-टेनेंट फुल मेश",
+    "fullMeshHint": "हर सर्वर को किसी भी अन्य सर्वर तक पहुँचने दें (सुरक्षा जोखिम)। बंद = केवल समान स्वामी की पहुँच।",
+    "nodesTitle": "नोड",
+    "nodesHint": "नोड ID वाले Wings नोड स्वचालित रूप से मेश से जुड़ते हैं। कॉन्फ़िगर करने के लिए नोड खोलें।",
+    "noNodes": "कोई Wings नोड नहीं मिला।",
+    "locallyEnabled": "स्थानीय रूप से सक्षम",
+    "locallyDisabled": "स्थानीय रूप से अक्षम",
+    "certPresent": "प्रमाणपत्र प्राप्त",
+    "certMissing": "कोई प्रमाणपत्र नहीं",
+    "participate": "मेश में भाग लें",
+    "participateHint": "इस नोड को स्नैपशॉट में शामिल करें ताकि Wings टनल शिम चलाए।",
+    "nodeIdMissing": "नोड में कोई नोड ID नहीं है — पंजीकरण करते समय सेट करें।",
+    "tunnelPort": "टनल पोर्ट",
+    "host": "होस्ट",
+    "certFingerprint": "प्रमाणपत्र फ़िंगरप्रिंट",
+    "sync": "सिंक",
+    "rotate": "रोटेट",
+    "metrics": "मेट्रिक्स",
+    "clearCert": "प्रमाणपत्र साफ़ करें",
+    "aclsTitle": "ACL नियम",
+    "aclsHint": "स्पष्ट पहुँच नियम (स्रोत → लक्ष्य)। समान स्वामी के जोड़े स्वचालित रूप से अनुमत होते हैं।",
+    "srcServer": "स्रोत सर्वर",
+    "dstServer": "लक्ष्य सर्वर",
+    "addAcl": "ACL जोड़ें",
+    "createdAt": "बनाया गया",
+    "actions": "क्रियाएँ",
+    "noAcls": "कोई स्पष्ट ACL नियम नहीं।",
+    "saved": "सहेजा गया",
+    "saveError": "सहेजने में विफल",
+    "loadError": "टन्ड्रा कॉन्फ़िग लोड करने में विफल",
+    "aclRequired": "दोनों सर्वर UUID आवश्यक हैं"
   }
 }

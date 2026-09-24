@@ -1,3 +1,4 @@
+"use client"
 import type { Metadata } from "next";
 import { ChangelogClient } from "./ChangelogClient";
 import { createMetadata } from "@/lib/metadata";

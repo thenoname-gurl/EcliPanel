@@ -1,3 +1,4 @@
+"use client"
 import type { Metadata } from "next";
 import { createMetadata } from "@/lib/metadata";
 import { Md } from "./_components/md";

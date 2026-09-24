@@ -8,7 +8,10 @@ use crate::{
     response::ApiResponse,
     routes::MimeCacheValue,
     server::{
-        backup::{Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt},
+        backup::{
+            Backup, BackupCleanExt, BackupCreateExt, BackupExt, BackupFindExt, BackupStream,
+            BackupStreamCreateExt, BackupStreamExt, DumpReader,
+        },
         filesystem::{
             archive::StreamableArchiveFormat,
             cap::FileType,
@@ -30,14 +33,14 @@ use serde_default::DefaultFromSerde;
 use std::{
     collections::HashMap,
     io::Write,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     sync::{
         Arc, LazyLock,
         atomic::{AtomicU64, Ordering},
     },
 };
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt},
+    io::{AsyncBufReadExt, AsyncWriteExt},
     process::Command,
     sync::RwLock,
 };
@@ -48,6 +51,8 @@ static RESTIC_BACKUP_CACHE: LazyLock<ResticBackupCache> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
 const RESTIC_STDERR_CAPTURE_LIMIT: usize = 8 * 1024;
+const MAX_TREE_DEPTH: usize = 1024;
+const MAX_BROWSE_ENTRIES: usize = 10_000_000;
 
 #[derive(Debug, Deserialize)]
 struct ResticSnapshot {
@@ -98,6 +103,15 @@ pub struct ResticTreeNode {
     files: thin_vec::ThinVec<(CompactString, ResticFileMeta)>,
 }
 
+// drops the tree iteratively, recursive dropping would overflow the stack on deeply nested trees
+impl Drop for ResticTreeNode {
+    fn drop(&mut self) {
+        while let Some((_, mut node)) = self.dirs.pop() {
+            self.dirs.append(&mut node.dirs);
+        }
+    }
+}
+
 impl ResticTreeNode {
     fn build(entries: Vec<ResticDirectoryEntry>) -> Self {
         let mut root = ResticTreeNode::default();
@@ -111,13 +125,19 @@ impl ResticTreeNode {
     }
 
     fn insert(&mut self, entry: ResticDirectoryEntry) {
-        let components: Vec<&str> = entry
-            .path
-            .components()
-            .filter_map(|c| c.as_os_str().to_str())
-            .collect();
+        let mut components: Vec<&str> = Vec::new();
+        for component in entry.path.components() {
+            let Component::Normal(name) = component else {
+                return;
+            };
+            let Some(name) = name.to_str() else {
+                return;
+            };
 
-        if components.is_empty() {
+            components.push(name);
+        }
+
+        if components.is_empty() || components.len() > MAX_TREE_DEPTH {
             return;
         }
 
@@ -229,6 +249,31 @@ pub struct ResticBackup {
 impl ResticBackup {
     pub fn get_restic_cache_dir(config: &crate::config::Config) -> String {
         config.resolve_as_str(|cfg| &cfg.system.backup_directory) + "/.cache/restic"
+    }
+
+    fn spawn_stderr_capture(
+        stderr: tokio::process::ChildStderr,
+    ) -> tokio::task::JoinHandle<String> {
+        tokio::spawn(async move {
+            let mut reader = tokio::io::BufReader::new(stderr);
+            let mut output = String::new();
+            let mut line = String::new();
+
+            loop {
+                line.clear();
+                match reader.read_line(&mut line).await {
+                    Ok(0) => break,
+                    Ok(_) => {
+                        if output.len() < RESTIC_STDERR_CAPTURE_LIMIT {
+                            output.push_str(&line);
+                        }
+                    }
+                    Err(_) => break,
+                }
+            }
+
+            output
+        })
     }
 }
 
@@ -782,6 +827,236 @@ impl BackupCreateExt for ResticBackup {
 }
 
 #[async_trait::async_trait]
+impl BackupStreamCreateExt for ResticBackup {
+    async fn create_from_stream(
+        state: &crate::routes::State,
+        uuid: uuid::Uuid,
+        extension: &str,
+        mut reader: DumpReader,
+    ) -> Result<RawServerBackup, anyhow::Error> {
+        let file_name = format!("{uuid}.{extension}");
+
+        let (mut child, configuration) = if tokio::fs::metadata(
+            state
+                .config
+                .resolve_as_path(|cfg| &cfg.system.backups.restic.password_file),
+        )
+        .await
+        .is_ok()
+        {
+            let config = state.config.load();
+
+            (
+                Command::new("restic")
+                    .envs(&config.system.backups.restic.environment)
+                    .arg("--json")
+                    .arg("--repo")
+                    .arg(&*config.system.backups.restic.repository.as_str(&config))
+                    .arg("--password-file")
+                    .arg(&*config.system.backups.restic.password_file.as_str(&config))
+                    .arg("--cache-dir")
+                    .arg(Self::get_restic_cache_dir(&state.config))
+                    .arg("--retry-lock")
+                    .arg(format!(
+                        "{}s",
+                        config.system.backups.restic.retry_lock_seconds
+                    ))
+                    .arg("backup")
+                    .arg("--stdin")
+                    .arg("--stdin-filename")
+                    .arg(&file_name)
+                    .arg("--tag")
+                    .arg(uuid.to_string())
+                    .arg("--group-by")
+                    .arg("tags")
+                    .arg("--limit-download")
+                    .arg((config.system.backups.read_limit.as_kib()).to_compact_string())
+                    .arg("--limit-upload")
+                    .arg((config.system.backups.write_limit.as_kib()).to_compact_string())
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()?,
+                ResticBackupConfiguration {
+                    repository: config
+                        .system
+                        .backups
+                        .restic
+                        .repository
+                        .as_str(&config)
+                        .into(),
+                    password_file: Some(
+                        config
+                            .system
+                            .backups
+                            .restic
+                            .password_file
+                            .as_str(&config)
+                            .into(),
+                    ),
+                    retry_lock_seconds: config.system.backups.restic.retry_lock_seconds,
+                    environment: config.system.backups.restic.environment.clone(),
+                },
+            )
+        } else {
+            let configuration = state
+                .config
+                .client
+                .backup_restic_configuration(uuid)
+                .await?;
+            let config = state.config.load();
+
+            (
+                Command::new("restic")
+                    .envs(&configuration.environment)
+                    .arg("--json")
+                    .arg("--repo")
+                    .arg(&configuration.repository)
+                    .arg("--cache-dir")
+                    .arg(Self::get_restic_cache_dir(&state.config))
+                    .arg("--retry-lock")
+                    .arg(format!("{}s", configuration.retry_lock_seconds))
+                    .arg("backup")
+                    .arg("--stdin")
+                    .arg("--stdin-filename")
+                    .arg(&file_name)
+                    .arg("--tag")
+                    .arg(uuid.to_string())
+                    .arg("--group-by")
+                    .arg("tags")
+                    .arg("--limit-download")
+                    .arg((config.system.backups.read_limit.as_kib()).to_compact_string())
+                    .arg("--limit-upload")
+                    .arg((config.system.backups.write_limit.as_kib()).to_compact_string())
+                    .stdin(std::process::Stdio::piped())
+                    .stdout(std::process::Stdio::piped())
+                    .stderr(std::process::Stdio::piped())
+                    .spawn()?,
+                configuration,
+            )
+        };
+
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| std::io::Error::other("No stdin available"))?;
+        let stdout = child.take_stdout()?;
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| std::io::Error::other("No stderr available"))?;
+
+        let stdin_task = tokio::spawn(async move {
+            let result = tokio::io::copy(&mut reader, &mut stdin).await;
+            stdin.shutdown().await.ok();
+
+            result
+        });
+        let stderr_task = Self::spawn_stderr_capture(stderr);
+
+        let mut line_reader = tokio::io::BufReader::new(stdout).lines();
+
+        let mut snapshot_id = None;
+        let mut total_bytes_processed = 0;
+
+        while let Ok(Some(line)) = line_reader.next_line().await {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line)
+                && json.get("message_type").and_then(|v| v.as_str()) == Some("summary")
+            {
+                total_bytes_processed = json
+                    .get("total_bytes_processed")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0);
+
+                snapshot_id = json
+                    .get("snapshot_id")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+            }
+        }
+
+        let status = child.wait().await?;
+        let stdin_result = stdin_task.await?;
+        let stderr_output = stderr_task.await.unwrap_or_default();
+
+        if !status.success() {
+            return Err(anyhow::anyhow!(
+                "failed to create restic database backup {}: {}",
+                uuid,
+                stderr_output
+            ));
+        }
+        stdin_result?;
+
+        let Some(snapshot_id) = snapshot_id else {
+            return Err(anyhow::anyhow!(
+                "restic did not report a snapshot id for database backup {}",
+                uuid
+            ));
+        };
+
+        RESTIC_BACKUP_CACHE.write().await.insert(
+            uuid,
+            (
+                ResticSnapshot {
+                    short_id: snapshot_id.clone(),
+                    tags: vec![uuid.to_compact_string()],
+                    paths: vec![format!("/{file_name}").into()],
+                    summary: ResticSnapshotSummary {
+                        total_bytes_processed,
+                    },
+                },
+                Arc::new(configuration),
+            ),
+        );
+
+        Ok(RawServerBackup {
+            checksum: snapshot_id,
+            checksum_type: "restic".into(),
+            size: total_bytes_processed,
+            files: 0,
+            successful: true,
+            browsable: false,
+            streaming: false,
+            parts: vec![],
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl BackupStreamExt for ResticBackup {
+    async fn read_stream(
+        &self,
+        _state: &crate::routes::State,
+        _download_url: Option<compact_str::CompactString>,
+    ) -> Result<BackupStream, anyhow::Error> {
+        let file_name = self
+            .server_path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .map(compact_str::CompactString::from)
+            .ok_or_else(|| anyhow::anyhow!("restic snapshot has no dump file path"))?;
+
+        let child = Command::new("restic")
+            .envs(&self.configuration.environment)
+            .arg("--no-lock")
+            .arg("--repo")
+            .arg(&self.configuration.repository)
+            .args(self.configuration.password())
+            .arg("--cache-dir")
+            .arg(Self::get_restic_cache_dir(&self.config))
+            .arg("dump")
+            .arg(&self.short_id)
+            .arg(&self.server_path)
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()?;
+
+        BackupStream::from_process(child, Some(self.total_bytes_processed), file_name)
+    }
+}
+
+#[async_trait::async_trait]
 impl BackupExt for ResticBackup {
     #[inline]
     fn uuid(&self) -> uuid::Uuid {
@@ -795,7 +1070,8 @@ impl BackupExt for ResticBackup {
         _range: Option<ByteRange>,
     ) -> Result<crate::response::ApiResponse, anyhow::Error> {
         let compression_level = state.config.load().system.backups.compression_level;
-        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
+        let (reader, signal) = crate::io::fallible_reader::FallibleReader::new_with_eof(reader);
 
         match archive_format {
             StreamableArchiveFormat::Zip => {
@@ -817,8 +1093,8 @@ impl BackupExt for ResticBackup {
                         .spawn()
                 })?;
 
-                crate::spawn_blocking_handled(move || -> Result<(), anyhow::Error> {
-                    let writer = tokio_util::io::SyncIoBridge::new(writer);
+                crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
+                    let writer = writer.into_sync();
                     let mut archive = zip::ZipWriter::new_stream(writer);
 
                     let mut subtar = tar::Archive::new(child.into_stdout()?);
@@ -890,9 +1166,9 @@ impl BackupExt for ResticBackup {
                 })?;
 
                 let file_compression_threads = self.config.load().api.file_compression_threads;
-                crate::spawn_blocking_handled(move || -> Result<(), anyhow::Error> {
+                crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
                     let mut writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         file_compression_threads,
@@ -932,9 +1208,9 @@ impl BackupExt for ResticBackup {
                 })?;
 
                 let file_compression_threads = self.config.load().api.file_compression_threads;
-                crate::spawn_blocking_handled(move || -> Result<(), anyhow::Error> {
+                crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
                     let writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         file_compression_threads,
@@ -1114,26 +1390,7 @@ impl BackupExt for ResticBackup {
             .ok_or_else(|| std::io::Error::other("No stderr available"))?;
         let mut line_reader = tokio::io::BufReader::new(stdout).lines();
 
-        let stderr_task = tokio::spawn({
-            async move {
-                let mut reader = tokio::io::BufReader::new(stderr);
-                let mut output = String::new();
-                let mut line = String::new();
-                loop {
-                    line.clear();
-                    match reader.read_line(&mut line).await {
-                        Ok(0) => break,
-                        Ok(_) => {
-                            if output.len() < RESTIC_STDERR_CAPTURE_LIMIT {
-                                output.push_str(&line);
-                            }
-                        }
-                        Err(_) => break,
-                    }
-                }
-                output
-            }
-        });
+        let stderr_task = Self::spawn_stderr_capture(stderr);
 
         while let Ok(Some(line)) = line_reader.next_line().await {
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line)
@@ -1148,7 +1405,7 @@ impl BackupExt for ResticBackup {
                     continue;
                 }
 
-                progress.store_bytes(size);
+                progress.increment_bytes(size);
                 progress.increment_files();
 
                 server.log_daemon(compact_str::format_compact!("(restoring): {}", item));
@@ -1230,13 +1487,33 @@ impl BackupExt for ResticBackup {
             .stderr(std::process::Stdio::piped())
             .spawn()?;
 
+        let stderr = child
+            .stderr
+            .take()
+            .ok_or_else(|| std::io::Error::other("No stderr available"))?;
+
+        let stderr_task = Self::spawn_stderr_capture(stderr);
+
         let mut entries = Vec::new();
+        let mut truncated = false;
 
         if let Some(stdout) = child.stdout.take() {
             let mut line_reader = tokio::io::BufReader::new(stdout).lines();
 
             while let Ok(Some(line)) = line_reader.next_line().await {
                 if line.is_empty() {
+                    continue;
+                }
+
+                if entries.len() >= MAX_BROWSE_ENTRIES {
+                    if !truncated {
+                        truncated = true;
+
+                        tracing::warn!(
+                            "restic snapshot listing exceeds {MAX_BROWSE_ENTRIES} entries, truncating backup browse tree"
+                        );
+                    }
+
                     continue;
                 }
 
@@ -1253,12 +1530,9 @@ impl BackupExt for ResticBackup {
         }
 
         let status = child.wait().await?;
-        if !status.success()
-            && let Some(mut stderr) = child.stderr.take()
-        {
-            let mut stderr_out = String::new();
-            stderr.read_to_string(&mut stderr_out).await?;
+        let stderr_out = stderr_task.await.unwrap_or_default();
 
+        if !status.success() {
             tracing::error!(
                 "failed to list Restic snapshot for browsing: {}",
                 stderr_out.trim()
@@ -1449,7 +1723,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
         )))
     }
 
-    async fn async_directory_entry_buffer(
+    fn directory_entry_buffer(
         &self,
         path: &(dyn AsRef<Path> + Send + Sync),
         buffer: &[u8],
@@ -1470,6 +1744,13 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
             std::io::ErrorKind::NotFound,
             "File not found"
         )))
+    }
+    async fn async_directory_entry_buffer(
+        &self,
+        path: &(dyn AsRef<Path> + Send + Sync),
+        buffer: &[u8],
+    ) -> Result<DirectoryEntry, anyhow::Error> {
+        self.directory_entry_buffer(path, buffer)
     }
 
     async fn async_read_dir(
@@ -1765,7 +2046,6 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
                             let entry_wanted_notifier = Arc::clone(&entry_wanted_notifier);
                             let is_ignored = is_ignored.clone();
                             tokio::task::spawn_blocking(move || -> Result<(), anyhow::Error> {
-                                let runtime = tokio::runtime::Handle::current();
                                 let mut restic_tar = tar::Archive::new(child.into_stdout()?);
                                 let entries = restic_tar.entries()?;
 
@@ -1785,7 +2065,8 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
                                         continue;
                                     };
 
-                                    let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+                                    let (reader, writer) =
+                                        crate::io::pipe::pipe(crate::BUFFER_SIZE);
 
                                     entry_channel_tx.blocking_send(Ok((
                                         file_type,
@@ -1793,11 +2074,19 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
                                         Box::new(reader) as AsyncReadableFileStream,
                                     )))?;
 
-                                    let mut writer = tokio_util::io::SyncIoBridge::new(writer);
+                                    let mut writer = writer.into_sync();
                                     crate::io::copy(&mut entry, &mut writer)?;
                                     writer.shutdown()?;
 
-                                    runtime.block_on(entry_wanted_notifier.notified());
+                                    if !futures::executor::block_on(async {
+                                        tokio::select! {
+                                            biased;
+                                            _ = entry_channel_tx.closed() => false,
+                                            _ = entry_wanted_notifier.notified() => true,
+                                        }
+                                    }) {
+                                        return Ok(());
+                                    }
                                 }
 
                                 entry_wanted_notifier.notify_one();
@@ -1952,7 +2241,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
         compression_level: CompressionLevel,
         progress: crate::server::filesystem::archive::create::ArchiveProgress,
         is_ignored: IsIgnoredFn,
-    ) -> Result<crate::io::fallible_reader::FallibleSimplexReader, anyhow::Error> {
+    ) -> Result<crate::io::fallible_reader::FalliblePipeReader, anyhow::Error> {
         let entry = self.async_metadata(&path).await?;
 
         if !entry.file_type.is_dir() {
@@ -1965,7 +2254,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
         let full_path = self.server_path.join(path);
         let path = path.as_ref().to_path_buf();
 
-        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
         let (reader, signal) = crate::io::fallible_reader::FallibleReader::new(reader);
 
         let configuration = self.configuration.clone();
@@ -2002,7 +2291,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
                 crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
                     let mut child = spawn_restic()?;
 
-                    let writer = tokio_util::io::SyncIoBridge::new(writer);
+                    let writer = writer.into_sync();
                     let mut zip = zip::ZipWriter::new_stream(writer);
 
                     let mut restic_tar = tar::Archive::new(child.take_stdout()?);
@@ -2082,7 +2371,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
                     let mut child = spawn_restic()?;
 
                     let writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         file_compression_threads,
@@ -2134,7 +2423,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
                     let mut child = spawn_restic()?;
 
                     let writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         file_compression_threads,
@@ -2282,7 +2571,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
         compression_level: CompressionLevel,
         progress: crate::server::filesystem::archive::create::ArchiveProgress,
         is_ignored: IsIgnoredFn,
-    ) -> Result<crate::io::fallible_reader::FallibleSimplexReader, anyhow::Error> {
+    ) -> Result<crate::io::fallible_reader::FalliblePipeReader, anyhow::Error> {
         let entry = self.async_metadata(&path).await?;
 
         if !entry.file_type.is_dir() {
@@ -2295,7 +2584,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
         let full_path = self.server_path.join(path);
         let path = path.as_ref().to_path_buf();
 
-        let (reader, writer) = tokio::io::simplex(crate::BUFFER_SIZE);
+        let (reader, writer) = crate::io::pipe::pipe(crate::BUFFER_SIZE);
         let (reader, signal) = crate::io::fallible_reader::FallibleReader::new(reader);
 
         let configuration = self.configuration.clone();
@@ -2366,7 +2655,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
         match archive_format {
             StreamableArchiveFormat::Zip => {
                 crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
-                    let writer = tokio_util::io::SyncIoBridge::new(writer);
+                    let writer = writer.into_sync();
                     let mut zip = zip::ZipWriter::new_stream(writer);
 
                     let mut read_buffer = vec![0; crate::BUFFER_SIZE];
@@ -2496,7 +2785,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
             f if f.is_tar() => {
                 crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
                     let writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         file_compression_threads,
@@ -2574,7 +2863,7 @@ impl VirtualReadableFilesystem for VirtualResticBackup {
             f if f.is_itaf() => {
                 crate::spawn_blocking_signalled(signal, move || -> Result<(), anyhow::Error> {
                     let writer = CompressionWriter::new(
-                        tokio_util::io::SyncIoBridge::new(writer),
+                        writer.into_sync(),
                         f.compression_format(),
                         compression_level,
                         file_compression_threads,

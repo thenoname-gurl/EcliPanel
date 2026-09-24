@@ -52,31 +52,15 @@ impl super::ProcessConfigurationFileParser for XmlFileParser {
         let mut root = xmltree::Element::parse(content.as_bytes())?;
 
         for replacement in &config.replace {
-            let value = ServerConfigurationFile::replace_all_placeholders(
-                server,
-                &replacement.replace_with,
-            )
-            .await?;
+            let resolved = super::ResolvedReplacement::new(server, replacement, true).await?;
 
             let path = replacement.r#match.replace('.', "/");
             let path_parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty()).collect();
 
             if path.contains('*') {
-                update_xml_wildcard(
-                    &mut root,
-                    &path_parts,
-                    &value,
-                    replacement.insert_new.unwrap_or(true),
-                    replacement.update_existing,
-                );
+                update_xml_wildcard(&mut root, &path_parts, &resolved);
             } else {
-                update_xml_element(
-                    &mut root,
-                    &path_parts,
-                    &value,
-                    replacement.insert_new.unwrap_or(true),
-                    replacement.update_existing,
-                );
+                update_xml_element(&mut root, &path_parts, &resolved);
             }
         }
 
@@ -92,62 +76,77 @@ impl super::ProcessConfigurationFileParser for XmlFileParser {
     }
 }
 
+fn element_text(element: &xmltree::Element) -> compact_str::CompactString {
+    element.get_text().unwrap_or_default().as_ref().into()
+}
+
+fn write_xml_leaf(
+    element: &mut xmltree::Element,
+    resolved: &super::ResolvedReplacement<'_>,
+    exists: bool,
+) -> bool {
+    if let Some(attr_assignment) = resolved.value.strip_prefix('@') {
+        let Some((attr_name, attr_val)) = attr_assignment.split_once('=') else {
+            return false;
+        };
+
+        let existing = exists
+            .then(|| element.attributes.get(attr_name).cloned())
+            .flatten();
+        let Some(value) = resolved.text_with(existing.as_deref(), attr_val) else {
+            return false;
+        };
+
+        element
+            .attributes
+            .insert(attr_name.to_string(), value.to_string());
+
+        return true;
+    }
+
+    let existing = exists.then(|| element_text(element));
+    let Some(value) = resolved.text(existing.as_deref()) else {
+        return false;
+    };
+
+    element.children.clear();
+    element
+        .children
+        .push(xmltree::XMLNode::Text(value.to_string()));
+
+    true
+}
+
 fn apply_xml_leaf(
     element: &mut xmltree::Element,
     tag: &str,
-    value: &str,
-    insert_new: bool,
-    update_existing: bool,
-) {
-    if let Some(attr_assignment) = value.strip_prefix('@') {
-        let Some((attr_name, attr_val)) = attr_assignment.split_once('=') else {
-            return;
-        };
-
-        if let Some(child) = element.get_mut_child(tag) {
-            let exists = child.attributes.contains_key(attr_name);
-            if (exists && update_existing) || (!exists && insert_new) {
-                child
-                    .attributes
-                    .insert(attr_name.to_string(), attr_val.to_string());
-            }
-        } else if insert_new {
-            let mut new_child = xmltree::Element::new(tag);
-            new_child
-                .attributes
-                .insert(attr_name.to_string(), attr_val.to_string());
-            element.children.push(xmltree::XMLNode::Element(new_child));
-        }
-        return;
-    }
-
+    resolved: &super::ResolvedReplacement<'_>,
+) -> bool {
     if let Some(child) = element.get_mut_child(tag) {
-        if update_existing {
-            child.children.clear();
-            child
-                .children
-                .push(xmltree::XMLNode::Text(value.to_string()));
-        }
-    } else if insert_new {
-        let mut new_child = xmltree::Element::new(tag);
-        new_child
-            .children
-            .push(xmltree::XMLNode::Text(value.to_string()));
-        element.children.push(xmltree::XMLNode::Element(new_child));
+        return write_xml_leaf(child, resolved, true);
     }
+
+    let mut new_child = xmltree::Element::new(tag);
+    if !write_xml_leaf(&mut new_child, resolved, false) {
+        return false;
+    }
+
+    element.children.push(xmltree::XMLNode::Element(new_child));
+
+    true
 }
 
 fn build_xml_chain(
     path: &[&str],
-    value: &str,
-    insert_new: bool,
-    update_existing: bool,
+    resolved: &super::ResolvedReplacement<'_>,
 ) -> Option<xmltree::Element> {
     let (&last, parents) = path.split_last()?;
     let (&deepest_tag, ancestors) = parents.split_last()?;
 
     let mut current = xmltree::Element::new(deepest_tag);
-    apply_xml_leaf(&mut current, last, value, insert_new, update_existing);
+    if !apply_xml_leaf(&mut current, last, resolved) {
+        return None;
+    }
 
     for &tag in ancestors.iter().rev() {
         let mut parent = xmltree::Element::new(tag);
@@ -161,9 +160,7 @@ fn build_xml_chain(
 fn update_xml_element(
     element: &mut xmltree::Element,
     path: &[&str],
-    value: &str,
-    insert_new: bool,
-    update_existing: bool,
+    resolved: &super::ResolvedReplacement<'_>,
 ) {
     let mut element = element;
     let mut path = path;
@@ -174,13 +171,13 @@ fn update_xml_element(
         };
 
         if path.len() == 1 {
-            apply_xml_leaf(element, tag, value, insert_new, update_existing);
+            apply_xml_leaf(element, tag, resolved);
             return;
         }
 
         if element.get_mut_child(tag).is_none() {
-            if insert_new
-                && let Some(new_child) = build_xml_chain(path, value, insert_new, update_existing)
+            if resolved.insert_new
+                && let Some(new_child) = build_xml_chain(path, resolved)
             {
                 element.children.push(xmltree::XMLNode::Element(new_child));
             }
@@ -199,9 +196,7 @@ fn update_xml_element(
 fn update_xml_wildcard(
     element: &mut xmltree::Element,
     path: &[&str],
-    value: &str,
-    insert_new: bool,
-    update_existing: bool,
+    resolved: &super::ResolvedReplacement<'_>,
 ) {
     let mut stack: Vec<(&mut xmltree::Element, &[&str])> = vec![(element, path)];
 
@@ -216,17 +211,21 @@ fn update_xml_wildcard(
         );
 
         if !found_match {
-            if tag != "*" && insert_new {
-                let mut new_child = xmltree::Element::new(tag);
-                if is_leaf {
-                    new_child
-                        .children
-                        .push(xmltree::XMLNode::Text(value.to_string()));
-                }
-                element.children.push(xmltree::XMLNode::Element(new_child));
-            } else {
+            if tag == "*" || !resolved.insert_new {
                 continue;
             }
+
+            let mut new_child = xmltree::Element::new(tag);
+
+            if is_leaf {
+                if write_xml_leaf(&mut new_child, resolved, false) {
+                    element.children.push(xmltree::XMLNode::Element(new_child));
+                }
+
+                continue;
+            }
+
+            element.children.push(xmltree::XMLNode::Element(new_child));
         }
 
         for child in &mut element.children {
@@ -239,12 +238,7 @@ fn update_xml_wildcard(
             }
 
             if is_leaf {
-                if update_existing {
-                    child_elem.children.clear();
-                    child_elem
-                        .children
-                        .push(xmltree::XMLNode::Text(value.to_string()));
-                }
+                write_xml_leaf(child_elem, resolved, true);
             } else {
                 stack.push((child_elem, rest));
             }
@@ -322,6 +316,20 @@ mod tests {
             if_value: None,
             insert_new,
             update_existing,
+            replace_with: value,
+        }
+    }
+
+    fn gated(
+        m: &str,
+        value: serde_json::Value,
+        if_value: &str,
+    ) -> ServerConfigurationFileReplacement {
+        ServerConfigurationFileReplacement {
+            r#match: m.into(),
+            if_value: Some(if_value.into()),
+            insert_new: None,
+            update_existing: true,
             replace_with: value,
         }
     }
@@ -425,5 +433,72 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn if_value_gates_element_text() {
+        let root = run(
+            "<server><host>0.0.0.0</host><other>1.2.3.4</other></server>",
+            vec![
+                gated("host", json!("10.0.0.1"), "0.0.0.0"),
+                gated("other", json!("10.0.0.1"), "0.0.0.0"),
+            ],
+        );
+        assert_eq!(
+            root.get_child("host").unwrap().get_text().unwrap(),
+            "10.0.0.1"
+        );
+        assert_eq!(
+            root.get_child("other").unwrap().get_text().unwrap(),
+            "1.2.3.4"
+        );
+    }
+
+    #[test]
+    fn if_value_blocks_creating_the_ancestor_chain() {
+        let root = run(
+            "<server></server>",
+            vec![gated("a.b.c", json!("x"), "something")],
+        );
+        assert!(root.get_child("a").is_none());
+    }
+
+    #[test]
+    fn if_value_gates_on_the_attribute_not_the_element_text() {
+        let root = run(
+            "<server><bind enabled=\"false\">text</bind></server>",
+            vec![gated("bind", json!("@enabled=true"), "false")],
+        );
+        let bind = root.get_child("bind").unwrap();
+        assert_eq!(
+            bind.attributes.get("enabled").map(String::as_str),
+            Some("true")
+        );
+        assert_eq!(bind.get_text().unwrap(), "text");
+    }
+
+    #[test]
+    fn wildcard_sets_attributes_on_matching_leaves() {
+        let root = run(
+            "<server><l><a p=\"0\"/><b p=\"0\"/></l></server>",
+            vec![rep("l.*", json!("@p=1"), None, true)],
+        );
+        let l = root.get_child("l").unwrap();
+        assert_eq!(
+            l.get_child("a")
+                .unwrap()
+                .attributes
+                .get("p")
+                .map(String::as_str),
+            Some("1")
+        );
+        assert_eq!(
+            l.get_child("b")
+                .unwrap()
+                .attributes
+                .get("p")
+                .map(String::as_str),
+            Some("1")
+        );
     }
 }

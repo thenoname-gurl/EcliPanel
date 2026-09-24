@@ -128,10 +128,22 @@ impl crate::commands::CliCommand<MigrateDiskLimiterArgs> for MigrateDiskLimiterC
                         crate::server::backup::manager::BackupManager::default(),
                     ),
                     inotify_manager: Arc::new(
-                        crate::server::filesystem::inotify::InotifyManager::new()
-                            .expect("failed to initialize inotify manager"),
+                        crate::server::filesystem::inotify::InotifyManager::new(),
                     ),
-                    mime_cache: moka::future::Cache::new(20480),
+                    websocket_limiter: Arc::new(
+                        crate::server::websocket::limiter::WebsocketLimiter::new(Arc::clone(
+                            &config,
+                        )),
+                    ),
+                    mime_cache: crate::routes::MimeCache::new(crate::routes::mime_cache_capacity(
+                        config.load().api.directory_entry_limit,
+                    )),
+                    fingerprint_cache: crate::routes::FingerprintCache::default(),
+                    listing_work: Arc::new(
+                        crate::server::filesystem::listing::ListingWork::default(),
+                    ),
+                    #[cfg(unix)]
+                    tundra: None,
                 });
 
                 let mut migrated = 0;
@@ -161,11 +173,15 @@ impl crate::commands::CliCommand<MigrateDiskLimiterArgs> for MigrateDiskLimiterC
                             .arg("list")
                             .arg("-H")
                             .arg("-o")
-                            .arg("name")
+                            .arg("mountpoint")
                             .arg(&base_path)
                             .output()
                             .await
-                            .map(|o| o.status.success()),
+                            .map(|o| {
+                                o.status.success()
+                                    && Path::new(String::from_utf8_lossy(&o.stdout).trim())
+                                        == base_path
+                            }),
                     };
                     match already_migrated {
                         Ok(true) => {

@@ -264,7 +264,26 @@ impl OutgoingServerTransfer {
             .ok();
     }
 
+    fn destination_client(proxy: Option<&crate::net::CongestionControlProxy>) -> reqwest::Client {
+        let mut builder = reqwest::Client::builder()
+            .connect_timeout(std::time::Duration::from_secs(15))
+            .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
+            .http1_only();
+
+        if let Some(proxy) = proxy {
+            match reqwest::Proxy::all(proxy.url()) {
+                Ok(proxy) => builder = builder.proxy(proxy),
+                Err(err) => {
+                    tracing::debug!("failed to construct transfer proxy definition: {}", err);
+                }
+            }
+        }
+
+        builder.build().expect("failed to build HTTP client")
+    }
+
     async fn query_destination_capabilities(
+        client: reqwest::Client,
         url: &str,
         token: &str,
     ) -> Result<TransferCapabilities, anyhow::Error> {
@@ -275,9 +294,7 @@ impl OutgoingServerTransfer {
             .pop_if_empty()
             .push("query");
 
-        let capabilities = reqwest::Client::builder()
-            .connect_timeout(std::time::Duration::from_secs(15))
-            .build()?
+        let capabilities = client
             .get(query_url)
             .header("Authorization", token)
             .header("Accept", "application/json")
@@ -344,15 +361,15 @@ impl OutgoingServerTransfer {
             let (files_sender, files_receiver) = async_channel::bounded(512 * (1 + multiplex_streams));
 
             let (checksum_sender, checksum_receiver) = tokio::sync::oneshot::channel();
-            let (mut checksummed_reader, checksummed_writer) = tokio::io::simplex(crate::TRANSFER_BUFFER_SIZE);
-            let (reader, mut writer) = tokio::io::simplex(crate::TRANSFER_BUFFER_SIZE);
+            let (mut checksummed_reader, checksummed_writer) = crate::io::pipe::pipe(crate::TRANSFER_BUFFER_SIZE);
+            let (reader, mut writer) = crate::io::pipe::pipe(crate::TRANSFER_BUFFER_SIZE);
 
             fn get_tar_archive_task(
                 files_receiver: async_channel::Receiver<PathBuf>,
                 bytes_archived: Arc<AtomicU64>,
                 files_archived: Arc<AtomicU64>,
                 server: super::Server,
-                writer: tokio_util::io::SyncIoBridge<tokio::io::WriteHalf<tokio::io::SimplexStream>>,
+                writer: crate::io::pipe::SyncPipeWriter,
                 options: crate::server::filesystem::archive::create::CreateTarOptions
             ) -> Pin<Box<dyn Future<Output = Result<(), anyhow::Error>> + Send>> {
                 Box::pin(async move {
@@ -377,7 +394,7 @@ impl OutgoingServerTransfer {
                 bytes_archived: Arc<AtomicU64>,
                 files_archived: Arc<AtomicU64>,
                 server: super::Server,
-                writer: tokio_util::io::SyncIoBridge<tokio::io::WriteHalf<tokio::io::SimplexStream>>,
+                writer: crate::io::pipe::SyncPipeWriter,
                 options: crate::server::filesystem::archive::create::CreateItafOptions
             ) -> Pin<Box<dyn Future<Output = Result<(), anyhow::Error>> + Send>> {
                 Box::pin(async move {
@@ -397,7 +414,7 @@ impl OutgoingServerTransfer {
                 })
             }
 
-            let get_archive_task = |writer: tokio_util::io::SyncIoBridge<tokio::io::WriteHalf<tokio::io::SimplexStream>>| {
+            let get_archive_task = |writer: crate::io::pipe::SyncPipeWriter| {
                 if archive_format.is_tar() {
                     get_tar_archive_task(
                         files_receiver.clone(),
@@ -428,7 +445,7 @@ impl OutgoingServerTransfer {
                 }
             };
 
-            let archive_task = get_archive_task(tokio_util::io::SyncIoBridge::new(checksummed_writer));
+            let archive_task = get_archive_task(checksummed_writer.into_sync());
 
             let checksum_task = Box::pin({
                 let bytes_sent = Arc::clone(&bytes_sent);
@@ -462,8 +479,8 @@ impl OutgoingServerTransfer {
 
                 async move {
                     let mut walker = server.filesystem.async_walk_dir("").await?;
-                    while let Some(Ok((_, entry))) = walker.next_entry().await {
-                        files_sender.send(entry).await?;
+                    while let Some(Ok(entry)) = walker.next_entry().await {
+                        files_sender.send(entry.path).await?;
                     }
 
                     Ok::<_, anyhow::Error>(())
@@ -541,10 +558,31 @@ impl OutgoingServerTransfer {
                 }
             }
 
+            let proxy = match reqwest::Url::parse(&url) {
+                Ok(parsed) => match (parsed.host_str(), parsed.port_or_known_default()) {
+                    (Some(host), Some(port)) => {
+                        crate::net::CongestionControlProxy::start(
+                            &server.app_state.config,
+                            host.to_string(),
+                            port,
+                        )
+                        .await
+                    }
+                    _ => None,
+                },
+                Err(_) => None,
+            };
+
             let destination_capabilities = if backups.is_empty() {
                 None
             } else {
-                match Self::query_destination_capabilities(&url, &token).await {
+                match Self::query_destination_capabilities(
+                    Self::destination_client(proxy.as_ref()),
+                    &url,
+                    &token,
+                )
+                .await
+                {
                     Ok(capabilities) => Some(capabilities),
                     Err(err) => {
                         tracing::warn!(
@@ -744,11 +782,7 @@ impl OutgoingServerTransfer {
                 }
             });
 
-            let response = reqwest::Client::builder()
-                .connect_timeout(std::time::Duration::from_secs(15))
-                .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
-                .build()
-                .expect("failed to build HTTP client")
+            let response = Self::destination_client(proxy.as_ref())
                 .post(&url)
                 .header("Authorization", &token)
                 .header("Multiplex-Stream-Count", multiplex_streams)
@@ -763,10 +797,10 @@ impl OutgoingServerTransfer {
 
             for i in 0..multiplex_streams {
                 let (checksum_sender, checksum_receiver) = tokio::sync::oneshot::channel();
-                let (mut checksummed_reader, checksummed_writer) = tokio::io::simplex(crate::TRANSFER_BUFFER_SIZE);
-                let (reader, mut writer) = tokio::io::simplex(crate::TRANSFER_BUFFER_SIZE);
+                let (mut checksummed_reader, checksummed_writer) = crate::io::pipe::pipe(crate::TRANSFER_BUFFER_SIZE);
+                let (reader, mut writer) = crate::io::pipe::pipe(crate::TRANSFER_BUFFER_SIZE);
 
-                let archive_task = get_archive_task(tokio_util::io::SyncIoBridge::new(checksummed_writer));
+                let archive_task = get_archive_task(checksummed_writer.into_sync());
 
                 let checksum_task = Box::pin({
                     let bytes_sent = Arc::clone(&bytes_sent);
@@ -815,11 +849,7 @@ impl OutgoingServerTransfer {
                     );
 
                 multiplex_responses.push(
-                    reqwest::Client::builder()
-                        .connect_timeout(std::time::Duration::from_secs(15))
-                        .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
-                        .build()
-                        .expect("failed to build HTTP client")
+                    Self::destination_client(proxy.as_ref())
                         .post(&url)
                         .header("Authorization", &token)
                         .header("Multiplex-Stream", i)

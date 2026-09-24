@@ -5,7 +5,11 @@ mod post {
     use crate::{
         response::{ApiResponse, ApiResponseResult},
         routes::{ApiError, GetState, api::servers::_server_::GetServer},
-        server::filesystem::{archive::ArchiveFormat, cap::FileType},
+        server::filesystem::{
+            archive::{ArchiveFormat, generated_archive_name},
+            cap::FileType,
+            virtualfs::IsIgnoredFn,
+        },
     };
     use axum::http::StatusCode;
     use serde::{Deserialize, Serialize};
@@ -31,6 +35,9 @@ mod post {
 
         #[serde(default = "foreground")]
         foreground: bool,
+
+        #[serde(default)]
+        ignored: Vec<compact_str::CompactString>,
     }
 
     #[derive(ToSchema, Serialize)]
@@ -55,9 +62,24 @@ mod post {
         server: GetServer,
         crate::Payload(data): crate::Payload<Payload>,
     ) -> ApiResponseResult {
+        let ignored = match crate::server::filesystem::RequestIgnored::compile(&data.ignored) {
+            Ok(ignored) => ignored,
+            Err(err) => {
+                tracing::error!(
+                    server = %server.uuid,
+                    "rejecting request, subuser ignored files cannot be compiled: {:#?}",
+                    err
+                );
+
+                return ApiResponse::error("file not found")
+                    .with_status(StatusCode::NOT_FOUND)
+                    .ok();
+            }
+        };
+
         let (root, filesystem) = server
             .filesystem
-            .resolve_readable_fs(&server, Path::new(&data.root))
+            .resolve_readable_fs_ignoring(&server, Path::new(&data.root), &ignored)
             .await;
 
         let metadata = filesystem.async_symlink_metadata(&root).await;
@@ -67,13 +89,9 @@ mod post {
                 .ok();
         }
 
-        let archive_name = data.name.unwrap_or_else(|| {
-            compact_str::format_compact!(
-                "archive-{}.{}",
-                chrono::Local::now().format("%Y-%m-%dT%H%M%S%z"),
-                data.format.extension()
-            )
-        });
+        let archive_name = data
+            .name
+            .unwrap_or_else(|| generated_archive_name(data.format.extension()));
         let file_name = root.join(&archive_name);
 
         let parent = match file_name.parent() {
@@ -94,8 +112,10 @@ mod post {
             }
         };
 
-        let (destination_root, destination_filesystem) =
-            server.filesystem.resolve_writable_fs(&server, parent).await;
+        let (destination_root, destination_filesystem) = server
+            .filesystem
+            .resolve_writable_fs_ignoring(&server, parent, &ignored)
+            .await;
         let destination_path = destination_root.join(file_name);
 
         if destination_filesystem.is_primary_server_fs()
@@ -108,6 +128,10 @@ mod post {
                 .with_status(StatusCode::EXPECTATION_FAILED)
                 .ok();
         }
+
+        let excluded_destination = destination_filesystem
+            .is_primary_server_fs()
+            .then(|| destination_path.clone());
 
         let progress = Arc::new(AtomicU64::new(0));
         let total = Arc::new(AtomicU64::new(0));
@@ -135,7 +159,12 @@ mod post {
                         let destination_filesystem = destination_filesystem.clone();
 
                         async move {
-                            let ignored = server.filesystem.get_ignored();
+                            let mut ignored: IsIgnoredFn =
+                                server.filesystem.get_ignored().into();
+                            if let Some(excluded_destination) = excluded_destination {
+                                ignored = ignored.excluding(excluded_destination);
+                            }
+
                             let writer = tokio::task::spawn_blocking(move || {
                                 destination_filesystem.create_seekable_file(&destination_path)
                             })
@@ -170,7 +199,7 @@ mod post {
                                     &root,
                                     data.files,
                                     crate::server::filesystem::archive::create::ArchiveProgress::new(progress, files_processed),
-                                    ignored.into(),
+                                    ignored,
                                     crate::server::filesystem::archive::create::CreateTarOptions {
                                         compression_type: data.format.compression_format(),
                                         compression_level: state.config.load()
@@ -189,12 +218,13 @@ mod post {
                                     &root,
                                     data.files,
                                     crate::server::filesystem::archive::create::ArchiveProgress::new(progress, files_processed),
-                                    ignored.into(),
+                                    ignored,
                                     crate::server::filesystem::archive::create::CreateZipOptions {
                                         compression_level: state.config.load()
                                             .system
                                             .backups
                                             .compression_level,
+                                        threads: state.config.load().api.file_compression_threads,
                                     },
                                 )
                                 .await
@@ -206,7 +236,7 @@ mod post {
                                     &root,
                                     data.files,
                                     crate::server::filesystem::archive::create::ArchiveProgress::new(progress, files_processed),
-                                    ignored.into(),
+                                    ignored,
                                     crate::server::filesystem::archive::create::Create7zOptions {
                                         compression_level: state.config.load()
                                             .system

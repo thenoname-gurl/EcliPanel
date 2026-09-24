@@ -174,8 +174,15 @@ impl OperationManager {
         let operation_uuid = uuid::Uuid::new_v4();
         let (abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
+        self.operations.write().await.insert(
+            operation_uuid,
+            Operation {
+                filesystem_operation: operation.clone(),
+                abort_sender,
+            },
+        );
+
         let handle = tokio::spawn({
-            let operation = operation.clone();
             let operations = self.operations.clone();
             let sender = self.sender.clone();
 
@@ -204,7 +211,17 @@ impl OperationManager {
                 };
 
                 operations.write().await.remove(&operation_uuid);
-                if let Some(Err(err)) = result.as_ref() {
+                if result.is_none() {
+                    sender
+                        .send(
+                            crate::server::websocket::WebsocketMessage::builder(
+                                crate::server::websocket::WebsocketEvent::ServerOperationAborted,
+                            )
+                            .arg(operation_uuid.to_compact_string())
+                            .build(),
+                        )
+                        .ok();
+                } else if let Some(Err(err)) = result.as_ref() {
                     let message = if let Some(err) = err.downcast_ref::<&str>() {
                         err.to_string()
                     } else if let Some(err) = err.downcast_ref::<String>() {
@@ -256,14 +273,6 @@ impl OperationManager {
                 result
             }
         });
-
-        self.operations.write().await.insert(
-            operation_uuid,
-            Operation {
-                filesystem_operation: operation,
-                abort_sender,
-            },
-        );
 
         (operation_uuid, handle)
     }

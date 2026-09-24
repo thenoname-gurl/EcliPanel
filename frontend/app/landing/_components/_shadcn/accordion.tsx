@@ -1,3 +1,4 @@
+"use client"
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 
 import { Plus, Minus } from "lucide-react";

@@ -1,3 +1,4 @@
+"use client"
 import { Shield, Eye, Bell, Lock, Server, Users, AlertTriangle, FileSearch, Globe } from "lucide-react";
 import GradualBlurMemo from "@/app/landing/_components/_reacts-bits/GradualBlur";
 import { Menu } from "@/app/landing/_components/_custom/Menu";

@@ -1,5 +1,9 @@
 import WebSocket from 'ws';
 import { httpRequest } from '../utils/http';
+import { AppDataSource } from '../config/typeorm';
+import { ServerConfig } from '../models/serverConfig.entity';
+import { Egg } from '../models/egg.entity';
+import { normalizeStartupDonePatterns } from '../utils/startupDetection';
 
 const REQUEST_TIMEOUT = 10_000;
 
@@ -269,6 +273,37 @@ export class WingsApiService {
     return this.serverRequest(serverId, `/schedules/${scheduleId}/abort`, 'post', undefined, timeoutMs);
   }
 
+  private async buildProcessConfigurationFromDb(serverId: string): Promise<Record<string, any> | null> {
+    try {
+      const cfg = await AppDataSource.getRepository(ServerConfig)
+        .createQueryBuilder('cfg')
+        .addSelect('cfg.processConfig')
+        .where('cfg.uuid = :uuid', { uuid: serverId })
+        .getOne();
+      if (!cfg) return null;
+      const egg = cfg.eggId
+        ? await AppDataSource.getRepository(Egg).findOneBy({ id: cfg.eggId })
+        : null;
+      const eggProc = egg?.processConfig || {};
+      const cfgProc = cfg.processConfig || {};
+      const proc = { ...eggProc, ...cfgProc };
+      return {
+        startup: {
+          done: normalizeStartupDonePatterns(proc.startup?.done),
+          user_interaction: proc.startup?.user_interaction ?? proc.startup?.userInteraction ?? [],
+          strip_ansi: proc.startup?.strip_ansi ?? false,
+        },
+        stop: {
+          type: proc.stop?.type || 'command',
+          value: proc.stop?.value || 'stop',
+        },
+        configs: proc.configs || [],
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async syncServer(serverId: string, payload: any, timeoutMs?: number) {
     if (!payload || (typeof payload === 'object' && Object.keys(payload).length === 0)) {
       return this.serverRequest(serverId, '/sync', 'post', payload, timeoutMs);
@@ -280,8 +315,9 @@ export class WingsApiService {
 
     const result = await this.request(`/servers/${serverId}`, timeoutMs ? { timeoutMs } : {});
     const server = result.data as any;
-    const settings = server.settings || {};
-    const processConfiguration = server.process_configuration || {};
+    const settings = server.configuration || server.settings || {};
+    const processConfiguration =
+      server.process_configuration || (await this.buildProcessConfigurationFromDb(serverId));
 
     const sanitizeAllocations = (valueObject: any) => {
       const raw = valueObject && typeof valueObject === 'object' ? valueObject : {};
@@ -344,19 +380,22 @@ export class WingsApiService {
       };
     };
 
+    let mergedSettings: Record<string, any> = { ...settings };
+    let mergedProcessConfiguration: Record<string, any> | null = processConfiguration;
+
     for (const [key, value] of Object.entries(payload)) {
       const valueObject = typeof value === 'object' && value !== null ? value : {};
 
       if (key === 'process_configuration') {
-        server.process_configuration = { ...processConfiguration, ...valueObject };
+        mergedProcessConfiguration = { ...(mergedProcessConfiguration || {}), ...valueObject };
         continue;
       }
 
       if (key === 'kvm_passthrough_enabled') {
-        server.settings = {
-          ...settings,
+        mergedSettings = {
+          ...mergedSettings,
           container: {
-            ...settings.container,
+            ...(mergedSettings.container || {}),
             kvm_passthrough_enabled: Boolean(value),
           },
         };
@@ -364,8 +403,8 @@ export class WingsApiService {
       }
 
       if (key === 'settings') {
-        server.settings = {
-          ...settings,
+        mergedSettings = {
+          ...mergedSettings,
           ...valueObject,
         };
         continue;
@@ -383,26 +422,31 @@ export class WingsApiService {
         key === 'mounts' ||
         key === 'egg'
       ) {
-        server.settings = {
-          ...settings,
+        mergedSettings = {
+          ...mergedSettings,
           [key]:
             key === 'allocations'
               ? sanitizeAllocations(valueObject)
               : {
-                  ...settings[key],
+                  ...(mergedSettings[key] || {}),
                   ...valueObject,
                 },
         };
         continue;
       }
 
-      server.settings = {
-        ...settings,
+      mergedSettings = {
+        ...mergedSettings,
         [key]: value,
       };
     }
 
-    return this.serverRequest(serverId, '/sync', 'post', { server }, timeoutMs);
+    const serverPayload: Record<string, any> = { settings: mergedSettings };
+    if (mergedProcessConfiguration) {
+      serverPayload.process_configuration = mergedProcessConfiguration;
+    }
+
+    return this.serverRequest(serverId, '/sync', 'post', { server: serverPayload }, timeoutMs);
   }
 
   async transferServer(serverId: string, payload: any) {
@@ -441,6 +485,49 @@ export class WingsApiService {
 
   async getNetwork(serverId: string) {
     return this.serverRequest(serverId, '/network');
+  }
+
+  async getTundraStatus() {
+    return this.request('/tundra');
+  }
+
+  async syncTundra() {
+    return this.request('/tundra/sync', { method: 'POST' });
+  }
+
+  async rotateTundraToken() {
+    return this.request('/tundra/rotate', { method: 'POST' });
+  }
+
+  async getTundraMetrics() {
+    return this.request('/tundra/metrics');
+  }
+
+  async createDatabaseBackup(
+    serverId: string,
+    payload: { adapter: string; uuid: string; database_instance: string; extension: string }
+  ) {
+    return this.serverRequest(serverId, '/database-backup', 'post', payload);
+  }
+
+  async createSymlink(serverId: string, payload: { root: string; link: string; target: string }) {
+    return this.serverRequest(serverId, '/files/create-symlink', 'post', payload);
+  }
+
+  async searchServerFiles(serverId: string, payload: any) {
+    return this.serverRequest(serverId, '/files/search', 'post', payload);
+  }
+
+  async statServerFiles(serverId: string, payload: { root?: string; files: string[]; ignored?: string[] }) {
+    return this.serverRequest(serverId, '/files/stat', 'post', payload);
+  }
+
+  async getBackupStatus(serverId: string, backupId: string) {
+    return this.serverRequest(serverId, `/backup/${backupId}`).catch(() => null);
+  }
+
+  async getDatabaseBackupStatus(serverId: string, backupId: string) {
+    return this.serverRequest(serverId, `/database-backup/${backupId}`).catch(() => null);
   }
 
   async getMounts(serverId: string) {

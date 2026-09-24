@@ -9,15 +9,14 @@ pub mod backups;
 pub mod client;
 pub mod jwt;
 pub mod servers;
+#[cfg(unix)]
+pub mod tundra;
 
 #[inline]
 pub fn into_json<T: DeserializeOwned>(value: String) -> Result<T, anyhow::Error> {
     match serde_json::from_str(&value) {
         Ok(json) => Ok(json),
-        Err(err) => Err(anyhow::anyhow!(
-            "failed to parse JSON: {:#?} <- {value}",
-            err
-        )),
+        Err(err) => Err(anyhow::anyhow!("failed to parse JSON: {:#?}", err)),
     }
 }
 

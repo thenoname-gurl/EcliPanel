@@ -1,5 +1,17 @@
 import { WingsApiService } from '../services/wingsApiService';
 import { ProxmoxApiService } from '../services/proxmoxApiService';
+import {
+  getTunnelState,
+  createTunnel,
+  updateTunnel,
+  deleteTunnel,
+  replaceTunnelPorts,
+  createTunnelConnection,
+  acceptTunnelConnection,
+  deleteTunnelConnection,
+  listAvailableTunnelServers,
+  pokeAllNodes,
+} from '../services/tundraService';
 import { extractStats } from '../services/metricsCollector';
 import { nodeService, type ProviderService } from '../services/nodeService';
 import {
@@ -2249,6 +2261,33 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         ...(autoAllocation ? { allocations: autoAllocation } : {}),
       });
 
+      const startupPreset = egg.startupCpuBoostPreset;
+      const runtimePreset = egg.runtimeCpuBoostPreset;
+      let features: Record<string, any> = {};
+
+      if (startupPreset || runtimePreset) {
+        if (startupPreset) features.startup_cpu_boost = startupPreset;
+        if (runtimePreset) features.runtime_cpu_boost = runtimePreset;
+      } else {
+        const { getStartupCpuBoostDefaults, getRuntimeCpuBoostDefaults } = await import('../services/cpuBoostService');
+        const startupDefaults = await getStartupCpuBoostDefaults();
+        const runtimeDefaults = await getRuntimeCpuBoostDefaults();
+        if (startupDefaults.enabled) features.startup_cpu_boost = startupDefaults;
+        if (runtimeDefaults.enabled) features.runtime_cpu_boost = runtimeDefaults;
+      }
+
+      if (Object.keys(features).length > 0) {
+        await saveServerConfig({
+          uuid: serverUuid,
+          nodeId: node.id,
+          userId: ownerId,
+          memory,
+          disk,
+          cpu,
+          features,
+        });
+      }
+
       if (isProxmoxNode) {
         const svc = await nodeService.getProxmoxService(node.id);
         try {
@@ -2288,6 +2327,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         uuid: serverUuid,
         start_on_completion: hasInstallScript,
         skip_scripts: false,
+        ...(Object.keys(features).length > 0 ? { features } : {}),
       };
 
       const hasEulaFeature =
@@ -2336,6 +2376,22 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     },
     {
       beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:create')],
+      body: t.Object({
+        eggId: t.Number({ minimum: 1 }),
+        name: t.Optional(t.String({ minLength: 1, maxLength: 64 })),
+        nodeId: t.Optional(t.Number({ minimum: 1 })),
+        userId: t.Optional(t.Number({ minimum: 1 })),
+        orgId: t.Optional(t.Number({ minimum: 1 })),
+        memory: t.Optional(t.Number({ minimum: 1 })),
+        disk: t.Optional(t.Number({ minimum: 1 })),
+        cpu: t.Optional(t.Number({ minimum: 1 })),
+        kvmPassthroughEnabled: t.Optional(t.Boolean()),
+        requestIpv6: t.Optional(t.Boolean()),
+        vmType: t.Optional(t.String()),
+        template: t.Optional(t.String()),
+        isoFile: t.Optional(t.String()),
+        environment: t.Optional(t.Record(t.String(), t.String())),
+      }),
       response: {
         200: t.Any(),
         400: t.Object({ error: t.String() }),
@@ -3122,6 +3178,18 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       try {
         const svc = await serviceFor(id);
         let res: Record<string, unknown>;
+        let uploads: unknown[] = [];
+        try {
+          res = await svc.serverRequest(id, `/files/list?directory=${encodeURIComponent(dir)}`);
+          const rObj = res.data as Record<string, unknown> | null;
+          if (rObj && Array.isArray(rObj.entries) && Array.isArray(rObj.uploads)) {
+            return { entries: rObj.entries, uploads: rObj.uploads };
+          }
+        } catch (e1: unknown) {
+          const e1Err = e1 as Record<string, unknown>;
+          const e1Response = e1Err?.response as Record<string, unknown> | undefined;
+          if (e1Response?.status !== 404 && e1Response?.status !== 405) throw e1;
+        }
         try {
           res = await svc.serverRequest(
             id,
@@ -3136,7 +3204,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
             throw e1;
           }
         }
-        const data = res.data;
+        const data = res.data as Record<string, unknown>;
         const dataObj = data as Record<string, unknown>;
         const entries =
           (Array.isArray(data) ? data : null) ??
@@ -3144,11 +3212,12 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
           (Array.isArray(dataObj?.data) ? dataObj.data : null) ??
           (Array.isArray(dataObj?.files) ? dataObj.files : null) ??
           [];
-        return entries;
+        if (Array.isArray(dataObj?.uploads)) uploads = dataObj.uploads as unknown[];
+        return { entries, uploads };
       } catch (e: unknown) {
         const err = e as Record<string, unknown>;
         const errResponse = err?.response as Record<string, unknown> | undefined;
-        if (errResponse?.status === 404) return [];
+        if (errResponse?.status === 404) return { entries: [], uploads: [] };
         const status = (errResponse?.status as number) || 500;
         const errData = errResponse?.data as Record<string, unknown> | undefined;
         const msg = (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to list files';
@@ -3159,7 +3228,7 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
     {
       beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
       response: {
-        200: t.Array(t.Any()),
+        200: t.Any(),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
         500: t.Object({ error: t.String() }),
@@ -3882,6 +3951,346 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
         500: t.Object({ error: t.String() }),
       },
       detail: { summary: 'Get largest directories by size', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/files/search',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const body = ctx.body as Record<string, unknown>;
+      if (!body || typeof body !== 'object') {
+        ctx.set.status = 400;
+        return { error: 'Search payload required' };
+      }
+      const svc = await serviceFor(id);
+      try {
+        const res = await (svc as WingsApiService).searchServerFiles(id, body);
+        return res.data || res;
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        ctx.set.status = status;
+        return { error: (errData?.error as string) || (err instanceof Error ? err.message : '') || 'File search failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Search server files', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/files/stat',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const body = ctx.body as Record<string, unknown>;
+      const files = Array.isArray(body?.files) ? (body.files as unknown[]).map(String) : null;
+      if (!body || !files || !files.length) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.filesRequired') };
+      }
+      const svc = await serviceFor(id);
+      try {
+        const res = await (svc as WingsApiService).statServerFiles(id, {
+          root: String((body as any).root ?? '/'),
+          files,
+          ignored: Array.isArray((body as any).ignored)
+            ? ((body as any).ignored as unknown[]).map(String)
+            : undefined,
+        });
+        const data = res.data as Record<string, unknown>;
+        const entries =
+          (Array.isArray(data) ? data : null) ??
+          (Array.isArray((data as any)?.entries) ? (data as any).entries : null) ??
+          [];
+        if (Array.isArray((data as any)?.uploads)) {
+          return { entries, uploads: (data as any).uploads };
+        }
+        return entries;
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        ctx.set.status = status;
+        return { error: (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Failed to stat files' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:read')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Stat multiple server file paths at once', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/files/symlink',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const body = ctx.body as Record<string, unknown>;
+      const root = String(body?.root ?? '/');
+      const link = String(body?.link ?? '');
+      const target = String(body?.target ?? '');
+      if (!link || !target) {
+        ctx.set.status = 400;
+        return { error: ctx.t('validation.symlinkRequired') };
+      }
+      const svc = await serviceFor(id);
+      try {
+        const res = await (svc as WingsApiService).createSymlink(id, { root, link, target });
+        return res.data && typeof res.data === 'object' ? res.data : { success: true };
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        ctx.set.status = status;
+        return { error: (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Symlink creation failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('files:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Create a symlink on server', tags: ['Servers'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/database-backup',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const body = ctx.body as Record<string, unknown>;
+      const adapter = String(body?.adapter ?? '');
+      const databaseInstance = String(body?.database_instance ?? '');
+      const extension = String(body?.extension ?? '');
+      if (!adapter || !databaseInstance) {
+        ctx.set.status = 400;
+        return { error: 'adapter and database_instance are required' };
+      }
+      const svc = await serviceFor(id);
+      try {
+        const res = await (svc as WingsApiService).createDatabaseBackup(id, {
+          adapter,
+          uuid: crypto.randomUUID(),
+          database_instance: databaseInstance,
+          extension: extension || 'tar.zst',
+        });
+        return res.data && typeof res.data === 'object' ? res.data : { success: true, accepted: true };
+      } catch (e: unknown) {
+        const err = e as Record<string, unknown>;
+        const errResponse = err?.response as Record<string, unknown> | undefined;
+        const status = (errResponse?.status as number) || 500;
+        const errData = errResponse?.data as Record<string, unknown> | undefined;
+        ctx.set.status = status;
+        return { error: (errData?.error as string) || (err instanceof Error ? err.message : '') || 'Database backup failed' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('backups:create')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        500: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Queue a database backup via db-agent', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/v1/:id/firewall',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      return { rules: cfg.firewallRules || [] };
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get firewall rules for server', tags: ['Servers'] },
+    }
+  );
+
+  app.put(
+    prefix + '/servers/v1/:id/firewall',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const body = ctx.body as Record<string, unknown>;
+      const rules = Array.isArray(body?.rules) ? body.rules : [];
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const sanitized = rules
+        .filter((r): r is Record<string, unknown> => !!r && typeof r === 'object')
+        .map(r => {
+          const rule: Record<string, unknown> = {};
+          const action = String(r.action ?? '').toLowerCase();
+          if (action === 'allow' || action === 'deny') rule.action = action;
+          if (r.protocols && Array.isArray(r.protocols)) {
+            rule.protocols = r.protocols
+              .map((p: unknown) => String(p ?? '').toLowerCase())
+              .filter(p => p === 'tcp' || p === 'udp');
+          }
+          if (r.sources && Array.isArray(r.sources)) {
+            rule.sources = r.sources.map((s: unknown) => String(s ?? '')).filter(Boolean);
+          }
+          if (r.ports && Array.isArray(r.ports)) {
+            const ports = r.ports
+              .map(p => Number(p))
+              .filter(p => Number.isInteger(p) && p > 0 && p <= 65535);
+            if (ports.length > 0) rule.ports = [...new Set(ports)].sort((a, b) => a - b);
+          }
+          if (r.source_file && typeof r.source_file === 'string' && r.source_file.trim()) {
+            rule.source_file = String(r.source_file).trim();
+          }
+          return rule;
+        })
+        .filter(r => r.action && r.action !== undefined);
+
+      cfg.firewallRules = sanitized;
+      await cfgRepo().save(cfg);
+
+      try {
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, { firewall: sanitized });
+      } catch {
+        // soon, the dark ages will be gone
+      }
+
+      return { success: true, rules: sanitized };
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Update firewall rules for server', tags: ['Servers'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/v1/:id/features',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+      return { features: cfg.features || {} };
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
+      response: {
+        200: t.Any(),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Get CPU boost / performance features for server', tags: ['Servers'] },
+    }
+  );
+
+  app.put(
+    prefix + '/servers/v1/:id/features',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const body = ctx.body as Record<string, unknown>;
+      const cfg = await cfgRepo().findOneBy({ uuid: id });
+      if (!cfg) {
+        ctx.set.status = 404;
+        return { error: ctx.t('server.notFound') };
+      }
+
+      const isAdmin = hasPermissionSync(ctx, 'admin:access');
+      const incoming = (body?.features && typeof body.features === 'object' ? body.features : {}) as Record<string, unknown>;
+      const sanitizedStartup = incoming.startup_cpu_boost && typeof incoming.startup_cpu_boost === 'object'
+        ? {
+            enabled: Boolean((incoming.startup_cpu_boost as any).enabled),
+            timeout: Number((incoming.startup_cpu_boost as any).timeout) || 3000,
+          }
+        : undefined;
+      const sanitizedRuntime = incoming.runtime_cpu_boost && typeof incoming.runtime_cpu_boost === 'object'
+        ? {
+            enabled: Boolean((incoming.runtime_cpu_boost as any).enabled),
+            threshold: Number((incoming.runtime_cpu_boost as any).threshold) || 20,
+            sustained: Number((incoming.runtime_cpu_boost as any).sustained) || 5,
+            multiple: Number((incoming.runtime_cpu_boost as any).multiple) || 1.5,
+            duration: Number((incoming.runtime_cpu_boost as any).duration) || 30,
+            cooldown: Number((incoming.runtime_cpu_boost as any).cooldown) || 60,
+          }
+        : undefined;
+
+      if (!isAdmin && (sanitizedStartup || sanitizedRuntime)) {
+        ctx.set.status = 403;
+        return { error: 'CPU boost settings can only be modified by administrators' };
+      }
+
+      const features: Record<string, unknown> = {};
+      if (sanitizedStartup) features.startup_cpu_boost = sanitizedStartup;
+      if (sanitizedRuntime) features.runtime_cpu_boost = sanitizedRuntime;
+
+      cfg.features = features;
+      await cfgRepo().save(cfg);
+
+      try {
+        const svc = await serviceFor(id);
+        await svc.syncServer(id, { features });
+      } catch {
+        // Applied on next sync
+      }
+
+      return { success: true, features };
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:write'), authorize('admin:access')],
+      response: {
+        200: t.Any(),
+        400: t.Object({ error: t.String() }),
+        401: t.Object({ error: t.String() }),
+        403: t.Object({ error: t.String() }),
+        404: t.Object({ error: t.String() }),
+      },
+      detail: { summary: 'Update CPU boost / performance features for server (admin only)', tags: ['Servers'] },
     }
   );
 
@@ -8293,6 +8702,255 @@ export async function serverRoutes(app: ServerApp, prefix = '') {
       beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:read')],
       response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
       detail: { summary: 'List all known players (from world/playerdata/ or world/players/data/)', tags: ['Servers', 'Minecraft'] },
+    }
+  );
+
+  async function userHasServerAccess(user: any, cfg: ServerConfig): Promise<boolean> {
+    if (!user) return false;
+    if (user.role === '*' || user.role === 'rootAdmin') return true;
+    if (hasPermissionSync({ user } as any, 'servers:list')) return true;
+    if (cfg.userId === user.id) return true;
+    const subuser = await AppDataSource.getRepository(ServerSubuser).findOneBy({
+      serverUuid: cfg.uuid,
+      userId: user.id,
+      accepted: true,
+    });
+    if (subuser) return true;
+    if (cfg.orgId) {
+      const m = await orgMemberRepo().findOne({ where: { userId: user.id, organisationId: cfg.orgId } });
+      return !!(m && (m.orgRole === 'admin' || m.orgRole === 'owner'));
+    }
+    return false;
+  }
+
+  async function tunnelServerGuard(ctx: AuthenticatedHandlerContext, id: string): Promise<ServerConfig | null> {
+    const cfg = await cfgRepo().findOneBy({ uuid: id });
+    if (!cfg) {
+      ctx.set.status = 404;
+      return null;
+    }
+    if (!(await userHasServerAccess(ctx.user, cfg))) {
+      ctx.set.status = 403;
+      return null;
+    }
+    return cfg;
+  }
+
+  app.get(
+    prefix + '/servers/v1/:id/tunnel',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      try {
+        return await getTunnelState(id);
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Get server tunnel state', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/tunnel',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      const body = (ctx.body ?? {}) as { name?: string };
+      try {
+        const tunnel = await createTunnel(id, body?.name);
+        await pokeAllNodes();
+        return { tunnel };
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Enroll server on the private network', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  (app as any).patch(
+    prefix + '/servers/v1/:id/tunnel',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      const body = (ctx.body ?? {}) as { name?: string };
+      try {
+        const tunnel = await updateTunnel(id, body?.name ?? '');
+        await pokeAllNodes();
+        return { tunnel };
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Rename server on the private network', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/v1/:id/tunnel',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      try {
+        await deleteTunnel(id);
+        await pokeAllNodes();
+        return {};
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Remove server from the private network', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  app.put(
+    prefix + '/servers/v1/:id/tunnel/ports',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      const body = (ctx.body ?? {}) as { ports?: any[] };
+      try {
+        await replaceTunnelPorts(id, Array.isArray(body?.ports) ? body.ports : []);
+        await pokeAllNodes();
+        return {};
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Replace the ports this server hosts on the private network', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/tunnel/connections',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      const body = (ctx.body ?? {}) as { server?: string };
+      const target = String(body?.server || '').trim();
+      if (!target) {
+        ctx.set.status = 400;
+        return { error: 'server is required' };
+      }
+      try {
+        await createTunnelConnection(id, target);
+        await pokeAllNodes();
+        return {};
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Create a private network connection to another server', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  app.delete(
+    prefix + '/servers/v1/:id/tunnel/connections/:connectionId',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, connectionId } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      const query = (ctx.query ?? {}) as Record<string, string>;
+      const incoming = query.incoming === 'true';
+      try {
+        const ok = await deleteTunnelConnection(id, connectionId, incoming);
+        if (!ok) {
+          ctx.set.status = 404;
+          return { error: 'connection not found' };
+        }
+        await pokeAllNodes();
+        return {};
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'Remove a private network connection', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  app.post(
+    prefix + '/servers/v1/:id/tunnel/connections/:connectionId/accept',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id, connectionId } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      try {
+        const ok = await acceptTunnelConnection(id, connectionId);
+        if (!ok) {
+          ctx.set.status = 404;
+          return { error: 'connection request not found' };
+        }
+        await pokeAllNodes();
+        return {};
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }), 404: t.Object({ error: t.String() }) },
+      detail: { summary: 'Accept an incoming private network connection request', tags: ['Servers', 'Tunnels'] },
+    }
+  );
+
+  app.get(
+    prefix + '/servers/v1/:id/tunnel/connections/available',
+    async (ctx: AuthenticatedHandlerContext) => {
+      const { id } = (ctx.params ?? {}) as Record<string, string>;
+      const cfg = await tunnelServerGuard(ctx, id);
+      if (!cfg) return { error: ctx.t('server.notFound') };
+      const q = (ctx.query ?? {}) as Record<string, string>;
+      const page = Math.max(1, Number(q.page) || 1);
+      const perPage = Math.min(200, Math.max(1, Number(q.per_page) || 10));
+      const search = q.search || undefined;
+      const other = q.other === 'true';
+      try {
+        return await listAvailableTunnelServers(ctx.user, id, page, perPage, search, other);
+      } catch (err: any) {
+        ctx.set.status = err.status || 500;
+        return { error: err.message || 'Tunnel error' };
+      }
+    },
+    {
+      beforeHandle: [authenticate, requireProvider('wings'), authorize('servers:tunnel')],
+      response: { 200: t.Any(), 400: t.Object({ error: t.String() }), 401: t.Object({ error: t.String() }), 403: t.Object({ error: t.String() }) },
+      detail: { summary: 'List servers that can be reached on the private network', tags: ['Servers', 'Tunnels'] },
     }
   );
 }

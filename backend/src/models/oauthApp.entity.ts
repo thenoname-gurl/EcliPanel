@@ -2,6 +2,7 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn } f
 import { User } from './user.entity';
 
 export const OAUTH_SCOPES = [
+  'openid', // OpenID Connect
   'profile', // name, displayName, avatarUrl, portalType
   'email', // email + emailVerified
   'servers:read', // list user servers

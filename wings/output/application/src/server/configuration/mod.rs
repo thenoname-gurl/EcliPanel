@@ -3,8 +3,9 @@ use compact_str::ToCompactString;
 use serde::{Deserialize, Serialize};
 use serde_default::DefaultFromSerde;
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     path::{Path, PathBuf},
+    sync::OnceLock,
 };
 use utoipa::ToSchema;
 
@@ -19,6 +20,87 @@ fn is_plain_absolute_path(path: &Path) -> bool {
                 std::path::Component::CurDir | std::path::Component::ParentDir
             )
         })
+}
+
+fn parse_cpu_list(list: &str) -> Option<Vec<u64>> {
+    let mut cpus = Vec::new();
+
+    for part in list.trim().split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+
+        match part.split_once('-') {
+            Some((start, end)) => {
+                let start: u64 = start.trim().parse().ok()?;
+                let end: u64 = end.trim().parse().ok()?;
+                if start > end {
+                    return None;
+                }
+
+                cpus.extend(start..=end);
+            }
+            None => cpus.push(part.parse().ok()?),
+        }
+    }
+
+    Some(cpus)
+}
+
+fn numa_memory_nodes(threads: &str) -> Option<String> {
+    static NUMA_NODE_CPUS: OnceLock<Vec<(u64, Vec<u64>)>> = OnceLock::new();
+
+    let nodes = NUMA_NODE_CPUS.get_or_init(|| {
+        let mut nodes = Vec::new();
+
+        let Ok(entries) = std::fs::read_dir("/sys/devices/system/node") else {
+            return nodes;
+        };
+
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let Some(id) = name
+                .to_string_lossy()
+                .strip_prefix("node")
+                .and_then(|id| id.parse().ok())
+            else {
+                continue;
+            };
+
+            let Ok(cpulist) = std::fs::read_to_string(entry.path().join("cpulist")) else {
+                continue;
+            };
+
+            if let Some(cpus) = parse_cpu_list(&cpulist) {
+                nodes.push((id, cpus));
+            }
+        }
+
+        nodes
+    });
+
+    if nodes.len() < 2 {
+        return None;
+    }
+
+    let cpus = parse_cpu_list(threads)?;
+    let mut node_ids = BTreeSet::new();
+    for cpu in cpus {
+        node_ids.insert(nodes.iter().find(|(_, cpus)| cpus.contains(&cpu))?.0);
+    }
+
+    if node_ids.is_empty() {
+        return None;
+    }
+
+    Some(
+        node_ids
+            .into_iter()
+            .map(|id| id.to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+    )
 }
 
 #[derive(ToSchema, Deserialize, Serialize, Clone, PartialEq, Eq)]
@@ -179,6 +261,8 @@ nestify::nest! {
             pub oom_disabled: bool,
         },
         pub mounts: Vec<Mount>,
+        #[serde(default, deserialize_with = "crate::deserialize::deserialize_nullable")]
+        pub firewall: Vec<super::firewall::FirewallRule>,
         #[schema(inline)]
         pub egg: #[derive(ToSchema, Deserialize, Serialize)] pub struct ServerConfigurationEgg {
             pub id: uuid::Uuid,
@@ -215,6 +299,74 @@ nestify::nest! {
 
         #[serde(default)]
         pub auto_start_behavior: crate::models::ServerAutoStartBehavior,
+
+        #[serde(default)]
+        #[schema(inline)]
+        pub features: #[derive(ToSchema, Deserialize, Serialize, DefaultFromSerde, Clone, Copy)] pub struct ServerConfigurationFeatures {
+            #[serde(default)]
+            #[schema(inline)]
+            pub startup_cpu_boost: Option<#[derive(ToSchema, Deserialize, Serialize, DefaultFromSerde, Clone, Copy)] #[serde(default)] pub struct ServerConfigurationFeaturesStartupCpuBoost {
+                #[serde(default)]
+                pub enabled: bool,
+                #[serde(default = "crate::config::docker_startup_boost_timeout")]
+                pub timeout: u64,
+            }>,
+
+            #[serde(default)]
+            #[schema(inline)]
+            pub runtime_cpu_boost: Option<#[derive(ToSchema, Deserialize, Serialize, DefaultFromSerde, Clone, Copy)] #[serde(default)] pub struct ServerConfigurationFeaturesRuntimeCpuBoost {
+                #[serde(default)]
+                pub enabled: bool,
+                #[serde(default = "crate::config::docker_runtime_boost_threshold")]
+                pub threshold: u64,
+                #[serde(default = "crate::config::docker_runtime_boost_sustained")]
+                pub sustained: u64,
+                #[serde(default = "crate::config::docker_runtime_boost_multiple")]
+                pub multiple: f64,
+                #[serde(default = "crate::config::docker_runtime_boost_duration")]
+                pub duration: u64,
+                #[serde(default = "crate::config::docker_runtime_boost_cooldown")]
+                pub cooldown: u64,
+            }>,
+        },
+    }
+}
+
+impl ServerConfigurationFeatures {
+    pub fn startup_cpu_boost(
+        &self,
+        config: &crate::config::Config,
+    ) -> crate::config::DockerStartupBoost {
+        let node = config.load().docker.startup_boost;
+
+        match self.startup_cpu_boost {
+            Some(boost) => crate::config::DockerStartupBoost {
+                enabled: boost.enabled,
+                timeout: boost.timeout,
+                max_concurrent: node.max_concurrent,
+            },
+            None => node,
+        }
+    }
+
+    pub fn runtime_cpu_boost(
+        &self,
+        config: &crate::config::Config,
+    ) -> crate::config::DockerRuntimeBoost {
+        let node = config.load().docker.runtime_boost;
+
+        match self.runtime_cpu_boost {
+            Some(boost) => crate::config::DockerRuntimeBoost {
+                enabled: boost.enabled,
+                threshold: boost.threshold,
+                sustained: boost.sustained,
+                multiple: boost.multiple,
+                duration: boost.duration,
+                cooldown: boost.cooldown,
+                max_concurrent: node.max_concurrent,
+            },
+            None => node,
+        }
     }
 }
 
@@ -263,6 +415,7 @@ impl ServerConfiguration {
                 oom_disabled: false,
             },
             mounts: Vec::new(),
+            firewall: Vec::new(),
             egg: ServerConfigurationEgg {
                 id: uuid::Uuid::new_v4(),
                 file_denylist: Vec::new(),
@@ -281,6 +434,7 @@ impl ServerConfiguration {
                 seconds: 0,
             },
             auto_start_behavior: crate::models::ServerAutoStartBehavior::default(),
+            features: ServerConfigurationFeatures::default(),
         }
     }
 
@@ -290,6 +444,25 @@ impl ServerConfiguration {
 
     fn machine_uuid_path(&self, config: &crate::config::Config) -> PathBuf {
         config.vmount_path(self.uuid).join("machine-uuid")
+    }
+
+    #[cfg(unix)]
+    fn hosts_path(&self, config: &crate::config::Config) -> PathBuf {
+        config.vmount_path(self.uuid).join("hosts")
+    }
+
+    #[cfg(unix)]
+    fn default_hosts(&self) -> String {
+        format!(
+            "127.0.0.1\tlocalhost\n\
+             ::1\tlocalhost ip6-localhost ip6-loopback\n\
+             fe00::0\tip6-localnet\n\
+             ff00::0\tip6-mcastprefix\n\
+             ff02::1\tip6-allnodes\n\
+             ff02::2\tip6-allrouters\n\
+             127.0.0.2\t{}\n",
+            self.uuid
+        )
     }
 
     async fn vmounts(&self, config: &crate::config::Config) -> Vec<Mount> {
@@ -321,6 +494,19 @@ impl ServerConfiguration {
                     read_only: true,
                 });
             }
+        }
+
+        #[cfg(unix)]
+        if config.load().tundra.enabled {
+            mounts.push(Mount {
+                default: false,
+                target: "/etc/hosts".into(),
+                source: self
+                    .hosts_path(config)
+                    .to_string_lossy()
+                    .to_compact_string(),
+                read_only: true,
+            });
         }
 
         mounts
@@ -431,6 +617,21 @@ impl ServerConfiguration {
         }
         tokio::fs::write(&machine_uuid_path, self.uuid.to_string()).await?;
 
+        #[cfg(unix)]
+        if config.load().tundra.enabled {
+            let hosts_path = self.hosts_path(config);
+            if let Some(parent) = hosts_path.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+
+            let existing = tokio::fs::read_to_string(&hosts_path)
+                .await
+                .unwrap_or_default();
+            if !existing.contains(&format!("\t{}\n", self.uuid)) {
+                tokio::fs::write(&hosts_path, self.default_hosts()).await?;
+            }
+        }
+
         Ok(())
     }
 
@@ -456,36 +657,47 @@ impl ServerConfiguration {
             0
         };
 
+        let memory = match real_memory {
+            0 => None,
+            limit => Some(
+                config
+                    .load()
+                    .docker
+                    .overhead
+                    .get_memory(limit.into())
+                    .as_bytes() as i64,
+            ),
+        };
+
+        if self.build.oom_disabled && crate::server::executor::docker::cgroup::is_unified() {
+            tracing::warn!(
+                server = %self.uuid,
+                "oom_disabled is set, but the container engine discards it on cgroup v2 hosts"
+            );
+        }
+
         let mut resources = bollard::models::Resources {
-            memory: match real_memory {
-                0 => None,
-                limit => Some(
-                    config
-                        .load()
-                        .docker
-                        .overhead
-                        .get_memory(limit.into())
-                        .as_bytes() as i64,
-                ),
-            },
+            memory,
             memory_reservation: match real_memory {
                 0 => None,
                 limit => Some(limit * 1024 * 1024),
             },
-            memory_swap: match self.build.swap {
-                0 => None,
-                -1 => Some(-1),
-                limit => match real_memory {
-                    0 => Some(limit * 1024 * 1024),
-                    memory_limit => Some(
-                        config
-                            .load()
-                            .docker
-                            .overhead
-                            .get_memory(memory_limit.into())
-                            .as_bytes() as i64
-                            + limit * 1024 * 1024,
-                    ),
+            memory_swap: match memory {
+                None => {
+                    if self.build.swap != 0 {
+                        tracing::warn!(
+                            server = %self.uuid,
+                            swap = self.build.swap,
+                            "ignoring the swap limit, it cannot be set without a memory limit"
+                        );
+                    }
+
+                    None
+                }
+                Some(memory) => match self.build.swap {
+                    0 => Some(memory),
+                    -1 => Some(-1),
+                    limit => Some(memory + limit * 1024 * 1024),
                 },
             },
             blkio_weight: self.build.io_weight,
@@ -495,13 +707,19 @@ impl ServerConfiguration {
                 limit => Some(limit as i64),
             },
             cpuset_cpus: self.build.threads.clone().map(|t| t.into()),
+            cpuset_mems: if config.load().docker.numa_memory_binding {
+                self.build.threads.as_deref().and_then(numa_memory_nodes)
+            } else {
+                None
+            },
             ..Default::default()
         };
 
         if self.build.cpu_limit > 0 {
-            resources.cpu_quota = Some(self.build.cpu_limit * 1000);
-            resources.cpu_period = Some(100000);
-            resources.cpu_shares = Some(1024);
+            let period = config.load().docker.cpu_period_us();
+
+            resources.cpu_quota = Some(self.build.cpu_limit * period / 100);
+            resources.cpu_period = Some(period);
         } else {
             resources.cpu_quota = Some(-1);
         }
@@ -562,6 +780,57 @@ mod tests {
             source: source.as_ref().to_string_lossy().to_compact_string(),
             read_only: false,
         }
+    }
+
+    fn resources(memory_limit: i64, swap: i64) -> bollard::models::Resources {
+        let config = tokio_test::block_on(async { crate::config::Config::mock() });
+
+        let mut configuration = ServerConfiguration::mock(uuid::Uuid::new_v4());
+        configuration.build.memory_limit = memory_limit;
+        configuration.build.overhead_memory = 0;
+        configuration.build.swap = swap;
+
+        configuration.convert_container_resources(&config)
+    }
+
+    // ServerConfiguration::convert_container_resources
+
+    #[test]
+    fn convert_container_resources_disables_swap_by_matching_the_memory_limit() {
+        let resources = resources(2048, 0);
+
+        assert!(resources.memory.is_some());
+        assert_eq!(resources.memory_swap, resources.memory);
+    }
+
+    #[test]
+    fn convert_container_resources_passes_unlimited_swap_through() {
+        assert_eq!(resources(2048, -1).memory_swap, Some(-1));
+    }
+
+    #[test]
+    fn convert_container_resources_adds_a_positive_swap_limit_to_the_memory_limit() {
+        let resources = resources(2048, 512);
+
+        assert_eq!(
+            resources.memory_swap,
+            Some(resources.memory.unwrap() + 512 * 1024 * 1024)
+        );
+    }
+
+    #[test]
+    fn convert_container_resources_never_sets_swap_without_a_memory_limit() {
+        for swap in [0, -1, 512] {
+            let resources = resources(0, swap);
+
+            assert_eq!(resources.memory, None);
+            assert_eq!(resources.memory_swap, None);
+        }
+    }
+
+    #[test]
+    fn convert_container_resources_leaves_cpu_shares_at_the_host_default() {
+        assert_eq!(resources(2048, 0).cpu_shares, None);
     }
 
     // Mount::resolve_allowed_source

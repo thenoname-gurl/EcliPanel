@@ -101,6 +101,9 @@ Here is some small overview about optimisation we have done!
 
 Happy exploring!
 >Side note: 
-> This project took part in [Flavortown](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems) and in [Macondo](https://macondo.hackclub.com/projects/506?ref=HHDFS)!
+> This project took part in [Flavortown](https://flavortown.hackclub.com/projects/15802?ref=eclipsesystems), [Macondo](https://macondo.hackclub.com/projects/506?ref=HHDFS) and in [Beest](https://beest.hackclub.com/?ref=eclipsesystems)!
 > I do not get paid for developing this and entire hosting is not profitable enough to cover development costs,
 > if you really liked panel atleast star the repo or go order something from us https://ecli.app/
+
+
+Official Mirror is avaliable at [EclipseSystems Git Instance](https://git.ecli.app/ecli.app/EcliPanel)!

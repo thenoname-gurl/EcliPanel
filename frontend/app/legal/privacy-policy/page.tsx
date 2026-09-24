@@ -1,3 +1,4 @@
+"use client"
 import Link from "next/link";
 import { Menu } from "@/app/landing/_components/_custom/Menu";
 import GradualBlurMemo from "@/app/landing/_components/_reacts-bits/GradualBlur";

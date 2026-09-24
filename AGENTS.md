@@ -12,7 +12,7 @@ EcliPanel v3 is a **game server hosting panel** — provision, manage, monitor, 
 | System | Language | Role |
 |--------|----------|------|
 | `backend/` | TypeScript (Bun + ElysiaJS) | REST API, auth, business logic |
-| `frontend/` | TypeScript (Next.js 16) | Web UI, dashboard |
+| `frontend/` | TypeScript (Astro 7 + React islands) | Web UI, dashboard |
 | `wings/` | Rust (calagopus/wings fork) | Node daemon with embedded security & anti-abuse |
 | `tunnel/` | Rust | EcliTunnel — expose local services publicly |
 | `app/` | Electron/Capacitor | Desktop & mobile wrappers |
@@ -47,44 +47,16 @@ v3/
 │   ├── scripts/                # CLI scripts (promote, seed, jwt secrets, etc.)
 │   └── tests/                  # Bun test files
 │
-├── frontend/                   # Next.js 16 App Router
-│   ├── app/
-│   │   ├── layout.tsx          # Root layout: fonts, theme injection, AuthProvider, guards
-│   │   ├── dashboard/
-│   │   │   ├── page.tsx        # SOC Dashboard (security findings + resource summary)
-│   │   │   ├── servers/        # Server list + [id] detail (V1/V2 provider-aware)
-│   │   │   ├── admin/          # Admin panel (tabs/ — includes SocTab, AntiAbuseTab)
-│   │   │   ├── billing/        # Billing & checkout
-│   │   │   ├── tickets/        # Support tickets
-│   │   │   ├── organisations/  # Org management
-│   │   │   ├── elo/            # ELO game server ranking
-│   │   │   ├── chat/           # Real-time chat
-│   │   │   ├── calendar/       # Calendar & booking
-│   │   │   ├── paint/          # Collaborative canvas (Konva)
-│   │   │   ├── ai-studio/      # AI model management
-│   │   │   ├── ai-chat/        # AI chat interface
-│   │   │   ├── mailbox/        # Email client
-│   │   │   ├── tunnels/        # Tunnel management
-│   │   │   ├── infrastructure/ # Nodes, visual editor
-│   │   │   ├── applications/   # Application forms
-│   │   │   ├── family/         # Family/student plans
-│   │   │   ├── subusers/       # Server subuser invites
-│   │   │   ├── identity/       # ID verification
-│   │   │   ├── settings/       # User settings
-│   │   │   └── activity/       # Activity log
-│   │   ├── landing/            # Marketing/landing pages
-│   │   ├── docs/               # Documentation pages
-│   │   ├── legal/              # Legal pages (ToS, privacy, etc.)
-│   │   ├── login/              # Login page
-│   │   ├── register/           # Registration page
-│   │   ├── forms/[slug]/       # Public application forms
-│   │   ├── share/[token]/      # Shared file links
-│   │   ├── tunnel/verify/      # Tunnel device verification
-│   │   └── ...                 # Other public pages
-│   ├── components/
+├── frontend/                   # Astro 7 (SSR, server output) + React islands
+│   ├── app/                    # React page components (Next-style files, routed by AppRouter — see §4)
+│   │   ├── LandingClient.tsx   # Landing SPA entry
+│   │   ├── globals.css         # Global styles/test harness
+│   │   └── (dashboard/, admin/, billing/, …)  # Feature pages (see §4.5)
+│   ├── components/             # Shared React components
 │   │   ├── ui/                 # shadcn/ui components (~55)
 │   │   ├── panel/              # Panel-specific (sidebar, header, guards, banners)
-│   │   └── activity/           # Activity feed components
+│   │   ├── activity/           # Activity feed components
+│   │   └── shims/              # FAKE modules replacing next/* + next-intl/* (see §4.3)
 │   ├── hooks/                  # React hooks (useAuth, useDebounce, useMobile, etc.)
 │   ├── lib/
 │   │   ├── panel-config.ts     # CENTRAL CONFIG: API endpoints, nav, branding, portals, feature flags
@@ -92,13 +64,22 @@ v3/
 │   │   ├── themes.ts           # 14 theme definitions (CSS variable maps)
 │   │   ├── utils.ts            # cn() utility (clsx + tailwind-merge)
 │   │   └── ...                 # Other lib files
-│   ├── i18n/                   # next-intl config
-│   ├── messages/               # Translation files (en.json, ru.json)
+│   ├── i18n/                   # Locale config (en, ru, zh, ja, hi)
+│   ├── messages/               # Translation files (en.json, ru.json, zh.json, ja.json, hi.json)
 │   ├── types/                  # Frontend TypeScript types
 │   ├── public/                 # Static assets (images, fonts, spark analyzer configs)
-│   ├── middleware.ts           # Next.js middleware: auth guard, SEO bot verify, short URLs
-│   ├── next.config.mjs         # Rewrites (/api→backend, /wings→wings, /uploads→backend)
-│   └── components.json         # shadcn/ui config (new-york, neutral, CSS vars)
+│   ├── src/                    # Astro app (SSR shell)
+│   │   ├── pages/              # Routes: *.astro pages + /api/[...path].ts backend proxy
+│   │   ├── layouts/BaseLayout.astro  # SSR layout: SEO meta, theme injection, mounts React shell
+│   │   ├── components/         # AppRouter.tsx (client router over app/), PageShell.tsx, DebugConsole.tsx
+│   │   ├── styles/globals.css  # Tailwind v4 + default (Eclipse Purple) theme fallback
+│   │   ├── middleware.ts       # Astro middleware: auth guard, admin guard, SEO bot verify, session cache
+│   │   ├── lib/                # SSR helpers: page-data (session), proxy, seo
+│   │   └── entry.ts            # Client bootstrap: createRoot → PageShell
+│   ├── astro.config.mjs        # SSR config: node adapter, shims aliases, env define
+│   ├── components.json         # shadcn/ui config (new-york, neutral, CSS vars)
+│   ├── dev.sh / start.sh       # astro dev / astro build + serve (bun)
+│   └── dist/                   # Build output (server entry.mjs)
 │
 ├── wings/                      # Patched Wings daemon
 │   ├── source/                 # Clean upstream Wings (no .git — just source)
@@ -286,12 +267,13 @@ Provider selection: `nodeService.getServiceForNode(nodeId)` checks `node.provide
 
 ---
 
-## 4. Frontend Architecture (Next.js 16)
+## 4. Frontend Architecture (Astro 7 + React Islands)
 
 ### 4.1 Tech Stack
 
-- **Framework:** Next.js 16 (App Router, RSC enabled)
-- **Language:** TypeScript 6.0
+- **SSR framework:** Astro 7 (`output: 'server'`, `@astrojs/node` standalone adapter)
+- **UI layer:** React 19 SPA mounted inside Astro pages (client islands)
+- **Language:** TypeScript (strict-ish; `ignoreBuildErrors`-style gates do NOT exist — see 11.2)
 - **Styling:** Tailwind CSS v4 (`@tailwindcss/postcss`), CSS custom properties
 - **Components:** shadcn/ui (new-york style, neutral base) + Radix UI primitives
 - **Forms:** react-hook-form + zod + shadcn Form wrapper
@@ -299,7 +281,7 @@ Provider selection: `nodeService.getServiceForNode(nodeId)` checks `node.provide
 - **Toasts:** sonner
 - **Charts:** recharts
 - **Animation:** framer-motion
-- **i18n:** next-intl (en/ru)
+- **i18n:** next-intl API but FAKED — replaced by `components/shims/i18n` + `i18n-server` (en/ru/zh/ja/hi)
 - **Auth:** Custom AuthProvider (React Context + backend session API)
 - **Terminal:** @xterm/xterm + addons
 - **Editor:** @monaco-editor/react (lazy-loaded)
@@ -309,30 +291,56 @@ Provider selection: `nodeService.getServiceForNode(nodeId)` checks `node.provide
 ### 4.2 Request Flow
 
 ```
-Browser → Next.js server (middleware.ts auth guard)
-  → next.config.mjs rewrites (/api/* → backend)
-    → Backend API (Bun/Elysia)
+Browser → Astro server (src/middleware.ts auth/session/SEO guard)
+  → src/pages/*.astro (SSR shell, SEO meta, theme injection, mounts React)
+    → PageShell.tsx → AppRouter.tsx (client router over frontend/app/*)
+      → apiFetch() / fetch('/api/...') → src/pages/api/[...path].ts proxy
+        → Backend API (Bun/Elysia)
 ```
-API calls from client components use `apiFetch()` from `lib/api-client.ts`:
-- Auto-attaches Bearer token + CSRF token
-- Retry on network/timeout errors (2 retries, 500ms backoff)
-- CSRF token auto-refresh on 403
-- FormData support
-- Rate limit message formatting
 
-### 4.3 Theming System
+- Astro pages are thin SSR wrappers; `BaseLayout.astro` does SEO meta + theme
+  injection, then mounts the React app; `src/entry.ts` calls `createRoot` client-side.
+- `src/pages/api/[...path].ts` proxies `/api/*`, `/wings/*`, `/uploads/*`,
+  `/public/*` and `/health` to `BACKEND_URL` (server-side; no client CORS needed).
+- All client API calls go through `apiFetch()` from `lib/api-client.ts`:
+  - Auto-attaches Bearer token + CSRF token
+  - Retry on network/timeout errors (2 retries, 500ms backoff)
+  - CSRF token auto-refresh on 403
+  - FormData support
+  - Rate limit message formatting
+
+### 4.3 Shims (`components/shims`) — CRITICAL
+
+The React tree in `frontend/app` still imports Next.js + next-intl modules. These are
+FAKED at build time via Vite aliases in `astro.config.mjs`:
+
+| Import | Shim | Purpose |
+|--------|------|---------|
+| `next/link` / `next/dist/client/link` | `Link.tsx` | `<a>` wrapper |
+| `next/navigation` | `navigation.ts` | `useRouter`, `usePathname`, `useSearchParams`, `redirect` (client-side) |
+| `next/dynamic` | `dynamic.tsx` | `lazy()` + Suspense wrapper |
+| `next/image` | `image.tsx` | `<img>` wrapper |
+| `next/font/google` | `font.ts` | No-op font token (real fonts loaded via CSS/fontsource) |
+| `next-intl` | `i18n.tsx` + `icu.ts` | `IntlProvider`, `useTranslations` over `messages/*.json` |
+| `next-intl/server` | `i18n-server.ts` | `getLocale`, `getMessages`, `getTranslations` from Astro request/cookies |
+
+**Consequence:** `npx tsc --noEmit` in `frontend/` reports hundreds of
+`Cannot find module 'next-intl'` / `'next/*'` errors. These are FAKE — the modules
+are alias-resolved at runtime/build. Do NOT "fix" them and never gate on frontend tsc.
+
+### 4.4 Theming System
 
 14 themes defined in `frontend/lib/themes.ts`. Each theme is a map of CSS custom properties:
 ```
 primary, bg, card, secondary, sidebar, accent, accentFg, glow, border, foreground, cardForeground
 ```
 **How themes work:**
-1. `layout.tsx` reads user's theme from session API (SSR)
+1. `BaseLayout.astro` reads user's theme from the session API (SSR)
 2. Injects inline `<script>` that sets CSS variables on `:root` before paint
-3. `globals.css` has default (Eclipse Purple) as fallback
+3. `src/styles/globals.css` has default (Eclipse Purple) as fallback
 4. Theme switcher in settings updates both CSS vars + user preference via API
 
-### 4.4 Central Configuration (`lib/panel-config.ts`)
+### 4.5 Central Configuration (`lib/panel-config.ts`)
 
 **Single source of truth for:**
 - `BRAND` — name, tagline, logo, version
@@ -343,16 +351,24 @@ primary, bg, card, secondary, sidebar, accent, accentFg, glow, border, foregroun
 
 **When adding a new API route, add it here first.**
 
-### 4.5 Middleware (`middleware.ts`)
+### 4.6 Middleware (`src/middleware.ts`) — Astro, not Next.js
 
-Next.js edge middleware handles:
-- **Auth guard:** Redirects unauthenticated users from `/dashboard/*` to `/login`
-- **Admin guard:** Redirects non-admin users from `/dashboard/admin/*`
+Astro middleware handles:
+- **Auth guard:** Redirects unauthenticated users from `/dashboard/*` to `/login` (except `/dashboard/chat`)
+- **Admin guard:** Redirects users without `admin:access` from `/dashboard/admin/*`
 - **Auth page guard:** Redirects logged-in users away from `/login`, `/register`
-- **SEO bot verification:** Verifies crawler IPs against official ranges
-- **Short URL resolution:** `/a/:code` and `/:code` → backend lookup → 302 redirect
+- **SEO bot verification:** Detects crawler UAs, serves cached/static content for bots
+- **Session cache:** Fetches session from backend once per request (`src/lib/page-data.ts`)
+- **Bypasses:** `/api`, `/health`, `/uploads`, `/public`, static assets pass straight through
 
-### 4.6 SOC Dashboard (`/dashboard` — page.tsx)
+### 4.7 Feature Pages (`app/`)
+
+The legacy Next-style React tree lives in `frontend/app/` and is routed client-side by
+`src/components/AppRouter.tsx` (lazy `import()` per route segment + shimmed
+`usePathname`). Add new pages as `frontend/app/<segment>/page.tsx` and register the
+route mapping in AppRouter (`staticRoutes` / dynamic routing blocks).
+
+### 4.8 SOC Dashboard (`/dashboard` — app/dashboard/page.tsx)
 
 Layout:
 ```
@@ -368,7 +384,7 @@ Security Findings (full width — primary SOC content)
 Resource Summary + Recent Activity (2-column sidebar)
 ```
 
-### 4.7 Admin SOC Tab (`/dashboard/admin` → SOC tab)
+### 4.9 Admin SOC Tab (`/dashboard/admin` → SOC tab)
 
 Four sub-tabs:
 - **Findings** — Full table with pagination, status/severity filters, quick actions
@@ -517,7 +533,7 @@ import { cn } from '@/lib/utils';
 /* ❌ Bad */   color: #8b5cf6;
 ```
 
-**i18n:** Use `useTranslations` hook or `getTranslations` for server components.
+**i18n:** Use `useTranslations` hook (shimmed `next-intl`) or `getTranslations` for SSR.
 
 **Feature flags:** Wrap with `<FeatureGuard feature="elo">...</FeatureGuard>` or check `isFeatureEnabled()` in backend.
 
@@ -527,7 +543,7 @@ import { cn } from '@/lib/utils';
 - **No root package.json** — each sub-project is independent
 - **Environment variables:** `.env` in each project directory
 - **Secrets:** Never commit `.env` files; `.env.example` shows required vars
-- **TypeScript:** Strict-ish but `ignoreBuildErrors: true` in frontend next.config
+- **TypeScript:** Strict-ish; Astro build is type-checked per-file at dev/build — there is one global tsconfig for Vite/Astro. Frontend `npx tsc --noEmit` is NOT usable (fake `next`/`next-intl` modules — see §4.3).
 - **Formatting:** Prettier (backend), ESLint (both)
 - **Git:** Main branch, Co-Authored-By: Claude in commits
 - **Wings no-git:** `source/`, `patched/`, `output/` have no `.git` — manage patches with `manage.sh`
@@ -551,7 +567,8 @@ bun src/index.ts         # dev mode
 cd frontend
 cp .env.example .env     # edit with real values
 pnpm install
-pnpm dev                 # → http://localhost:3000
+pnpm dev                 # → http://localhost:4321 (astro dev)
+# production: ./build.sh && ./start.sh   (astro build → bun dist/server/entry.mjs)
 ```
 
 ### 8.3 Run Tests
@@ -562,7 +579,7 @@ cd backend && bun test
 ### 8.4 Type Checking
 ```bash
 cd backend && bun tsc --noEmit
-cd frontend && npx tsc --noEmit
+cd frontend && npx tsc --noEmit    # ⚠️ NOT usable — see §4.3 (fake next/next-intl modules)
 ```
 
 ### 8.5 Adding a New API Endpoint
@@ -603,9 +620,9 @@ cd frontend && npx tsc --noEmit
 ### Frontend (`frontend/.env`)
 | Variable | Purpose |
 |----------|---------|
-| `BACKEND_URL` | Backend API base URL (for SSR + rewrites) |
-| `NEXT_PUBLIC_API_BASE` | Client-side API base URL |
-| `NEXT_PUBLIC_WINGS_BASE` | Wings node base URL for direct /wings rewrites |
+| `BACKEND_URL` | Backend API base URL — used by Astro SSR + the `/api/[...path]` proxy (alias via `define` in `astro.config.mjs`; `/wings` rewrites pass through the same proxy) |
+| `PUBLIC_API_BASE` | Client-side API base URL (falls back through `NEXT_PUBLIC_API_BASE` → `PUBLIC_API_BASE`, aliased via `define`) |
+| `SITE_URL` | Public site URL (canonical/OG tags, SEO) |
 
 ---
 
@@ -631,15 +648,17 @@ cd frontend && npx tsc --noEmit
 | Frontend config | `frontend/lib/panel-config.ts` |
 | API client | `frontend/lib/api-client.ts` |
 | Theme definitions | `frontend/lib/themes.ts` |
-| Root layout | `frontend/app/layout.tsx` |
+| SSR layout (root) | `frontend/src/layouts/BaseLayout.astro` |
+| Client bootstrap | `frontend/src/entry.ts` |
+| Client router | `frontend/src/components/AppRouter.tsx` |
 | Auth provider | `frontend/hooks/useAuth.tsx` |
-| Middleware (auth guard) | `frontend/middleware.ts` |
+| Middleware (auth guard) | `frontend/src/middleware.ts` |
 | SOC dashboard | `frontend/app/dashboard/page.tsx` |
 | Admin SOC tab | `frontend/app/dashboard/admin/tabs/SocTab.tsx` |
 | Wings anti-abuse | `wings/patched/application/src/server/antiabuse.rs` |
 | Wings security routes | `wings/patched/application/src/routes/api/servers/_server_/security/` |
 | Wings manage script | `wings/manage.sh` |
-| Next.js config | `frontend/next.config.mjs` |
+| Astro config | `frontend/astro.config.mjs` |
 | Design context | `.better-web-ui.md` |
 | Tunnel (Rust) | `tunnel/client/`, `tunnel/server/` |
 | Systemd units | `systemd/` |
@@ -650,7 +669,7 @@ cd frontend && npx tsc --noEmit
 
 1. **Migrated from Fastify:** The backend was originally Fastify, migrated to Elysia. Some code patterns (esp. in `app.ts`) reflect this.
 
-2. **Frontend `ignoreBuildErrors: true`:** The next.config skips type errors during build. Use `npx tsc --noEmit` separately for type checking.
+2. **Frontend `next`/`next-intl` modules are FAKED:** Build-time Vite aliases in `astro.config.mjs` point them at `frontend/components/shims/*` (see §4.3). `npx tsc --noEmit` reports hundreds of false `Cannot find module` errors — never gate on it. The Astro build itself type-checks per-module; use that as the frontend gate.
 
 3. **wings-rs, not wings-go:** This project uses [wings-rs](https://github.com/calagopus/wings) (Rust). Stock Pterodactyl wings-go will NOT work.
 
@@ -660,7 +679,7 @@ cd frontend && npx tsc --noEmit
 
 6. **CSRF token lifecycle:** Frontend auto-refreshes on 403. Token from `/api/auth/csrf-token`, stored in localStorage.
 
-7. **Theme injection is SSR-critical:** Inline script in `layout.tsx` must run before first paint to avoid flash.
+7. **Theme injection is SSR-critical:** Inline script in `BaseLayout.astro` must run before first paint to avoid flash (defaults to Eclipse Purple in `src/styles/globals.css`).
 
 8. **Post-Quantum JWT:** Uses ML-DSA-65 (FIPS 204). Without `PQ_JWT_SEED`, random keypair each startup (invalidates all tokens).
 
@@ -680,4 +699,4 @@ cd frontend && npx tsc --noEmit
 
 ---
 
-*Last regenerated: 2026-07-10. Full SOC system + Wings security integration complete.*
+*Last regenerated: 2026-09-24. Full Astro frontend stack documented (was Next.js).*

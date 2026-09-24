@@ -1,3 +1,4 @@
+"use client"
 import type { Metadata } from 'next';
 import { ContributorsClient } from './ContributorsClient';
 import { createMetadata } from '@/lib/metadata';

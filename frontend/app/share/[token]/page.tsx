@@ -1,3 +1,4 @@
+"use client"
 import type { Metadata } from "next"
 import ShareFileClient from "./ShareFileClient"
 import { safeUrl } from "@/lib/url-utils"

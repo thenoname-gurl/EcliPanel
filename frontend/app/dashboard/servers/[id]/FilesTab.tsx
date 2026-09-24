@@ -22,7 +22,8 @@ import {
   Terminal, Wifi, WifiOff, Lock, Unlock,
   CheckCircle2, AlertCircle, Info, ChevronDown,
   Server, HardDrive, Globe, Play, Pause,
-  Link2, Clock, FileArchive, EllipsisVertical
+  Link2, Clock, FileArchive, EllipsisVertical, Search,
+  TriangleAlert
 } from "lucide-react"
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -44,6 +45,20 @@ interface SftpInfo {
   port: number
   username?: string
   proxied?: boolean
+}
+
+interface UploadEntry {
+  name: string
+  target_name: string
+  directory: string
+  user?: string | null
+  user_name?: string | null
+  uploaded: number
+  total?: number | null
+  resumable?: boolean
+  active?: boolean
+  started?: string | null
+  updated?: string | null
 }
 
 interface FilesTabProps {
@@ -218,7 +233,42 @@ function ConfirmDialog({
   )
 }
 
-// ─── Image Preview ────────────────────────────────────────────────────────────
+// ─── Upload Conflict Dialog ───────────────────────────────────────────────────
+
+function FileConflictDialog({
+  conflicts, count, onOverwrite, onSkip, onCancel, t
+}: {
+  conflicts: string[]; count: number
+  onOverwrite: () => void; onSkip: () => void; onCancel: () => void; t: any
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm border border-border bg-popover p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150">
+        <h3 className="font-semibold text-foreground mb-2">{t("confirm.uploadConflictTitle")}</h3>
+        <p className="text-sm text-muted-foreground mb-4 leading-relaxed">
+          {t("confirm.uploadConflictDescription", { count })}
+        </p>
+        <div className="mb-6 max-h-32 overflow-y-auto rounded border border-border/60 bg-secondary/20 p-2 flex flex-wrap gap-1">
+          {conflicts.map(n => (
+            <span key={n} className="text-[11px] font-mono px-1.5 py-0.5 bg-secondary/60 text-amber-400 rounded">{n}</span>
+          ))}
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button size="sm" variant="destructive" onClick={onOverwrite} data-telemetry="servers:overwrite">
+            {t("confirm.uploadOverwrite")}
+          </Button>
+          <Button size="sm" variant="outline" onClick={onSkip} data-telemetry="servers:skip">
+            {t("confirm.uploadSkip")}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={onCancel} data-telemetry="servers:cancel">
+            {t("confirm.uploadAbort")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function ImagePreviewModal({ url, filename, onClose, onDownload, t }: {
   url: string; filename: string
@@ -485,8 +535,9 @@ function BulkActionsBar({
 
 // ─── Create Form ──────────────────────────────────────────────────────────────
 
-function CreateItemForm({ type, value, onChange, onSubmit, onCancel, t }: {
-  type: "file" | "folder"; value: string; onChange: (v: string) => void
+function CreateItemForm({ type, value, onChange, target, onTargetChange, onSubmit, onCancel, t }: {
+  type: "file" | "folder" | "link"; value: string; onChange: (v: string) => void
+  target?: string; onTargetChange?: (v: string) => void
   onSubmit: () => void; onCancel: () => void; t: any
 }) {
   const ref = useRef<HTMLInputElement>(null)
@@ -496,14 +547,35 @@ function CreateItemForm({ type, value, onChange, onSubmit, onCancel, t }: {
     <div className="flex items-center gap-2 border-b border-primary/20 bg-primary/5 px-4 py-2.5 animate-in slide-in-from-top-1 duration-150">
       {type === "folder"
         ? <FolderPlus className="h-4 w-4 text-amber-400 flex-shrink-0" />
-        : <FilePlus className="h-4 w-4 text-primary flex-shrink-0" />}
-      <input
-        ref={ref} type="text" value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={type === "file" ? t("inputs.fileNamePlaceholder") : t("inputs.folderNamePlaceholder")}
-        className="flex-1 min-w-0 border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-        onKeyDown={e => { if (e.key === "Enter") onSubmit(); if (e.key === "Escape") onCancel() }}
-      />
+        : type === "link"
+          ? <Link2 className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+          : <FilePlus className="h-4 w-4 text-primary flex-shrink-0" />}
+      {type === "link" ? (
+        <>
+          <input
+            ref={ref} type="text" value={value}
+            onChange={e => onChange(e.target.value)}
+            placeholder={t("inputs.symlinkNamePlaceholder")}
+            className="flex-1 min-w-0 border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+            onKeyDown={e => { if (e.key === "Enter") onSubmit(); if (e.key === "Escape") onCancel() }}
+          />
+          <input
+            type="text" value={target || ""}
+            onChange={e => onTargetChange?.(e.target.value)}
+            placeholder={t("inputs.symlinkTargetPlaceholder")}
+            className="flex-1 min-w-0 border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+            onKeyDown={e => { if (e.key === "Enter") onSubmit(); if (e.key === "Escape") onCancel() }}
+          />
+        </>
+      ) : (
+        <input
+          ref={ref} type="text" value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={type === "file" ? t("inputs.fileNamePlaceholder") : t("inputs.folderNamePlaceholder")}
+          className="flex-1 min-w-0 border border-border bg-background px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+          onKeyDown={e => { if (e.key === "Enter") onSubmit(); if (e.key === "Escape") onCancel() }}
+        />
+      )}
       <Button size="sm" onClick={onSubmit} className="gap-1 h-7 text-xs" data-telemetry="servers:submit">
         <Check className="h-3 w-3" /> Create
       </Button>
@@ -676,13 +748,14 @@ function SftpConnectionPanel({
 
 function FileRow({
   file, path, isSelected, onToggle, onOpen, onEdit, onRename,
-  onDownload, onShare, onChmod, onDelete, onExtract, t, dirSizes
+  onDownload, onShare, onChmod, onDelete, onExtract, t, dirSizes, upload
 }: {
   file: FileItem; path: string; isSelected: boolean
   onToggle: () => void; onOpen: () => void; onEdit: () => void
   onRename: () => void; onDownload: () => void; onShare: () => void
   onChmod: () => void; onDelete: () => void; onExtract?: () => void; t: any
   dirSizes?: Record<string, number>
+  upload?: UploadEntry
 }) {
   const fname = getFileName(file)
   const isDir = isDirectory(file)
@@ -735,6 +808,19 @@ function FileRow({
           <span className="text-[10px] px-1.5 py-0.5 bg-secondary/50 text-muted-foreground rounded flex-shrink-0 font-medium">
             virtual
           </span>
+        )}
+        {upload && !isDir && (
+          upload.active ? (
+            <span className="flex-shrink-0 flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 bg-primary/15 text-primary rounded font-medium">
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
+              {upload.total ? `${Math.round((upload.uploaded / upload.total) * 100)}%` : "..."}
+            </span>
+          ) : (
+            <span className="flex-shrink-0 flex items-center gap-1.5 text-[10px] px-1.5 py-0.5 bg-amber-500/15 text-amber-500 rounded font-medium" title={t("labels.uploadConflict")}>
+              <TriangleAlert className="h-2.5 w-2.5" />
+              {t("labels.uploadConflict")}
+            </span>
+          )
         )}
         {isDir && (
           <ChevronRight className="h-3 w-3 text-muted-foreground/40 flex-shrink-0 opacity-0 group-hover/name:opacity-100 transition-opacity" />
@@ -1001,6 +1087,202 @@ function ShareFileLinkModal({
   )
 }
 
+// ─── File Search Modal (name + content) ──────────────────────────────────────
+
+interface SearchMatchBlock {
+  start_line: number
+  end_line: number
+  content: string
+  matches: Array<{ start_byte: number; end_byte: number }>
+}
+
+interface SearchContentMatches {
+  file: string
+  truncated?: boolean
+  blocks: SearchMatchBlock[]
+}
+
+interface SearchEntry {
+  name: string
+  size: number
+  size_physical: number
+  mode?: string
+  directory?: boolean
+  file?: boolean
+  symlink?: boolean
+  "virtual"?: boolean
+  modified?: string
+}
+
+function SearchSnippet({ full, matches }: { full: string; matches: Array<{ start_byte: number; end_byte: number }> }) {
+  const safe = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  const parts: React.ReactNode[] = []
+  let cursor = 0
+  for (const m of matches) {
+    if (m.start_byte > cursor) parts.push(<span key={`n${cursor}`} className="text-muted-foreground/50">{safe(full.slice(cursor, m.start_byte))}</span>)
+    parts.push(<span key={`m${m.start_byte}`} className="bg-primary/25 text-foreground rounded-sm px-0.5">{safe(full.slice(m.start_byte, m.end_byte))}</span>)
+    cursor = m.end_byte
+  }
+  if (cursor < full.length) parts.push(<span key={`n${cursor}`} className="text-muted-foreground/50">{safe(full.slice(cursor))}</span>)
+  if (parts.length === 0) parts.push(<span>{safe(full)}</span>)
+  return <>{parts}</>
+}
+
+function FileSearchModal({ serverId, root, onOpen, onClose }: {
+  serverId: string
+  root: string
+  onOpen: (path: string) => void
+  onClose: () => void
+}) {
+  const t = useTranslations("serverFilesTab")
+  const [query, setQuery] = useState("")
+  const [searchContent, setSearchContent] = useState(true)
+  const [caseInsensitive, setCaseInsensitive] = useState(false)
+  const [searching, setSearching] = useState(false)
+  const [results, setResults] = useState<SearchEntry[]>([])
+  const [contentMatches, setContentMatches] = useState<SearchContentMatches[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [searched, setSearched] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const joinPath = (cwd: string, name: string) => {
+    const dir = cwd === "/" ? "" : cwd.endsWith("/") ? cwd : cwd + "/"
+    return dir + name
+  }
+
+  const runSearch = async () => {
+    const q = query.trim()
+    if (!q) return
+    setSearching(true)
+    setError(null)
+    try {
+      const payload = searchContent
+        ? {
+            root,
+            per_page: 200,
+            content_filter: { query: q, max_search_size: 4 * 1024 * 1024, case_insensitive: caseInsensitive },
+            match_context: { before: 60, after: 60, max_matches: 8 },
+          }
+        : { root, query: q, include_content: false, limit: 200, max_size: 4 * 1024 * 1024 }
+      const data = await apiFetch(API_ENDPOINTS.serverFileSearch.replace(":id", serverId), {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
+      const obj = data && typeof data === "object" ? (data as Record<string, unknown>) : {}
+      const entries = Array.isArray(obj.results) ? (obj.results as SearchEntry[]) : []
+      const matches = Array.isArray(obj.content_matches)
+        ? (obj.content_matches as SearchContentMatches[])
+        : []
+      setResults(entries)
+      setContentMatches(matches)
+      setSearched(true)
+    } catch (e: any) {
+      setError(e?.message || t("search.failed"))
+      setResults([])
+      setContentMatches([])
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[8vh]">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-2xl border border-border bg-popover shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 flex flex-col max-h-[78vh]">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <Search className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold text-foreground">{t("search.title")}</h3>
+          </div>
+          <button onClick={onClose} className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors" data-telemetry="servers:close">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") runSearch() }}
+              placeholder={t("search.placeholder")}
+              className="flex-1 border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary"
+            />
+            <Button size="sm" onClick={runSearch} disabled={searching || !query.trim()} className="h-9 px-4 gap-1.5" data-telemetry="servers:search">
+              {searching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
+              {t("search.run")}
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={searchContent} onChange={e => setSearchContent(e.target.checked)} className="h-3.5 w-3.5" />
+              {t("search.searchContent")}
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={caseInsensitive} onChange={e => setCaseInsensitive(e.target.checked)} className="h-3.5 w-3.5" />
+              {t("search.caseInsensitive")}
+            </label>
+            <span className="text-[10px] text-muted-foreground/60 ml-auto whitespace-nowrap font-mono">
+              {displayPath(root)}
+            </span>
+          </div>
+          {error && (
+            <div className="flex items-center gap-2 px-3 py-2 border border-destructive/30 bg-destructive/10 text-destructive text-xs">
+              <AlertCircle className="h-3.5 w-3.5" /> {error}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-border flex-1 overflow-y-auto bg-background">
+          {searched && results.length === 0 && !searching && (
+            <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-muted-foreground">
+              <Search className="h-4 w-4 text-muted-foreground/50" />
+              {t("search.noResults")}
+            </div>
+          )}
+          {results.map((r, i) => {
+            const rel = r.name || ""
+            const fullPath = joinPath(root, rel)
+            const cm = searchContent ? contentMatches[i] : undefined
+            return (
+              <div key={i} className="border-b border-border/50 px-4 py-3 group">
+                <button
+                  onClick={() => { onOpen(fullPath); onClose() }}
+                  className="flex items-center gap-2 text-left w-full min-w-0"
+                  data-telemetry="servers:opensearchresult"
+                >
+                  <FileText className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="font-mono text-xs text-primary hover:underline truncate">{displayPath(fullPath)}</span>
+                  {r.size != null && r.size > 0 && (
+                    <span className="text-[10px] text-muted-foreground/60 ml-auto flex-shrink-0 tabular-nums">{formatBytes(r.size)}</span>
+                  )}
+                </button>
+                {cm && cm.blocks.map((b, bi) => (
+                  <button
+                    key={bi}
+                    onClick={() => { onOpen(fullPath); onClose() }}
+                    className="mt-1.5 block w-full max-h-32 overflow-hidden text-left font-mono text-[11px] leading-relaxed text-muted-foreground hover:text-foreground px-2.5 py-2 border border-border/40 rounded bg-secondary/10"
+                    data-telemetry="servers:opensnippet"
+                  >
+                    <span className="block text-[10px] text-muted-foreground/40 mb-1">line {b.start_line}{b.end_line !== b.start_line ? `–${b.end_line}` : ""}</span>
+                    <SearchSnippet full={b.content} matches={b.matches} />
+                  </button>
+                ))}
+              </div>
+            )
+          })}
+          {searched && results.length > 0 && (
+            <div className="px-4 py-3 text-[11px] text-muted-foreground/60">{results.length} {t("search.resultCount")}</div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTabProps) {
@@ -1010,15 +1292,19 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
   const [path, setPath] = useState("/")
   const [files, setFiles] = useState<FileItem[]>([])
+  const [uploads, setUploads] = useState<UploadEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [editingFile, setEditingFile] = useState<string | null>(null)
   const [fileContent, setFileContent] = useState("")
   const [saving, setSaving] = useState(false)
-  const [createMode, setCreateMode] = useState<"file" | "folder" | null>(null)
+  const [createMode, setCreateMode] = useState<"file" | "folder" | "link" | null>(null)
   const [newName, setNewName] = useState("")
+  const [linkTarget, setLinkTarget] = useState("")
   const [selectedNames, setSelectedNames] = useState<string[]>([])
   const [bulkBusy, setBulkBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[] | null>(null)
+  const [pendingConflicts, setPendingConflicts] = useState<string[] | null>(null)
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null)
   const [imagePreviewName, setImagePreviewName] = useState("")
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
@@ -1034,6 +1320,9 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
   // Share link modal
   const [shareFile, setShareFile] = useState<{ filePath: string; fileName: string } | null>(null)
+
+  // File search modal
+  const [searchOpen, setSearchOpen] = useState(false)
 
   // Track whether the password was set programmatically (auto-connect)
   // to avoid the password-change effect from resetting authorization
@@ -1171,8 +1460,11 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       const data = await apiFetch(`${base}?path=${encodeURIComponent(p)}`, {
         headers: isSftpMode ? sftpHeaders : undefined,
       })
-      setFiles(Array.isArray(data) ? data : [])
+      const entries = Array.isArray(data) ? data : Array.isArray((data as any)?.entries) ? (data as any).entries : []
+      setFiles(entries)
       if (!isSftpMode) {
+        const uploadsList = Array.isArray((data as any)?.uploads) ? (data as any).uploads : []
+        setUploads(uploadsList)
         try {
           const sizeData = await apiFetch(
             API_ENDPOINTS.serverFileLargestDirectories.replace(":id", serverId) +
@@ -1279,7 +1571,23 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
 
   const TUS_FP_PREFIX = 'tus:'
 
-  const uploadFileTus = async (f: File, filePath: string) => {
+  const upsertUpload = useCallback((entry: UploadEntry) => {
+    const key = entry.target_name || entry.name || ''
+    if (!key) return
+    setUploads(prev => {
+      const idx = prev.findIndex(u => (u.target_name || u.name) === key)
+      if (idx === -1) return [...prev, entry]
+      const next = [...prev]
+      next[idx] = { ...next[idx], ...entry }
+      return next
+    })
+  }, [])
+
+  const removeUpload = useCallback((key: string) => {
+    setUploads(prev => prev.filter(u => (u.target_name || u.name) !== key))
+  }, [])
+
+  const uploadFileTus = async (f: File, filePath: string, onProgress?: (offset: number) => void) => {
     const uploadInfo = await apiFetch(API_ENDPOINTS.serverFileUploadToken.replace(":id", serverId))
     if (!uploadInfo?.token || !uploadInfo?.url) throw new Error("Failed to get upload token")
 
@@ -1295,6 +1603,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       const off = headRes.headers.get('Upload-Offset')
       if (off) offset = parseInt(off, 10) || 0
     }
+    onProgress?.(offset)
 
     if (offset === 0) localStorage.setItem(`${TUS_FP_PREFIX}${fp}`, '1')
 
@@ -1316,16 +1625,18 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       })
       if (res.status === 409) {
         offset = parseInt(res.headers.get('Upload-Offset') || String(offset), 10)
+        onProgress?.(offset)
         continue
       }
       if (!res.ok) throw new Error(`Upload failed: ${res.status} ${await res.text().catch(() => '')}`)
       offset = parseInt(res.headers.get('Upload-Offset') || String(end), 10)
+      onProgress?.(offset)
     }
 
     localStorage.removeItem(`${TUS_FP_PREFIX}${fp}`)
   }
 
-  const handleFileUpload = useCallback(async (fileList: FileList) => {
+  const doUpload = useCallback(async (fileList: File[]) => {
     if (!fileList.length) return
     if (isSftpMode && !sftpAuthorized) { toast("error", t("errors.sftpAuthRequired")); return }
     setUploading(true)
@@ -1336,8 +1647,36 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         const f = fileList[i]
         const filePath = path.endsWith("/") ? `${path}${f.name}` : `${path}/${f.name}`
         if (!isSftpMode) {
-          await uploadFileTus(f, filePath)
+          const key = f.name
+          upsertUpload({
+            name: key,
+            target_name: key,
+            directory: path.endsWith("/") ? path.slice(0, -1) : path,
+            uploaded: 0,
+            total: f.size,
+            active: true,
+          })
+          await uploadFileTus(f, filePath, (offset) => {
+            upsertUpload({
+              name: key,
+              target_name: key,
+              directory: path.endsWith("/") ? path.slice(0, -1) : path,
+              uploaded: offset,
+              total: f.size,
+              active: true,
+            })
+          })
+          removeUpload(key)
         } else {
+          const key = f.name
+          upsertUpload({
+            name: key,
+            target_name: key,
+            directory: path.endsWith("/") ? path.slice(0, -1) : path,
+            uploaded: 0,
+            total: null,
+            active: true,
+          })
           const buf = await f.arrayBuffer()
           const url = API_ENDPOINTS.serverSftpFileUpload.replace(":id", serverId) +
             `?path=${encodeURIComponent(filePath)}`
@@ -1351,17 +1690,49 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             body: new Uint8Array(buf),
           })
           if (!res.ok) throw new Error(await res.text() || `Upload failed: ${res.status}`)
+          removeUpload(key)
         }
       }
       toast("success", `Uploaded ${fileList.length} file${fileList.length > 1 ? "s" : ""}`)
       await loadFiles(path)
     } catch (err: any) {
       toast("error", t("errors.uploadFailed", { reason: err?.message || err }))
+      setUploads([])
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ""
     }
-  }, [isSftpMode, sftpAuthorized, sftpHeaders, path, serverId, toast, t, loadFiles])
+  }, [isSftpMode, sftpAuthorized, sftpHeaders, path, serverId, toast, t, loadFiles, upsertUpload, removeUpload])
+
+  // Mass-stat the target paths to surface upload conflicts before they overwrite.
+  const handleFileUpload = useCallback(async (fileList: FileList) => {
+    if (!fileList.length) return
+    if (isSftpMode && !sftpAuthorized) { toast("error", t("errors.sftpAuthRequired")); return }
+    const files = Array.from(fileList)
+    // SFTP mode proxies through the node and has no wings stat endpoint.
+    if (isSftpMode) return doUpload(files)
+
+    let conflicts: string[] = []
+    try {
+      const res = await apiFetch(
+        API_ENDPOINTS.serverFileStat.replace(":id", serverId),
+        { method: "POST", body: { root: path || "/", files: files.map(f => f.name) } }
+      )
+      const entries = Array.isArray(res) ? res : (res as any)?.entries
+      if (Array.isArray(entries)) {
+        const names = new Set(entries.map((e: any) => e.name ?? e.file_name ?? e.path).filter(Boolean))
+        conflicts = files.map(f => f.name).filter(n => names.has(n))
+      }
+    } catch {
+      // stat is best-effort; fall back to uploading without the warning
+    }
+    if (conflicts.length) {
+      setPendingUploadFiles(files)
+      setPendingConflicts(conflicts)
+      return
+    }
+    await doUpload(files)
+  }, [serverId, path, isSftpMode, sftpAuthorized, doUpload, toast, t])
 
   // ── Drag & drop ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1577,6 +1948,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             : API_ENDPOINTS.serverFileCreateDir).replace(":id", serverId),
           { method: "POST", headers: isSftpMode ? sftpHeaders : undefined, body: JSON.stringify({ path: path + trimmed }) }
         )
+      } else if (createMode === "link") {
+        await apiFetch(API_ENDPOINTS.serverFileSymlink.replace(":id", serverId), {
+          method: "POST",
+          headers: isSftpMode ? sftpHeaders : undefined,
+          body: JSON.stringify({ root: path, link: trimmed, target: linkTarget }),
+        })
       } else {
         await apiFetch(
           (isSftpMode
@@ -1586,7 +1963,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         )
       }
       toast("success", `Created "${trimmed}"`)
-      setNewName(""); setCreateMode(null); loadFiles(path)
+      setNewName(""); setLinkTarget(""); setCreateMode(null); loadFiles(path)
     } catch (e: any) {
       toast("error", t("errors.actionFailed", { reason: e.message }))
     }
@@ -1894,6 +2271,21 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
         onCancel={closeConfirm}
       />
 
+      {pendingConflicts && pendingUploadFiles && (
+        <FileConflictDialog
+          conflicts={pendingConflicts}
+          count={pendingUploadFiles.length}
+          onOverwrite={() => { doUpload(pendingUploadFiles); setPendingConflicts(null); setPendingUploadFiles(null) }}
+          onSkip={() => {
+            const skipSet = new Set(pendingConflicts)
+            doUpload(pendingUploadFiles.filter(f => !skipSet.has(f.name)))
+            setPendingConflicts(null); setPendingUploadFiles(null)
+          }}
+          onCancel={() => { setPendingConflicts(null); setPendingUploadFiles(null) }}
+          t={t}
+        />
+      )}
+
       {shareFile && (
         <ShareFileLinkModal
           serverId={serverId}
@@ -1901,6 +2293,19 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
           fileName={shareFile.fileName}
           onClose={() => setShareFile(null)}
           toast={toast}
+        />
+      )}
+
+      {searchOpen && (
+        <FileSearchModal
+          serverId={serverId}
+          root={path || "/"}
+          onOpen={(p) => {
+            setPath("/")
+            loadFiles("/")
+            openFile(p.startsWith("/") ? p : `/${p}`)
+          }}
+          onClose={() => setSearchOpen(false)}
         />
       )}
 
@@ -2036,6 +2441,12 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             icon={FolderPlus}
             label={t("actions.newFolder")}
           />
+          <ToolbarBtn
+            onClick={() => { setCreateMode("link"); setNewName(""); setLinkTarget("") }}
+            disabled={isSftpMode && !sftpAuthorized}
+            icon={Link2}
+            label={t("actions.newSymlink")}
+          />
           {!isSftpMode && (
             <ToolbarBtn
               onClick={() => loadLargestDirs()}
@@ -2044,6 +2455,11 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
             />
           )}
           <div className="h-4 w-px bg-border/60 mx-0.5" />
+          <ToolbarBtn
+            onClick={() => { setPath("/"); setSearchOpen(true) }}
+            icon={Search}
+            label={t("actions.search")}
+          />
           <ToolbarBtn
             onClick={() => loadFiles(path)}
             icon={RefreshCw}
@@ -2056,8 +2472,10 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
       {createMode && (
         <CreateItemForm
           type={createMode} value={newName}
-          onChange={setNewName} onSubmit={createItem}
-          onCancel={() => setCreateMode(null)} t={t}
+          onChange={setNewName}
+          target={linkTarget} onTargetChange={setLinkTarget}
+          onSubmit={createItem}
+          onCancel={() => { setCreateMode(null); setLinkTarget("") }} t={t}
         />
       )}
 
@@ -2131,6 +2549,7 @@ export function FilesTab({ serverId, sftpInfo, editorSettings, isKvm }: FilesTab
               onExtract={() => extractFile(getFileName(file))}
               t={t}
               dirSizes={dirSizes}
+              upload={uploads.find(u => u.target_name === getFileName(file) || u.name === getFileName(file))}
             />
           ))
         )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { API_ENDPOINTS } from "@/lib/panel-config"
+import { apiWsUrl } from "@/lib/ws-url"
 
 export interface ScreenSessionState {
   token: string
@@ -20,10 +21,7 @@ export function screenPublicUrl(token: string): string {
 }
 
 export function screenSignalWsUrl(token: string): string {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || window.location.origin
-  const protocol = backendUrl.startsWith("https:") ? "wss:" : "ws:"
-  const host = backendUrl.replace(/^https?:\/\//, "")
-  return `${protocol}//${host}${API_ENDPOINTS.screenShareSignal.replace(":token", encodeURIComponent(token))}`
+  return apiWsUrl(API_ENDPOINTS.screenShareSignal, { token })
 }
 
 export const SCREEN_STUN_SERVERS: RTCIceServer[] = [

@@ -3,6 +3,7 @@ use crate::{
     io::{
         abort::{AbortGuard, AbortWriter},
         compression::CompressionLevel,
+        fixed_reader::FixedReader,
     },
     server::filesystem::{archive::Archive, virtualfs::IsIgnoredFn},
 };
@@ -40,7 +41,7 @@ pub async fn create_7z<W: Write + Seek + Send + 'static>(
             EncoderConfiguration::new(EncoderMethod::LZMA2).with_options(EncoderOptions::Lzma2(
                 Lzma2Options::from_level_mt(
                     options.compression_level.to_lzma2_level(),
-                    options.threads as u32,
+                    crate::threading::resolve_threads(options.threads) as u32,
                     16 * 1024,
                 ),
             )),
@@ -81,20 +82,21 @@ pub async fn create_7z<W: Write + Seek + Send + 'static>(
                     .walk_dir(source)?
                     .with_is_ignored(is_ignored.clone());
                 while let Some(entry) = walker.next_entry() {
-                    let (_, path) = match entry {
+                    let entry = match entry {
                         Ok(entry) => entry,
                         Err(err) => {
                             tracing::debug!("failed to read directory entry while creating 7z archive: {err:#}");
                             break;
                         }
                     };
+                    let path = &entry.path;
 
                     let relative = match path.strip_prefix(&base) {
                         Ok(path) => path,
                         Err(_) => continue,
                     };
 
-                    let metadata = match filesystem.symlink_metadata(&path) {
+                    let metadata = match entry.metadata() {
                         Ok(metadata) => metadata,
                         Err(err) => {
                             tracing::debug!(path = %path.display(), "skipping entry while creating 7z archive, failed to read metadata: {err:#}");
@@ -102,19 +104,23 @@ pub async fn create_7z<W: Write + Seek + Send + 'static>(
                         }
                     };
 
-                    let mtime = source_metadata
+                    let mtime = metadata
                         .modified()
                         .map_or(None, |mtime| NtTime::try_from(mtime.into_std()).ok());
-                    let ctime = source_metadata
+                    let ctime = metadata
                         .created()
                         .map_or(None, |ctime| NtTime::try_from(ctime.into_std()).ok());
 
                     if metadata.is_dir() {
-                        directory_entries.push((relative.to_path_buf(), mtime, ctime));
+                        if directory_entries.len() < Archive::MAX_DIRECTORY_MTIME_ENTRIES {
+                            directory_entries.push((relative.to_path_buf(), mtime, ctime));
+                        }
                         progress.increment_bytes(metadata.len());
                     } else if metadata.is_file() {
-                        let file = filesystem.open(&path)?;
+                        let file = filesystem.open(path)?;
                         let reader = progress.counting_reader(file);
+                        let reader =
+                            FixedReader::new_with_fixed_bytes(reader, metadata.len() as usize);
 
                         let mut entry =
                             sevenz_rust2::ArchiveEntry::new_file(&relative.to_string_lossy());
@@ -135,6 +141,8 @@ pub async fn create_7z<W: Write + Seek + Send + 'static>(
             } else if source_metadata.is_file() {
                 let file = filesystem.open(&source)?;
                 let reader = progress.counting_reader(file);
+                let reader =
+                    FixedReader::new_with_fixed_bytes(reader, source_metadata.len() as usize);
 
                 let mut entry = sevenz_rust2::ArchiveEntry::new_file(&relative.to_string_lossy());
                 if let Some(mtime) = mtime {

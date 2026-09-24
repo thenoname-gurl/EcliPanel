@@ -1,3 +1,4 @@
+"use client"
 export function SectionDivider({
   label,
   icon: Icon,

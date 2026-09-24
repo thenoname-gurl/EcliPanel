@@ -46,7 +46,14 @@ impl PbsBackupReader {
     }
 
     pub async fn archive_chunk_digests(&mut self) -> Result<Vec<[u8; 32]>, PbsError> {
-        let index = self.download_file(ARCHIVE_NAME).await?;
+        self.archive_chunk_digests_named(ARCHIVE_NAME).await
+    }
+
+    pub async fn archive_chunk_digests_named(
+        &mut self,
+        archive_name: &str,
+    ) -> Result<Vec<[u8; 32]>, PbsError> {
+        let index = self.download_file(archive_name).await?;
         parse_dynamic_index(&index)
     }
 
@@ -55,13 +62,24 @@ impl PbsBackupReader {
     }
 
     pub async fn reassemble_archive<W: AsyncWrite + Unpin>(
+        self,
+        writer: &mut W,
+        progress: Option<Arc<AtomicU64>>,
+        download_concurrency: usize,
+    ) -> Result<(), PbsError> {
+        self.reassemble_archive_named(ARCHIVE_NAME, writer, progress, download_concurrency)
+            .await
+    }
+
+    pub async fn reassemble_archive_named<W: AsyncWrite + Unpin>(
         mut self,
+        archive_name: &str,
         writer: &mut W,
         progress: Option<Arc<AtomicU64>>,
         download_concurrency: usize,
     ) -> Result<(), PbsError> {
         let result = self
-            .reassemble_archive_inner(writer, progress, download_concurrency)
+            .reassemble_archive_inner(archive_name, writer, progress, download_concurrency)
             .await;
         self.close().await;
         result
@@ -69,11 +87,12 @@ impl PbsBackupReader {
 
     async fn reassemble_archive_inner<W: AsyncWrite + Unpin>(
         &mut self,
+        archive_name: &str,
         writer: &mut W,
         progress: Option<Arc<AtomicU64>>,
         download_concurrency: usize,
     ) -> Result<(), PbsError> {
-        let digests = self.archive_chunk_digests().await?;
+        let digests = self.archive_chunk_digests_named(archive_name).await?;
 
         let this = &*self;
         let mut chunks = futures::stream::iter(digests)
@@ -106,7 +125,7 @@ pub fn parse_dynamic_index_entries(data: &[u8]) -> Result<Vec<(u64, [u8; 32])>, 
     }
 
     let mut out = Vec::with_capacity(entries.len() / DYNAMIC_INDEX_ENTRY_SIZE);
-    for entry in entries.chunks_exact(DYNAMIC_INDEX_ENTRY_SIZE) {
+    for entry in entries.as_chunks::<DYNAMIC_INDEX_ENTRY_SIZE>().0 {
         let offset_bytes = entry
             .get(0..8)
             .ok_or_else(|| PbsError::Decode("dynamic index entry too short".into()))?;

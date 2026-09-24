@@ -28,14 +28,23 @@ api:
   server_remote_download_limit: 3
   # cidrs to block on the remote download pull endpoint
   remote_download_blocked_cidrs:
+  - '0.0.0.0/8'
   - '127.0.0.0/8'
   - '10.0.0.0/8'
+  - '100.64.0.0/10'
   - '172.16.0.0/12'
   - '192.168.0.0/16'
   - '169.254.0.0/16'
-  - ::1
+  - '192.0.0.0/24'
+  - '198.18.0.0/15'
+  - '224.0.0.0/4'
+  - '240.0.0.0/4'
+  - ::/128
+  - ::1/128
   - fe80::/10
   - fc00::/7
+  - 2002::/16
+  - ff00::/8
   # whether to disable the /openapi.json endpoint
   disable_openapi_docs: false
   # how many entries can be listed on a single page on the /list-directory API call, 0 means unlimited
@@ -44,14 +53,25 @@ api:
   send_offline_server_logs: false
   # how many threads to use when searching files using file search
   file_search_threads: 4
-  # how many threads to use when copying directories
+
+  file_search_context:
+    # maximum matches returned per file
+    max_matches: 100
+    # maximum total bytes of preview content per response
+    max_response_size: 8388608
+
+  # how many threads to use when copying directories, 0 means all available cores
   file_copy_threads: 4
-  # how many threads to use when decompressing .zip/.7z/.ddup
-  file_decompression_threads: 2
-  # how many threads to use when compressing .gz/.xz/.7z
+  # how many threads to use when deleting directories, 0 means all available cores
+  file_delete_threads: 2
+  # how many threads to use when decompressing .zip/.7z/.ddup/.tar.*, 0 means all available cores
+  file_decompression_threads: 4
+  # how many threads to use when compressing .gz/.xz/.7z/.zip, 0 means all available cores
   file_compression_threads: 2
   # how often a jwt can be used to download a file/backup until expiry, 0 means unlimited (2 minimum recommended)
   max_jwt_uses: 5
+  # how many http requests per second are written to the log before the rest are counted and summarized, 0 means unlimited
+  request_log_limit: 250
 
 system:
   # path for temporary mountpoints for servers
@@ -303,4 +323,4 @@ ignore_panel_wings_upgrades: false
 
 ## Star History
 
-[Star History Chart](https://api.star-history.com/chart?repos=calagopus/wings&type=date&legend=top-left&sealed_token=B2O-QGHUHAa_2R6TXAtmVmA-ASHkIyhBD3Rm6jlD9mOeO9XJsHW0uBvsZ-5zINucUHJPH5c29w8c7lL_2Kr7tb5770-KK58lG2pGrET0ksegRMrP1IEbft05EdOtyO6RAUCo1FCK5gnNscF6lwXhRp5LLQd08n2sZgUisdnct1irxGRvQmzUx9o-Bk4o)
+![Star History Chart](https://api.star-history.com/chart?repos=calagopus/wings&type=date&legend=top-left&sealed_token=B2O-QGHUHAa_2R6TXAtmVmA-ASHkIyhBD3Rm6jlD9mOeO9XJsHW0uBvsZ-5zINucUHJPH5c29w8c7lL_2Kr7tb5770-KK58lG2pGrET0ksegRMrP1IEbft05EdOtyO6RAUCo1FCK5gnNscF6lwXhRp5LLQd08n2sZgUisdnct1irxGRvQmzUx9o-Bk4o)

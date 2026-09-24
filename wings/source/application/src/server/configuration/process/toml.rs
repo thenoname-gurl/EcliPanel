@@ -19,35 +19,150 @@ impl super::ProcessConfigurationFileParser for TomlFileParser {
         };
 
         for replacement in &config.replace {
-            let value: Value = match &replacement.replace_with {
-                serde_json::Value::String(_) => {
-                    let resolved = ServerConfigurationFile::replace_all_placeholders(
-                        server,
-                        &replacement.replace_with,
-                    )
-                    .await?;
+            let resolved = super::ResolvedReplacement::new(server, replacement, true).await?;
 
-                    resolved
-                        .parse::<Item>()
-                        .ok()
-                        .and_then(|item| item.into_value().ok())
-                        .unwrap_or_else(|| Value::from(resolved.into_string()))
-                }
-                other => json_to_toml_value(other),
-            };
+            for path in expand_match_path(doc.as_table(), &replacement.r#match) {
+                let existing = Node::at(doc.as_table(), &path);
+                let existing_is_string = existing.as_ref().is_some_and(Node::is_string);
+                let existing = existing.map(|node| node.text());
 
-            let path = super::json::parse_path(&replacement.r#match);
-            set_nested_value(
-                doc.as_table_mut(),
-                &path,
-                value,
-                replacement.insert_new.unwrap_or(true),
-                replacement.update_existing,
-            );
+                let Some(gate) = resolved.gate(existing.as_deref()) else {
+                    continue;
+                };
+
+                set_nested_value(
+                    doc.as_table_mut(),
+                    &path,
+                    coerce_value(replacement, &resolved.value, gate, existing_is_string),
+                    resolved.insert_new,
+                    resolved.update_existing,
+                );
+            }
         }
 
         Ok(doc.to_string().into_bytes())
     }
+}
+
+enum Node<'a> {
+    Table(&'a dyn TableLike),
+    Array(&'a Array),
+    Tables(&'a ArrayOfTables),
+    Leaf(&'a Value),
+}
+
+impl<'a> Node<'a> {
+    fn of_value(value: &'a Value) -> Self {
+        match value {
+            Value::Array(array) => Self::Array(array),
+            Value::InlineTable(table) => Self::Table(table),
+            leaf => Self::Leaf(leaf),
+        }
+    }
+
+    fn at(table: &'a dyn TableLike, path: &[super::json::PathSegment<'_>]) -> Option<Self> {
+        use super::json::PathSegment::{Index, Key};
+
+        let mut node = Self::Table(table);
+
+        for segment in path {
+            node = match (node, segment) {
+                (Self::Table(table), Key(key)) => match table.get(key.as_ref())? {
+                    Item::Table(table) => Self::Table(table),
+                    Item::ArrayOfTables(tables) => Self::Tables(tables),
+                    Item::Value(value) => Self::of_value(value),
+                    Item::None => return None,
+                },
+                (Self::Array(array), Index(index)) => Self::of_value(array.get(*index)?),
+                (Self::Tables(tables), Index(index)) => Self::Table(tables.get(*index)?),
+                _ => return None,
+            };
+        }
+
+        Some(node)
+    }
+
+    fn text(&self) -> compact_str::CompactString {
+        match self {
+            Self::Leaf(Value::String(v)) => v.value().as_str().into(),
+            Self::Leaf(Value::Integer(v)) => v.value().to_string().into(),
+            Self::Leaf(Value::Float(v)) => v.value().to_string().into(),
+            Self::Leaf(Value::Boolean(v)) => v.value().to_string().into(),
+            Self::Leaf(Value::Datetime(v)) => v.value().to_string().into(),
+            _ => compact_str::CompactString::default(),
+        }
+    }
+
+    fn is_string(&self) -> bool {
+        matches!(self, Self::Leaf(Value::String(_)))
+    }
+
+    fn child_segments<'s>(&self) -> Vec<super::json::PathSegment<'s>> {
+        use super::json::PathSegment::{Index, Key};
+
+        match self {
+            Self::Table(table) => table
+                .iter()
+                .map(|(key, _)| Key(std::borrow::Cow::Owned(key.to_string())))
+                .collect(),
+            Self::Array(array) => (0..array.len()).map(Index).collect(),
+            Self::Tables(tables) => (0..tables.len()).map(Index).collect(),
+            Self::Leaf(_) => Vec::new(),
+        }
+    }
+}
+
+fn expand_match_path<'a>(
+    table: &dyn TableLike,
+    raw: &'a str,
+) -> Vec<Vec<super::json::PathSegment<'a>>> {
+    let Some((base, remaining)) = super::json::split_wildcard(raw) else {
+        return super::json::reject_leftover_wildcards(raw, vec![super::json::parse_path(raw)]);
+    };
+
+    let base = super::json::parse_path(base.trim_matches('.'));
+    let remaining = super::json::parse_path(remaining.trim_matches('.'));
+
+    let Some(node) = Node::at(table, &base) else {
+        return Vec::new();
+    };
+
+    let expanded = node
+        .child_segments()
+        .into_iter()
+        .map(|segment| {
+            let mut path = base.clone();
+            path.push(segment);
+            path.extend(remaining.iter().cloned());
+
+            path
+        })
+        .collect();
+
+    super::json::reject_leftover_wildcards(raw, expanded)
+}
+
+fn coerce_value(
+    replacement: &super::ServerConfigurationFileReplacement,
+    value: &str,
+    gate: super::Replacement,
+    existing_is_string: bool,
+) -> Value {
+    let text = match &gate {
+        super::Replacement::Substituted(text) if existing_is_string => {
+            return Value::from(text.as_str());
+        }
+        super::Replacement::Substituted(text) => text.as_str(),
+        super::Replacement::Value => match &replacement.replace_with {
+            serde_json::Value::String(_) => value,
+            other => return json_to_toml_value(other),
+        },
+    };
+
+    text.parse::<Item>()
+        .ok()
+        .and_then(|item| item.into_value().ok())
+        .unwrap_or_else(|| Value::from(text))
 }
 
 fn json_to_toml_value(json: &serde_json::Value) -> Value {
@@ -195,6 +310,20 @@ mod tests {
         }
     }
 
+    fn gated(
+        m: &str,
+        value: serde_json::Value,
+        if_value: &str,
+    ) -> ServerConfigurationFileReplacement {
+        ServerConfigurationFileReplacement {
+            r#match: m.into(),
+            if_value: Some(if_value.into()),
+            insert_new: None,
+            update_existing: true,
+            replace_with: value,
+        }
+    }
+
     fn run(content: &str, replace: Vec<ServerConfigurationFileReplacement>) -> DocumentMut {
         tokio_test::block_on(async {
             let state = crate::routes::AppState::mock();
@@ -270,5 +399,55 @@ mod tests {
 
         let doc = run("", vec![rep("missing", json!("x"), Some(false), true)]);
         assert!(doc.get("missing").is_none());
+    }
+
+    #[test]
+    fn wildcard_updates_every_table_child() {
+        let doc = run(
+            "[servers.a]\nhost = \"0.0.0.0\"\n[servers.b]\nhost = \"0.0.0.0\"\n",
+            vec![rep("servers.*.host", json!("10.0.0.1"), None, true)],
+        );
+        assert_eq!(doc["servers"]["a"]["host"].as_str(), Some("10.0.0.1"));
+        assert_eq!(doc["servers"]["b"]["host"].as_str(), Some("10.0.0.1"));
+    }
+
+    #[test]
+    fn wildcard_over_missing_base_does_nothing() {
+        let doc = run(
+            "keep = 1\n",
+            vec![rep("servers.*.host", json!("x"), None, true)],
+        );
+        assert!(doc.get("servers").is_none());
+    }
+
+    #[test]
+    fn if_value_gates_on_the_existing_value() {
+        let doc = run(
+            "host = \"0.0.0.0\"\nother = \"1.2.3.4\"\n",
+            vec![
+                gated("host", json!("10.0.0.1"), "0.0.0.0"),
+                gated("other", json!("10.0.0.1"), "0.0.0.0"),
+            ],
+        );
+        assert_eq!(doc["host"].as_str(), Some("10.0.0.1"));
+        assert_eq!(doc["other"].as_str(), Some("1.2.3.4"));
+    }
+
+    #[test]
+    fn if_value_compares_integers_without_toml_decor() {
+        let doc = run(
+            "port =  25565\n",
+            vec![gated("port", json!(25566), "25565")],
+        );
+        assert_eq!(doc["port"].as_integer(), Some(25566));
+    }
+
+    #[test]
+    fn regex_if_value_keeps_a_string_leaf_a_string() {
+        let doc = run(
+            "version = \"1.20\"\n",
+            vec![gated("version", json!("2."), r"regex:^1\.")],
+        );
+        assert_eq!(doc["version"].as_str(), Some("2.20"));
     }
 }

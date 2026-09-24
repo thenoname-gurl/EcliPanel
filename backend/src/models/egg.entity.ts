@@ -79,6 +79,19 @@ export class Egg {
   @Column({ default: false })
   rootless: boolean;
 
+  @Column({ type: 'json', nullable: true })
+  startupCpuBoostPreset?: { enabled: boolean; timeout: number };
+
+  @Column({ type: 'json', nullable: true })
+  runtimeCpuBoostPreset?: {
+    enabled: boolean;
+    threshold: number;
+    sustained: number;
+    multiple: number;
+    duration: number;
+    cooldown: number;
+  };
+
   @CreateDateColumn()
   createdAt: Date;
 

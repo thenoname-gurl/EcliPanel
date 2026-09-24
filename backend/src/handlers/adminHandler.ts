@@ -5195,6 +5195,7 @@ export async function adminRoutes(app: any, prefix = '') {
         hibernated,
         autoSyncOnEggChange,
         ignoreAntiAbuse,
+        features,
       } = ctx.body as any;
       const cfgRepo = AppDataSource.getRepository(
         require('../models/serverConfig.entity').ServerConfig
@@ -5306,13 +5307,19 @@ export async function adminRoutes(app: any, prefix = '') {
         }
       }
       if (autoSyncOnEggChange !== undefined) cfg.autoSyncOnEggChange = Boolean(autoSyncOnEggChange);
+      if (features !== undefined) cfg.features = features;
       await cfgRepo.save(cfg);
       const node = await AppDataSource.getRepository(Node).findOneBy({ id: cfg.nodeId });
       if (node) {
         const base = (node as any).backendWingsUrl || node.url;
         const svc = new WingsApiService(base, node.token);
         const syncPayload: any = {};
-        if (threads !== undefined && cfg.threads) syncPayload.build = { threads: cfg.threads };
+        const syncBuild: Record<string, unknown> = {};
+        if (threads !== undefined && cfg.threads) syncBuild.threads = cfg.threads;
+        if (oomDisabled !== undefined) syncBuild.oom_disabled = Boolean(oomDisabled);
+        if (Object.keys(syncBuild).length) syncPayload.build = syncBuild;
+        if (features !== undefined && cfg.features) syncPayload.features = cfg.features;
+        if (dockerImage !== undefined) syncPayload.container = { image: dockerImage };
         await svc.syncServer(serverId, syncPayload).catch(() => { });
       }
       return { success: true, server: cfg };
@@ -5341,6 +5348,7 @@ export async function adminRoutes(app: any, prefix = '') {
           hibernated: t.Optional(t.Boolean()),
           ignoreAntiAbuse: t.Optional(t.Boolean()),
           autoSyncOnEggChange: t.Optional(t.Boolean()),
+          features: t.Optional(t.Any()),
         }),
         response: {
           200: t.Object({ success: t.Boolean(), server: t.Any() }),
@@ -8805,6 +8813,9 @@ export async function adminRoutes(app: any, prefix = '') {
       }
       const featureToggles = await getPanelFeatureToggles();
       const webauthnSettings = await loadWebauthnSettings();
+      const { getStartupCpuBoostDefaults, getRuntimeCpuBoostDefaults } = await import('../services/cpuBoostService');
+      const startupCpuBoost = await getStartupCpuBoostDefaults();
+      const runtimeCpuBoost = await getRuntimeCpuBoostDefaults();
       return {
         registrationEnabled: map['registrationEnabled'] !== 'false',
         registrationNotice: map['registrationNotice'] || '',
@@ -8819,6 +8830,14 @@ export async function adminRoutes(app: any, prefix = '') {
         gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
         featureToggles,
         webauthn: webauthnSettings,
+        cpu_boost_startup_enabled: startupCpuBoost.enabled,
+        cpu_boost_startup_timeout: startupCpuBoost.timeout,
+        cpu_boost_runtime_enabled: runtimeCpuBoost.enabled,
+        cpu_boost_runtime_threshold: runtimeCpuBoost.threshold,
+        cpu_boost_runtime_sustained: runtimeCpuBoost.sustained,
+        cpu_boost_runtime_multiple: runtimeCpuBoost.multiple,
+        cpu_boost_runtime_duration: runtimeCpuBoost.duration,
+        cpu_boost_runtime_cooldown: runtimeCpuBoost.cooldown,
       };
     },
     {
@@ -8838,6 +8857,14 @@ export async function adminRoutes(app: any, prefix = '') {
           gamblingPowerDenyChance: t.Number(),
           featureToggles: t.Record(t.String(), t.Boolean()),
           webauthn: t.Any(),
+          cpu_boost_startup_enabled: t.Boolean(),
+          cpu_boost_startup_timeout: t.Number(),
+          cpu_boost_runtime_enabled: t.Boolean(),
+          cpu_boost_runtime_threshold: t.Number(),
+          cpu_boost_runtime_sustained: t.Number(),
+          cpu_boost_runtime_multiple: t.Number(),
+          cpu_boost_runtime_duration: t.Number(),
+          cpu_boost_runtime_cooldown: t.Number(),
         }),
         401: t.Object({ error: t.String() }),
         403: t.Object({ error: t.String() }),
@@ -8996,6 +9023,25 @@ export async function adminRoutes(app: any, prefix = '') {
       if (body.webauthn !== undefined && typeof body.webauthn === 'object') {
         await repo.save({ key: 'webauthn', value: JSON.stringify(body.webauthn) });
       }
+      {
+        const { setSetting } = await import('../services/cpuBoostService');
+        const mapFlat: Record<string, (v: string) => void> = {};
+        const flatKeys: [string, boolean | number | undefined][] = [
+          ['cpu_boost_startup_enabled', body.cpu_boost_startup_enabled],
+          ['cpu_boost_startup_timeout', body.cpu_boost_startup_timeout],
+          ['cpu_boost_runtime_enabled', body.cpu_boost_runtime_enabled],
+          ['cpu_boost_runtime_threshold', body.cpu_boost_runtime_threshold],
+          ['cpu_boost_runtime_sustained', body.cpu_boost_runtime_sustained],
+          ['cpu_boost_runtime_multiple', body.cpu_boost_runtime_multiple],
+          ['cpu_boost_runtime_duration', body.cpu_boost_runtime_duration],
+          ['cpu_boost_runtime_cooldown', body.cpu_boost_runtime_cooldown],
+        ];
+        for (const [flat, value] of flatKeys) {
+          if (value === undefined || value === null) continue;
+          const dotted = flat.replace('cpu_boost_', 'cpu_boost.');
+          await setSetting(dotted, String(value));
+        }
+      }
       const rows = await repo.find();
       const map = parsePanelSettingsMap(rows);
       const gamblingConfig = getGamblingConfigFromMap(map);
@@ -9007,6 +9053,9 @@ export async function adminRoutes(app: any, prefix = '') {
       }
       const featureToggles = await getPanelFeatureToggles();
       const webauthnSettings = await loadWebauthnSettings();
+      const { getStartupCpuBoostDefaults, getRuntimeCpuBoostDefaults } = await import('../services/cpuBoostService');
+      const startupCpuBoost = await getStartupCpuBoostDefaults();
+      const runtimeCpuBoost = await getRuntimeCpuBoostDefaults();
       return {
         success: true,
         settings: {
@@ -9023,6 +9072,14 @@ export async function adminRoutes(app: any, prefix = '') {
           gamblingPowerDenyChance: gamblingConfig.gamblingPowerDenyChance,
           featureToggles,
           webauthn: webauthnSettings,
+          cpu_boost_startup_enabled: startupCpuBoost.enabled,
+          cpu_boost_startup_timeout: startupCpuBoost.timeout,
+          cpu_boost_runtime_enabled: runtimeCpuBoost.enabled,
+          cpu_boost_runtime_threshold: runtimeCpuBoost.threshold,
+          cpu_boost_runtime_sustained: runtimeCpuBoost.sustained,
+          cpu_boost_runtime_multiple: runtimeCpuBoost.multiple,
+          cpu_boost_runtime_duration: runtimeCpuBoost.duration,
+          cpu_boost_runtime_cooldown: runtimeCpuBoost.cooldown,
         },
       };
     },
@@ -9042,6 +9099,14 @@ export async function adminRoutes(app: any, prefix = '') {
           gamblingPowerDenyChance: t.Optional(t.Number()),
           featureToggles: t.Optional(t.Record(t.String(), t.Boolean())),
           webauthn: t.Optional(t.Any()),
+          cpu_boost_startup_enabled: t.Optional(t.Boolean()),
+          cpu_boost_startup_timeout: t.Optional(t.Number()),
+          cpu_boost_runtime_enabled: t.Optional(t.Boolean()),
+          cpu_boost_runtime_threshold: t.Optional(t.Number()),
+          cpu_boost_runtime_sustained: t.Optional(t.Number()),
+          cpu_boost_runtime_multiple: t.Optional(t.Number()),
+          cpu_boost_runtime_duration: t.Optional(t.Number()),
+          cpu_boost_runtime_cooldown: t.Optional(t.Number()),
         }),
         response: {
           200: t.Object({ success: t.Boolean(), settings: t.Any() }),

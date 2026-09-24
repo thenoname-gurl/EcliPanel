@@ -1,3 +1,4 @@
+"use client"
 import type { Metadata } from "next";
 import { ContributorClient } from "./ContributorClient";
 import {

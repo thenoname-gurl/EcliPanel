@@ -155,6 +155,12 @@ export class ServerConfig {
   @Column('json', { nullable: true })
   processConfig?: Record<string, any>;
 
+  @Column('json', { nullable: true })
+  firewallRules?: Record<string, any>[];
+
+  @Column('json', { nullable: true })
+  features?: Record<string, any>;
+
   @Index()
   @Column({ nullable: true, type: 'datetime' })
   lastActivityAt?: Date;

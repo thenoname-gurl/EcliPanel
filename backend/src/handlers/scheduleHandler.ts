@@ -39,7 +39,7 @@ function validateTriggers(triggers: unknown): string | null {
   for (const tr of triggers) {
     if (!tr || typeof tr !== 'object') return 'Invalid trigger';
     const type = (tr as any).type;
-    const valid = ['cron','power_action','server_state','backup_status','schedule_completion','resource_usage','resource_usage_over_time','console_line','crash'];
+    const valid = ['cron','power_action','server_state','backup_status','database_backup_status','schedule_completion','resource_usage','resource_usage_over_time','console_line','crash'];
     if (!valid.includes(type)) return `Invalid trigger type: ${type}`;
   }
   return null;
@@ -80,6 +80,18 @@ function validateAction(action: unknown): string | null {
     const timeout = Number(a.timeout);
     if (!Number.isFinite(timeout) || timeout < 1 || timeout > 60_000) return 'http_request timeout must be between 1 and 60000 ms';
     if (a.headers !== undefined && !Array.isArray(a.headers)) return 'http_request headers must be an array';
+  }
+  if (a.type === 'pull_file') {
+    if (typeof a.url !== 'string' && typeof a.url !== 'object') return 'pull_file url is required';
+    if (a.url && typeof a.url === 'string' && !/^https?:\/\//i.test(a.url)) return 'pull_file url must be a valid http(s) url';
+  }
+  if (a.type === 'create_database_backup') {
+    if (typeof a.database_instance_uuid !== 'string' || !a.database_instance_uuid) return 'create_database_backup requires database_instance_uuid';
+  }
+  if (a.type === 'delete_database_backup' || a.type === 'move_database_backup' || a.type === 'restore_database_backup') {
+    if (!a.backup || typeof a.backup !== 'object') return `${a.type} requires a backup selector (mode + identifier)`;
+    const mode = a.backup.mode;
+    if (!['latest','oldest','uuid','name'].includes(mode)) return `${a.type} has invalid backup selector mode`;
   }
   return null;
 }

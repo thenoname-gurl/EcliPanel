@@ -30,6 +30,7 @@ const VALID_PERMISSIONS = [
   'mounts',
   'file-sharing',
   'power',
+  'tunnel',
 ];
 
 // shared types moved to backend/src/types/request.ts
