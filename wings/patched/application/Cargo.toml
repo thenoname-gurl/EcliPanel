@@ -48,7 +48,7 @@ bytes = { workspace = true }
 ignore = "0.4.23"
 sha1 = "0.11.0"
 futures = { workspace = true }
-russh = "0.63.1"
+russh = "0.64.1"
 russh-sftp = "2.1.1"
 md5 = "0.8.0"
 human_bytes = "0.4.3"
